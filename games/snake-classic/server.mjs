@@ -53,7 +53,8 @@ async function handleApi(req, res) {
     return true;
   }
 
-  if (req.url !== '/api/leaderboard') return false;
+  const apiPath = (req.url || '').split('?')[0];
+  if (apiPath !== '/api/leaderboard' && apiPath !== '/api/leaderboard/') return false;
 
   if (req.method === 'GET') {
     const entries = await readLeaderboard();
@@ -127,6 +128,7 @@ async function handleStatic(req, res) {
     res.writeHead(200, { 'Content-Type': contentType });
     res.end(content);
   } catch {
+    console.warn('404', req.url);
     sendJson(res, 404, { error: 'Not found' });
   }
 }
