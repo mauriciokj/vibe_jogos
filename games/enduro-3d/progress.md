@@ -1,0 +1,41 @@
+Original prompt: Criar um clone 3D low-poly retrô do Enduro (Atari) com Three.js puro em módulos (main.js, Game.js, Road.js, PlayerCar.js, AICar.js, Spawner.js, Collision.js, Phases.js, HUD.js, Audio.js), start screen, pseudo-3D de estrada, controles esquerda/direita, AI por classes, ultrapassagem, colisão com stun, fases DAY/NIGHT/FOG/SNOW, HUD DOM, áudio retrô e pooling/performance.
+
+- Projeto Enduro movido para subpasta isolada `enduro-3d/`, mantendo o Snake na raiz como solicitado.
+- Todos os módulos do Enduro copiados para `enduro-3d/` com `index.html`, `main.js` e `style.css` próprios.
+- Próximo passo: validar execução em servidor local e rodar Playwright client da skill para capturar screenshot/estado.
+- Validação Playwright concluída com sucesso em `enduro-3d/` (4 iterações, sem erros de console/pageerror).
+- Capturas e estado gerados em `enduro-3d/output/web-game/`; screenshot confirma estrada, HUD e carros AI visíveis em gameplay.
+- Feedback aplicado: jogo mais rápido e menos fácil.
+- Controles novos: acelera (`ArrowUp`/`W`) e freia (`ArrowDown`/`S`) com velocidade variável/inércia.
+- HUD atualizado com indicador `SPEED`.
+- Rebalance de dificuldade: spawn mais agressivo, maior chance de carros rápidos, metas maiores e dias mais curtos, colisão mais punitiva.
+- Validação Playwright concluída em `output/web-game-speed/` sem `errors-*.json`; estados confirmam `speedKmh` e redução de `carsLeft` mais rápida.
+- Novo recurso: pausa com tecla `P` (estado `PAUSED`) com congelamento de tempo/spawn/movimento e retomada no segundo `P`.
+- Novo HUD: contador `TIME` mostrando tempo restante do ciclo do dia em mm:ss.
+- Fase NIGHT reformulada para estilo "só luzes": pista e carrocerias ocultas; ficam visíveis somente faróis/lanternas dos carros.
+- Implementado suporte de night mode em `PlayerCar`, `AICar`, `Spawner` e `Road`.
+- Validação: Playwright + script direto com Playwright confirmou pausa real (`dayTimeLeft` e posições idênticas em dois snapshots pausados) e retomada normal.
+- Ajuste de faróis: feixe NIGHT reforçado (SpotLight mais forte/aberto) no player e AIs.
+- Corrigida orientação dos faróis AI para apontar para a pista no sentido correto visual.
+- Screenshot manual salvo em `enduro-3d/output/manual/night-beam.png` com fase NIGHT confirmada.
+- Versionamento visual implementado no canto inferior direito via `#version`.
+- Versão atual definida em `Game.js` como `v0.6.0` e exibida pelo HUD.
+- Combinado: a cada novo pedido de melhoria/correção/feature, a versão será incrementada.
+- Especificação clássica de ciclo/dificuldade documentada em `enduro-3d/balance/enduro_classic_difficulty_spec.md` para guiar calibração incremental.
+- Versão incrementada para `v0.6.1` (mudança de documentação/versionamento).
+- Implementado ciclo clássico contínuo (sem pausa entre fases) via scheduler em `Phases.js` com segmentos: DAY -> SNOW -> DAY -> DUSK -> NIGHT -> NIGHT_FOG -> PRE_DAWN.
+- Reset da meta de carros agora acontece apenas ao final do ciclo completo do dia.
+- Metas por dia implementadas: 200 / 300 / 300 / 300 / 300 / 350 / 350 / 350 / 400 / 500.
+- Modificadores por dia implementados: +tráfego (dia >=3 e >=7), segmentos mais curtos (dia >=5), velocidade base maior (dia >=8).
+- Conclusão antecipada implementada: ao bater meta antes do fim do ciclo, HUD troca para flags e espera fechar o ciclo para iniciar próximo dia.
+- `render_game_to_text` expandido com telemetria de balanceamento (target/overtaken/phase/day timers/scalars).
+- `window.__game_instance` exposto para testes automatizados e depuração controlada.
+- Versão incrementada para `v0.7.0`.
+- Ajuste de balanceamento solicitado após teste: aumento global da duração de todas as fases do ciclo (impacta todos os dias).
+- Segmentos base ampliados em `Phases.js` e compressão de dia 5+ suavizada (0.9).
+- Versão incrementada para `v0.7.1` e decisão registrada em `balance/enduro_classic_difficulty_spec.md`.
+- v0.7.2: aumento adicional global do tempo de cada fase do ciclo para mais margem de ultrapassagem.
+- v0.7.3: ciclo do dia aumentado em ~30s no total (redistribuído entre todas as fases).
+- v0.7.4: primeira fase (DAY inicial do ciclo) ajustada para 120s para facilitar início dos jogadores.
+- v0.7.5: correção de interpretação: ciclo total do dia fixado em 120s (2 minutos), distribuído entre todas as fases.
+- v0.7.6: repo reorganizado para monorepo (`/games/*`) com landing page no root; sem mudanças de balanceamento.

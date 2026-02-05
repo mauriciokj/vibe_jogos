@@ -1,0 +1,1 @@
+{"mode":"PLAYING","coordinateSystem":"x: left(-) to right(+), z: forward is negative, cars approach toward positive z","phase":"NIGHT","day":2,"carsLeft":22,"dayTimeLeft":39.84,"player":{"x":8.02,"z":3,"stun":0,"edgePenalty":0.45,"speedNorm":0.95,"speedKmh":169},"aiCars":[{"type":"yellow","x":-4.32,"z":-82.85},{"type":"green","x":2.81,"z":-207.44}]}

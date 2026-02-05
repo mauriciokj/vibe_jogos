@@ -1,0 +1,87 @@
+:root {
+  --bg: #0b0f1f;
+  --bg-2: #12183a;
+  --card: rgba(12, 16, 32, 0.7);
+  --text: #e6ebff;
+  --muted: #b2b9d9;
+  --accent: #67f2a7;
+  --border: rgba(255, 255, 255, 0.1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Courier New", Courier, monospace;
+  background: radial-gradient(circle at 30% 20%, #202b5a 0%, var(--bg) 55%);
+  color: var(--text);
+}
+
+.shell {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 48px 20px 60px;
+}
+
+.hero h1 {
+  margin: 0 0 8px;
+  font-size: clamp(32px, 5vw, 54px);
+  letter-spacing: 2px;
+}
+
+.hero p {
+  margin: 0 0 32px;
+  color: var(--muted);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 18px;
+}
+
+.card {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  text-decoration: none;
+  color: inherit;
+  transition: transform 120ms ease, border-color 120ms ease;
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(103, 242, 167, 0.5);
+}
+
+.card h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.pill {
+  justify-self: start;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(103, 242, 167, 0.45);
+  color: var(--accent);
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+
+.footer {
+  margin-top: 32px;
+  color: var(--muted);
+  font-size: 13px;
+}

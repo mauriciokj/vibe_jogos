@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Enduro 3D Retro</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <div id="hud" class="hud">
+      <div class="hud-top">
+        <div id="cars-left" class="hud-box">CARS LEFT: 0</div>
+        <div id="phase" class="hud-box">PHASE: DAY</div>
+      </div>
+      <div id="day" class="hud-day">DAY 1</div>
+
+      <div id="start-screen" class="start-screen">
+        <h1>ENDURO</h1>
+        <p>PRESS START</p>
+        <small>Enter / Space / Click</small>
+      </div>
+
+      <div id="message" class="message hidden"></div>
+      <div id="flash" class="flash"></div>
+    </div>
+
+    <script type="module" src="main.js"></script>
+  </body>
+</html>

@@ -1,0 +1,124 @@
+:root {
+  --bg: #04070f;
+  --hud: #f3f5ff;
+  --accent: #ffd94a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 20%, #0d1635 0%, var(--bg) 60%);
+  color: var(--hud);
+  font-family: "Courier New", Courier, monospace;
+}
+
+#app,
+canvas {
+  width: 100vw;
+  height: 100vh;
+  display: block;
+}
+
+.hud {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+}
+
+.hud-top {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.hud-box {
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  padding: 6px 10px;
+  font-size: 14px;
+  text-shadow: 0 0 6px rgba(255, 255, 255, 0.35);
+}
+
+.hud-day {
+  position: absolute;
+  top: 48px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 16px;
+  letter-spacing: 1px;
+}
+
+.start-screen {
+  pointer-events: auto;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.45);
+  transition: opacity 500ms ease;
+}
+
+.start-screen.hidden {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.start-screen h1 {
+  margin: 0;
+  font-size: clamp(46px, 9vw, 112px);
+  color: var(--accent);
+  letter-spacing: 4px;
+  text-shadow: 0 0 16px rgba(255, 190, 80, 0.55);
+}
+
+.start-screen p {
+  margin: 0;
+  font-size: clamp(18px, 3vw, 34px);
+  animation: blink 0.9s steps(2, end) infinite;
+}
+
+.message {
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  padding: 10px 16px;
+  font-size: 26px;
+  letter-spacing: 2px;
+  text-align: center;
+}
+
+.hidden {
+  display: none;
+}
+
+.flash {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  opacity: 0;
+  transition: opacity 100ms ease;
+}
+
+.flash.active {
+  opacity: 0.4;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0.35;
+  }
+}
