@@ -1,3 +1,19 @@
+function unquoteEnv(value) {
+  if (typeof value !== 'string') return value;
+  const trimmed = value.trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1);
+  }
+  return trimmed;
+}
+
+process.env.KV_REST_API_URL = unquoteEnv(process.env.KV_REST_API_URL || '');
+process.env.KV_REST_API_TOKEN = unquoteEnv(process.env.KV_REST_API_TOKEN || '');
+process.env.KV_REST_API_READ_ONLY_TOKEN = unquoteEnv(process.env.KV_REST_API_READ_ONLY_TOKEN || '');
+
 const { kv } = require('@vercel/kv');
 
 const KEY = 'snake:leaderboard';
@@ -41,6 +57,14 @@ function sendJson(res, statusCode, payload) {
   res.end(JSON.stringify(payload));
 }
 
+function getKvConfigStatus() {
+  return {
+    hasUrl: Boolean(process.env.KV_REST_API_URL),
+    hasToken: Boolean(process.env.KV_REST_API_TOKEN),
+    hasReadOnlyToken: Boolean(process.env.KV_REST_API_READ_ONLY_TOKEN),
+  };
+}
+
 async function parseBody(req) {
   if (req.body && typeof req.body === 'object') return req.body;
 
@@ -64,7 +88,11 @@ module.exports = async (req, res) => {
       const entries = sortEntries(await readEntries()).slice(0, MAX_ENTRIES);
       sendJson(res, 200, { entries });
     } catch (error) {
-      sendJson(res, 500, { error: 'KV error' });
+      sendJson(res, 500, {
+        error: 'KV error',
+        details: error && error.message ? error.message : 'unknown',
+        env: getKvConfigStatus(),
+      });
     }
     return;
   }
@@ -85,7 +113,11 @@ module.exports = async (req, res) => {
       );
       sendJson(res, 200, { entries: next, position: position >= 0 ? position + 1 : null });
     } catch (error) {
-      sendJson(res, 400, { error: 'Invalid payload' });
+      sendJson(res, 400, {
+        error: 'Invalid payload or KV error',
+        details: error && error.message ? error.message : 'unknown',
+        env: getKvConfigStatus(),
+      });
     }
     return;
   }
