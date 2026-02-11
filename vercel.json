@@ -1,4 +1,19 @@
 {
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Frame-Options",
+          "value": ""
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "frame-ancestors 'self' https://fir-d4471.web.app https://flowofdevelopment.com"
+        }
+      ]
+    }
+  ],
   "cleanUrls": true,
   "trailingSlash": true
 }
