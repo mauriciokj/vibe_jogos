@@ -18,5 +18,6 @@ Original prompt: Build a classic Snake game in this repo.
 - Sombra Escala validado com cliente Playwright via `file://` (ambiente recusou localhost durante os testes).
 - Artefatos salvos em `output/web-game/sombra-escala` e `output/web-game/sombra-escala-shift`.
 - Sombra Escala recebeu rework de design e mecanica para o conceito de sombras projetadas com exposicao letal e bonus por faiscas.
+- Ajuste adicional no Sombra Escala: retorno para visual escuro e correção de perda instantanea ao iniciar.
 - Versao Phaser recebeu polimento (particulas, squash/stretch e audio procedural).
 - Phaser: adicionado pickup de escudo com invulnerabilidade de 10s ou consumo no primeiro impacto.

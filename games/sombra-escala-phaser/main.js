@@ -4,9 +4,9 @@
 
   const GROUND_Y = HEIGHT - 84;
   const PLAYER_RADIUS = 12;
-  const PLAYER_MOVE_SPEED = 180;
-  const PLAYER_JUMP_SPEED = 430;
-  const GRAVITY = 980;
+  const PLAYER_MOVE_SPEED = 220;
+  const PLAYER_JUMP_SPEED = 500;
+  const GRAVITY = 920;
   const EXPOSE_LIMIT = 0.5;
 
   class SombraEscalaScene extends Phaser.Scene {
@@ -66,7 +66,7 @@
     setupUi() {
       const font = {
         fontFamily: 'Trebuchet MS, Segoe UI, sans-serif',
-        color: '#121212',
+        color: '#eaf4ff',
       };
 
       this.ui.hudAlt = this.add.text(14, 12, '', { ...font, fontSize: '26px', fontStyle: '700' });
@@ -159,6 +159,7 @@
       };
 
       this.seedStartPlatforms();
+      this.placePlayerOnStartShadow();
       this.renderFrame();
     }
 
@@ -182,7 +183,7 @@
       this.state.player.vx = 0;
       this.state.player.vy = 0;
       this.state.player.onShadow = true;
-      this.state.player.shadowId = null;
+      this.state.player.shadowId = 'start';
 
       this.state.shadows = [];
       this.state.sparks = [];
@@ -190,7 +191,20 @@
       this.state.nextSparkY = GROUND_Y - 150;
 
       this.seedStartPlatforms();
+      this.placePlayerOnStartShadow();
       this.ensureWorld();
+    }
+
+    placePlayerOnStartShadow() {
+      const startShadow = this.state.shadows.find((shadow) => shadow.id === 'start');
+      if (!startShadow) return;
+      const top = startShadow.y - startShadow.thickness * 0.5;
+      this.state.player.x = startShadow.baseX;
+      this.state.player.y = top - PLAYER_RADIUS;
+      this.state.player.vx = 0;
+      this.state.player.vy = 0;
+      this.state.player.onShadow = true;
+      this.state.player.shadowId = 'start';
     }
 
     seededRandom() {
@@ -521,19 +535,22 @@
     }
 
     drawBackground() {
-      this.g.fillStyle(0xf4f4f4, 1);
+      this.g.fillStyle(0x071526, 1);
       this.g.fillRect(0, 0, WIDTH, HEIGHT);
 
       for (let i = 0; i < 12; i += 1) {
         const y = (i * 72 - (this.state.cameraY * 0.3) % 72) % HEIGHT;
-        this.g.fillStyle(0xdddddd, 1);
+        this.g.fillStyle(0x13304d, 0.9);
         this.g.fillRect(0, y, WIDTH, 1);
       }
 
-      this.g.fillStyle(0xf0e7c7, 1);
-      this.g.fillCircle(48, 54, 28);
-      this.g.fillStyle(0xe2d7af, 1);
-      this.g.fillCircle(48, 54, 12);
+      this.g.fillStyle(0xf9d78b, 0.95);
+      this.g.fillCircle(52, 52, 24);
+      this.g.fillStyle(0xffefc6, 0.9);
+      this.g.fillCircle(52, 52, 10);
+
+      this.g.fillStyle(0xf3d28c, 0.14);
+      this.g.fillTriangle(-30, -20, 120, -20, WIDTH * 0.5, HEIGHT + 30);
     }
 
     drawCastersAndShadows() {
@@ -544,21 +561,21 @@
 
         const casterY = sy - 122;
         if (shadow.type === 'beam') {
-          this.g.fillStyle(0x4a4a4a, 1);
+          this.g.fillStyle(0x7aa2c8, 0.7);
           this.g.fillRect(sx - 30, casterY - 8, 60, 16);
         } else if (shadow.type === 'pendulum') {
-          this.g.lineStyle(3, 0x4a4a4a, 1);
+          this.g.lineStyle(3, 0x88b8e0, 0.75);
           this.g.beginPath();
           this.g.moveTo(sx, casterY - 34);
           this.g.lineTo(sx, casterY + 14);
           this.g.strokePath();
           this.g.lineStyle();
-          this.g.fillStyle(0x4a4a4a, 1);
+          this.g.fillStyle(0x7aa2c8, 0.75);
           this.g.fillCircle(sx, casterY + 22, 14);
         } else {
-          this.g.fillStyle(0x4a4a4a, 1);
+          this.g.fillStyle(0x7aa2c8, 0.75);
           this.g.fillCircle(sx, casterY + 4, 17);
-          this.g.lineStyle(2, 0xf4f4f4, 1);
+          this.g.lineStyle(2, 0xd8ecff, 0.8);
           for (let i = 0; i < 8; i += 1) {
             const a = this.state.time * 4 + (Math.PI * 2 * i) / 8;
             this.g.beginPath();
@@ -569,7 +586,7 @@
           this.g.lineStyle();
         }
 
-        this.g.fillStyle(0x050505, 1);
+        this.g.fillStyle(0x03080e, 1);
         this.g.fillRoundedRect(
           sx - shadow.width * 0.5,
           sy - shadow.thickness * 0.5,
@@ -587,9 +604,9 @@
         const y = spark.y - this.state.cameraY;
         if (y < -40 || y > HEIGHT + 40) continue;
 
-        this.g.fillStyle(0x111111, 1);
+        this.g.fillStyle(0xf8f0b6, 0.95);
         this.g.fillCircle(x, y, 6);
-        this.g.lineStyle(2, 0x111111, 1);
+        this.g.lineStyle(2, 0xf8f0b6, 0.95);
         this.g.beginPath();
         this.g.moveTo(x - 11, y);
         this.g.lineTo(x + 11, y);
@@ -606,20 +623,20 @@
       const x = this.state.player.x;
       const y = this.state.player.y - this.state.cameraY;
 
-      this.g.fillStyle(0x000000, 1);
+      this.g.fillStyle(0xe6f2ff, 1);
       this.g.fillCircle(x, y, PLAYER_RADIUS);
-      this.g.fillStyle(0xffffff, 0.5);
+      this.g.fillStyle(0x203a5a, 0.7);
       this.g.fillCircle(x - 3, y - 4, 2.3);
     }
 
     drawHud() {
-      this.g.fillStyle(0xffffff, 0.86);
+      this.g.fillStyle(0x051221, 0.76);
       this.g.fillRect(8, 8, WIDTH - 16, 68);
 
       const exposureRatio = Phaser.Math.Clamp(this.state.exposure / EXPOSE_LIMIT, 0, 1);
-      this.g.fillStyle(0x888888, 1);
+      this.g.fillStyle(0x284661, 1);
       this.g.fillRect(WIDTH - 186, 58, 164, 9);
-      this.g.fillStyle(0x111111, 1);
+      this.g.fillStyle(0xffc66b, 1);
       this.g.fillRect(WIDTH - 186, 58, 164 * exposureRatio, 9);
 
       const multText = this.state.multiplier.toFixed(1);
@@ -630,19 +647,19 @@
     }
 
     drawMenuOverlay() {
-      this.g.fillStyle(0xffffff, 0.84);
+      this.g.fillStyle(0x041120, 0.8);
       this.g.fillRoundedRect(24, 164, WIDTH - 48, 348, 22);
-      this.g.lineStyle(2, 0x111111, 0.25);
+      this.g.lineStyle(2, 0x77a8d4, 0.45);
       this.g.strokeRoundedRect(24, 164, WIDTH - 48, 348, 22);
       this.g.lineStyle();
     }
 
     drawGameOverOverlay() {
-      this.g.fillStyle(0xffffff, 0.88);
+      this.g.fillStyle(0x030a12, 0.74);
       this.g.fillRect(0, 0, WIDTH, HEIGHT);
-      this.g.fillStyle(0x111111, 1);
+      this.g.fillStyle(0x071a2d, 1);
       this.g.fillRoundedRect(28, 220, WIDTH - 56, 290, 18);
-      this.g.fillStyle(0xf4f4f4, 1);
+      this.g.fillStyle(0xe8f4ff, 1);
       this.g.fillRoundedRect(32, 224, WIDTH - 64, 282, 16);
     }
 

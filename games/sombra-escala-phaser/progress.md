@@ -28,3 +28,10 @@ Mecânica Central (Core Loop): Espere o timing do objeto, pule na sombra e suba 
   - sistema de andares alvo (500m, 1000m...) e desbloqueio progressivo de tipos
 - Legibilidade do menu melhorada (tipografia menor + caixa de alto contraste).
 - Inicio ajustado com plataformas tutorial para reduzir aleatoriedade nos primeiros saltos.
+- Ajuste de estabilidade no spawn: jogador agora inicia exatamente sobre a sombra `start`, evitando perda instantanea ao pressionar Enter.
+- Visual revertido para paleta escura (fundo, HUD e overlay) mantendo legibilidade do menu.
+- Retune de controle para ficar mais jogavel:
+  - movimento horizontal aumentado
+  - pulo mais alto
+  - gravidade ligeiramente reduzida
+- Validacao de estabilidade: cenario Enter + espera manteve `mode=playing` e `onShadow=true` sem game over imediato.
