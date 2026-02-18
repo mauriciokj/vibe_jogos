@@ -5,3 +5,18 @@ Original prompt: Build a classic Snake game in this repo.
 - README do Snake atualizado com passos de deploy e KV.
 - README atualizado para Upstash Redis (Marketplace) e variáveis necessárias.
 - Adicionado `.env.example` com chaves do KV/Upstash.
+- Novo jogo iniciado em `games/cacto-escalador` com prototipo de escalada infinita e mecanica de espinhos por contato.
+- Cacto Escalador: prototipo validado com Playwright (troca de lado, game over por contato prolongado, reinicio).
+- Cacto Escalador recebeu aumento de dificuldade, novos obstaculos (spike/shard/rotor) e pickups de bonus/freio.
+- Cacto Escalador: adicionado pickup de turbo para aumentar velocidade temporariamente e barra Turbo no HUD.
+- Iniciada versao Phaser em `games/cacto-escalador-phaser` preservando o jogo vanilla existente.
+- Criada versao Phaser em `games/cacto-escalador-phaser` com validacao Playwright (estado + screenshot).
+- Novo jogo Phaser criado em `games/sombra-escala-phaser` com conceito de escalar sombras em movimento.
+- Core loop implementado: movimentacao apenas sobre sombra, salto entre silhuetas e troca periodica de luz apagando caminhos.
+- Hooks de automacao adicionados no novo jogo: `window.render_game_to_text` e `window.advanceTime(ms)`.
+- Link do novo jogo adicionado ao `index.html` raiz.
+- Sombra Escala validado com cliente Playwright via `file://` (ambiente recusou localhost durante os testes).
+- Artefatos salvos em `output/web-game/sombra-escala` e `output/web-game/sombra-escala-shift`.
+- Sombra Escala recebeu rework de design e mecanica para o conceito de sombras projetadas com exposicao letal e bonus por faiscas.
+- Versao Phaser recebeu polimento (particulas, squash/stretch e audio procedural).
+- Phaser: adicionado pickup de escudo com invulnerabilidade de 10s ou consumo no primeiro impacto.

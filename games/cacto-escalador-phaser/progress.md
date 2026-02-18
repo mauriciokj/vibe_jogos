@@ -1,0 +1,39 @@
+Original prompt: crie uma versao desse jogo usando o framework Phaser
+
+- Criada nova subpasta `games/cacto-escalador-phaser` para preservar a versao vanilla.
+- Estrutura inicial criada: `index.html`, `style.css`, `main.js`.
+- Implementado prototipo jogavel em Phaser com mecanicas do Cacto Escalador:
+  - troca de lado ancorada na parede
+  - obstaculos variados (spike, shard, rotor)
+  - pickups (flower, dew, boost)
+  - dificuldade progressiva
+  - game over por contato prolongado
+- Hooks de automacao adicionados:
+  - window.render_game_to_text
+  - window.advanceTime(ms)
+- Controles: A/D, setas, espaco, Enter, F.
+- Ajuste de runtime: desenho da gota (dew) refeito para API do Phaser Graphics sem `bezierCurveTo`.
+- Validacao Playwright concluida em http://127.0.0.1:4173/games/cacto-escalador-phaser/.
+- Artefatos de validacao salvos:
+  - /output/web-game/state-phaser-single.json
+  - /output/web-game/shot-phaser-single.png
+  - /output/web-game/state-phaser-playing.json
+  - /output/web-game/shot-phaser-playing.png
+- Estado jogavel confirmado com mode=playing, troca de lado, obstaculos e pickups visiveis.
+- Polimento Phaser implementado:
+  - particulas para troca de lado, pickups, contato e quebra dos espinhos.
+  - squash & stretch no cacto em dash lateral, coleta e impacto.
+  - audio procedural (WebAudio) para troca, coleta, freio, turbo e queda.
+- Estado textual ampliado com `effects.particles`.
+- Validacao Playwright apos polimento:
+  - gameplay ativo confirmado em `state-phaser-polish-playing.json` (`mode=playing`, `effects.particles>0`).
+  - screenshot validada em `shot-phaser-polish-playing.png`.
+- Novo pickup `shield` (escudo) implementado:
+  - ao coletar: `invulnerableTimer = 10s`.
+  - expira por tempo ou ao primeiro impacto com obstaculo.
+  - impacto com escudo ativo consome escudo e bloqueia dano acumulado naquele contato.
+- HUD atualizado com barra/label `Escudo`.
+- `render_game_to_text` inclui `climb.invulnerableTimer`.
+- Validacao Playwright:
+  - spawn do pickup `shield` confirmado em estados salvos.
+  - screenshot de gameplay com HUD de escudo: `shot-phaser-shield-visible.png`.

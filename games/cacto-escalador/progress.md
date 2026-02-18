@@ -1,0 +1,47 @@
+Original prompt: Crie uma nova subpasta de jogo e inicie a criacao do jogo Cacto Escalador.
+
+- Estrutura inicial criada: index.html, style.css, main.js.
+- Implementado prototipo jogavel com mecanica central:
+  - alternancia de lado (A/D, setas ou espaco)
+  - subida infinita com geracao procedural de obstaculos
+  - contador de contato prolongado que quebra espinhos e causa queda
+- Hooks de teste adicionados: window.render_game_to_text e window.advanceTime(ms).
+- Teclas: Enter (iniciar/reiniciar), F (fullscreen).
+- Pendente: validar tuning de dificuldade e feedback visual de colisao em teste automatizado.
+- Teste Playwright inicial executado com troca de lado e subida continua.
+- Ajuste de infra: criado favicon.ico na raiz para eliminar 404 de recurso ausente nos testes.
+- Tuning: maxContact reduzido para 0.5s para tornar a quebra de espinhos atingivel em runtime.
+- Validacao Playwright:
+  - cenarios de troca de lado e subida infinita OK
+  - cenario de contato prolongado chegando a gameover OK
+  - reinicio por Enter e retorno ao estado playing OK
+- Observacao: `errors-0.json` no diretorio de output nao e atualizado pelo cliente em toda execucao; timestamps atuais nao mostram novos erros de console.
+- TODO: calibrar curva de dificuldade (gap e velocidade) e adicionar telemetria de recorde local.
+- Ajuste de dificuldade e controle (feedback usuario):
+  - regeneracao do dano de contato reduzida (0.12/s), tornando derrota mais consistente.
+  - troca de lado permitida apenas quando cacto esta ancorado na parede atual.
+  - deslocamento lateral refeito para velocidade constante (switchSpeed=760), sem desaceleracao no fim.
+- Validacao automatizada:
+  - `state-switching.json`: troca em andamento com `isSwitching=true` e `vx=760`.
+  - `state-gameover.json`: derrota confirmada com `contact.seconds=0.5` e `mode=gameover`.
+- Expansao de gameplay para aumentar interesse e dificuldade:
+  - dificuldade progressiva por altura (mais aceleracao e menor espacamento entre obstaculos).
+  - novos obstaculos: `spike`, `shard` e `rotor` (com pulsacao de risco).
+  - pickups: `flower` (+40 score bonus) e `dew` (reduz velocidade de subida por tempo limitado).
+  - HUD atualizado com barra de efeito `Freio` e score total incluindo bonus.
+  - estado textual ampliado com: bonusScore, currentSpeed, slowTimer, difficulty, pickups visiveis e tipos de obstaculo.
+- Testes executados com Playwright:
+  - gameplay ativo com obstaculos + pickups visiveis e efeito de freio ativo.
+  - game over por contato prolongado continua funcionando.
+- Artefatos de validacao:
+  - /output/web-game/state-active-new.json
+  - /output/web-game/shot-active-new.png
+  - /output/web-game/state-0.json e state-1.json (cenarios de maior risco)
+- Novo eixo de aceleracao adicionado:
+  - pickup `boost` (raio laranja) ativa `fastTimer` e eleva `currentSpeed`.
+  - `getCurrentClimbSpeed` agora combina `slowTimer` (freio) e `fastTimer` (turbo).
+  - HUD ganhou barra `Turbo` e legenda de menu atualizada.
+  - `render_game_to_text` agora inclui `fastTimer`.
+- Validacao Playwright:
+  - estados com `fastTimer > 0` e `currentSpeed > baseSpeed` confirmados.
+  - pickup `boost` apareceu em estados visiveis (`type: boost`).
