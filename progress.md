@@ -30,3 +30,5 @@ Original prompt: Build a classic Snake game in this repo.
 - Domínios de produção da Vercel registrados em `DEPLOYMENT.md`; publicação vinculada ao push da branch `main`.
 - Vercel Web Analytics integrado ao catálogo e a todas as páginas HTML dos jogos por meio de `/_vercel/insights/script.js`.
 - Analytics validado localmente nas oito páginas com o cliente Playwright; catálogo e jogos renderizaram sem regressões visuais. Os únicos 404 observados são preexistentes no leaderboard local do Snake e na página de backup `legacy-root`.
+- Deploy de produção do Analytics verificado em `https://vibe-jogos.vercel.app/`: endpoint da Vercel respondeu 200 e as sete páginas públicas passaram no Playwright sem erros de console.
+- Sugestão: acumular cerca de 30 dias de tráfego antes de decidir formatos e posições de anúncios.
