@@ -21,3 +21,10 @@ Original prompt: Build a classic Snake game in this repo.
 - Ajuste adicional no Sombra Escala: retorno para visual escuro e correção de perda instantanea ao iniciar.
 - Versao Phaser recebeu polimento (particulas, squash/stretch e audio procedural).
 - Phaser: adicionado pickup de escudo com invulnerabilidade de 10s ou consumo no primeiro impacto.
+- Novo jogo iniciado em `games/river-raid-3d`: Rio de Aço 3D, inspirado em River Raid.
+- Implementadas câmeras Chase/Top-Down, combate, inimigos, combustível, pontes, vidas e HUD em um único HTML.
+- Rio de Aço 3D atualizado com navios em patrulha lateral e terceira câmera interna estilo cockpit.
+- Rio de Aço 3D: helicópteros alinhados à patrulha lateral e faróis náuticos adicionados às pontes.
+- Rio de Aço 3D: pontes agora avançam o ciclo Dia/Entardecer/Noite/Neblina/Inverno; faróis persistem e veículos usam luzes de navegação em baixa visibilidade.
+- Rio de Aço 3D: faróis agora varrem o cenário com canhões rotativos; navios têm holofote frontal e helicópteros usam busca vertical sobre o rio.
+- Domínios de produção da Vercel registrados em `DEPLOYMENT.md`; publicação vinculada ao push da branch `main`.

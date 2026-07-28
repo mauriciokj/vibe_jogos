@@ -1,0 +1,70 @@
+Original prompt: Criar um novo jogo retro inspirado em River Raid, em Three.js, com visual low-poly 3D, câmeras Top-Down e Chase alternáveis, avião, tiros, inimigos, combustível, pontes, HUD, vidas e game over.
+
+- Estrutura inicial criada em um único `index.html`, incluindo CSS e JavaScript do jogo.
+- Implementados terreno fluvial infinito em segmentos, margens, montanhas, água, avião low-poly e iluminação.
+- Implementadas câmeras Chase e Top-Down com troca pela tecla C.
+- Implementados tiro, navios, helicópteros, depósitos FUEL, pontes destrutíveis, combustível, vidas e pontuação.
+- Incluídos hooks `window.render_game_to_text` e `window.advanceTime(ms)` para validação automatizada.
+- Primeira validação Playwright: jogo iniciou sem erros de console; HUD, avião e entidades apareceram corretamente.
+- Corrigida a orientação das faces do terreno após a inspeção visual detectar margens ocultas por backface culling.
+- Validação de combate: movimento e rajadas destruíram FUEL, navio, helicóptero e ponte, totalizando corretamente 1.700 pontos.
+- Validação de câmeras: tecla C alternou para a visão Top-Down e o HUD refletiu o novo modo.
+- Validação de combustível: tanque preparado em 30% aumentou ao sobrevoar o depósito; estado marcou `refueling: true`.
+- Validação de estados: três colisões com a margem levaram ao Game Over; Enter reiniciou com três vidas.
+- Validação de velocidade e pausa: acelerar elevou a velocidade de 36 para 45,5; frear reduziu para 32,5; P pausou e retomou.
+- Screenshots inspecionadas em `output/web-game/river-raid-*`; nenhum erro de console encontrado.
+- TODOs: nenhum bloqueador conhecido.
+- Helicópteros agora nascem e patrulham com orientação horizontal, apontando para a direção lateral do voo e girando ao tocar a margem.
+- Cada ponte recebeu dois faróis náuticos low-poly nas entradas do canal, com sinalização vermelha/verde e luz pulsante.
+- TODO: validar visualmente helicópteros em ambas as direções e faróis junto à ponte.
+- Helicóptero validado nas câmeras superior e Chase: silhueta transversal ao rio e rotação acompanhando a direção lateral.
+- Inversão validada na margem: velocidade passou para -3,7 e orientação chegou a +89° apontando à esquerda.
+- Pontes validadas com dois faróis, cores náuticas `#ff4d5f` e `#6dff96`, ambos visíveis junto às cabeceiras.
+- Nenhum erro de console encontrado; TODOs: nenhum bloqueador conhecido.
+- Ciclo ambiental base implementado: Dia Claro → Entardecer → Noite → Neblina → Inverno, avançando a cada ponte destruída.
+- Transições interpolam céu, neblina, iluminação, exposição, água, margens e montanhas por 2,4 segundos; inverno inclui neve animada.
+- Faróis são desacoplados da ponte antes da explosão e continuam rolando como marcos persistentes e não destrutíveis.
+- HUD e estado textual agora exibem o ambiente atual.
+- TODO: implementar e validar luzes condicionais em faróis, navios e helicópteros.
+- Navios e helicópteros receberam luzes de bordo vermelha, verde e frontal; helicópteros usam pulsação de aviação.
+- Faróis, navios e helicópteros acendem no Entardecer, Noite e Neblina e permanecem apagados no Dia Claro e Inverno diurno.
+- Estado textual informa `navigationLightsOn` e `lightOn` para validação.
+- TODO: validar as cinco fases, persistência dos faróis e luzes em capturas reais.
+- Sequência controlada validou: 2/4/6/8 faróis preservados após quatro pontes; luzes ativas nas três fases exigidas e neve ativa no Inverno.
+- Capturas de Entardecer, Noite, Neblina e Inverno inspecionadas sem erros de console.
+- Noite recebeu pequeno aumento de iluminação ambiente e alcance das luzes de bordo após a primeira captura ficar escura demais para jogar.
+- TODO: revalidar Noite e testar a progressão por disparos reais na ponte.
+- Teste real por disparos destruiu a ponte, avançou para Entardecer e manteve dois faróis ativos como entidades independentes.
+- Noite revisada inspecionada: terreno e rio permanecem legíveis; faróis, navio e helicóptero exibem luzes com intensidade real e reflexos locais.
+- Todas as fases, luzes, neve, HUD, progressão, persistência e colisões passaram sem erros de console.
+- TODOs: nenhum bloqueador conhecido.
+- Faróis agora projetam fachos cônicos longos com SpotLight, girando continuamente em torno da torre.
+- Navios receberam holofote frontal visível; helicópteros receberam cone de busca apontado para baixo e oscilando sobre o rio.
+- Estado textual expõe `rotatingBeamOn` e `searchlightOn` para os novos fachos.
+- TODO: validar visualmente os três tipos de feixe em Noite e Neblina.
+- Validação visual concluída nas câmeras Chase e Top-Down: faróis com cones rotativos, navio com facho frontal e helicóptero com busca vertical oscilante.
+- Rotação dos faróis confirmada por mudança angular de 0,12→1,75 e 3,26→4,89 durante a amostra.
+- Após remover a ponte, os dois faróis permaneceram com `rotatingBeamOn: true`; a ponte não existia mais na lista de entidades.
+- Fachos desligam no Dia/Inverno e ligam no Entardecer/Noite/Neblina; nenhum erro de console encontrado.
+- TODOs: nenhum bloqueador conhecido.
+- Orientação dos navios corrigida: casco agora nasce girado 90° e aponta horizontalmente na direção da patrulha.
+- Ao inverter a velocidade lateral nas margens, o navio também gira para apontar ao lado oposto.
+- TODO: validar visualmente as orientações esquerda/direita.
+- Validação visual concluída na câmera superior: navio transversal ao rio, apontando para a direita em -90° e para a esquerda em +90°.
+- Estado textual agora informa `heading` dos navios; patrulha, inversão nas margens e renderização permaneceram sem erros.
+- TODOs: nenhum bloqueador conhecido.
+- Visão Top-Down reajustada para maior tempo de reação: câmera elevada de 58 para 82 unidades, enquadramento ampliado e centro deslocado para a frente do avião.
+- TODO: validar o novo enquadramento Top-Down em gameplay.
+- Primeira captura confirmou 92 unidades de profundidade visível, mas revelou áreas sem terreno nas laterais do novo enquadramento.
+- Margens 3D ampliadas de 48 para 90 unidades em cada lado para preencher a visão superior mais aberta.
+- Captura final inspecionada: avião posicionado na faixa inferior, rio visível por aproximadamente 79 unidades à frente e terreno preenchendo toda a largura.
+- Novo enquadramento oferece cerca de 2,2 segundos de reação na velocidade inicial, contra aproximadamente 1,2 segundo anteriormente.
+- Nenhum erro de console encontrado; TODOs: nenhum bloqueador conhecido.
+- Nova iteração solicitada: navios agora patrulham lateralmente e respeitam as margens do rio.
+- Adicionada terceira câmera em primeira pessoa, com moldura de cockpit e mira; C agora alterna Chase → Top-Down → Cockpit.
+- Câmera Cockpit validada visualmente com frame, painel, instrumentos, mira e HUD legível.
+- Ciclo de câmera validado: Perseguição → Topo Clássica → Cockpit → Perseguição.
+- Disparo em Cockpit validado de ponta a ponta: FUEL destruído e 150 pontos adicionados.
+- Patrulha dos navios validada: ao alcançar a margem, a velocidade lateral inverteu de +3,5 para -3,5 e permaneceu dentro do rio.
+- Nenhum erro de console ou regressão de renderização encontrado.
+- TODOs: nenhum bloqueador conhecido.

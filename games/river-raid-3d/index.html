@@ -1,0 +1,2134 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+    <meta name="theme-color" content="#081a2c" />
+    <title>Rio de Aço 3D</title>
+    <style>
+      :root {
+        --ink: #f5f0d0;
+        --cyan: #66f5ff;
+        --yellow: #ffd84d;
+        --red: #ff4d5f;
+        --panel: rgba(5, 17, 30, 0.82);
+        --line: rgba(151, 236, 255, 0.3);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: #081a2c;
+        color: var(--ink);
+        font-family: "Courier New", Courier, monospace;
+        user-select: none;
+      }
+
+      #game,
+      #game canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+
+      #game canvas {
+        image-rendering: auto;
+      }
+
+      .scanlines {
+        position: fixed;
+        inset: 0;
+        z-index: 5;
+        pointer-events: none;
+        opacity: 0.11;
+        background: repeating-linear-gradient(
+          0deg,
+          rgba(255, 255, 255, 0.08) 0,
+          rgba(255, 255, 255, 0.08) 1px,
+          transparent 1px,
+          transparent 4px
+        );
+        mix-blend-mode: overlay;
+      }
+
+      .vignette {
+        position: fixed;
+        inset: 0;
+        z-index: 4;
+        pointer-events: none;
+        box-shadow: inset 0 0 150px rgba(0, 0, 0, 0.48);
+      }
+
+      #hud {
+        position: fixed;
+        inset: 0;
+        z-index: 10;
+        pointer-events: none;
+        padding: clamp(12px, 2.2vw, 28px);
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+      }
+
+      .hud-top {
+        display: grid;
+        grid-template-columns: minmax(150px, 1fr) minmax(180px, 1.4fr) minmax(130px, 1fr);
+        gap: 12px;
+        align-items: start;
+      }
+
+      .hud-cell {
+        min-height: 58px;
+        padding: 9px 13px;
+        border-top: 2px solid var(--line);
+        background: linear-gradient(180deg, var(--panel), rgba(4, 14, 25, 0.25));
+        box-shadow: 0 9px 24px rgba(0, 0, 0, 0.17);
+        text-shadow: 0 0 10px currentColor;
+      }
+
+      .hud-cell:last-child {
+        text-align: right;
+      }
+
+      .hud-label {
+        display: block;
+        margin-bottom: 4px;
+        color: #8cb8c5;
+        font-size: 10px;
+        letter-spacing: 0.2em;
+      }
+
+      .hud-value {
+        color: var(--yellow);
+        font-size: clamp(16px, 2.1vw, 25px);
+        font-weight: 900;
+        letter-spacing: 0.08em;
+      }
+
+      #lives {
+        color: var(--red);
+        letter-spacing: 0.16em;
+      }
+
+      .fuel-line {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .fuel-track {
+        position: relative;
+        width: 100%;
+        height: 16px;
+        padding: 2px;
+        border: 1px solid rgba(255, 255, 255, 0.42);
+        background: rgba(0, 0, 0, 0.38);
+        overflow: hidden;
+      }
+
+      #fuel-fill {
+        height: 100%;
+        width: 100%;
+        background: linear-gradient(90deg, #ff4d5f 0%, #ffd84d 35%, #71f5a1 75%);
+        transform-origin: left;
+        transition: transform 90ms linear;
+        box-shadow: 0 0 12px rgba(113, 245, 161, 0.65);
+      }
+
+      #fuel-number {
+        min-width: 48px;
+        color: var(--ink);
+        font-size: 15px;
+        font-weight: 900;
+      }
+
+      .hud-bottom {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .camera-chip,
+      .moment-chip,
+      .help-chip {
+        padding: 8px 12px;
+        border: 1px solid var(--line);
+        background: var(--panel);
+        color: #b9dce4;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+      }
+
+      #camera-name {
+        color: var(--cyan);
+        font-weight: 900;
+      }
+
+      .hud-status {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      #moment-name {
+        color: var(--yellow);
+        font-weight: 900;
+      }
+
+      #toast {
+        position: fixed;
+        left: 50%;
+        top: 22%;
+        z-index: 30;
+        transform: translate(-50%, -15px);
+        opacity: 0;
+        padding: 10px 18px;
+        border: 1px solid rgba(255, 255, 255, 0.45);
+        background: rgba(7, 17, 29, 0.8);
+        color: white;
+        font-size: clamp(14px, 2vw, 23px);
+        font-weight: 900;
+        letter-spacing: 0.12em;
+        text-align: center;
+        text-shadow: 0 0 12px currentColor;
+        transition: opacity 160ms ease, transform 160ms ease;
+        pointer-events: none;
+      }
+
+      #toast.show {
+        opacity: 1;
+        transform: translate(-50%, 0);
+      }
+
+      #overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        display: grid;
+        place-items: center;
+        padding: 22px;
+        background:
+          radial-gradient(circle at 50% 40%, rgba(16, 73, 100, 0.18), transparent 45%),
+          linear-gradient(90deg, rgba(2, 10, 19, 0.72), rgba(2, 10, 19, 0.2), rgba(2, 10, 19, 0.72));
+        transition: opacity 220ms ease, visibility 220ms ease;
+      }
+
+      #overlay.hidden {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+
+      .menu-card {
+        width: min(660px, 94vw);
+        padding: clamp(22px, 4vw, 46px);
+        border: 1px solid rgba(111, 235, 255, 0.45);
+        clip-path: polygon(24px 0, 100% 0, 100% calc(100% - 24px), calc(100% - 24px) 100%, 0 100%, 0 24px);
+        background: linear-gradient(145deg, rgba(7, 24, 39, 0.97), rgba(5, 15, 27, 0.9));
+        box-shadow: 0 28px 100px rgba(0, 0, 0, 0.55), inset 0 0 70px rgba(20, 110, 135, 0.08);
+        text-align: center;
+        pointer-events: auto;
+      }
+
+      .eyebrow {
+        color: var(--cyan);
+        font-size: 11px;
+        letter-spacing: 0.38em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        margin: 10px 0 2px;
+        color: #fff3bd;
+        font-size: clamp(42px, 9vw, 86px);
+        line-height: 0.9;
+        letter-spacing: -0.06em;
+        text-shadow: 5px 5px 0 #bb2f45, 0 0 30px rgba(255, 216, 77, 0.25);
+      }
+
+      .subtitle {
+        margin: 12px 0 25px;
+        color: #89aebb;
+        font-size: 12px;
+        letter-spacing: 0.25em;
+        text-transform: uppercase;
+      }
+
+      .controls {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 9px;
+        margin: 22px 0 26px;
+      }
+
+      .control {
+        min-height: 64px;
+        padding: 10px 6px;
+        border: 1px solid rgba(151, 236, 255, 0.18);
+        color: #9dbdc5;
+        font-size: 10px;
+        line-height: 1.5;
+      }
+
+      .control b {
+        display: block;
+        margin-bottom: 4px;
+        color: var(--ink);
+        font-size: 13px;
+      }
+
+      #start-button {
+        appearance: none;
+        min-width: 230px;
+        padding: 15px 26px;
+        border: 0;
+        background: var(--yellow);
+        color: #101827;
+        font: 900 16px/1 "Courier New", monospace;
+        letter-spacing: 0.16em;
+        cursor: pointer;
+        box-shadow: 6px 6px 0 #bb2f45;
+        transition: transform 100ms ease, box-shadow 100ms ease;
+      }
+
+      #start-button:hover,
+      #start-button:focus-visible {
+        transform: translate(2px, 2px);
+        box-shadow: 4px 4px 0 #bb2f45;
+        outline: 2px solid white;
+        outline-offset: 5px;
+      }
+
+      #start-button:active {
+        transform: translate(5px, 5px);
+        box-shadow: 1px 1px 0 #bb2f45;
+      }
+
+      .menu-foot {
+        margin-top: 20px;
+        color: #638996;
+        font-size: 9px;
+        letter-spacing: 0.2em;
+      }
+
+      #overlay[data-mode="gameover"] h1 {
+        font-size: clamp(40px, 8vw, 72px);
+      }
+
+      #final-score {
+        display: none;
+        margin: 18px 0 5px;
+        color: var(--yellow);
+        font-size: 24px;
+        font-weight: 900;
+      }
+
+      #overlay[data-mode="gameover"] #final-score {
+        display: block;
+      }
+
+      @media (max-width: 620px) {
+        .hud-top {
+          grid-template-columns: 1fr 1.2fr;
+        }
+
+        .hud-cell:last-child {
+          display: none;
+        }
+
+        .help-chip {
+          display: none;
+        }
+
+        .controls {
+          grid-template-columns: 1fr 1fr;
+        }
+
+        .control:last-child {
+          grid-column: 1 / -1;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="game" aria-label="Jogo Rio de Aço 3D"></div>
+    <div class="vignette"></div>
+    <div class="scanlines"></div>
+
+    <div id="hud" aria-live="polite">
+      <div class="hud-top">
+        <div class="hud-cell">
+          <span class="hud-label">PONTUAÇÃO</span>
+          <span id="score" class="hud-value">000000</span>
+        </div>
+        <div class="hud-cell">
+          <span class="hud-label">COMBUSTÍVEL</span>
+          <div class="fuel-line">
+            <div class="fuel-track"><div id="fuel-fill"></div></div>
+            <span id="fuel-number">100%</span>
+          </div>
+        </div>
+        <div class="hud-cell">
+          <span class="hud-label">VIDAS · VELOCIDADE</span>
+          <span id="lives" class="hud-value">▲ ▲ ▲</span>
+          <span id="speed" class="hud-value" style="color: #66f5ff"> 260</span>
+        </div>
+      </div>
+      <div></div>
+      <div class="hud-bottom">
+        <div class="hud-status">
+          <div class="camera-chip">CÂMERA: <span id="camera-name">PERSEGUIÇÃO</span></div>
+          <div class="moment-chip">AMBIENTE: <span id="moment-name">DIA CLARO</span></div>
+        </div>
+        <div class="help-chip">[C] TROCAR CÂMERA (3 MODOS) · [P] PAUSA · [F] TELA CHEIA</div>
+      </div>
+    </div>
+
+    <div id="toast"></div>
+
+    <div id="overlay" data-mode="menu">
+      <section class="menu-card">
+        <div class="eyebrow">Esquadrão Fluvial · Missão 01</div>
+        <h1 id="menu-title">RIO DE AÇO</h1>
+        <div id="menu-subtitle" class="subtitle">Ataque retro low-poly em 3D</div>
+        <div id="final-score"></div>
+        <div class="controls">
+          <div class="control"><b>← A · D →</b>MOVER AVIÃO</div>
+          <div class="control"><b>↑ W · S ↓</b>ACELERAR / FREAR</div>
+          <div class="control"><b>ESPAÇO</b>DISPARAR</div>
+        </div>
+        <button id="start-button" type="button">DECOLAR</button>
+        <div class="menu-foot">DESTRUA AS PONTES · REABASTEÇA NOS DEPÓSITOS FUEL</div>
+      </section>
+    </div>
+
+    <script type="module">
+      import * as THREE from 'https://unpkg.com/three@0.168.0/build/three.module.js';
+
+      const CONFIG = {
+        segmentLength: 32,
+        segmentCount: 12,
+        playerZ: 8,
+        minSpeed: 23,
+        maxSpeed: 47,
+        lateralSpeed: 17,
+        bulletSpeed: 92,
+        fuelDrain: 1.45,
+        terrainHalfWidth: 90,
+      };
+
+      const COLORS = {
+        water: 0x1674a6,
+        waterBright: 0x3cc5d6,
+        grass: 0x3e9b58,
+        grassDark: 0x236340,
+        soil: 0x9a643c,
+        rock: 0x67705d,
+        cream: 0xfff2bd,
+        red: 0xef3f58,
+        yellow: 0xffd84d,
+        navy: 0x142840,
+      };
+
+      const ENVIRONMENT_PHASES = [
+        {
+          key: 'day',
+          label: 'DIA CLARO',
+          background: 0x86c9d5,
+          fog: 0x78b8c2,
+          fogNear: 42,
+          fogFar: 225,
+          hemisphere: 2.4,
+          sun: 3.2,
+          exposure: 1.05,
+          water: 0x1674a6,
+          bank: 0x3e9b58,
+          bankDark: 0x236340,
+          soil: 0x9a643c,
+          rock: 0x67705d,
+          rockLight: 0x8a8d71,
+          sunDisc: 0xffda74,
+          guidanceLights: false,
+          snow: false,
+        },
+        {
+          key: 'sunset',
+          label: 'ENTARDECER',
+          background: 0xe57c65,
+          fog: 0xc86f68,
+          fogNear: 34,
+          fogFar: 178,
+          hemisphere: 1.55,
+          sun: 2.15,
+          exposure: 0.98,
+          water: 0x315d7e,
+          bank: 0x667747,
+          bankDark: 0x3d4d3b,
+          soil: 0x754331,
+          rock: 0x6f625a,
+          rockLight: 0x9e8172,
+          sunDisc: 0xffb34d,
+          guidanceLights: true,
+          snow: false,
+        },
+        {
+          key: 'night',
+          label: 'NOITE',
+          background: 0x07152d,
+          fog: 0x061125,
+          fogNear: 25,
+          fogFar: 142,
+          hemisphere: 0.68,
+          sun: 0.42,
+          exposure: 0.88,
+          water: 0x123c64,
+          bank: 0x194b3d,
+          bankDark: 0x0f3027,
+          soil: 0x4d3629,
+          rock: 0x394553,
+          rockLight: 0x586574,
+          sunDisc: 0xdce9ff,
+          guidanceLights: true,
+          snow: false,
+        },
+        {
+          key: 'fog',
+          label: 'NEBLINA',
+          background: 0x9eafb0,
+          fog: 0xaeb9b8,
+          fogNear: 10,
+          fogFar: 74,
+          hemisphere: 1.15,
+          sun: 0.62,
+          exposure: 0.86,
+          water: 0x547c86,
+          bank: 0x647d68,
+          bankDark: 0x435a4f,
+          soil: 0x6d5d51,
+          rock: 0x6d7473,
+          rockLight: 0x929b99,
+          sunDisc: 0xe8e0ca,
+          guidanceLights: true,
+          snow: false,
+        },
+        {
+          key: 'winter',
+          label: 'INVERNO',
+          background: 0xcadbe5,
+          fog: 0xdde8ed,
+          fogNear: 30,
+          fogFar: 165,
+          hemisphere: 2.0,
+          sun: 1.65,
+          exposure: 1.03,
+          water: 0x6aa4bd,
+          bank: 0xd7e1df,
+          bankDark: 0xaebfc1,
+          soil: 0x8d7d74,
+          rock: 0x8f9aa1,
+          rockLight: 0xc2ced3,
+          sunDisc: 0xf5f1df,
+          guidanceLights: false,
+          snow: true,
+        },
+      ];
+
+      const dom = {
+        mount: document.querySelector('#game'),
+        overlay: document.querySelector('#overlay'),
+        title: document.querySelector('#menu-title'),
+        subtitle: document.querySelector('#menu-subtitle'),
+        start: document.querySelector('#start-button'),
+        finalScore: document.querySelector('#final-score'),
+        score: document.querySelector('#score'),
+        fuelFill: document.querySelector('#fuel-fill'),
+        fuelNumber: document.querySelector('#fuel-number'),
+        lives: document.querySelector('#lives'),
+        speed: document.querySelector('#speed'),
+        camera: document.querySelector('#camera-name'),
+        moment: document.querySelector('#moment-name'),
+        toast: document.querySelector('#toast'),
+      };
+
+      const clamp = THREE.MathUtils.clamp;
+      const lerp = THREE.MathUtils.lerp;
+      const damp = THREE.MathUtils.damp;
+
+      function seededNoise(seed) {
+        const x = Math.sin(seed * 127.1 + 311.7) * 43758.5453;
+        return x - Math.floor(x);
+      }
+
+      function makeQuadGeometry(points) {
+        const geometry = new THREE.BufferGeometry();
+        const vertices = new Float32Array(points.flat());
+        geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+        geometry.setIndex([0, 1, 2, 1, 3, 2]);
+        geometry.computeVertexNormals();
+        return geometry;
+      }
+
+      function makeLabelSprite(text, foreground = '#15243a', background = '#ffd84d') {
+        const canvas = document.createElement('canvas');
+        canvas.width = 256;
+        canvas.height = 96;
+        const context = canvas.getContext('2d');
+        context.fillStyle = background;
+        context.fillRect(8, 8, 240, 80);
+        context.strokeStyle = '#fff2bd';
+        context.lineWidth = 5;
+        context.strokeRect(8, 8, 240, 80);
+        context.fillStyle = foreground;
+        context.font = '900 48px Courier New';
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        context.fillText(text, 128, 51);
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.colorSpace = THREE.SRGBColorSpace;
+        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true }));
+        sprite.scale.set(7, 2.65, 1);
+        return sprite;
+      }
+
+      class AudioEngine {
+        constructor() {
+          this.context = null;
+          this.master = null;
+        }
+
+        enable() {
+          if (this.context) {
+            this.context.resume();
+            return;
+          }
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (!AudioContext) return;
+          this.context = new AudioContext();
+          this.master = this.context.createGain();
+          this.master.gain.value = 0.16;
+          this.master.connect(this.context.destination);
+        }
+
+        tone(frequency, duration, type = 'square', volume = 0.35, slide = 0) {
+          if (!this.context || !this.master) return;
+          const now = this.context.currentTime;
+          const oscillator = this.context.createOscillator();
+          const gain = this.context.createGain();
+          oscillator.type = type;
+          oscillator.frequency.setValueAtTime(frequency, now);
+          oscillator.frequency.exponentialRampToValueAtTime(Math.max(35, frequency + slide), now + duration);
+          gain.gain.setValueAtTime(volume, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+          oscillator.connect(gain);
+          gain.connect(this.master);
+          oscillator.start(now);
+          oscillator.stop(now + duration);
+        }
+
+        shoot() {
+          this.tone(720, 0.07, 'square', 0.18, -280);
+        }
+
+        hit() {
+          this.tone(140, 0.2, 'sawtooth', 0.32, -80);
+        }
+
+        explosion() {
+          this.tone(95, 0.5, 'sawtooth', 0.45, -55);
+          this.tone(63, 0.62, 'square', 0.24, -25);
+        }
+
+        refuel() {
+          this.tone(460, 0.09, 'triangle', 0.12, 180);
+        }
+      }
+
+      class RiverRaidGame {
+        constructor() {
+          this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+          this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.6));
+          this.renderer.setSize(innerWidth, innerHeight);
+          this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+          this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+          this.renderer.toneMappingExposure = 1.05;
+          dom.mount.appendChild(this.renderer.domElement);
+
+          this.scene = new THREE.Scene();
+          this.scene.background = new THREE.Color(0x86c9d5);
+          this.scene.fog = new THREE.Fog(0x78b8c2, 42, 225);
+
+          this.cameraChase = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.1, 400);
+          this.cameraTop = new THREE.OrthographicCamera(-30, 30, 28, -28, 0.1, 180);
+          this.cameraCockpit = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.03, 400);
+          this.cameraMode = 'chase';
+          this.activeCamera = this.cameraChase;
+          this.cameraTargetX = 0;
+
+          this.audio = new AudioEngine();
+          this.clock = new THREE.Clock();
+          this.mode = 'MENU';
+          this.elapsed = 0;
+          this.score = 0;
+          this.lives = 3;
+          this.fuel = 100;
+          this.throttle = 0.56;
+          this.distance = 0;
+          this.level = 1;
+          this.fireCooldown = 0;
+          this.crashTimer = 0;
+          this.spawnDistance = 85;
+          this.nextBridgeDistance = 620;
+          this.toastTimer = 0;
+          this.refuelToneTimer = 0;
+          this.environmentIndex = 0;
+          this.environmentTransition = null;
+          this.input = { left: false, right: false, up: false, down: false, shoot: false };
+          this.entities = [];
+          this.bullets = [];
+          this.particles = [];
+          this.terrain = [];
+          this.waterMaterials = [];
+
+          this.createMaterials();
+          this.cockpitRig = this.createCockpitRig();
+          this.cockpitRig.visible = false;
+          this.cameraCockpit.add(this.cockpitRig);
+          this.scene.add(this.cameraCockpit);
+          this.createLights();
+          this.createBackdrop();
+          this.createTerrain();
+          this.createSnow();
+          this.setEnvironmentPhase(0, true);
+          this.player = this.createPlayer();
+          this.scene.add(this.player);
+          this.seedOpeningRun();
+          this.bindEvents();
+          this.onResize();
+          this.updateHUD();
+          this.updateCamera(1);
+          this.render();
+
+          window.render_game_to_text = () => this.renderGameToText();
+          window.advanceTime = (ms) => this.advanceTime(ms);
+          window.__riverRaidGame = this;
+
+          this.animate = this.animate.bind(this);
+          requestAnimationFrame(this.animate);
+        }
+
+        createMaterials() {
+          this.materials = {
+            water: new THREE.MeshPhongMaterial({ color: COLORS.water, flatShading: true, shininess: 75 }),
+            bank: new THREE.MeshLambertMaterial({ color: COLORS.grass, flatShading: true }),
+            bankDark: new THREE.MeshLambertMaterial({ color: COLORS.grassDark, flatShading: true }),
+            soil: new THREE.MeshLambertMaterial({ color: COLORS.soil, flatShading: true, side: THREE.DoubleSide }),
+            rock: new THREE.MeshLambertMaterial({ color: COLORS.rock, flatShading: true }),
+            rockLight: new THREE.MeshLambertMaterial({ color: 0x8a8d71, flatShading: true }),
+            white: new THREE.MeshPhongMaterial({ color: COLORS.cream, flatShading: true, shininess: 65 }),
+            red: new THREE.MeshPhongMaterial({ color: COLORS.red, flatShading: true, shininess: 60 }),
+            yellow: new THREE.MeshPhongMaterial({ color: COLORS.yellow, flatShading: true, emissive: 0x4a3000 }),
+            navy: new THREE.MeshPhongMaterial({ color: COLORS.navy, flatShading: true, shininess: 70 }),
+            black: new THREE.MeshLambertMaterial({ color: 0x10151a, flatShading: true }),
+            glass: new THREE.MeshPhongMaterial({ color: 0x6ee9ff, emissive: 0x153d55, shininess: 100 }),
+            bridge: new THREE.MeshLambertMaterial({ color: 0xd65b46, flatShading: true }),
+            bridgeTop: new THREE.MeshLambertMaterial({ color: 0xffb357, flatShading: true }),
+          };
+
+          this.shared = {
+            mountain: new THREE.ConeGeometry(4.2, 8.5, 5),
+            hill: new THREE.ConeGeometry(3.4, 5.2, 6),
+            tree: new THREE.ConeGeometry(1.25, 3.8, 5),
+            trunk: new THREE.CylinderGeometry(0.24, 0.32, 1.5, 5),
+          };
+        }
+
+        createCockpitRig() {
+          const rig = new THREE.Group();
+          const frameMaterial = new THREE.MeshBasicMaterial({
+            color: 0x111c29,
+            depthTest: false,
+            depthWrite: false,
+          });
+          const rimMaterial = new THREE.MeshBasicMaterial({
+            color: COLORS.red,
+            depthTest: false,
+            depthWrite: false,
+          });
+          const instrumentMaterial = new THREE.MeshBasicMaterial({
+            color: COLORS.waterBright,
+            depthTest: false,
+            depthWrite: false,
+          });
+          const sightMaterial = new THREE.MeshBasicMaterial({
+            color: COLORS.yellow,
+            transparent: true,
+            opacity: 0.88,
+            depthTest: false,
+            depthWrite: false,
+          });
+
+          const panel = new THREE.Mesh(new THREE.BoxGeometry(5.6, 1.05, 0.22), frameMaterial);
+          panel.position.set(0, -1.65, -2.65);
+          rig.add(panel);
+
+          const panelRim = new THREE.Mesh(new THREE.BoxGeometry(5.7, 0.12, 0.25), rimMaterial);
+          panelRim.position.set(0, -1.08, -2.62);
+          rig.add(panelRim);
+
+          for (const side of [-1, 1]) {
+            const strut = new THREE.Mesh(new THREE.BoxGeometry(0.17, 4.25, 0.18), frameMaterial);
+            strut.position.set(side * 2.25, 0.05, -2.75);
+            strut.rotation.z = side * -0.44;
+            rig.add(strut);
+
+            const dial = new THREE.Mesh(new THREE.RingGeometry(0.19, 0.27, 10), instrumentMaterial);
+            dial.position.set(side * 0.78, -1.57, -2.51);
+            rig.add(dial);
+          }
+
+          const crossbar = new THREE.Mesh(new THREE.BoxGeometry(4.65, 0.14, 0.17), frameMaterial);
+          crossbar.position.set(0, 1.48, -2.75);
+          rig.add(crossbar);
+
+          const sight = new THREE.Mesh(new THREE.RingGeometry(0.13, 0.2, 8), sightMaterial);
+          sight.position.set(0, -0.03, -3.15);
+          rig.add(sight);
+          const sightVertical = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.58, 0.02), sightMaterial);
+          sightVertical.position.set(0, -0.03, -3.14);
+          rig.add(sightVertical);
+          const sightHorizontal = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.025, 0.02), sightMaterial);
+          sightHorizontal.position.set(0, -0.03, -3.14);
+          rig.add(sightHorizontal);
+
+          rig.traverse((object) => {
+            if (!object.isMesh) return;
+            object.renderOrder = 100;
+            object.frustumCulled = false;
+          });
+          return rig;
+        }
+
+        createLights() {
+          const hemisphere = new THREE.HemisphereLight(0xdffaff, 0x35522b, 2.4);
+          const sun = new THREE.DirectionalLight(0xfff1c9, 3.2);
+          sun.position.set(-35, 55, 24);
+          this.scene.add(hemisphere, sun);
+          this.lights = { hemisphere, sun };
+        }
+
+        createBackdrop() {
+          const sun = new THREE.Mesh(
+            new THREE.CircleGeometry(12, 24),
+            new THREE.MeshBasicMaterial({ color: 0xffda74, fog: false })
+          );
+          sun.position.set(-55, 48, -205);
+          sun.lookAt(0, 15, 0);
+          this.scene.add(sun);
+          this.sunDisc = sun;
+
+          const horizon = new THREE.Group();
+          for (let i = 0; i < 15; i += 1) {
+            const height = 15 + seededNoise(i * 4.77) * 26;
+            const peak = new THREE.Mesh(
+              new THREE.ConeGeometry(12 + seededNoise(i) * 10, height, 5),
+              i % 2 ? this.materials.rock : this.materials.rockLight
+            );
+            peak.position.set(-105 + i * 15, height / 2 - 2, -210 - (i % 3) * 7);
+            peak.rotation.y = seededNoise(i * 8) * Math.PI;
+            horizon.add(peak);
+          }
+          this.scene.add(horizon);
+          this.horizon = horizon;
+        }
+
+        createSnow() {
+          const count = 360;
+          const positions = new Float32Array(count * 3);
+          for (let i = 0; i < count; i += 1) {
+            positions[i * 3] = (Math.random() - 0.5) * 150;
+            positions[i * 3 + 1] = 2 + Math.random() * 48;
+            positions[i * 3 + 2] = -190 + Math.random() * 245;
+          }
+          const geometry = new THREE.BufferGeometry();
+          geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+          const material = new THREE.PointsMaterial({
+            color: 0xffffff,
+            size: 0.62,
+            transparent: true,
+            opacity: 0.88,
+            depthWrite: false,
+          });
+          this.snow = new THREE.Points(geometry, material);
+          this.snow.visible = false;
+          this.scene.add(this.snow);
+        }
+
+        captureEnvironment() {
+          return {
+            background: this.scene.background.getHex(),
+            fog: this.scene.fog.color.getHex(),
+            fogNear: this.scene.fog.near,
+            fogFar: this.scene.fog.far,
+            hemisphere: this.lights.hemisphere.intensity,
+            sun: this.lights.sun.intensity,
+            exposure: this.renderer.toneMappingExposure,
+            water: this.materials.water.color.getHex(),
+            bank: this.materials.bank.color.getHex(),
+            bankDark: this.materials.bankDark.color.getHex(),
+            soil: this.materials.soil.color.getHex(),
+            rock: this.materials.rock.color.getHex(),
+            rockLight: this.materials.rockLight.color.getHex(),
+            sunDisc: this.sunDisc.material.color.getHex(),
+          };
+        }
+
+        blendColor(target, from, to, amount) {
+          target.set(from).lerp(new THREE.Color(to), amount);
+        }
+
+        applyEnvironmentValues(from, to, amount) {
+          const eased = amount * amount * (3 - 2 * amount);
+          this.blendColor(this.scene.background, from.background, to.background, eased);
+          this.blendColor(this.scene.fog.color, from.fog, to.fog, eased);
+          this.blendColor(this.materials.water.color, from.water, to.water, eased);
+          this.blendColor(this.materials.bank.color, from.bank, to.bank, eased);
+          this.blendColor(this.materials.bankDark.color, from.bankDark, to.bankDark, eased);
+          this.blendColor(this.materials.soil.color, from.soil, to.soil, eased);
+          this.blendColor(this.materials.rock.color, from.rock, to.rock, eased);
+          this.blendColor(this.materials.rockLight.color, from.rockLight, to.rockLight, eased);
+          this.blendColor(this.sunDisc.material.color, from.sunDisc, to.sunDisc, eased);
+          this.scene.fog.near = lerp(from.fogNear, to.fogNear, eased);
+          this.scene.fog.far = lerp(from.fogFar, to.fogFar, eased);
+          this.lights.hemisphere.intensity = lerp(from.hemisphere, to.hemisphere, eased);
+          this.lights.sun.intensity = lerp(from.sun, to.sun, eased);
+          this.renderer.toneMappingExposure = lerp(from.exposure, to.exposure, eased);
+        }
+
+        setEnvironmentPhase(index, instant = false) {
+          this.environmentIndex = ((index % ENVIRONMENT_PHASES.length) + ENVIRONMENT_PHASES.length) % ENVIRONMENT_PHASES.length;
+          const target = ENVIRONMENT_PHASES[this.environmentIndex];
+          dom.moment.textContent = target.label;
+          this.snow.visible = target.snow;
+          if (instant) {
+            this.applyEnvironmentValues(target, target, 1);
+            this.environmentTransition = null;
+            return target;
+          }
+          this.environmentTransition = {
+            from: this.captureEnvironment(),
+            to: target,
+            elapsed: 0,
+            duration: 2.4,
+          };
+          return target;
+        }
+
+        advanceEnvironment() {
+          return this.setEnvironmentPhase(this.environmentIndex + 1, false);
+        }
+
+        updateEnvironment(dt, speed) {
+          if (this.environmentTransition) {
+            this.environmentTransition.elapsed += dt;
+            const amount = clamp(this.environmentTransition.elapsed / this.environmentTransition.duration, 0, 1);
+            this.applyEnvironmentValues(this.environmentTransition.from, this.environmentTransition.to, amount);
+            if (amount >= 1) this.environmentTransition = null;
+          }
+          if (!this.snow.visible) return;
+          const positions = this.snow.geometry.attributes.position;
+          for (let i = 0; i < positions.count; i += 1) {
+            let x = positions.getX(i) + Math.sin(this.elapsed * 0.7 + i) * dt * 0.45;
+            let y = positions.getY(i) - dt * (5 + (i % 5));
+            let z = positions.getZ(i) + speed * dt * 0.32;
+            if (y < 0.5) y = 38 + Math.random() * 14;
+            if (z > 55) z = -190;
+            if (x > 78) x = -78;
+            if (x < -78) x = 78;
+            positions.setXYZ(i, x, y, z);
+          }
+          positions.needsUpdate = true;
+        }
+
+        riverShapeAt(distance) {
+          return {
+            center: Math.sin(distance * 0.0088) * 2.15 + Math.sin(distance * 0.0029 + 1.2) * 1.25,
+            halfWidth: 11.2 + Math.sin(distance * 0.013 + 0.6) * 1.7 + Math.sin(distance * 0.004) * 1.0,
+          };
+        }
+
+        createTerrain() {
+          for (let index = -1; index < CONFIG.segmentCount - 1; index += 1) {
+            const group = new THREE.Group();
+            group.position.z = CONFIG.playerZ - index * CONFIG.segmentLength;
+            const segment = { group, worldIndex: index, decorations: new THREE.Group(), meshes: [] };
+            group.add(segment.decorations);
+            this.scene.add(group);
+            this.terrain.push(segment);
+            this.rebuildTerrainSegment(segment, index);
+          }
+        }
+
+        rebuildTerrainSegment(segment, worldIndex) {
+          segment.worldIndex = worldIndex;
+          for (const mesh of segment.meshes) {
+            segment.group.remove(mesh);
+            mesh.geometry.dispose();
+          }
+          segment.meshes.length = 0;
+          segment.decorations.clear();
+
+          const halfLength = CONFIG.segmentLength / 2;
+          const centerDistance = worldIndex * CONFIG.segmentLength;
+          const ahead = this.riverShapeAt(centerDistance + halfLength);
+          const behind = this.riverShapeAt(centerDistance - halfLength);
+          segment.ahead = ahead;
+          segment.behind = behind;
+
+          const water = new THREE.Mesh(
+            makeQuadGeometry([
+              [behind.center - behind.halfWidth, 0.03, halfLength],
+              [behind.center + behind.halfWidth, 0.03, halfLength],
+              [ahead.center - ahead.halfWidth, 0.03, -halfLength],
+              [ahead.center + ahead.halfWidth, 0.03, -halfLength],
+            ]),
+            this.materials.water
+          );
+
+          const leftBank = new THREE.Mesh(
+            makeQuadGeometry([
+              [-CONFIG.terrainHalfWidth, 0.18, halfLength],
+              [behind.center - behind.halfWidth, 0.18, halfLength],
+              [-CONFIG.terrainHalfWidth, 0.18, -halfLength],
+              [ahead.center - ahead.halfWidth, 0.18, -halfLength],
+            ]),
+            worldIndex % 2 ? this.materials.bank : this.materials.bankDark
+          );
+
+          const rightBank = new THREE.Mesh(
+            makeQuadGeometry([
+              [behind.center + behind.halfWidth, 0.18, halfLength],
+              [CONFIG.terrainHalfWidth, 0.18, halfLength],
+              [ahead.center + ahead.halfWidth, 0.18, -halfLength],
+              [CONFIG.terrainHalfWidth, 0.18, -halfLength],
+            ]),
+            worldIndex % 2 ? this.materials.bankDark : this.materials.bank
+          );
+
+          const leftCliff = new THREE.Mesh(
+            makeQuadGeometry([
+              [behind.center - behind.halfWidth, -0.55, halfLength],
+              [behind.center - behind.halfWidth, 0.2, halfLength],
+              [ahead.center - ahead.halfWidth, -0.55, -halfLength],
+              [ahead.center - ahead.halfWidth, 0.2, -halfLength],
+            ]),
+            this.materials.soil
+          );
+
+          const rightCliff = new THREE.Mesh(
+            makeQuadGeometry([
+              [behind.center + behind.halfWidth, 0.2, halfLength],
+              [behind.center + behind.halfWidth, -0.55, halfLength],
+              [ahead.center + ahead.halfWidth, 0.2, -halfLength],
+              [ahead.center + ahead.halfWidth, -0.55, -halfLength],
+            ]),
+            this.materials.soil
+          );
+
+          segment.meshes.push(water, leftBank, rightBank, leftCliff, rightCliff);
+          segment.group.add(...segment.meshes);
+          this.addTerrainDecorations(segment);
+        }
+
+        addTerrainDecorations(segment) {
+          const halfLength = CONFIG.segmentLength / 2;
+          for (let side = -1; side <= 1; side += 2) {
+            const mountainCount = 2 + Math.floor(seededNoise(segment.worldIndex * 13 + side) * 2);
+            for (let i = 0; i < mountainCount; i += 1) {
+              const seed = segment.worldIndex * 31 + i * 7 + side * 3;
+              const sample = seededNoise(seed);
+              const z = -halfLength + 4 + seededNoise(seed + 1) * (CONFIG.segmentLength - 8);
+              const x = side * (22 + sample * 18);
+              const scale = 0.7 + seededNoise(seed + 2) * 1.05;
+              const mountain = new THREE.Mesh(
+                sample > 0.52 ? this.shared.mountain : this.shared.hill,
+                sample > 0.65 ? this.materials.rockLight : this.materials.rock
+              );
+              mountain.position.set(x, (sample > 0.52 ? 4.2 : 2.55) * scale, z);
+              mountain.scale.set(scale, scale, scale);
+              mountain.rotation.y = sample * Math.PI;
+              segment.decorations.add(mountain);
+
+              if (sample < 0.65) {
+                const tree = new THREE.Mesh(this.shared.tree, this.materials.bankDark);
+                tree.position.set(side * (16 + seededNoise(seed + 4) * 7), 2.15, z + 3.4);
+                segment.decorations.add(tree);
+              }
+            }
+          }
+
+          const waveCount = 3;
+          for (let i = 0; i < waveCount; i += 1) {
+            const distance = segment.worldIndex * 17 + i * 4;
+            const t = seededNoise(distance);
+            const river = {
+              center: lerp(segment.ahead.center, segment.behind.center, t),
+              halfWidth: lerp(segment.ahead.halfWidth, segment.behind.halfWidth, t),
+            };
+            const wave = new THREE.Mesh(
+              new THREE.PlaneGeometry(2.6 + seededNoise(distance + 3) * 2.5, 0.09),
+              new THREE.MeshBasicMaterial({ color: COLORS.waterBright, transparent: true, opacity: 0.58 })
+            );
+            wave.rotation.x = -Math.PI / 2;
+            wave.position.set(
+              river.center + (seededNoise(distance + 9) - 0.5) * river.halfWidth * 1.3,
+              0.09,
+              lerp(-halfLength, halfLength, t)
+            );
+            segment.decorations.add(wave);
+          }
+        }
+
+        getRiverAtZ(z) {
+          const halfLength = CONFIG.segmentLength / 2;
+          let closest = this.terrain[0];
+          let closestDistance = Infinity;
+          for (const segment of this.terrain) {
+            const localZ = z - segment.group.position.z;
+            const distance = Math.abs(localZ);
+            if (distance < closestDistance) {
+              closest = segment;
+              closestDistance = distance;
+            }
+            if (localZ >= -halfLength && localZ <= halfLength) {
+              const t = clamp((localZ + halfLength) / CONFIG.segmentLength, 0, 1);
+              return {
+                center: lerp(segment.ahead.center, segment.behind.center, t),
+                halfWidth: lerp(segment.ahead.halfWidth, segment.behind.halfWidth, t),
+              };
+            }
+          }
+          return { center: closest.behind.center, halfWidth: closest.behind.halfWidth };
+        }
+
+        createPlayer() {
+          const plane = new THREE.Group();
+          plane.position.set(0, 2.7, CONFIG.playerZ);
+
+          const fuselage = new THREE.Mesh(new THREE.ConeGeometry(0.72, 5.8, 6), this.materials.white);
+          fuselage.rotation.x = -Math.PI / 2;
+          fuselage.position.z = -0.35;
+          plane.add(fuselage);
+
+          const rear = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.66, 2.1, 6), this.materials.red);
+          rear.rotation.x = Math.PI / 2;
+          rear.position.z = 2.1;
+          plane.add(rear);
+
+          const wingsGeometry = new THREE.BufferGeometry();
+          wingsGeometry.setAttribute(
+            'position',
+            new THREE.Float32BufferAttribute([
+              -5.1, 0, 1.7, 5.1, 0, 1.7, 0, 0, -1.35,
+              -2.15, 0.08, 2.75, 2.15, 0.08, 2.75, 0, 0.08, 1.2,
+            ], 3)
+          );
+          wingsGeometry.setIndex([0, 1, 2, 3, 4, 5]);
+          wingsGeometry.computeVertexNormals();
+          const wings = new THREE.Mesh(wingsGeometry, this.materials.red);
+          plane.add(wings);
+
+          const cockpit = new THREE.Mesh(new THREE.OctahedronGeometry(0.57, 0), this.materials.glass);
+          cockpit.scale.set(0.85, 0.7, 1.65);
+          cockpit.position.set(0, 0.55, -0.35);
+          plane.add(cockpit);
+
+          const tail = new THREE.Mesh(new THREE.ConeGeometry(0.62, 1.65, 3), this.materials.navy);
+          tail.rotation.x = Math.PI / 2;
+          tail.scale.x = 0.28;
+          tail.position.set(0, 0.68, 2.15);
+          plane.add(tail);
+
+          const exhaust = new THREE.Mesh(
+            new THREE.ConeGeometry(0.34, 1.4, 5),
+            new THREE.MeshBasicMaterial({ color: 0x72f6ff, transparent: true, opacity: 0.8 })
+          );
+          exhaust.rotation.x = -Math.PI / 2;
+          exhaust.position.z = 3.72;
+          plane.add(exhaust);
+          plane.userData.exhaust = exhaust;
+          return plane;
+        }
+
+        addVehicleNavigationLights(group, { height, spread, noseZ, blinking = false }) {
+          const specs = [
+            { color: 0xff4358, position: [-spread, height, 0], phase: 0, baseIntensity: 2.5 },
+            { color: 0x62ff91, position: [spread, height, 0], phase: Math.PI, baseIntensity: 2.5 },
+            { color: 0xfff2bd, position: [0, height, noseZ], phase: Math.PI / 2, baseIntensity: 3.2 },
+          ];
+          const navigationLights = specs.map((spec, index) => {
+            const lensMaterial = new THREE.MeshBasicMaterial({
+              color: spec.color,
+              transparent: true,
+              opacity: 0.42,
+            });
+            const lens = new THREE.Mesh(new THREE.OctahedronGeometry(index === 2 ? 0.19 : 0.15, 0), lensMaterial);
+            lens.position.set(...spec.position);
+            group.add(lens);
+            const light = new THREE.PointLight(spec.color, 0, index === 2 ? 18 : 12, 1.8);
+            light.position.copy(lens.position);
+            group.add(light);
+            return { lens, light, phase: spec.phase, baseIntensity: spec.baseIntensity, blinking };
+          });
+          group.userData.navigationLights = navigationLights;
+        }
+
+        addSearchlight(group, { origin, direction, length, radius, color = 0xfff4cf, kind, phase = 0 }) {
+          const pivot = new THREE.Group();
+          pivot.position.set(...origin);
+          const aim = new THREE.Group();
+          if (direction === 'forward') aim.rotation.x = Math.PI / 2;
+          const beamMaterial = new THREE.MeshBasicMaterial({
+            color,
+            transparent: true,
+            opacity: 0,
+            side: THREE.DoubleSide,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+          });
+          const beam = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.04, radius, length, 10, 1, true),
+            beamMaterial
+          );
+          beam.position.y = -length / 2;
+          beam.visible = false;
+          aim.add(beam);
+
+          const spot = new THREE.SpotLight(color, 0, length * 1.25, Math.atan(radius / length) * 1.45, 0.62, 1.35);
+          spot.position.set(0, 0, 0);
+          const target = new THREE.Object3D();
+          target.position.set(0, -length, 0);
+          aim.add(spot, target);
+          spot.target = target;
+          pivot.add(aim);
+          group.add(pivot);
+
+          const searchlight = { pivot, aim, beam, spot, kind, phase, length };
+          group.userData.searchLights = [...(group.userData.searchLights || []), searchlight];
+          return searchlight;
+        }
+
+        updateSearchlights(group, active) {
+          const environmentKey = ENVIRONMENT_PHASES[this.environmentIndex].key;
+          const opacity = environmentKey === 'fog' ? 0.22 : environmentKey === 'night' ? 0.16 : 0.1;
+          for (const searchlight of group.userData.searchLights || []) {
+            searchlight.beam.visible = active;
+            searchlight.beam.material.opacity = active ? opacity : 0;
+            searchlight.spot.intensity = active ? (environmentKey === 'fog' ? 7 : environmentKey === 'night' ? 5.8 : 4.2) : 0;
+            if (searchlight.kind === 'lighthouse') {
+              searchlight.pivot.rotation.y = this.elapsed * 0.82 + searchlight.phase;
+            } else if (searchlight.kind === 'helicopter') {
+              searchlight.pivot.rotation.z = Math.sin(this.elapsed * 1.15 + searchlight.phase) * 0.32;
+              searchlight.pivot.rotation.x = Math.cos(this.elapsed * 0.83 + searchlight.phase) * 0.16;
+            } else if (searchlight.kind === 'ship') {
+              searchlight.pivot.rotation.y = Math.sin(this.elapsed * 0.72 + searchlight.phase) * 0.08;
+            }
+          }
+        }
+
+        updateVehicleNavigationLights(group) {
+          const active = ENVIRONMENT_PHASES[this.environmentIndex].guidanceLights;
+          for (const item of group.userData.navigationLights || []) {
+            const wave = 0.5 + Math.sin(this.elapsed * (item.blinking ? 7.5 : 3.2) + item.phase) * 0.5;
+            const pulse = item.blinking ? (wave > 0.42 ? 1 : 0.12) : 0.82 + wave * 0.18;
+            item.light.intensity = active ? item.baseIntensity * pulse : 0;
+            item.lens.material.opacity = active ? 0.95 : 0.38;
+            item.lens.scale.setScalar(active ? 0.9 + pulse * 0.42 : 0.72);
+          }
+          this.updateSearchlights(group, active);
+        }
+
+        createShip(x, z) {
+          const group = new THREE.Group();
+          const hull = new THREE.Mesh(new THREE.ConeGeometry(1.35, 5.4, 5), this.materials.navy);
+          hull.rotation.x = -Math.PI / 2;
+          group.add(hull);
+          const deck = new THREE.Mesh(new THREE.BoxGeometry(1.65, 0.45, 2.6), this.materials.rockLight);
+          deck.position.y = 0.55;
+          deck.position.z = 0.4;
+          group.add(deck);
+          const tower = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.9, 0.9), this.materials.white);
+          tower.position.set(0, 1.15, 0.55);
+          group.add(tower);
+          const gun = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 1.4, 5), this.materials.black);
+          gun.rotation.x = Math.PI / 2;
+          gun.position.set(0, 1.25, -0.65);
+          group.add(gun);
+          this.addVehicleNavigationLights(group, { height: 1.12, spread: 1.05, noseZ: -2.72 });
+          this.addSearchlight(group, {
+            origin: [0, 1.08, -2.35],
+            direction: 'forward',
+            length: 22,
+            radius: 2.9,
+            kind: 'ship',
+            phase: Math.random() * Math.PI,
+          });
+          group.position.set(x, 0.72, z);
+          const lateralSpeed = (2.6 + Math.random() * 1.4) * (Math.random() > 0.5 ? 1 : -1);
+          group.rotation.y = -Math.sign(lateralSpeed) * Math.PI / 2;
+          this.scene.add(group);
+          return {
+            type: 'navio',
+            group,
+            radius: 2.15,
+            health: 2,
+            score: 250,
+            phase: Math.random() * 6,
+            vx: lateralSpeed,
+          };
+        }
+
+        createHelicopter(x, z) {
+          const group = new THREE.Group();
+          const body = new THREE.Mesh(new THREE.OctahedronGeometry(1.15, 0), this.materials.red);
+          body.scale.set(1.15, 0.75, 1.4);
+          group.add(body);
+          const cabin = new THREE.Mesh(new THREE.OctahedronGeometry(0.72, 0), this.materials.glass);
+          cabin.position.z = -0.7;
+          cabin.scale.set(0.9, 0.75, 0.8);
+          group.add(cabin);
+          const tail = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.38, 3.2), this.materials.red);
+          tail.position.z = 2.05;
+          group.add(tail);
+          const rotor = new THREE.Group();
+          const bladeA = new THREE.Mesh(new THREE.BoxGeometry(7, 0.08, 0.22), this.materials.black);
+          const bladeB = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.08, 7), this.materials.black);
+          rotor.add(bladeA, bladeB);
+          rotor.position.y = 1.2;
+          group.add(rotor);
+          group.userData.rotor = rotor;
+          this.addVehicleNavigationLights(group, {
+            height: 0.24,
+            spread: 1.35,
+            noseZ: -1.62,
+            blinking: true,
+          });
+          this.addSearchlight(group, {
+            origin: [0, -0.72, 0],
+            direction: 'down',
+            length: 15,
+            radius: 5.1,
+            color: 0xffefb0,
+            kind: 'helicopter',
+            phase: Math.random() * Math.PI * 2,
+          });
+          group.position.set(x, 4.6, z);
+          const lateralSpeed = Math.random() > 0.5 ? 3.7 : -3.7;
+          group.rotation.y = -Math.sign(lateralSpeed) * Math.PI / 2;
+          this.scene.add(group);
+          return {
+            type: 'helicóptero',
+            group,
+            radius: 2.15,
+            health: 2,
+            score: 300,
+            phase: Math.random() * Math.PI * 2,
+            vx: lateralSpeed,
+          };
+        }
+
+        createFuel(x, z) {
+          const group = new THREE.Group();
+          const barge = new THREE.Mesh(new THREE.BoxGeometry(5.5, 0.5, 8), this.materials.yellow);
+          barge.position.y = 0.4;
+          group.add(barge);
+          for (const side of [-1, 1]) {
+            const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.85, 3, 7), this.materials.white);
+            tank.position.set(side * 1.45, 1.85, 0.3);
+            group.add(tank);
+          }
+          const stripe = new THREE.Mesh(new THREE.BoxGeometry(5.75, 0.18, 1.3), this.materials.red);
+          stripe.position.set(0, 0.78, -1.6);
+          group.add(stripe);
+          const label = makeLabelSprite('FUEL');
+          label.position.set(0, 4.2, 0);
+          group.add(label);
+          group.position.set(x, 0.12, z);
+          this.scene.add(group);
+          return { type: 'fuel', group, radius: 3.25, health: 1, score: 150, phase: 0, vx: 0, refueling: false };
+        }
+
+        createNavigationBeacon(color, phase) {
+          const beacon = new THREE.Group();
+          const whiteMaterial = new THREE.MeshLambertMaterial({ color: COLORS.cream, flatShading: true });
+          const stripeMaterial = new THREE.MeshLambertMaterial({ color: COLORS.red, flatShading: true });
+          const darkMaterial = new THREE.MeshLambertMaterial({ color: COLORS.navy, flatShading: true });
+          const lightMaterial = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.48 });
+
+          const base = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.45, 0.55, 7), this.materials.rock);
+          base.position.y = 0.38;
+          beacon.add(base);
+
+          const lowerTower = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 1.02, 2.15, 7), whiteMaterial);
+          lowerTower.position.y = 1.7;
+          beacon.add(lowerTower);
+
+          const stripe = new THREE.Mesh(new THREE.CylinderGeometry(0.64, 0.76, 1.05, 7), stripeMaterial);
+          stripe.position.y = 3.25;
+          beacon.add(stripe);
+
+          const upperTower = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.65, 0.72, 7), whiteMaterial);
+          upperTower.position.y = 4.12;
+          beacon.add(upperTower);
+
+          const gallery = new THREE.Mesh(new THREE.CylinderGeometry(0.92, 0.92, 0.16, 8), darkMaterial);
+          gallery.position.y = 4.52;
+          beacon.add(gallery);
+
+          const lens = new THREE.Mesh(new THREE.OctahedronGeometry(0.43, 0), lightMaterial);
+          lens.position.y = 4.98;
+          beacon.add(lens);
+
+          const roof = new THREE.Mesh(new THREE.ConeGeometry(0.82, 0.78, 7), stripeMaterial);
+          roof.position.y = 5.57;
+          beacon.add(roof);
+
+          const light = new THREE.PointLight(color, 0, 18, 1.7);
+          light.position.y = 5.0;
+          beacon.add(light);
+          beacon.userData.lens = lens;
+          beacon.userData.light = light;
+          beacon.userData.phase = phase;
+          this.addSearchlight(beacon, {
+            origin: [0, 5.0, 0],
+            direction: 'forward',
+            length: 36,
+            radius: 4.8,
+            color: 0xfff3c7,
+            kind: 'lighthouse',
+            phase,
+          });
+          return beacon;
+        }
+
+        updateNavigationBeacon(beacon) {
+          const active = ENVIRONMENT_PHASES[this.environmentIndex].guidanceLights;
+          const pulse = 0.72 + Math.sin(this.elapsed * 5.5 + beacon.userData.phase) * 0.28;
+          beacon.userData.lens.scale.setScalar(active ? 0.85 + pulse * 0.55 : 0.82);
+          beacon.userData.lens.material.opacity = active ? 1 : 0.5;
+          beacon.userData.light.intensity = active ? 1.5 + pulse * 2.4 : 0;
+          this.updateSearchlights(beacon, active);
+        }
+
+        createBridge(z) {
+          const river = this.getRiverAtZ(z);
+          const group = new THREE.Group();
+          const width = river.halfWidth * 2 + 7;
+          const deck = new THREE.Mesh(new THREE.BoxGeometry(width, 0.75, 3.3), this.materials.bridge);
+          deck.position.y = 1.1;
+          group.add(deck);
+          for (let x = -width / 2 + 2; x <= width / 2 - 2; x += 4) {
+            const slab = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.15, 3.7), this.materials.bridgeTop);
+            slab.position.set(x, 1.55, 0);
+            group.add(slab);
+          }
+          for (const side of [-1, 1]) {
+            const tower = new THREE.Mesh(new THREE.BoxGeometry(1.25, 4.6, 1.4), this.materials.rockLight);
+            tower.position.set(side * (river.halfWidth + 1.7), 2.35, 0);
+            group.add(tower);
+            const cap = new THREE.Mesh(new THREE.ConeGeometry(1.05, 1.6, 4), this.materials.yellow);
+            cap.position.set(side * (river.halfWidth + 1.7), 5.3, 0);
+            cap.rotation.y = Math.PI / 4;
+            group.add(cap);
+          }
+          const portBeacon = this.createNavigationBeacon(0xff4d5f, 0);
+          portBeacon.position.set(-(river.halfWidth + 3.8), 0, -6.5);
+          const starboardBeacon = this.createNavigationBeacon(0x6dff96, Math.PI);
+          starboardBeacon.position.set(river.halfWidth + 3.8, 0, -6.5);
+          group.add(portBeacon, starboardBeacon);
+          group.userData.beacons = [portBeacon, starboardBeacon];
+          group.position.set(river.center, 0, z);
+          this.scene.add(group);
+          return {
+            type: 'ponte',
+            group,
+            radius: river.halfWidth + 3,
+            halfWidth: width / 2,
+            health: 4,
+            score: 1000,
+            phase: 0,
+            vx: 0,
+          };
+        }
+
+        seedOpeningRun() {
+          this.clearEntities();
+          const fuelRiver = this.getRiverAtZ(-64);
+          const shipRiver = this.getRiverAtZ(-108);
+          const heliRiver = this.getRiverAtZ(-142);
+          this.entities.push(this.createFuel(fuelRiver.center - 1.8, -64));
+          this.entities.push(this.createShip(shipRiver.center - shipRiver.halfWidth * 0.38, -108));
+          this.entities.push(this.createHelicopter(heliRiver.center + heliRiver.halfWidth * 0.34, -142));
+          this.entities.push(this.createBridge(-188));
+        }
+
+        clearEntities() {
+          for (const entity of this.entities) this.scene.remove(entity.group);
+          for (const bullet of this.bullets) this.scene.remove(bullet.mesh);
+          for (const particle of this.particles) this.scene.remove(particle.mesh);
+          this.entities.length = 0;
+          this.bullets.length = 0;
+          this.particles.length = 0;
+        }
+
+        spawnRandomEntity() {
+          const z = -190 - Math.random() * 35;
+          const river = this.getRiverAtZ(z);
+          const roll = Math.random();
+          let entity;
+          if (roll < 0.22) {
+            entity = this.createFuel(river.center + (Math.random() - 0.5) * river.halfWidth * 0.85, z);
+          } else if (roll < 0.61) {
+            entity = this.createShip(river.center + (Math.random() - 0.5) * river.halfWidth * 1.15, z);
+          } else {
+            entity = this.createHelicopter(river.center + (Math.random() - 0.5) * river.halfWidth * 1.05, z);
+          }
+          this.entities.push(entity);
+        }
+
+        bindEvents() {
+          dom.start.addEventListener('click', () => this.startOrRestart());
+          addEventListener('resize', () => this.onResize());
+          document.addEventListener('fullscreenchange', () => this.onResize());
+
+          addEventListener('keydown', (event) => {
+            if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space'].includes(event.code)) {
+              event.preventDefault();
+            }
+
+            if (event.code === 'KeyC' && !event.repeat) {
+              this.switchCamera();
+              return;
+            }
+            if (event.code === 'KeyF' && !event.repeat) {
+              this.toggleFullscreen();
+              return;
+            }
+            if (event.code === 'KeyP' && !event.repeat) {
+              this.togglePause();
+              return;
+            }
+
+            if ((this.mode === 'MENU' || this.mode === 'GAMEOVER') && ['Enter', 'Space', 'KeyR'].includes(event.code)) {
+              if (!event.repeat) this.startOrRestart();
+              return;
+            }
+
+            if (event.code === 'ArrowLeft' || event.code === 'KeyA') this.input.left = true;
+            if (event.code === 'ArrowRight' || event.code === 'KeyD') this.input.right = true;
+            if (event.code === 'ArrowUp' || event.code === 'KeyW') this.input.up = true;
+            if (event.code === 'ArrowDown' || event.code === 'KeyS') this.input.down = true;
+            if (event.code === 'Space') this.input.shoot = true;
+          });
+
+          addEventListener('keyup', (event) => {
+            if (event.code === 'ArrowLeft' || event.code === 'KeyA') this.input.left = false;
+            if (event.code === 'ArrowRight' || event.code === 'KeyD') this.input.right = false;
+            if (event.code === 'ArrowUp' || event.code === 'KeyW') this.input.up = false;
+            if (event.code === 'ArrowDown' || event.code === 'KeyS') this.input.down = false;
+            if (event.code === 'Space') this.input.shoot = false;
+          });
+
+          addEventListener('blur', () => {
+            this.input.left = false;
+            this.input.right = false;
+            this.input.up = false;
+            this.input.down = false;
+            this.input.shoot = false;
+          });
+        }
+
+        startOrRestart() {
+          this.audio.enable();
+          this.score = 0;
+          this.lives = 3;
+          this.fuel = 100;
+          this.throttle = 0.56;
+          this.distance = 0;
+          this.level = 1;
+          this.fireCooldown = 0;
+          this.spawnDistance = 80;
+          this.nextBridgeDistance = 620;
+          this.setEnvironmentPhase(0, true);
+          this.player.position.x = this.getRiverAtZ(CONFIG.playerZ).center;
+          this.player.rotation.set(0, 0, 0);
+          this.mode = 'PLAYING';
+          this.syncCameraVisuals();
+          this.seedOpeningRun();
+          dom.overlay.classList.add('hidden');
+          this.showToast('MISSÃO INICIADA', 1.4);
+          this.updateHUD();
+        }
+
+        switchCamera() {
+          const modes = ['chase', 'top', 'cockpit'];
+          const nextIndex = (modes.indexOf(this.cameraMode) + 1) % modes.length;
+          this.cameraMode = modes[nextIndex];
+          const cameras = {
+            chase: this.cameraChase,
+            top: this.cameraTop,
+            cockpit: this.cameraCockpit,
+          };
+          const labels = {
+            chase: 'PERSEGUIÇÃO',
+            top: 'TOPO CLÁSSICA',
+            cockpit: 'COCKPIT',
+          };
+          this.activeCamera = cameras[this.cameraMode];
+          dom.camera.textContent = labels[this.cameraMode];
+          this.showToast(`CÂMERA: ${labels[this.cameraMode]}`, 1.15);
+          this.syncCameraVisuals();
+          this.updateCamera(1);
+        }
+
+        syncCameraVisuals() {
+          const cockpitActive = this.cameraMode === 'cockpit' && (this.mode === 'PLAYING' || this.mode === 'PAUSED');
+          this.cockpitRig.visible = cockpitActive;
+          this.player.visible = this.mode !== 'CRASH' && this.cameraMode !== 'cockpit';
+        }
+
+        togglePause() {
+          if (this.mode === 'PLAYING') {
+            this.mode = 'PAUSED';
+            this.showToast('PAUSA', 999);
+          } else if (this.mode === 'PAUSED') {
+            this.mode = 'PLAYING';
+            this.toastTimer = 0;
+            dom.toast.classList.remove('show');
+          }
+        }
+
+        toggleFullscreen() {
+          if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen?.();
+          } else {
+            document.exitFullscreen?.();
+          }
+        }
+
+        showToast(message, duration = 1.2) {
+          dom.toast.textContent = message;
+          dom.toast.classList.add('show');
+          this.toastTimer = duration;
+        }
+
+        getSpeed() {
+          const base = lerp(CONFIG.minSpeed, CONFIG.maxSpeed, this.throttle);
+          return base * (1 + (this.level - 1) * 0.035);
+        }
+
+        shoot() {
+          if (this.fireCooldown > 0 || this.mode !== 'PLAYING') return;
+          const mesh = new THREE.Mesh(
+            new THREE.BoxGeometry(0.24, 0.24, 2.1),
+            new THREE.MeshBasicMaterial({ color: 0xfff36a })
+          );
+          mesh.position.set(this.player.position.x, this.player.position.y - 0.12, CONFIG.playerZ - 3.1);
+          this.scene.add(mesh);
+          this.bullets.push({ mesh });
+          this.fireCooldown = 0.16;
+          this.audio.shoot();
+        }
+
+        update(dt) {
+          this.elapsed += dt;
+          if (this.toastTimer > 0) {
+            this.toastTimer -= dt;
+            if (this.toastTimer <= 0) dom.toast.classList.remove('show');
+          }
+
+          if (this.mode === 'PAUSED' || this.mode === 'GAMEOVER') {
+            this.updateCamera(dt);
+            return;
+          }
+
+          if (this.mode === 'CRASH') {
+            this.crashTimer -= dt;
+            this.updateParticles(dt);
+            this.updateCamera(dt);
+            if (this.crashTimer <= 0) this.finishCrash();
+            return;
+          }
+
+          const isPlaying = this.mode === 'PLAYING';
+          const speed = isPlaying ? this.getSpeed() : 12;
+          this.updateEnvironment(dt, speed);
+          this.updateTerrain(dt, speed);
+          this.updateEntities(dt, speed, isPlaying);
+          this.updateBullets(dt, isPlaying);
+          this.updateParticles(dt);
+
+          if (isPlaying) {
+            this.distance += speed * dt;
+            this.level = 1 + Math.floor(this.distance / 1150);
+            this.fireCooldown = Math.max(0, this.fireCooldown - dt);
+            this.spawnDistance -= speed * dt;
+            if (this.spawnDistance <= 0) {
+              this.spawnRandomEntity();
+              this.spawnDistance = 68 + Math.random() * 72;
+            }
+            if (this.distance >= this.nextBridgeDistance) {
+              this.entities.push(this.createBridge(-215));
+              this.nextBridgeDistance += 720;
+              this.showToast('PONTE À FRENTE', 1.5);
+            }
+
+            if (this.input.up) this.throttle += 0.42 * dt;
+            if (this.input.down) this.throttle -= 0.58 * dt;
+            if (!this.input.up && !this.input.down) this.throttle = damp(this.throttle, 0.55, 0.38, dt);
+            this.throttle = clamp(this.throttle, 0, 1);
+
+            const axis = (this.input.right ? 1 : 0) - (this.input.left ? 1 : 0);
+            this.player.position.x += axis * CONFIG.lateralSpeed * dt;
+            this.player.rotation.z = damp(this.player.rotation.z, -axis * 0.46, 8, dt);
+            this.player.rotation.y = damp(this.player.rotation.y, -axis * 0.12, 7, dt);
+            this.player.position.y = 2.7 + Math.sin(this.elapsed * 5.5) * 0.08;
+            this.player.userData.exhaust.scale.y = 0.8 + this.throttle * 0.9 + Math.sin(this.elapsed * 28) * 0.1;
+            if (this.input.shoot) this.shoot();
+
+            this.fuel -= CONFIG.fuelDrain * (0.72 + this.throttle * 0.58) * dt;
+            if (this.fuel <= 0) {
+              this.fuel = 0;
+              this.crash('SEM COMBUSTÍVEL');
+            } else {
+              this.checkPlayerCollisions();
+            }
+            this.updateHUD();
+          } else {
+            this.player.position.y = 2.7 + Math.sin(this.elapsed * 2.6) * 0.16;
+            this.player.rotation.z = Math.sin(this.elapsed * 0.7) * 0.09;
+          }
+
+          this.updateCamera(dt);
+        }
+
+        updateTerrain(dt, speed) {
+          const movement = speed * dt;
+          for (const segment of this.terrain) segment.group.position.z += movement;
+
+          let maxWorldIndex = Math.max(...this.terrain.map((segment) => segment.worldIndex));
+          for (const segment of this.terrain) {
+            if (segment.group.position.z - CONFIG.segmentLength / 2 > 62) {
+              const minZ = Math.min(...this.terrain.map((candidate) => candidate.group.position.z));
+              segment.group.position.z = minZ - CONFIG.segmentLength;
+              maxWorldIndex += 1;
+              this.rebuildTerrainSegment(segment, maxWorldIndex);
+            }
+          }
+        }
+
+        updateEntities(dt, speed, canInteract) {
+          for (let index = this.entities.length - 1; index >= 0; index -= 1) {
+            const entity = this.entities[index];
+            entity.group.position.z += speed * dt;
+
+            if (entity.type === 'helicóptero') {
+              entity.group.userData.rotor.rotation.y += dt * 16;
+              entity.group.position.y = 4.6 + Math.sin(this.elapsed * 3.2 + entity.phase) * 0.45;
+              const river = this.getRiverAtZ(entity.group.position.z);
+              entity.group.position.x += entity.vx * dt;
+              const limit = river.halfWidth * 0.72;
+              if (entity.group.position.x > river.center + limit || entity.group.position.x < river.center - limit) {
+                entity.vx *= -1;
+                entity.group.position.x = clamp(entity.group.position.x, river.center - limit, river.center + limit);
+              }
+              const targetHeading = -Math.sign(entity.vx) * Math.PI / 2;
+              entity.group.rotation.y = damp(entity.group.rotation.y, targetHeading, 8, dt);
+              entity.group.rotation.z = -entity.vx * 0.035;
+              this.updateVehicleNavigationLights(entity.group);
+            } else if (entity.type === 'navio') {
+              const river = this.getRiverAtZ(entity.group.position.z);
+              const limit = Math.max(1.5, river.halfWidth - entity.radius - 0.8);
+              entity.group.position.x += entity.vx * dt;
+              if (entity.group.position.x > river.center + limit || entity.group.position.x < river.center - limit) {
+                entity.vx *= -1;
+                entity.group.position.x = clamp(entity.group.position.x, river.center - limit, river.center + limit);
+              }
+              const targetHeading = -Math.sign(entity.vx) * Math.PI / 2;
+              entity.group.rotation.y = damp(entity.group.rotation.y, targetHeading, 8, dt);
+              entity.group.rotation.z = Math.sin(this.elapsed * 2 + entity.phase) * 0.04;
+              entity.group.position.y = 0.72 + Math.sin(this.elapsed * 2.5 + entity.phase) * 0.07;
+              this.updateVehicleNavigationLights(entity.group);
+            } else if (entity.type === 'ponte') {
+              for (const beacon of entity.group.userData.beacons || []) {
+                this.updateNavigationBeacon(beacon);
+              }
+            } else if (entity.type === 'farol') {
+              this.updateNavigationBeacon(entity.group);
+            } else if (entity.type === 'fuel') {
+              entity.refueling = false;
+              if (
+                canInteract &&
+                Math.abs(entity.group.position.z - CONFIG.playerZ) < 4.5 &&
+                Math.abs(entity.group.position.x - this.player.position.x) < 3.6
+              ) {
+                const before = this.fuel;
+                this.fuel = Math.min(100, this.fuel + 34 * dt);
+                entity.refueling = true;
+                if (this.fuel > before) {
+                  this.refuelToneTimer -= dt;
+                  if (this.refuelToneTimer <= 0) {
+                    this.audio.refuel();
+                    this.refuelToneTimer = 0.18;
+                  }
+                }
+              }
+            }
+
+            if (entity.group.position.z > 72) {
+              this.scene.remove(entity.group);
+              this.entities.splice(index, 1);
+            }
+          }
+        }
+
+        updateBullets(dt, canHit) {
+          for (let bulletIndex = this.bullets.length - 1; bulletIndex >= 0; bulletIndex -= 1) {
+            const bullet = this.bullets[bulletIndex];
+            bullet.mesh.position.z -= CONFIG.bulletSpeed * dt;
+            let consumed = false;
+
+            if (canHit) {
+              for (let entityIndex = this.entities.length - 1; entityIndex >= 0; entityIndex -= 1) {
+                const entity = this.entities[entityIndex];
+                if (entity.type === 'farol') continue;
+                const dz = Math.abs(bullet.mesh.position.z - entity.group.position.z);
+                const dx = Math.abs(bullet.mesh.position.x - entity.group.position.x);
+                const hit = entity.type === 'ponte'
+                  ? dz < 2.4 && dx < entity.halfWidth
+                  : dz < entity.radius + 0.8 && dx < entity.radius;
+                if (!hit) continue;
+
+                entity.health -= 1;
+                this.spawnSparks(bullet.mesh.position.clone(), entity.health <= 0 ? 14 : 5);
+                if (entity.health <= 0) {
+                  this.destroyEntity(entityIndex);
+                } else {
+                  this.audio.hit();
+                  entity.group.scale.set(1.08, 0.92, 1.08);
+                }
+                consumed = true;
+                break;
+              }
+            }
+
+            if (consumed || bullet.mesh.position.z < -240) {
+              this.scene.remove(bullet.mesh);
+              this.bullets.splice(bulletIndex, 1);
+            }
+          }
+        }
+
+        destroyEntity(index) {
+          const entity = this.entities[index];
+          this.score += entity.score;
+          this.spawnExplosion(entity.group.position.clone(), entity.type === 'ponte' ? 34 : 20);
+          this.audio.explosion();
+          let nextEnvironment = null;
+          if (entity.type === 'ponte') {
+            this.preserveBridgeBeacons(entity);
+            nextEnvironment = this.advanceEnvironment();
+          }
+          this.scene.remove(entity.group);
+          this.entities.splice(index, 1);
+          if (entity.type === 'ponte') {
+            this.showToast(`PONTE DESTRUÍDA · ${nextEnvironment.label}`, 2.1);
+          }
+        }
+
+        preserveBridgeBeacons(bridge) {
+          const beacons = [...(bridge.group.userData.beacons || [])];
+          bridge.group.updateWorldMatrix(true, true);
+          for (const beacon of beacons) {
+            this.scene.attach(beacon);
+            this.entities.push({
+              type: 'farol',
+              group: beacon,
+              radius: 0,
+              health: 0,
+              score: 0,
+              phase: beacon.userData.phase,
+              vx: 0,
+            });
+          }
+          bridge.group.userData.beacons = [];
+        }
+
+        spawnSparks(position, count) {
+          for (let i = 0; i < count; i += 1) {
+            const mesh = new THREE.Mesh(
+              new THREE.TetrahedronGeometry(0.12 + Math.random() * 0.12),
+              Math.random() > 0.5 ? this.materials.yellow : this.materials.red
+            );
+            mesh.position.copy(position);
+            this.scene.add(mesh);
+            this.particles.push({
+              mesh,
+              velocity: new THREE.Vector3((Math.random() - 0.5) * 7, Math.random() * 6, (Math.random() - 0.5) * 7),
+              life: 0.35 + Math.random() * 0.35,
+            });
+          }
+        }
+
+        spawnExplosion(position, count = 24) {
+          position.y += 1.2;
+          for (let i = 0; i < count; i += 1) {
+            const mesh = new THREE.Mesh(
+              new THREE.TetrahedronGeometry(0.18 + Math.random() * 0.34),
+              i % 3 === 0 ? this.materials.black : i % 2 ? this.materials.yellow : this.materials.red
+            );
+            mesh.position.copy(position);
+            this.scene.add(mesh);
+            this.particles.push({
+              mesh,
+              velocity: new THREE.Vector3((Math.random() - 0.5) * 13, 2 + Math.random() * 10, (Math.random() - 0.5) * 13),
+              life: 0.65 + Math.random() * 0.8,
+            });
+          }
+        }
+
+        updateParticles(dt) {
+          for (let index = this.particles.length - 1; index >= 0; index -= 1) {
+            const particle = this.particles[index];
+            particle.life -= dt;
+            particle.velocity.y -= 12 * dt;
+            particle.mesh.position.addScaledVector(particle.velocity, dt);
+            particle.mesh.rotation.x += dt * 8;
+            particle.mesh.rotation.y += dt * 10;
+            particle.mesh.scale.setScalar(Math.max(0.01, particle.life));
+            if (particle.life <= 0) {
+              this.scene.remove(particle.mesh);
+              this.particles.splice(index, 1);
+            }
+          }
+        }
+
+        checkPlayerCollisions() {
+          const river = this.getRiverAtZ(CONFIG.playerZ);
+          if (Math.abs(this.player.position.x - river.center) > river.halfWidth - 2.5) {
+            this.crash('COLISÃO COM A MARGEM');
+            return;
+          }
+
+          for (const entity of this.entities) {
+            if (entity.type === 'fuel' || entity.type === 'farol') continue;
+            const dz = Math.abs(entity.group.position.z - CONFIG.playerZ);
+            const dx = Math.abs(entity.group.position.x - this.player.position.x);
+            const collision = entity.type === 'ponte'
+              ? dz < 2.3 && dx < entity.halfWidth
+              : dz < entity.radius + 1.25 && dx < entity.radius + 1.2;
+            if (collision) {
+              this.crash(entity.type === 'ponte' ? 'PONTE NÃO DESTRUÍDA' : `COLISÃO: ${entity.type.toUpperCase()}`);
+              return;
+            }
+          }
+        }
+
+        crash(reason) {
+          if (this.mode !== 'PLAYING') return;
+          this.mode = 'CRASH';
+          this.lives -= 1;
+          this.crashTimer = 1.15;
+          this.syncCameraVisuals();
+          this.spawnExplosion(this.player.position.clone(), 32);
+          this.audio.explosion();
+          this.showToast(reason, 1.1);
+          this.updateHUD();
+        }
+
+        finishCrash() {
+          if (this.lives <= 0) {
+            this.gameOver();
+            return;
+          }
+
+          const river = this.getRiverAtZ(CONFIG.playerZ);
+          this.player.position.x = river.center;
+          this.player.rotation.set(0, 0, 0);
+          this.fuel = Math.max(this.fuel, 38);
+          for (let index = this.entities.length - 1; index >= 0; index -= 1) {
+            const z = this.entities[index].group.position.z;
+            if (z > CONFIG.playerZ - 18 && z < CONFIG.playerZ + 25) {
+              this.scene.remove(this.entities[index].group);
+              this.entities.splice(index, 1);
+            }
+          }
+          this.mode = 'PLAYING';
+          this.syncCameraVisuals();
+          this.showToast('AVIÃO RESERVA', 1.1);
+        }
+
+        gameOver() {
+          this.mode = 'GAMEOVER';
+          this.syncCameraVisuals();
+          const best = Math.max(this.score, Number(localStorage.getItem('rio-de-aco-best') || 0));
+          localStorage.setItem('rio-de-aco-best', String(best));
+          dom.overlay.dataset.mode = 'gameover';
+          dom.title.textContent = 'FIM DE MISSÃO';
+          dom.subtitle.textContent = `RECORDE ${String(best).padStart(6, '0')}`;
+          dom.finalScore.textContent = `PONTUAÇÃO ${String(this.score).padStart(6, '0')}`;
+          dom.start.textContent = 'VOAR NOVAMENTE';
+          dom.overlay.classList.remove('hidden');
+          dom.toast.classList.remove('show');
+        }
+
+        updateCamera(dt) {
+          this.cameraTargetX = damp(this.cameraTargetX, this.player.position.x, 4.8, dt);
+          if (this.cameraMode === 'chase') {
+            this.cameraChase.position.x = damp(this.cameraChase.position.x, this.cameraTargetX * 0.78, 4, dt);
+            this.cameraChase.position.y = damp(this.cameraChase.position.y, 10.3, 4, dt);
+            this.cameraChase.position.z = damp(this.cameraChase.position.z, 23, 4, dt);
+            this.cameraChase.lookAt(this.cameraTargetX * 0.42, 1.0, -26);
+          } else if (this.cameraMode === 'top') {
+            this.cameraTop.position.set(this.cameraTargetX, 82, -25);
+            this.cameraTop.up.set(0, 0, -1);
+            this.cameraTop.lookAt(this.cameraTargetX, 0, -25);
+          } else {
+            this.cameraCockpit.position.set(this.player.position.x, this.player.position.y + 0.72, CONFIG.playerZ - 0.7);
+            this.cameraCockpit.up.set(0, 1, 0);
+            this.cameraCockpit.lookAt(this.player.position.x, 1.4, -52);
+            this.cameraCockpit.rotation.z = this.player.rotation.z * 0.55;
+          }
+        }
+
+        updateHUD() {
+          dom.score.textContent = String(this.score).padStart(6, '0');
+          dom.fuelFill.style.transform = `scaleX(${clamp(this.fuel / 100, 0, 1)})`;
+          dom.fuelNumber.textContent = `${Math.ceil(this.fuel)}%`;
+          dom.fuelNumber.style.color = this.fuel < 22 ? '#ff4d5f' : '#f5f0d0';
+          dom.lives.textContent = Array.from({ length: Math.max(0, this.lives) }, () => '▲').join(' ') || '—';
+          dom.speed.textContent = ` ${Math.round(this.getSpeed() * 7.4)}`;
+        }
+
+        onResize() {
+          const width = innerWidth;
+          const height = innerHeight;
+          const aspect = width / height;
+          this.cameraChase.aspect = aspect;
+          this.cameraChase.updateProjectionMatrix();
+          this.cameraCockpit.aspect = aspect;
+          this.cameraCockpit.updateProjectionMatrix();
+          const vertical = 46;
+          this.cameraTop.left = -vertical * aspect;
+          this.cameraTop.right = vertical * aspect;
+          this.cameraTop.top = vertical;
+          this.cameraTop.bottom = -vertical;
+          this.cameraTop.updateProjectionMatrix();
+          this.renderer.setSize(width, height);
+          this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.6));
+        }
+
+        renderGameToText() {
+          const river = this.getRiverAtZ(CONFIG.playerZ);
+          const visibleEntities = this.entities
+            .filter((entity) => entity.group.position.z > -150 && entity.group.position.z < 45)
+            .map((entity) => ({
+              type: entity.type,
+              x: Number(entity.group.position.x.toFixed(1)),
+              z: Number(entity.group.position.z.toFixed(1)),
+              health: entity.health,
+              ...(['navio', 'helicóptero'].includes(entity.type) ? { vx: Number(entity.vx.toFixed(1)) } : {}),
+              ...(['navio', 'helicóptero'].includes(entity.type)
+                ? { heading: entity.vx > 0 ? 'direita' : 'esquerda' }
+                : {}),
+              ...(entity.type === 'ponte' ? { navigationBeacons: entity.group.userData.beacons?.length || 0 } : {}),
+              ...(entity.type === 'ponte'
+                ? {
+                    rotatingBeamsOn: (entity.group.userData.beacons || []).some((beacon) =>
+                      (beacon.userData.searchLights || []).some((searchlight) => searchlight.beam.visible)
+                    ),
+                  }
+                : {}),
+              ...(['navio', 'helicóptero'].includes(entity.type)
+                ? {
+                    navigationLightsOn: (entity.group.userData.navigationLights || []).some(
+                      (item) => item.light.intensity > 0.05
+                    ),
+                    searchlightOn: (entity.group.userData.searchLights || []).some(
+                      (item) => item.beam.visible
+                    ),
+                  }
+                : {}),
+              ...(entity.type === 'farol'
+                ? {
+                    lightOn: entity.group.userData.light?.intensity > 0.05,
+                    rotatingBeamOn: (entity.group.userData.searchLights || []).some(
+                      (item) => item.beam.visible
+                    ),
+                  }
+                : {}),
+              ...(entity.type === 'fuel' ? { refueling: entity.refueling } : {}),
+            }))
+            .sort((a, b) => b.z - a.z);
+          return JSON.stringify({
+            coordinateSystem: 'x: esquerda(-)/direita(+); z: à frente é negativo; avião permanece em z=8',
+            mode: this.mode,
+            camera: {
+              chase: 'perseguição',
+              top: 'topo clássica',
+              cockpit: 'cockpit',
+            }[this.cameraMode],
+            environment: {
+              key: ENVIRONMENT_PHASES[this.environmentIndex].key,
+              label: ENVIRONMENT_PHASES[this.environmentIndex].label,
+              transitioning: Boolean(this.environmentTransition),
+              guidanceLights: ENVIRONMENT_PHASES[this.environmentIndex].guidanceLights,
+            },
+            score: this.score,
+            lives: this.lives,
+            fuel: Number(this.fuel.toFixed(1)),
+            speed: Number(this.getSpeed().toFixed(1)),
+            level: this.level,
+            player: {
+              x: Number(this.player.position.x.toFixed(1)),
+              z: CONFIG.playerZ,
+              riverCenter: Number(river.center.toFixed(1)),
+              safeHalfWidth: Number((river.halfWidth - 2.5).toFixed(1)),
+              canShoot: this.fireCooldown <= 0,
+            },
+            visibleEntities,
+            bullets: this.bullets.slice(0, 8).map((bullet) => ({
+              x: Number(bullet.mesh.position.x.toFixed(1)),
+              z: Number(bullet.mesh.position.z.toFixed(1)),
+            })),
+          });
+        }
+
+        advanceTime(ms) {
+          const steps = Math.max(1, Math.round(ms / (1000 / 60)));
+          for (let i = 0; i < steps; i += 1) this.update(1 / 60);
+          this.render();
+        }
+
+        render() {
+          this.renderer.render(this.scene, this.activeCamera);
+        }
+
+        animate() {
+          const dt = Math.min(this.clock.getDelta(), 1 / 30);
+          this.update(dt);
+          this.render();
+          requestAnimationFrame(this.animate);
+        }
+      }
+
+      new RiverRaidGame();
+    </script>
+  </body>
+</html>
