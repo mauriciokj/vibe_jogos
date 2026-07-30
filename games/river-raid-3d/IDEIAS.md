@@ -6,12 +6,14 @@ Documento de referência para futuras atualizações do jogo.
 
 - [x] Aceleração e frenagem com inércia real.
 - [x] Mudanças visuais e sonoras conforme a velocidade.
-- [ ] Lançadores de mísseis após o primeiro ciclo ambiental.
+- [x] Lançadores de mísseis após o primeiro ciclo ambiental.
 - [ ] Alerta de travamento, mísseis telegrafados e possibilidade de abatê-los.
 - [ ] Bônus por evasões e jogadas arriscadas.
 - [ ] Bifurcações que dividem o rio em dois canais e depois voltam a uni-lo.
 
 ## 1. Lançadores de mísseis
+
+Status: lançadores laterais, ativação após o primeiro ciclo, disparo básico, perseguição com curva limitada, evasão por velocidade e destruição preventiva concluídos. Alertas e combate contra mísseis em voo ficam para a próxima etapa.
 
 - Começam a aparecer perto das pontes depois do primeiro ciclo completo de ambientes.
 - Ficam instalados nas margens ou em pequenas ilhas defensivas.

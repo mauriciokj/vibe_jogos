@@ -86,3 +86,25 @@ Original prompt: Criar um novo jogo retro inspirado em River Raid, em Three.js, 
 - Capturas Chase, Top-Down e Cockpit inspecionadas; enquadramento, exaustão, rastros e velocímetro comunicam corretamente a mudança de velocidade.
 - Pausa silencia o motor e oculta os rastros sem alterar a velocidade; movimento e disparo continuaram funcionando. AudioContext permaneceu ativo e não houve erros de console.
 - Segunda ideia concluída e marcada no `IDEIAS.md`. Próxima ideia sugerida: lançadores de mísseis após o primeiro ciclo ambiental; ainda não implementada.
+- Segunda ideia aprovada e registrada no commit `8b39314` (`feat: add dynamic speed effects and engine audio`).
+- Terceira ideia em implementação: o jogo agora conta ciclos ambientais completos e só arma pontes com lançadores após retornar do Inverno ao Dia Claro.
+- Pontes armadas recebem dois lançadores low-poly destrutíveis nas laterais; cada um acompanha o avião, pisca e dispara uma vez quando entra na zona de aproximação.
+- Mísseis básicos possuem curva limitada, tempo de vida e velocidade relativa reduzida quando o avião acelera, permitindo fuga ou desvio lateral; impacto retira uma vida.
+- Alertas de travamento, indicadores no HUD e possibilidade de abater mísseis continuam reservados para a próxima ideia.
+- Estado textual expõe ciclos completos, estado dos lançadores e posição/idade dos mísseis.
+- Validação confirmou zero lançadores no ciclo inicial e dois lançadores nas laterais da primeira ponte criada após completar Dia → Entardecer → Noite → Neblina → Inverno → Dia.
+- Ambos os lançadores acompanharam o avião, dispararam uma vez na aproximação e geraram mísseis com silhueta e rastro legíveis nas câmeras Chase, Top-Down e Cockpit.
+- Em velocidade de cruzeiro, um míssil atingiu o avião, reduziu as vidas de 3 para 2 e limpou os projéteis ativos.
+- Em velocidade máxima (57,6), os dois mísseis perderam alcance, expiraram e o avião permaneceu com 3 vidas.
+- Destruição preventiva validada: dois tiros removeram um lançador antes da ativação, concederam 400 pontos e impediram seu disparo.
+- Lançadores permanecem nas margens quando a ponte é destruída; impacto, evasão, progressão ambiental, movimento, disparo e câmeras passaram sem erros de console.
+- Terceira ideia concluída e marcada no `IDEIAS.md`. Próxima ideia sugerida: alerta de travamento e possibilidade de abater mísseis em voo; ainda não implementada.
+- Regras de progressão ajustadas: completar o ciclo ambiental inteiro agora concede uma vida extra e exibe `VIDA EXTRA` junto ao aviso da ponte.
+- Destruir um depósito FUEL agora aplica penalidade de 250 pontos, com placar limitado a zero e aviso próprio na tela.
+- Reabastecimento ao sobrevoar o posto aumentado de 34 para 78 unidades por segundo.
+- Estado textual expõe as três regras para validação automatizada.
+- Vida extra validada: destruir a ponte no Inverno completou o ciclo, voltou ao Dia Claro, incrementou ciclos 0→1 e vidas 3→4, com aviso e som próprios.
+- Penalidade validada por disparo real: placar 500→250, depósito removido e aviso `FUEL DESTRUÍDO · -250 PONTOS`; com placar zero, o limite inferior permaneceu zero.
+- Reabastecimento validado em passagem lenta: combustível 20→35,4 após 0,2 s e 20→59,7 ao final da passagem, com `refueling: true` durante o contato.
+- Capturas de vida extra, penalidade e reabastecimento inspecionadas; HUD, movimento, tiro e renderização permaneceram corretos, sem erros de console.
+- TODOs: aguardar teste do usuário antes do commit desta rodada.

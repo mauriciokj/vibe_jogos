@@ -434,7 +434,13 @@
         braking: 12.5,
         lateralSpeed: 17,
         bulletSpeed: 92,
+        missileMinSpeed: 13,
+        missileMaxSpeed: 26,
+        missileTurnRate: 2.15,
+        missileLifetime: 4,
         fuelDrain: 1.45,
+        fuelRefillRate: 78,
+        fuelPenalty: 250,
         terrainHalfWidth: 90,
       };
 
@@ -692,6 +698,16 @@
         refuel() {
           this.tone(460, 0.09, 'triangle', 0.12, 180);
         }
+
+        missileLaunch() {
+          this.tone(185, 0.34, 'sawtooth', 0.3, 420);
+          this.tone(92, 0.24, 'square', 0.18, 150);
+        }
+
+        extraLife() {
+          this.tone(520, 0.18, 'square', 0.2, 260);
+          this.tone(760, 0.28, 'triangle', 0.18, 360);
+        }
       }
 
       class RiverRaidGame {
@@ -734,10 +750,12 @@
           this.toastTimer = 0;
           this.refuelToneTimer = 0;
           this.environmentIndex = 0;
+          this.environmentCyclesCompleted = 0;
           this.environmentTransition = null;
           this.input = { left: false, right: false, up: false, down: false, shoot: false };
           this.entities = [];
           this.bullets = [];
+          this.missiles = [];
           this.particles = [];
           this.terrain = [];
           this.waterMaterials = [];
@@ -1021,7 +1039,15 @@
         }
 
         advanceEnvironment() {
-          return this.setEnvironmentPhase(this.environmentIndex + 1, false);
+          let lifeAwarded = false;
+          if (this.environmentIndex === ENVIRONMENT_PHASES.length - 1) {
+            this.environmentCyclesCompleted += 1;
+            this.lives += 1;
+            lifeAwarded = true;
+            this.audio.extraLife();
+            this.updateHUD();
+          }
+          return { ...this.setEnvironmentPhase(this.environmentIndex + 1, false), lifeAwarded };
         }
 
         updateEnvironment(dt, speed) {
@@ -1451,7 +1477,16 @@
           group.add(label);
           group.position.set(x, 0.12, z);
           this.scene.add(group);
-          return { type: 'fuel', group, radius: 3.25, health: 1, score: 150, phase: 0, vx: 0, refueling: false };
+          return {
+            type: 'fuel',
+            group,
+            radius: 3.25,
+            health: 1,
+            score: -CONFIG.fuelPenalty,
+            phase: 0,
+            vx: 0,
+            refueling: false,
+          };
         }
 
         createNavigationBeacon(color, phase) {
@@ -1557,6 +1592,139 @@
           };
         }
 
+        createMissileLauncher(x, z, side) {
+          const group = new THREE.Group();
+          const base = new THREE.Mesh(new THREE.CylinderGeometry(1.45, 1.75, 0.7, 7), this.materials.rock);
+          base.position.y = 0.48;
+          group.add(base);
+
+          const platform = new THREE.Mesh(new THREE.CylinderGeometry(1.12, 1.12, 0.28, 8), this.materials.black);
+          platform.position.y = 0.98;
+          group.add(platform);
+
+          const turret = new THREE.Group();
+          turret.position.y = 1.4;
+          const housing = new THREE.Mesh(new THREE.BoxGeometry(2.15, 0.85, 1.7), this.materials.navy);
+          turret.add(housing);
+          for (const offset of [-0.48, 0.48]) {
+            const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.31, 2.6, 7), this.materials.white);
+            tube.rotation.x = Math.PI / 2;
+            tube.position.set(offset, 0.25, 0.65);
+            turret.add(tube);
+            const nose = new THREE.Mesh(new THREE.ConeGeometry(0.31, 0.72, 7), this.materials.red);
+            nose.rotation.x = Math.PI / 2;
+            nose.position.set(offset, 0.25, 2.24);
+            turret.add(nose);
+          }
+          group.add(turret);
+
+          const lensMaterial = new THREE.MeshBasicMaterial({ color: 0xff324c, transparent: true, opacity: 0.9 });
+          const lens = new THREE.Mesh(new THREE.OctahedronGeometry(0.3, 0), lensMaterial);
+          lens.position.set(0, 2.25, 0);
+          group.add(lens);
+          const warningLight = new THREE.PointLight(0xff3048, 2.2, 11, 2);
+          warningLight.position.copy(lens.position);
+          group.add(warningLight);
+
+          group.position.set(x, 0.12, z);
+          group.userData.turret = turret;
+          group.userData.lens = lens;
+          group.userData.warningLight = warningLight;
+          this.scene.add(group);
+          return {
+            type: 'lançador',
+            group,
+            radius: 1.7,
+            hitRadius: 4,
+            health: 2,
+            score: 400,
+            phase: side < 0 ? 0 : Math.PI,
+            vx: 0,
+            side,
+            triggered: false,
+            fireCooldown: side < 0 ? 0.12 : 0.34,
+            shotsFired: 0,
+            maxShots: 1,
+          };
+        }
+
+        spawnBridgeEncounter(z) {
+          const bridge = this.createBridge(z);
+          this.entities.push(bridge);
+          if (this.environmentCyclesCompleted < 1) return bridge;
+
+          const river = this.getRiverAtZ(z);
+          for (const side of [-1, 1]) {
+            const x = river.center + side * (river.halfWidth - 1.6);
+            this.entities.push(this.createMissileLauncher(x, z - 0.2, side));
+          }
+          return bridge;
+        }
+
+        launchMissile(launcher) {
+          const group = new THREE.Group();
+          const body = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.24, 1.8, 7), this.materials.white);
+          body.rotation.x = Math.PI / 2;
+          group.add(body);
+          const nose = new THREE.Mesh(new THREE.ConeGeometry(0.25, 0.65, 7), this.materials.red);
+          nose.rotation.x = Math.PI / 2;
+          nose.position.z = 1.22;
+          group.add(nose);
+          const exhaust = new THREE.Mesh(
+            new THREE.ConeGeometry(0.24, 1.05, 6),
+            new THREE.MeshBasicMaterial({ color: 0xffd84d, transparent: true, opacity: 0.86 })
+          );
+          exhaust.rotation.x = -Math.PI / 2;
+          exhaust.position.z = -1.35;
+          group.add(exhaust);
+          const trail = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.08, 0.46, 2.8, 7),
+            new THREE.MeshBasicMaterial({
+              color: 0xb9f6ff,
+              transparent: true,
+              opacity: 0.42,
+              depthWrite: false,
+              blending: THREE.AdditiveBlending,
+            })
+          );
+          trail.rotation.x = Math.PI / 2;
+          trail.position.z = -2.45;
+          group.add(trail);
+          const flare = new THREE.Mesh(
+            new THREE.OctahedronGeometry(0.38, 0),
+            new THREE.MeshBasicMaterial({ color: 0xfff36a })
+          );
+          flare.position.z = -1.34;
+          group.add(flare);
+          for (const side of [-1, 1]) {
+            const fin = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.05, 0.5), this.materials.red);
+            fin.position.set(side * 0.28, 0, -0.62);
+            group.add(fin);
+          }
+          const light = new THREE.PointLight(0xff624a, 2.5, 9, 2);
+          light.position.z = -1.1;
+          group.add(light);
+
+          group.position.copy(launcher.group.position);
+          group.position.y = 2.45;
+          group.scale.setScalar(1.3);
+          const dx = this.player.position.x - group.position.x;
+          const dz = CONFIG.playerZ - group.position.z;
+          const angle = Math.atan2(dx, dz);
+          group.rotation.y = angle;
+          this.scene.add(group);
+          this.missiles.push({
+            group,
+            angle,
+            age: 0,
+            sourceSide: launcher.side,
+            exhaust,
+            trail,
+          });
+          launcher.shotsFired += 1;
+          this.audio.missileLaunch();
+        }
+
         seedOpeningRun() {
           this.clearEntities();
           const fuelRiver = this.getRiverAtZ(-64);
@@ -1565,15 +1733,17 @@
           this.entities.push(this.createFuel(fuelRiver.center - 1.8, -64));
           this.entities.push(this.createShip(shipRiver.center - shipRiver.halfWidth * 0.38, -108));
           this.entities.push(this.createHelicopter(heliRiver.center + heliRiver.halfWidth * 0.34, -142));
-          this.entities.push(this.createBridge(-188));
+          this.spawnBridgeEncounter(-188);
         }
 
         clearEntities() {
           for (const entity of this.entities) this.scene.remove(entity.group);
           for (const bullet of this.bullets) this.scene.remove(bullet.mesh);
+          for (const missile of this.missiles) this.scene.remove(missile.group);
           for (const particle of this.particles) this.scene.remove(particle.mesh);
           this.entities.length = 0;
           this.bullets.length = 0;
+          this.missiles.length = 0;
           this.particles.length = 0;
         }
 
@@ -1656,6 +1826,7 @@
           this.fireCooldown = 0;
           this.spawnDistance = 80;
           this.nextBridgeDistance = 620;
+          this.environmentCyclesCompleted = 0;
           this.setEnvironmentPhase(0, true);
           this.player.position.x = this.getRiverAtZ(CONFIG.playerZ).center;
           this.player.rotation.set(0, 0, 0);
@@ -1800,6 +1971,7 @@
           this.updateEnvironment(dt, speed);
           this.updateTerrain(dt, speed);
           this.updateEntities(dt, speed, isPlaying);
+          this.updateMissiles(dt, isPlaying);
           this.updateBullets(dt, isPlaying);
           this.updateParticles(dt);
 
@@ -1813,7 +1985,7 @@
               this.spawnDistance = 68 + Math.random() * 72;
             }
             if (this.distance >= this.nextBridgeDistance) {
-              this.entities.push(this.createBridge(-215));
+              this.spawnBridgeEncounter(-215);
               this.nextBridgeDistance += 720;
               this.showToast('PONTE À FRENTE', 1.5);
             }
@@ -1896,6 +2068,19 @@
               for (const beacon of entity.group.userData.beacons || []) {
                 this.updateNavigationBeacon(beacon);
               }
+            } else if (entity.type === 'lançador') {
+              const dx = this.player.position.x - entity.group.position.x;
+              const dz = CONFIG.playerZ - entity.group.position.z;
+              entity.group.userData.turret.rotation.y = Math.atan2(dx, dz);
+              const pulse = 0.72 + Math.sin(this.elapsed * 8 + entity.phase) * 0.28;
+              entity.group.userData.lens.scale.setScalar(0.8 + pulse * 0.55);
+              entity.group.userData.warningLight.intensity = 1.25 + pulse * 2.5;
+
+              if (canInteract && entity.group.position.z > -72 && entity.shotsFired < entity.maxShots) {
+                entity.triggered = true;
+                entity.fireCooldown -= dt;
+                if (entity.fireCooldown <= 0) this.launchMissile(entity);
+              }
             } else if (entity.type === 'farol') {
               this.updateNavigationBeacon(entity.group);
             } else if (entity.type === 'fuel') {
@@ -1906,7 +2091,7 @@
                 Math.abs(entity.group.position.x - this.player.position.x) < 3.6
               ) {
                 const before = this.fuel;
-                this.fuel = Math.min(100, this.fuel + 34 * dt);
+                this.fuel = Math.min(100, this.fuel + CONFIG.fuelRefillRate * dt);
                 entity.refueling = true;
                 if (this.fuel > before) {
                   this.refuelToneTimer -= dt;
@@ -1925,6 +2110,59 @@
           }
         }
 
+        updateMissiles(dt, canInteract) {
+          if (!canInteract) return;
+          const missileSpeed = lerp(CONFIG.missileMaxSpeed, CONFIG.missileMinSpeed, this.getSpeedRatio());
+          for (let index = this.missiles.length - 1; index >= 0; index -= 1) {
+            const missile = this.missiles[index];
+            missile.age += dt;
+            const dx = this.player.position.x - missile.group.position.x;
+            const dz = CONFIG.playerZ - missile.group.position.z;
+            const desiredAngle = Math.atan2(dx, dz);
+            const angleDifference = Math.atan2(
+              Math.sin(desiredAngle - missile.angle),
+              Math.cos(desiredAngle - missile.angle)
+            );
+            missile.angle += clamp(
+              angleDifference,
+              -CONFIG.missileTurnRate * dt,
+              CONFIG.missileTurnRate * dt
+            );
+            missile.group.rotation.y = missile.angle;
+            missile.group.position.x += Math.sin(missile.angle) * missileSpeed * dt;
+            missile.group.position.z += Math.cos(missile.angle) * missileSpeed * dt;
+            missile.group.position.y = 2.25 + Math.sin(this.elapsed * 18 + missile.age * 4) * 0.16;
+            missile.exhaust.scale.y = 0.8 + Math.sin(this.elapsed * 34) * 0.16;
+            missile.trail.scale.y = 0.85 + Math.sin(this.elapsed * 23 + missile.age) * 0.12;
+
+            const distanceToPlayer = Math.hypot(
+              missile.group.position.x - this.player.position.x,
+              missile.group.position.z - CONFIG.playerZ
+            );
+            if (distanceToPlayer < 1.45) {
+              this.scene.remove(missile.group);
+              this.missiles.splice(index, 1);
+              this.crash('ATINGIDO POR MÍSSIL');
+              return;
+            }
+
+            if (
+              missile.age > CONFIG.missileLifetime ||
+              missile.group.position.z < -190 ||
+              missile.group.position.z > 84 ||
+              Math.abs(missile.group.position.x) > 95
+            ) {
+              this.scene.remove(missile.group);
+              this.missiles.splice(index, 1);
+            }
+          }
+        }
+
+        clearMissiles() {
+          for (const missile of this.missiles) this.scene.remove(missile.group);
+          this.missiles.length = 0;
+        }
+
         updateBullets(dt, canHit) {
           for (let bulletIndex = this.bullets.length - 1; bulletIndex >= 0; bulletIndex -= 1) {
             const bullet = this.bullets[bulletIndex];
@@ -1939,7 +2177,7 @@
                 const dx = Math.abs(bullet.mesh.position.x - entity.group.position.x);
                 const hit = entity.type === 'ponte'
                   ? dz < 2.4 && dx < entity.halfWidth
-                  : dz < entity.radius + 0.8 && dx < entity.radius;
+                  : dz < entity.radius + 0.8 && dx < (entity.hitRadius || entity.radius);
                 if (!hit) continue;
 
                 entity.health -= 1;
@@ -1964,7 +2202,7 @@
 
         destroyEntity(index) {
           const entity = this.entities[index];
-          this.score += entity.score;
+          this.score = Math.max(0, this.score + entity.score);
           this.spawnExplosion(entity.group.position.clone(), entity.type === 'ponte' ? 34 : 20);
           this.audio.explosion();
           let nextEnvironment = null;
@@ -1975,7 +2213,10 @@
           this.scene.remove(entity.group);
           this.entities.splice(index, 1);
           if (entity.type === 'ponte') {
-            this.showToast(`PONTE DESTRUÍDA · ${nextEnvironment.label}`, 2.1);
+            const lifeMessage = nextEnvironment.lifeAwarded ? ' · VIDA EXTRA' : '';
+            this.showToast(`PONTE DESTRUÍDA · ${nextEnvironment.label}${lifeMessage}`, 2.1);
+          } else if (entity.type === 'fuel') {
+            this.showToast(`FUEL DESTRUÍDO · -${CONFIG.fuelPenalty} PONTOS`, 1.8);
           }
         }
 
@@ -2072,6 +2313,7 @@
           this.mode = 'CRASH';
           this.lives -= 1;
           this.crashTimer = 1.15;
+          this.clearMissiles();
           this.syncCameraVisuals();
           this.spawnExplosion(this.player.position.clone(), 32);
           this.audio.explosion();
@@ -2219,6 +2461,14 @@
                   }
                 : {}),
               ...(entity.type === 'fuel' ? { refueling: entity.refueling } : {}),
+              ...(entity.type === 'lançador'
+                ? {
+                    triggered: entity.triggered,
+                    shotsFired: entity.shotsFired,
+                    shotsRemaining: entity.maxShots - entity.shotsFired,
+                    side: entity.side < 0 ? 'esquerda' : 'direita',
+                  }
+                : {}),
             }))
             .sort((a, b) => b.z - a.z);
           return JSON.stringify({
@@ -2234,10 +2484,16 @@
               label: ENVIRONMENT_PHASES[this.environmentIndex].label,
               transitioning: Boolean(this.environmentTransition),
               guidanceLights: ENVIRONMENT_PHASES[this.environmentIndex].guidanceLights,
+              completedCycles: this.environmentCyclesCompleted,
             },
             score: this.score,
             lives: this.lives,
             fuel: Number(this.fuel.toFixed(1)),
+            rules: {
+              lifePerCompletedCycle: 1,
+              fuelDestructionPenalty: CONFIG.fuelPenalty,
+              fuelRefillPerSecond: CONFIG.fuelRefillRate,
+            },
             speed: Number(this.getSpeed().toFixed(1)),
             targetSpeed: Number(this.getTargetSpeed().toFixed(1)),
             throttlePercent: Math.round(this.throttle * 100),
@@ -2263,6 +2519,12 @@
             bullets: this.bullets.slice(0, 8).map((bullet) => ({
               x: Number(bullet.mesh.position.x.toFixed(1)),
               z: Number(bullet.mesh.position.z.toFixed(1)),
+            })),
+            missiles: this.missiles.map((missile) => ({
+              x: Number(missile.group.position.x.toFixed(1)),
+              z: Number(missile.group.position.z.toFixed(1)),
+              age: Number(missile.age.toFixed(2)),
+              sourceSide: missile.sourceSide < 0 ? 'esquerda' : 'direita',
             })),
           });
         }
