@@ -37,3 +37,9 @@ Original prompt: Build a classic Snake game in this repo.
 - Rio de Aço 3D: segunda ideia do roadmap concluída localmente com câmeras dinâmicas, rastros de velocidade, exaustão variável, velocímetro responsivo e motor procedural; aguarda teste/aprovação antes do commit.
 - Rio de Aço 3D: terceira ideia concluída localmente com lançadores nas pontes após o primeiro ciclo ambiental, mísseis teleguiados básicos, evasão por velocidade e destruição preventiva; aguarda teste/aprovação antes do commit.
 - Rio de Aço 3D: regras locais ajustadas para conceder uma vida por ciclo ambiental completo, penalizar em 250 pontos a destruição de FUEL e acelerar o reabastecimento; validação concluída, ainda sem commit.
+- Rio de Aço 3D: quarta ideia concluída localmente com alerta de travamento, direção da ameaça, alarme progressivo, luz no Cockpit e abatimento de mísseis por 200 pontos; aguarda teste/aprovação.
+- River Raid 3D: mísseis ficaram mais rápidos e responsivos (15–36 unidades/s, curva de 2,65 rad/s); impacto e abatimento defensivo validados sem erros.
+- River Raid 3D: travamento ampliado para 150 unidades, mísseis elevados a 32–62 e velocidades próprias de navio/helicóptero moduladas pelas cinco fases ambientais; testes passaram sem erros.
+- River Raid 3D: física dos mísseis corrigida para somar o avanço do mundo a uma propulsão constante, eliminando a impressão de recuo em alta velocidade; baixa/alta velocidade e abatimento validados.
+- River Raid 3D: modo de segurança de mísseis, faróis de ponte direcionais, bônus de velocidade dos helicópteros por ponte e navios com holofote/canhão após três ciclos implementados e validados sem erros.
+- River Raid 3D: faróis agora memorizam o primeiro travamento e continuam apontando para o avião após o disparo e mesmo depois da destruição da ponte.

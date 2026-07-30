@@ -108,3 +108,46 @@ Original prompt: Criar um novo jogo retro inspirado em River Raid, em Three.js, 
 - Reabastecimento validado em passagem lenta: combustível 20→35,4 após 0,2 s e 20→59,7 ao final da passagem, com `refueling: true` durante o contato.
 - Capturas de vida extra, penalidade e reabastecimento inspecionadas; HUD, movimento, tiro e renderização permaneceram corretos, sem erros de console.
 - TODOs: aguardar teste do usuário antes do commit desta rodada.
+- Lançadores, mísseis e regras de progressão aprovados e registrados no commit `37f818b`.
+- Quarta ideia em implementação: alerta central distingue `TRAVAMENTO` de `MÍSSIL ATIVO`, mostra direção esquerda/centro/direita e emite bipes mais rápidos com a aproximação.
+- Cockpit recebeu luz vermelha pulsante durante ameaças; tempo de travamento dos lançadores foi ampliado para tornar o disparo legível.
+- Tiros do avião agora colidem com mísseis em voo; abatimento concede 200 pontos, produz explosão e remove o alerta quando não restam ameaças.
+- Estado textual expõe estado, direção, distância e total de mísseis abatidos.
+- Estado `TRAVAMENTO` validado antes do disparo em amarelo; estado `MÍSSIL ATIVO` validado em vermelho após o lançamento.
+- Direções esquerda e direita validadas com lançadores opostos; direção central validada com míssil frontal. Distância da ameaça diminui no estado textual.
+- Cockpit validado com luz vermelha pulsante durante a ameaça; alerta central permaneceu legível nas câmeras Chase e Cockpit.
+- Pausa ocultou o alerta e manteve o jogo congelado; ao retomar, a ameaça volta a ser calculada.
+- Abatimento validado de ponta a ponta: tiro colidiu com míssil, gerou explosão, removeu a ameaça, encerrou o alerta, preservou 3 vidas e concedeu 200 pontos.
+- Movimento, disparo, combustível, HUD e renderização permaneceram sem erros de console.
+- Quarta ideia concluída e marcada no `IDEIAS.md`. Próxima ideia sugerida: bônus por evasões e jogadas arriscadas; ainda não implementada.
+- Ajuste de dificuldade: velocidade dos mísseis aumentada de 10–26 para 15–36 unidades/s; na velocidade de cruzeiro, a aproximação passou de cerca de 18,3 para 25,9 unidades/s.
+- Taxa de curva dos mísseis aumentada de 2,15 para 2,65 rad/s para que corrijam a trajetória com mais rapidez.
+- Teste frontal controlado confirmou impacto em aproximadamente 2,6 s; o estado textual agora também expõe a velocidade instantânea de cada míssil.
+- Defesa preservada: um míssil rápido foi abatido em 0,48 s, mantendo 3 vidas e concedendo 200 pontos. Regressão de movimento, tiro e renderização passou sem erros de console.
+- Novo ajuste solicitado: mísseis agora operam entre 32–62 unidades/s, chegam a 47,6 em cruzeiro e corrigem a trajetória a 3,8 rad/s.
+- Travamento dos lançadores antecipado de 95 para 150 unidades; eles continuam surgindo somente nas pontes após o primeiro ciclo ambiental e disparam por aproximação, não pela destruição da ponte.
+- Navios agora têm velocidade-base aleatória de 2,2–3,2; helicópteros usam uma faixa distinta e mais rápida de 5,4–6,6.
+- Velocidade lateral varia por ambiente: Dia 1,00×/1,00×, Entardecer 1,12×/1,15×, Noite 1,25×/1,35×, Neblina 0,72×/0,82× e Inverno 0,86×/0,95× para navio/helicóptero.
+- Validação controlada confirmou o alerta `TRAVAMENTO` com lançador em z=-147,5, míssil ativo a 47,6, impacto na sequência distante em 4,24 s e abatimento preservado por 200 pontos e 3 vidas.
+- As cinco fases retornaram velocidades efetivas distintas para as duas classes; capturas de Dia, Neblina, travamento distante e míssil ativo foram inspecionadas, sem erros de console.
+- Corrigida a física aparente dos mísseis em alta velocidade: antes o projétil não recebia o deslocamento do mundo e parecia recuar em relação ao cenário.
+- Míssil agora mantém propulsão mundial constante de 38 unidades/s; o movimento na tela soma a velocidade do avião, resultando em fechamento de 54 a 16 de velocidade e 96 a 58.
+- Comparação com um objeto do cenário confirmou ganho relativo idêntico de 7,6 unidades em 0,2 s tanto na velocidade mínima quanto na máxima, eliminando a inversão visual.
+- Estado textual separa `speed` (propulsão) de `closureSpeed` (aproximação na tela). Abatimento em velocidade máxima continuou funcionando em 0,36 s, com 3 vidas e 200 pontos; sem erros de console.
+- Nova rodada em implementação: ameaças de míssil ativam modo de segurança com alvo de 27 e frenagem automática reforçada; alerta informa o modo ativo.
+- Faróis da ponte agora recebem o alvo dos lançadores associados e apontam os feixes para o avião durante o travamento.
+- Helicópteros ganham 6% de velocidade lateral acumulada por ponte destruída, com limite de 12 pontes no cálculo.
+- Após três ciclos ambientais, navios próximos rastreiam o avião com holofote e disparam projéteis de canhão dentro de 62 unidades; projéteis possuem colisão, som, rastro e estado textual.
+- TODO: validar visualmente feixes direcionais, frenagem automática, progressão dos helicópteros e combate naval antes de entregar.
+- Modo de segurança validado partindo da velocidade 58: travamento ativou alvo 27 e a frenagem reforçada chegou a 27 antes do primeiro míssil; ao encerrar a ameaça, o alvo original 58 foi restaurado gradualmente.
+- Faróis associados à ponte acenderam inclusive no Dia Claro e apontaram os dois feixes para o avião durante o travamento; alerta e toast de segurança permaneceram legíveis.
+- Progressão validada: helicóptero-base 6 passou para 7,08 após três pontes, correspondendo ao bônus acumulado de 18%.
+- Trava de progressão naval validada: com dois ciclos, navio não rastreou nem atirou; com três ciclos, holofote rastreou, canhão disparou e o projétil atingiu o avião em 0,84 s.
+- Tiro de canhão recebeu cálculo de interceptação que compensa o deslocamento do cenário. Feixe, disparo e projétil foram inspecionados em captura real.
+- Ao completar o terceiro ciclo, o aviso da ponte passa a informar `NAVIOS ARMADOS`; vida extra e contador de ciclos continuaram corretos.
+- Regressões validadas: movimento, tiro, abatimento de míssil (+200), câmeras Top/Cockpit, pausa congelada e retomada passaram sem erros de console.
+- TODOs: aguardar teste do usuário; alterações desta rodada ainda não commitadas.
+- Faróis ajustados para memorizar permanentemente o primeiro travamento da ponte: após o disparo e o fim do alerta, os dois feixes continuam apontando para o avião.
+- A marca de rastreamento é preservada em cada farol; ao destruir a ponte, os faróis desacoplados permanecem acesos e seguem o movimento lateral do jogador até saírem do cenário.
+- Validação confirmou ponte rastreando com alerta `none`, dois faróis preservados com `trackingPlayer/lightOn/beamOn = true` e mudança real das orientações antes e depois da destruição.
+- Captura Top-Down inspecionada mostrou os dois feixes persistentes direcionados ao avião; regressão comum passou sem erros de console.

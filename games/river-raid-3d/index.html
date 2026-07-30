@@ -216,6 +216,51 @@
         transform: translate(-50%, 0);
       }
 
+      #missile-alert {
+        position: fixed;
+        left: 50%;
+        top: 13%;
+        z-index: 29;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        transform: translate(-50%, -12px) scale(0.94);
+        opacity: 0;
+        padding: 8px 15px;
+        border: 2px solid currentColor;
+        background: rgba(9, 15, 24, 0.86);
+        color: var(--yellow);
+        font-size: clamp(13px, 1.7vw, 20px);
+        font-weight: 900;
+        letter-spacing: 0.12em;
+        text-shadow: 0 0 12px currentColor;
+        transition: opacity 100ms linear, transform 100ms linear;
+        pointer-events: none;
+      }
+
+      #missile-alert.active {
+        opacity: 1;
+        transform: translate(-50%, 0) scale(1);
+        animation: missile-pulse 440ms steps(2, end) infinite;
+      }
+
+      #missile-alert[data-state="missile"] {
+        color: var(--red);
+      }
+
+      #missile-direction {
+        min-width: 24px;
+        font-size: 1.35em;
+        text-align: center;
+      }
+
+      @keyframes missile-pulse {
+        50% {
+          filter: brightness(1.65);
+          box-shadow: 0 0 22px currentColor;
+        }
+      }
+
       #overlay {
         position: fixed;
         inset: 0;
@@ -400,6 +445,10 @@
       </div>
     </div>
 
+    <div id="missile-alert" data-state="none" aria-live="assertive">
+      <span id="missile-direction">↑</span>
+      <span id="missile-alert-label">RASTREANDO</span>
+    </div>
     <div id="toast"></div>
 
     <div id="overlay" data-mode="menu">
@@ -434,10 +483,22 @@
         braking: 12.5,
         lateralSpeed: 17,
         bulletSpeed: 92,
-        missileMinSpeed: 13,
-        missileMaxSpeed: 26,
-        missileTurnRate: 2.15,
-        missileLifetime: 4,
+        missilePropulsionSpeed: 38,
+        missileTurnRate: 3.8,
+        missileLifetime: 5.5,
+        missileLockDistance: 150,
+        missileDestroyScore: 200,
+        safetyModeSpeed: 27,
+        safetyModeBraking: 52,
+        shipMinSpeed: 2.2,
+        shipMaxSpeed: 3.2,
+        shipSearchlightDistance: 105,
+        shipCannonRange: 62,
+        shipCannonSpeed: 44,
+        shipCombatCycle: 3,
+        helicopterMinSpeed: 5.4,
+        helicopterMaxSpeed: 6.6,
+        helicopterBridgeSpeedBonus: 0.06,
         fuelDrain: 1.45,
         fuelRefillRate: 78,
         fuelPenalty: 250,
@@ -477,6 +538,8 @@
           sunDisc: 0xffda74,
           guidanceLights: false,
           snow: false,
+          shipSpeedMultiplier: 1,
+          helicopterSpeedMultiplier: 1,
         },
         {
           key: 'sunset',
@@ -497,6 +560,8 @@
           sunDisc: 0xffb34d,
           guidanceLights: true,
           snow: false,
+          shipSpeedMultiplier: 1.12,
+          helicopterSpeedMultiplier: 1.15,
         },
         {
           key: 'night',
@@ -517,6 +582,8 @@
           sunDisc: 0xdce9ff,
           guidanceLights: true,
           snow: false,
+          shipSpeedMultiplier: 1.25,
+          helicopterSpeedMultiplier: 1.35,
         },
         {
           key: 'fog',
@@ -537,6 +604,8 @@
           sunDisc: 0xe8e0ca,
           guidanceLights: true,
           snow: false,
+          shipSpeedMultiplier: 0.72,
+          helicopterSpeedMultiplier: 0.82,
         },
         {
           key: 'winter',
@@ -557,6 +626,8 @@
           sunDisc: 0xf5f1df,
           guidanceLights: false,
           snow: true,
+          shipSpeedMultiplier: 0.86,
+          helicopterSpeedMultiplier: 0.95,
         },
       ];
 
@@ -574,6 +645,9 @@
         speed: document.querySelector('#speed'),
         camera: document.querySelector('#camera-name'),
         moment: document.querySelector('#moment-name'),
+        missileAlert: document.querySelector('#missile-alert'),
+        missileDirection: document.querySelector('#missile-direction'),
+        missileAlertLabel: document.querySelector('#missile-alert-label'),
         toast: document.querySelector('#toast'),
       };
 
@@ -704,6 +778,20 @@
           this.tone(92, 0.24, 'square', 0.18, 150);
         }
 
+        missileAlert(urgent = false) {
+          this.tone(urgent ? 1180 : 760, urgent ? 0.1 : 0.075, 'square', urgent ? 0.2 : 0.13, -80);
+        }
+
+        missileDestroyed() {
+          this.tone(980, 0.14, 'square', 0.2, -560);
+          this.tone(420, 0.2, 'triangle', 0.16, 260);
+        }
+
+        cannon() {
+          this.tone(132, 0.24, 'sawtooth', 0.34, -72);
+          this.tone(68, 0.32, 'square', 0.2, -24);
+        }
+
         extraLife() {
           this.tone(520, 0.18, 'square', 0.2, 260);
           this.tone(760, 0.28, 'triangle', 0.18, 360);
@@ -749,6 +837,12 @@
           this.nextBridgeDistance = 620;
           this.toastTimer = 0;
           this.refuelToneTimer = 0;
+          this.missileAlertTimer = 0;
+          this.currentMissileAlert = { state: 'none', direction: 'center', distance: null };
+          this.missilesDestroyed = 0;
+          this.safetyModeActive = false;
+          this.bridgesDestroyed = 0;
+          this.cannonShotsFired = 0;
           this.environmentIndex = 0;
           this.environmentCyclesCompleted = 0;
           this.environmentTransition = null;
@@ -756,6 +850,7 @@
           this.entities = [];
           this.bullets = [];
           this.missiles = [];
+          this.enemyShells = [];
           this.particles = [];
           this.terrain = [];
           this.waterMaterials = [];
@@ -846,6 +941,18 @@
           const panelRim = new THREE.Mesh(new THREE.BoxGeometry(5.7, 0.12, 0.25), rimMaterial);
           panelRim.position.set(0, -1.08, -2.62);
           rig.add(panelRim);
+
+          const warningMaterial = new THREE.MeshBasicMaterial({
+            color: COLORS.red,
+            transparent: true,
+            opacity: 0.12,
+            depthTest: false,
+            depthWrite: false,
+          });
+          const warningLamp = new THREE.Mesh(new THREE.OctahedronGeometry(0.22, 0), warningMaterial);
+          warningLamp.position.set(0, -1.52, -2.48);
+          rig.add(warningLamp);
+          rig.userData.warningLamp = warningLamp;
 
           for (const side of [-1, 1]) {
             const strut = new THREE.Mesh(new THREE.BoxGeometry(0.17, 4.25, 0.18), frameMaterial);
@@ -1040,14 +1147,20 @@
 
         advanceEnvironment() {
           let lifeAwarded = false;
+          let navalCombatUnlocked = false;
           if (this.environmentIndex === ENVIRONMENT_PHASES.length - 1) {
             this.environmentCyclesCompleted += 1;
+            navalCombatUnlocked = this.environmentCyclesCompleted === CONFIG.shipCombatCycle;
             this.lives += 1;
             lifeAwarded = true;
             this.audio.extraLife();
             this.updateHUD();
           }
-          return { ...this.setEnvironmentPhase(this.environmentIndex + 1, false), lifeAwarded };
+          return {
+            ...this.setEnvironmentPhase(this.environmentIndex + 1, false),
+            lifeAwarded,
+            navalCombatUnlocked,
+          };
         }
 
         updateEnvironment(dt, speed) {
@@ -1335,30 +1448,51 @@
           pivot.add(aim);
           group.add(pivot);
 
-          const searchlight = { pivot, aim, beam, spot, kind, phase, length };
+          const searchlight = {
+            pivot,
+            aim,
+            beam,
+            spot,
+            kind,
+            phase,
+            length,
+            defaultAimQuaternion: aim.quaternion.clone(),
+            trackingTarget: false,
+          };
           group.userData.searchLights = [...(group.userData.searchLights || []), searchlight];
           return searchlight;
         }
 
-        updateSearchlights(group, active) {
+        updateSearchlights(group, active, targetPosition = null) {
           const environmentKey = ENVIRONMENT_PHASES[this.environmentIndex].key;
           const opacity = environmentKey === 'fog' ? 0.22 : environmentKey === 'night' ? 0.16 : 0.1;
           for (const searchlight of group.userData.searchLights || []) {
             searchlight.beam.visible = active;
-            searchlight.beam.material.opacity = active ? opacity : 0;
+            searchlight.beam.material.opacity = active ? (targetPosition ? Math.max(opacity, 0.2) : opacity) : 0;
             searchlight.spot.intensity = active ? (environmentKey === 'fog' ? 7 : environmentKey === 'night' ? 5.8 : 4.2) : 0;
-            if (searchlight.kind === 'lighthouse') {
+            searchlight.trackingTarget = Boolean(active && targetPosition);
+            if (targetPosition) {
+              searchlight.pivot.rotation.set(0, 0, 0);
+              const origin = searchlight.pivot.getWorldPosition(new THREE.Vector3());
+              const direction = targetPosition.clone().sub(origin).normalize();
+              const parentQuaternion = searchlight.aim.parent.getWorldQuaternion(new THREE.Quaternion()).invert();
+              direction.applyQuaternion(parentQuaternion).normalize();
+              searchlight.aim.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), direction);
+            } else {
+              searchlight.aim.quaternion.copy(searchlight.defaultAimQuaternion);
+            }
+            if (!targetPosition && searchlight.kind === 'lighthouse') {
               searchlight.pivot.rotation.y = this.elapsed * 0.82 + searchlight.phase;
-            } else if (searchlight.kind === 'helicopter') {
+            } else if (!targetPosition && searchlight.kind === 'helicopter') {
               searchlight.pivot.rotation.z = Math.sin(this.elapsed * 1.15 + searchlight.phase) * 0.32;
               searchlight.pivot.rotation.x = Math.cos(this.elapsed * 0.83 + searchlight.phase) * 0.16;
-            } else if (searchlight.kind === 'ship') {
+            } else if (!targetPosition && searchlight.kind === 'ship') {
               searchlight.pivot.rotation.y = Math.sin(this.elapsed * 0.72 + searchlight.phase) * 0.08;
             }
           }
         }
 
-        updateVehicleNavigationLights(group) {
+        updateVehicleNavigationLights(group, forceSearchlight = false, targetPosition = null) {
           const active = ENVIRONMENT_PHASES[this.environmentIndex].guidanceLights;
           for (const item of group.userData.navigationLights || []) {
             const wave = 0.5 + Math.sin(this.elapsed * (item.blinking ? 7.5 : 3.2) + item.phase) * 0.5;
@@ -1367,7 +1501,20 @@
             item.lens.material.opacity = active ? 0.95 : 0.38;
             item.lens.scale.setScalar(active ? 0.9 + pulse * 0.42 : 0.72);
           }
-          this.updateSearchlights(group, active);
+          this.updateSearchlights(group, active || forceSearchlight, forceSearchlight ? targetPosition : null);
+        }
+
+        getVehicleSpeedMultiplier(type) {
+          const environment = ENVIRONMENT_PHASES[this.environmentIndex];
+          if (type === 'helicóptero') {
+            const bridgeBoost = 1 + Math.min(this.bridgesDestroyed, 12) * CONFIG.helicopterBridgeSpeedBonus;
+            return environment.helicopterSpeedMultiplier * bridgeBoost;
+          }
+          return environment.shipSpeedMultiplier;
+        }
+
+        getVehicleLateralSpeed(entity) {
+          return entity.vx * this.getVehicleSpeedMultiplier(entity.type);
         }
 
         createShip(x, z) {
@@ -1386,6 +1533,7 @@
           gun.rotation.x = Math.PI / 2;
           gun.position.set(0, 1.25, -0.65);
           group.add(gun);
+          group.userData.gun = gun;
           this.addVehicleNavigationLights(group, { height: 1.12, spread: 1.05, noseZ: -2.72 });
           this.addSearchlight(group, {
             origin: [0, 1.08, -2.35],
@@ -1396,7 +1544,8 @@
             phase: Math.random() * Math.PI,
           });
           group.position.set(x, 0.72, z);
-          const lateralSpeed = (2.6 + Math.random() * 1.4) * (Math.random() > 0.5 ? 1 : -1);
+          const lateralSpeed = lerp(CONFIG.shipMinSpeed, CONFIG.shipMaxSpeed, Math.random()) *
+            (Math.random() > 0.5 ? 1 : -1);
           group.rotation.y = -Math.sign(lateralSpeed) * Math.PI / 2;
           this.scene.add(group);
           return {
@@ -1407,6 +1556,9 @@
             score: 250,
             phase: Math.random() * 6,
             vx: lateralSpeed,
+            trackingPlayer: false,
+            cannonCooldown: 0.7 + Math.random() * 0.8,
+            cannonShotsFired: 0,
           };
         }
 
@@ -1445,7 +1597,8 @@
             phase: Math.random() * Math.PI * 2,
           });
           group.position.set(x, 4.6, z);
-          const lateralSpeed = Math.random() > 0.5 ? 3.7 : -3.7;
+          const lateralSpeed = lerp(CONFIG.helicopterMinSpeed, CONFIG.helicopterMaxSpeed, Math.random()) *
+            (Math.random() > 0.5 ? 1 : -1);
           group.rotation.y = -Math.sign(lateralSpeed) * Math.PI / 2;
           this.scene.add(group);
           return {
@@ -1530,6 +1683,7 @@
           beacon.userData.lens = lens;
           beacon.userData.light = light;
           beacon.userData.phase = phase;
+          beacon.userData.trackPlayer = false;
           this.addSearchlight(beacon, {
             origin: [0, 5.0, 0],
             direction: 'forward',
@@ -1542,13 +1696,13 @@
           return beacon;
         }
 
-        updateNavigationBeacon(beacon) {
-          const active = ENVIRONMENT_PHASES[this.environmentIndex].guidanceLights;
+        updateNavigationBeacon(beacon, targetPosition = null) {
+          const active = ENVIRONMENT_PHASES[this.environmentIndex].guidanceLights || Boolean(targetPosition);
           const pulse = 0.72 + Math.sin(this.elapsed * 5.5 + beacon.userData.phase) * 0.28;
           beacon.userData.lens.scale.setScalar(active ? 0.85 + pulse * 0.55 : 0.82);
           beacon.userData.lens.material.opacity = active ? 1 : 0.5;
           beacon.userData.light.intensity = active ? 1.5 + pulse * 2.4 : 0;
-          this.updateSearchlights(beacon, active);
+          this.updateSearchlights(beacon, active, targetPosition);
         }
 
         createBridge(z) {
@@ -1642,7 +1796,7 @@
             vx: 0,
             side,
             triggered: false,
-            fireCooldown: side < 0 ? 0.12 : 0.34,
+            fireCooldown: side < 0 ? 0.55 : 1,
             shotsFired: 0,
             maxShots: 1,
           };
@@ -1656,7 +1810,9 @@
           const river = this.getRiverAtZ(z);
           for (const side of [-1, 1]) {
             const x = river.center + side * (river.halfWidth - 1.6);
-            this.entities.push(this.createMissileLauncher(x, z - 0.2, side));
+            const launcher = this.createMissileLauncher(x, z - 0.2, side);
+            launcher.bridge = bridge;
+            this.entities.push(launcher);
           }
           return bridge;
         }
@@ -1717,12 +1873,94 @@
             group,
             angle,
             age: 0,
+            currentSpeed: CONFIG.missilePropulsionSpeed,
+            closureSpeed: this.getSpeed() + Math.cos(angle) * CONFIG.missilePropulsionSpeed,
             sourceSide: launcher.side,
             exhaust,
             trail,
           });
           launcher.shotsFired += 1;
           this.audio.missileLaunch();
+        }
+
+        launchCannonShell(ship) {
+          const group = new THREE.Group();
+          const shell = new THREE.Mesh(
+            new THREE.OctahedronGeometry(0.34, 0),
+            new THREE.MeshBasicMaterial({ color: 0xffd84d })
+          );
+          group.add(shell);
+          const glow = new THREE.PointLight(0xffa63d, 3.8, 11, 2);
+          group.add(glow);
+          const trail = new THREE.Mesh(
+            new THREE.ConeGeometry(0.26, 1.35, 6),
+            new THREE.MeshBasicMaterial({
+              color: 0xff6a3d,
+              transparent: true,
+              opacity: 0.7,
+              blending: THREE.AdditiveBlending,
+              depthWrite: false,
+            })
+          );
+          trail.rotation.x = -Math.PI / 2;
+          trail.position.z = -0.82;
+          group.add(trail);
+
+          const origin = ship.group.position.clone();
+          origin.y = 2.05;
+          group.position.copy(origin);
+          const dx = this.player.position.x - origin.x;
+          const dz = CONFIG.playerZ - origin.z;
+          const length = Math.max(0.001, Math.hypot(dx, dz));
+          const worldScrollSpeed = this.getSpeed();
+          const interceptRoot = Math.sqrt(Math.max(
+            0,
+            length * length * CONFIG.shipCannonSpeed * CONFIG.shipCannonSpeed -
+              dx * dx * worldScrollSpeed * worldScrollSpeed
+          ));
+          const interceptScale = (dz * worldScrollSpeed + interceptRoot) / (length * length);
+          const velocityX = dx * interceptScale;
+          const velocityZ = dz * interceptScale;
+          group.rotation.y = Math.atan2(velocityX, velocityZ);
+          this.scene.add(group);
+          this.enemyShells.push({ group, velocityX, velocityZ, age: 0, trail });
+          ship.cannonCooldown = 1.55 + Math.random() * 0.75;
+          ship.cannonShotsFired += 1;
+          this.cannonShotsFired += 1;
+          this.spawnSparks(origin, 8);
+          this.audio.cannon();
+        }
+
+        updateEnemyShells(dt, canInteract) {
+          if (!canInteract) return;
+          for (let index = this.enemyShells.length - 1; index >= 0; index -= 1) {
+            const shell = this.enemyShells[index];
+            shell.age += dt;
+            shell.group.position.x += shell.velocityX * dt;
+            shell.group.position.z += shell.velocityZ * dt;
+            shell.group.position.y = 2.05 + Math.sin(shell.age * 18) * 0.1;
+            shell.group.rotation.z += dt * 9;
+            shell.trail.scale.y = 0.82 + Math.sin(this.elapsed * 28 + shell.age) * 0.14;
+            const distanceToPlayer = Math.hypot(
+              shell.group.position.x - this.player.position.x,
+              shell.group.position.z - CONFIG.playerZ
+            );
+            if (distanceToPlayer < 1.35) {
+              this.scene.remove(shell.group);
+              this.enemyShells.splice(index, 1);
+              this.crash('ATINGIDO POR CANHÃO');
+              return;
+            }
+            if (
+              shell.age > 4 ||
+              shell.group.position.z < -210 ||
+              shell.group.position.z > 90 ||
+              Math.abs(shell.group.position.x) > 100
+            ) {
+              this.scene.remove(shell.group);
+              this.enemyShells.splice(index, 1);
+            }
+          }
         }
 
         seedOpeningRun() {
@@ -1740,10 +1978,12 @@
           for (const entity of this.entities) this.scene.remove(entity.group);
           for (const bullet of this.bullets) this.scene.remove(bullet.mesh);
           for (const missile of this.missiles) this.scene.remove(missile.group);
+          for (const shell of this.enemyShells) this.scene.remove(shell.group);
           for (const particle of this.particles) this.scene.remove(particle.mesh);
           this.entities.length = 0;
           this.bullets.length = 0;
           this.missiles.length = 0;
+          this.enemyShells.length = 0;
           this.particles.length = 0;
         }
 
@@ -1827,12 +2067,18 @@
           this.spawnDistance = 80;
           this.nextBridgeDistance = 620;
           this.environmentCyclesCompleted = 0;
+          this.missilesDestroyed = 0;
+          this.missileAlertTimer = 0;
+          this.safetyModeActive = false;
+          this.bridgesDestroyed = 0;
+          this.cannonShotsFired = 0;
           this.setEnvironmentPhase(0, true);
           this.player.position.x = this.getRiverAtZ(CONFIG.playerZ).center;
           this.player.rotation.set(0, 0, 0);
           this.mode = 'PLAYING';
           this.syncCameraVisuals();
           this.seedOpeningRun();
+          this.updateMissileAlert(0, false);
           dom.overlay.classList.add('hidden');
           this.showToast('MISSÃO INICIADA', 1.4);
           this.updateHUD();
@@ -1892,7 +2138,8 @@
 
         getTargetSpeed() {
           const base = lerp(CONFIG.minSpeed, CONFIG.maxSpeed, this.throttle);
-          return base * (1 + (this.level - 1) * 0.035);
+          const levelSpeed = base * (1 + (this.level - 1) * 0.035);
+          return this.safetyModeActive ? Math.min(levelSpeed, CONFIG.safetyModeSpeed) : levelSpeed;
         }
 
         getSpeed() {
@@ -1921,7 +2168,9 @@
 
           const targetSpeed = this.getTargetSpeed();
           const difference = targetSpeed - this.currentSpeed;
-          const response = difference >= 0 ? CONFIG.acceleration : CONFIG.braking;
+          const response = difference >= 0
+            ? CONFIG.acceleration
+            : this.safetyModeActive ? CONFIG.safetyModeBraking : CONFIG.braking;
           const change = Math.min(Math.abs(difference), response * dt);
           this.currentSpeed += Math.sign(difference) * change;
         }
@@ -1949,6 +2198,7 @@
           if (this.mode === 'PAUSED' || this.mode === 'GAMEOVER') {
             this.audio.setEngine(this.getSpeedRatio(), false);
             this.updateSpeedEffects(dt, 0, false);
+            this.updateMissileAlert(dt, false);
             this.updateCamera(dt);
             return;
           }
@@ -1956,6 +2206,7 @@
           if (this.mode === 'CRASH') {
             this.audio.setEngine(this.getSpeedRatio(), false);
             this.updateSpeedEffects(dt, 0, false);
+            this.updateMissileAlert(dt, false);
             this.crashTimer -= dt;
             this.updateParticles(dt);
             this.updateCamera(dt);
@@ -1972,6 +2223,7 @@
           this.updateTerrain(dt, speed);
           this.updateEntities(dt, speed, isPlaying);
           this.updateMissiles(dt, isPlaying);
+          this.updateEnemyShells(dt, isPlaying);
           this.updateBullets(dt, isPlaying);
           this.updateParticles(dt);
 
@@ -2014,6 +2266,7 @@
             this.player.rotation.z = Math.sin(this.elapsed * 0.7) * 0.09;
           }
 
+          this.updateMissileAlert(dt, isPlaying && this.mode === 'PLAYING');
           this.updateCamera(dt);
         }
 
@@ -2041,32 +2294,61 @@
               entity.group.userData.rotor.rotation.y += dt * 16;
               entity.group.position.y = 4.6 + Math.sin(this.elapsed * 3.2 + entity.phase) * 0.45;
               const river = this.getRiverAtZ(entity.group.position.z);
-              entity.group.position.x += entity.vx * dt;
+              let lateralVelocity = this.getVehicleLateralSpeed(entity);
+              entity.group.position.x += lateralVelocity * dt;
               const limit = river.halfWidth * 0.72;
               if (entity.group.position.x > river.center + limit || entity.group.position.x < river.center - limit) {
                 entity.vx *= -1;
+                lateralVelocity *= -1;
                 entity.group.position.x = clamp(entity.group.position.x, river.center - limit, river.center + limit);
               }
-              const targetHeading = -Math.sign(entity.vx) * Math.PI / 2;
+              const targetHeading = -Math.sign(lateralVelocity) * Math.PI / 2;
               entity.group.rotation.y = damp(entity.group.rotation.y, targetHeading, 8, dt);
-              entity.group.rotation.z = -entity.vx * 0.035;
+              entity.group.rotation.z = -lateralVelocity * 0.035;
               this.updateVehicleNavigationLights(entity.group);
             } else if (entity.type === 'navio') {
               const river = this.getRiverAtZ(entity.group.position.z);
               const limit = Math.max(1.5, river.halfWidth - entity.radius - 0.8);
-              entity.group.position.x += entity.vx * dt;
+              let lateralVelocity = this.getVehicleLateralSpeed(entity);
+              entity.group.position.x += lateralVelocity * dt;
               if (entity.group.position.x > river.center + limit || entity.group.position.x < river.center - limit) {
                 entity.vx *= -1;
+                lateralVelocity *= -1;
                 entity.group.position.x = clamp(entity.group.position.x, river.center - limit, river.center + limit);
               }
-              const targetHeading = -Math.sign(entity.vx) * Math.PI / 2;
+              const targetHeading = -Math.sign(lateralVelocity) * Math.PI / 2;
               entity.group.rotation.y = damp(entity.group.rotation.y, targetHeading, 8, dt);
               entity.group.rotation.z = Math.sin(this.elapsed * 2 + entity.phase) * 0.04;
               entity.group.position.y = 0.72 + Math.sin(this.elapsed * 2.5 + entity.phase) * 0.07;
-              this.updateVehicleNavigationLights(entity.group);
+              const distanceToPlayer = Math.hypot(
+                entity.group.position.x - this.player.position.x,
+                entity.group.position.z - CONFIG.playerZ
+              );
+              const combatUnlocked = this.environmentCyclesCompleted >= CONFIG.shipCombatCycle;
+              entity.trackingPlayer = Boolean(
+                canInteract &&
+                combatUnlocked &&
+                entity.group.position.z < CONFIG.playerZ + 12 &&
+                distanceToPlayer <= CONFIG.shipSearchlightDistance
+              );
+              if (combatUnlocked && canInteract) entity.cannonCooldown -= dt;
+              if (
+                entity.trackingPlayer &&
+                entity.group.position.z < CONFIG.playerZ - 6 &&
+                distanceToPlayer <= CONFIG.shipCannonRange &&
+                entity.cannonCooldown <= 0
+              ) {
+                this.launchCannonShell(entity);
+              }
+              this.updateVehicleNavigationLights(
+                entity.group,
+                entity.trackingPlayer,
+                entity.trackingPlayer ? this.player.position : null
+              );
             } else if (entity.type === 'ponte') {
+              const trackingPlayer = Boolean(entity.group.userData.trackingPlayer);
               for (const beacon of entity.group.userData.beacons || []) {
-                this.updateNavigationBeacon(beacon);
+                this.updateNavigationBeacon(beacon, trackingPlayer ? this.player.position : null);
               }
             } else if (entity.type === 'lançador') {
               const dx = this.player.position.x - entity.group.position.x;
@@ -2076,13 +2358,26 @@
               entity.group.userData.lens.scale.setScalar(0.8 + pulse * 0.55);
               entity.group.userData.warningLight.intensity = 1.25 + pulse * 2.5;
 
-              if (canInteract && entity.group.position.z > -72 && entity.shotsFired < entity.maxShots) {
+              if (
+                canInteract &&
+                entity.group.position.z > -CONFIG.missileLockDistance &&
+                entity.shotsFired < entity.maxShots
+              ) {
+                if (!entity.triggered && entity.bridge) {
+                  entity.bridge.group.userData.trackingPlayer = true;
+                  for (const beacon of entity.bridge.group.userData.beacons || []) {
+                    beacon.userData.trackPlayer = true;
+                  }
+                }
                 entity.triggered = true;
                 entity.fireCooldown -= dt;
                 if (entity.fireCooldown <= 0) this.launchMissile(entity);
               }
             } else if (entity.type === 'farol') {
-              this.updateNavigationBeacon(entity.group);
+              this.updateNavigationBeacon(
+                entity.group,
+                entity.group.userData.trackPlayer ? this.player.position : null
+              );
             } else if (entity.type === 'fuel') {
               entity.refueling = false;
               if (
@@ -2112,10 +2407,12 @@
 
         updateMissiles(dt, canInteract) {
           if (!canInteract) return;
-          const missileSpeed = lerp(CONFIG.missileMaxSpeed, CONFIG.missileMinSpeed, this.getSpeedRatio());
+          const worldScrollSpeed = this.getSpeed();
+          const missileSpeed = CONFIG.missilePropulsionSpeed;
           for (let index = this.missiles.length - 1; index >= 0; index -= 1) {
             const missile = this.missiles[index];
             missile.age += dt;
+            missile.currentSpeed = missileSpeed;
             const dx = this.player.position.x - missile.group.position.x;
             const dz = CONFIG.playerZ - missile.group.position.z;
             const desiredAngle = Math.atan2(dx, dz);
@@ -2130,7 +2427,8 @@
             );
             missile.group.rotation.y = missile.angle;
             missile.group.position.x += Math.sin(missile.angle) * missileSpeed * dt;
-            missile.group.position.z += Math.cos(missile.angle) * missileSpeed * dt;
+            missile.closureSpeed = worldScrollSpeed + Math.cos(missile.angle) * missileSpeed;
+            missile.group.position.z += missile.closureSpeed * dt;
             missile.group.position.y = 2.25 + Math.sin(this.elapsed * 18 + missile.age * 4) * 0.16;
             missile.exhaust.scale.y = 0.8 + Math.sin(this.elapsed * 34) * 0.16;
             missile.trail.scale.y = 0.85 + Math.sin(this.elapsed * 23 + missile.age) * 0.12;
@@ -2160,7 +2458,96 @@
 
         clearMissiles() {
           for (const missile of this.missiles) this.scene.remove(missile.group);
+          for (const shell of this.enemyShells) this.scene.remove(shell.group);
           this.missiles.length = 0;
+          this.enemyShells.length = 0;
+        }
+
+        getMissileThreat() {
+          if (this.missiles.length > 0) {
+            const missile = this.missiles.reduce((closest, candidate) => {
+              const candidateDistance = Math.hypot(
+                candidate.group.position.x - this.player.position.x,
+                candidate.group.position.z - CONFIG.playerZ
+              );
+              if (!closest || candidateDistance < closest.distance) {
+                return { missile: candidate, distance: candidateDistance };
+              }
+              return closest;
+            }, null);
+            const offset = missile.missile.group.position.x - this.player.position.x;
+            return {
+              state: 'missile',
+              direction: offset < -1.5 ? 'left' : offset > 1.5 ? 'right' : 'center',
+              distance: missile.distance,
+            };
+          }
+
+          const lockingLaunchers = this.entities.filter(
+            (entity) => entity.type === 'lançador' && entity.triggered && entity.shotsFired < entity.maxShots
+          );
+          if (lockingLaunchers.length > 0) {
+            const launcher = lockingLaunchers.reduce((closest, candidate) => {
+              const candidateDistance = Math.abs(candidate.group.position.z - CONFIG.playerZ);
+              const closestDistance = closest
+                ? Math.abs(closest.group.position.z - CONFIG.playerZ)
+                : Infinity;
+              return candidateDistance < closestDistance ? candidate : closest;
+            }, null);
+            const offset = launcher.group.position.x - this.player.position.x;
+            return {
+              state: 'lock',
+              direction: offset < -1.5 ? 'left' : offset > 1.5 ? 'right' : 'center',
+              distance: Math.abs(launcher.group.position.z - CONFIG.playerZ),
+            };
+          }
+
+          return { state: 'none', direction: 'center', distance: null };
+        }
+
+        updateMissileAlert(dt, active) {
+          const threat = active ? this.getMissileThreat() : { state: 'none', direction: 'center', distance: null };
+          this.currentMissileAlert = threat;
+          const safetyWasActive = this.safetyModeActive;
+          this.safetyModeActive = threat.state !== 'none';
+          const warningLamp = this.cockpitRig.userData.warningLamp;
+
+          if (threat.state === 'none') {
+            dom.missileAlert.classList.remove('active');
+            dom.missileAlert.dataset.state = 'none';
+            this.missileAlertTimer = 0;
+            if (warningLamp) {
+              warningLamp.material.opacity = 0.12;
+              warningLamp.scale.setScalar(1);
+            }
+            return;
+          }
+
+          if (!safetyWasActive) {
+            this.showToast('MODO DE SEGURANÇA · VELOCIDADE REDUZIDA', 1.45);
+          }
+
+          const arrows = { left: '◀', center: '↑', right: '▶' };
+          dom.missileAlert.dataset.state = threat.state;
+          dom.missileAlertLabel.textContent = threat.state === 'missile'
+            ? 'MÍSSIL ATIVO · SEGURANÇA'
+            : 'TRAVAMENTO · SEGURANÇA';
+          dom.missileDirection.textContent = arrows[threat.direction];
+          dom.missileAlert.classList.add('active');
+
+          const pulse = 0.5 + Math.sin(this.elapsed * 15) * 0.5;
+          if (warningLamp) {
+            warningLamp.material.opacity = 0.45 + pulse * 0.55;
+            warningLamp.scale.setScalar(1 + pulse * 0.42);
+          }
+
+          this.missileAlertTimer -= dt;
+          if (this.missileAlertTimer <= 0) {
+            const proximity = threat.distance == null ? 0 : 1 - clamp(threat.distance / 90, 0, 1);
+            const urgent = threat.state === 'missile';
+            this.audio.missileAlert(urgent);
+            this.missileAlertTimer = urgent ? lerp(0.38, 0.12, proximity) : 0.46;
+          }
         }
 
         updateBullets(dt, canHit) {
@@ -2170,7 +2557,27 @@
             let consumed = false;
 
             if (canHit) {
-              for (let entityIndex = this.entities.length - 1; entityIndex >= 0; entityIndex -= 1) {
+              for (let missileIndex = this.missiles.length - 1; missileIndex >= 0; missileIndex -= 1) {
+                const missile = this.missiles[missileIndex];
+                const dz = Math.abs(bullet.mesh.position.z - missile.group.position.z);
+                const dx = Math.abs(bullet.mesh.position.x - missile.group.position.x);
+                if (dz >= 2.5 || dx >= 1.55) continue;
+                this.spawnExplosion(missile.group.position.clone(), 12);
+                this.scene.remove(missile.group);
+                this.missiles.splice(missileIndex, 1);
+                this.score += CONFIG.missileDestroyScore;
+                this.missilesDestroyed += 1;
+                this.audio.missileDestroyed();
+                this.showToast(`MÍSSIL ABATIDO · +${CONFIG.missileDestroyScore}`, 1.25);
+                consumed = true;
+                break;
+              }
+
+              for (
+                let entityIndex = this.entities.length - 1;
+                !consumed && entityIndex >= 0;
+                entityIndex -= 1
+              ) {
                 const entity = this.entities[entityIndex];
                 if (entity.type === 'farol') continue;
                 const dz = Math.abs(bullet.mesh.position.z - entity.group.position.z);
@@ -2207,6 +2614,7 @@
           this.audio.explosion();
           let nextEnvironment = null;
           if (entity.type === 'ponte') {
+            this.bridgesDestroyed += 1;
             this.preserveBridgeBeacons(entity);
             nextEnvironment = this.advanceEnvironment();
           }
@@ -2214,7 +2622,8 @@
           this.entities.splice(index, 1);
           if (entity.type === 'ponte') {
             const lifeMessage = nextEnvironment.lifeAwarded ? ' · VIDA EXTRA' : '';
-            this.showToast(`PONTE DESTRUÍDA · ${nextEnvironment.label}${lifeMessage}`, 2.1);
+            const navalMessage = nextEnvironment.navalCombatUnlocked ? ' · NAVIOS ARMADOS' : '';
+            this.showToast(`PONTE DESTRUÍDA · ${nextEnvironment.label}${lifeMessage}${navalMessage}`, 2.4);
           } else if (entity.type === 'fuel') {
             this.showToast(`FUEL DESTRUÍDO · -${CONFIG.fuelPenalty} PONTOS`, 1.8);
           }
@@ -2430,7 +2839,13 @@
               x: Number(entity.group.position.x.toFixed(1)),
               z: Number(entity.group.position.z.toFixed(1)),
               health: entity.health,
-              ...(['navio', 'helicóptero'].includes(entity.type) ? { vx: Number(entity.vx.toFixed(1)) } : {}),
+              ...(['navio', 'helicóptero'].includes(entity.type)
+                ? {
+                    vx: Number(this.getVehicleLateralSpeed(entity).toFixed(1)),
+                    baseVx: Number(entity.vx.toFixed(1)),
+                    environmentSpeedMultiplier: this.getVehicleSpeedMultiplier(entity.type),
+                  }
+                : {}),
               ...(['navio', 'helicóptero'].includes(entity.type)
                 ? { heading: entity.vx > 0 ? 'direita' : 'esquerda' }
                 : {}),
@@ -2440,6 +2855,7 @@
                     rotatingBeamsOn: (entity.group.userData.beacons || []).some((beacon) =>
                       (beacon.userData.searchLights || []).some((searchlight) => searchlight.beam.visible)
                     ),
+                    trackingPlayer: Boolean(entity.group.userData.trackingPlayer),
                   }
                 : {}),
               ...(['navio', 'helicóptero'].includes(entity.type)
@@ -2452,9 +2868,18 @@
                     ),
                   }
                 : {}),
+              ...(entity.type === 'navio'
+                ? {
+                    combatUnlocked: this.environmentCyclesCompleted >= CONFIG.shipCombatCycle,
+                    trackingPlayer: entity.trackingPlayer,
+                    cannonCooldown: Number(Math.max(0, entity.cannonCooldown).toFixed(2)),
+                    cannonShotsFired: entity.cannonShotsFired,
+                  }
+                : {}),
               ...(entity.type === 'farol'
                 ? {
                     lightOn: entity.group.userData.light?.intensity > 0.05,
+                    trackingPlayer: Boolean(entity.group.userData.trackPlayer),
                     rotatingBeamOn: (entity.group.userData.searchLights || []).some(
                       (item) => item.beam.visible
                     ),
@@ -2485,6 +2910,8 @@
               transitioning: Boolean(this.environmentTransition),
               guidanceLights: ENVIRONMENT_PHASES[this.environmentIndex].guidanceLights,
               completedCycles: this.environmentCyclesCompleted,
+              shipSpeedMultiplier: ENVIRONMENT_PHASES[this.environmentIndex].shipSpeedMultiplier,
+              helicopterSpeedMultiplier: ENVIRONMENT_PHASES[this.environmentIndex].helicopterSpeedMultiplier,
             },
             score: this.score,
             lives: this.lives,
@@ -2493,11 +2920,29 @@
               lifePerCompletedCycle: 1,
               fuelDestructionPenalty: CONFIG.fuelPenalty,
               fuelRefillPerSecond: CONFIG.fuelRefillRate,
+              missileLockDistance: CONFIG.missileLockDistance,
+              missilePropulsionSpeed: CONFIG.missilePropulsionSpeed,
+              safetyModeSpeed: CONFIG.safetyModeSpeed,
+              shipCombatCycle: CONFIG.shipCombatCycle,
+              shipSearchlightDistance: CONFIG.shipSearchlightDistance,
+              shipCannonRange: CONFIG.shipCannonRange,
+              helicopterBridgeSpeedBonus: CONFIG.helicopterBridgeSpeedBonus,
             },
             speed: Number(this.getSpeed().toFixed(1)),
             targetSpeed: Number(this.getTargetSpeed().toFixed(1)),
             throttlePercent: Math.round(this.throttle * 100),
             speedState: this.getSpeedState(),
+            safetyModeActive: this.safetyModeActive,
+            bridgesDestroyed: this.bridgesDestroyed,
+            cannonShotsFired: this.cannonShotsFired,
+            missileAlert: {
+              state: this.currentMissileAlert.state,
+              direction: this.currentMissileAlert.direction,
+              distance: this.currentMissileAlert.distance == null
+                ? null
+                : Number(this.currentMissileAlert.distance.toFixed(1)),
+              destroyed: this.missilesDestroyed,
+            },
             speedEffects: {
               intensity: Number((this.getSpeedRatio() ** 2).toFixed(2)),
               streaksVisible: this.speedLineGroup.visible,
@@ -2524,7 +2969,14 @@
               x: Number(missile.group.position.x.toFixed(1)),
               z: Number(missile.group.position.z.toFixed(1)),
               age: Number(missile.age.toFixed(2)),
+              speed: Number(missile.currentSpeed.toFixed(1)),
+              closureSpeed: Number(missile.closureSpeed.toFixed(1)),
               sourceSide: missile.sourceSide < 0 ? 'esquerda' : 'direita',
+            })),
+            enemyShells: this.enemyShells.map((shell) => ({
+              x: Number(shell.group.position.x.toFixed(1)),
+              z: Number(shell.group.position.z.toFixed(1)),
+              age: Number(shell.age.toFixed(2)),
             })),
           });
         }

@@ -7,7 +7,9 @@ Documento de referência para futuras atualizações do jogo.
 - [x] Aceleração e frenagem com inércia real.
 - [x] Mudanças visuais e sonoras conforme a velocidade.
 - [x] Lançadores de mísseis após o primeiro ciclo ambiental.
-- [ ] Alerta de travamento, mísseis telegrafados e possibilidade de abatê-los.
+- [x] Alerta de travamento, mísseis telegrafados e possibilidade de abatê-los.
+- [x] Modo de segurança no travamento e faróis capturados acompanhando o avião permanentemente.
+- [x] Helicópteros progressivos e navios com holofote/canhão após três ciclos.
 - [ ] Bônus por evasões e jogadas arriscadas.
 - [ ] Bifurcações que dividem o rio em dois canais e depois voltam a uni-lo.
 
@@ -41,6 +43,8 @@ Status: aceleração, frenagem, inércia, velocidade real, câmera dinâmica, mo
 
 ## 3. Sistema de alerta de mísseis
 
+Status: travamento telegrafado, aviso direcional, alarme progressivo, luz no Cockpit e abatimento de mísseis em voo concluídos.
+
 - Indicador `LOCK` no HUD.
 - Alarme sonoro crescente durante o travamento.
 - Seta indicando de qual lado vem a ameaça.
@@ -73,6 +77,7 @@ Status: aceleração, frenagem, inércia, velocidade real, câmera dinâmica, mo
 - Ciclo 4: helicópteros armados e baterias antiaéreas.
 - Ciclo 5: caças inimigos e pontes fortificadas.
 - Ciclos seguintes combinam inimigos e padrões anteriores.
+- Implementado: cada ponte destruída acelera os helicópteros em 6%; após o terceiro ciclo completo, navios próximos rastreiam o avião e disparam o canhão.
 
 ## 7. Combos e risco
 
