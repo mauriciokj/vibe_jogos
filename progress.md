@@ -27,8 +27,10 @@ Original prompt: Build a classic Snake game in this repo.
 - Rio de Aço 3D: helicópteros alinhados à patrulha lateral e faróis náuticos adicionados às pontes.
 - Rio de Aço 3D: pontes agora avançam o ciclo Dia/Entardecer/Noite/Neblina/Inverno; faróis persistem e veículos usam luzes de navegação em baixa visibilidade.
 - Rio de Aço 3D: faróis agora varrem o cenário com canhões rotativos; navios têm holofote frontal e helicópteros usam busca vertical sobre o rio.
+- Roadmap de futuras mecânicas do Rio de Aço registrado em `games/river-raid-3d/IDEIAS.md`.
 - Domínios de produção da Vercel registrados em `DEPLOYMENT.md`; publicação vinculada ao push da branch `main`.
 - Vercel Web Analytics integrado ao catálogo e a todas as páginas HTML dos jogos por meio de `/_vercel/insights/script.js`.
 - Analytics validado localmente nas oito páginas com o cliente Playwright; catálogo e jogos renderizaram sem regressões visuais. Os únicos 404 observados são preexistentes no leaderboard local do Snake e na página de backup `legacy-root`.
 - Deploy de produção do Analytics verificado em `https://vibe-jogos.vercel.app/`: endpoint da Vercel respondeu 200 e as sete páginas públicas passaram no Playwright sem erros de console.
 - Sugestão: acumular cerca de 30 dias de tráfego antes de decidir formatos e posições de anúncios.
+- Rio de Aço 3D: primeira ideia do roadmap concluída com aceleração/frenagem por inércia, potência persistente e velocidade real entre 16 e 58; controles e câmeras revalidados sem erros.

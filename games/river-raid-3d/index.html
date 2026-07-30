@@ -6,8 +6,13 @@
     <meta name="theme-color" content="#081a2c" />
     <script>
       window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+      if (window.location.hostname.endsWith('.vercel.app')) {
+        const analytics = document.createElement('script');
+        analytics.defer = true;
+        analytics.src = '/_vercel/insights/script.js';
+        document.head.appendChild(analytics);
+      }
     </script>
-    <script defer src="/_vercel/insights/script.js"></script>
     <title>Rio de Aço 3D</title>
     <style>
       :root {
@@ -420,8 +425,13 @@
         segmentLength: 32,
         segmentCount: 12,
         playerZ: 8,
-        minSpeed: 23,
-        maxSpeed: 47,
+        minSpeed: 16,
+        maxSpeed: 58,
+        initialThrottle: 0.48,
+        throttleUpRate: 0.34,
+        throttleDownRate: 0.46,
+        acceleration: 8.5,
+        braking: 12.5,
         lateralSpeed: 17,
         bulletSpeed: 92,
         fuelDrain: 1.45,
@@ -677,12 +687,14 @@
 
           this.audio = new AudioEngine();
           this.clock = new THREE.Clock();
+          this.manualStepping = false;
           this.mode = 'MENU';
           this.elapsed = 0;
           this.score = 0;
           this.lives = 3;
           this.fuel = 100;
-          this.throttle = 0.56;
+          this.throttle = CONFIG.initialThrottle;
+          this.currentSpeed = lerp(CONFIG.minSpeed, CONFIG.maxSpeed, this.throttle);
           this.distance = 0;
           this.level = 1;
           this.fireCooldown = 0;
@@ -1563,7 +1575,8 @@
           this.score = 0;
           this.lives = 3;
           this.fuel = 100;
-          this.throttle = 0.56;
+          this.throttle = CONFIG.initialThrottle;
+          this.currentSpeed = lerp(CONFIG.minSpeed, CONFIG.maxSpeed, this.throttle);
           this.distance = 0;
           this.level = 1;
           this.fireCooldown = 0;
@@ -1632,9 +1645,34 @@
           this.toastTimer = duration;
         }
 
-        getSpeed() {
+        getTargetSpeed() {
           const base = lerp(CONFIG.minSpeed, CONFIG.maxSpeed, this.throttle);
           return base * (1 + (this.level - 1) * 0.035);
+        }
+
+        getSpeed() {
+          return this.currentSpeed;
+        }
+
+        getSpeedState() {
+          const difference = this.getTargetSpeed() - this.currentSpeed;
+          if (Math.abs(difference) < 0.2) return 'estável';
+          return difference > 0 ? 'acelerando' : 'freando';
+        }
+
+        updateFlightSpeed(dt) {
+          if (this.input.up && !this.input.down) {
+            this.throttle += CONFIG.throttleUpRate * dt;
+          } else if (this.input.down && !this.input.up) {
+            this.throttle -= CONFIG.throttleDownRate * dt;
+          }
+          this.throttle = clamp(this.throttle, 0, 1);
+
+          const targetSpeed = this.getTargetSpeed();
+          const difference = targetSpeed - this.currentSpeed;
+          const response = difference >= 0 ? CONFIG.acceleration : CONFIG.braking;
+          const change = Math.min(Math.abs(difference), response * dt);
+          this.currentSpeed += Math.sign(difference) * change;
         }
 
         shoot() {
@@ -1671,6 +1709,7 @@
           }
 
           const isPlaying = this.mode === 'PLAYING';
+          if (isPlaying) this.updateFlightSpeed(dt);
           const speed = isPlaying ? this.getSpeed() : 12;
           this.updateEnvironment(dt, speed);
           this.updateTerrain(dt, speed);
@@ -1692,11 +1731,6 @@
               this.nextBridgeDistance += 720;
               this.showToast('PONTE À FRENTE', 1.5);
             }
-
-            if (this.input.up) this.throttle += 0.42 * dt;
-            if (this.input.down) this.throttle -= 0.58 * dt;
-            if (!this.input.up && !this.input.down) this.throttle = damp(this.throttle, 0.55, 0.38, dt);
-            this.throttle = clamp(this.throttle, 0, 1);
 
             const axis = (this.input.right ? 1 : 0) - (this.input.left ? 1 : 0);
             this.player.position.x += axis * CONFIG.lateralSpeed * dt;
@@ -2098,6 +2132,9 @@
             lives: this.lives,
             fuel: Number(this.fuel.toFixed(1)),
             speed: Number(this.getSpeed().toFixed(1)),
+            targetSpeed: Number(this.getTargetSpeed().toFixed(1)),
+            throttlePercent: Math.round(this.throttle * 100),
+            speedState: this.getSpeedState(),
             level: this.level,
             player: {
               x: Number(this.player.position.x.toFixed(1)),
@@ -2115,6 +2152,7 @@
         }
 
         advanceTime(ms) {
+          this.manualStepping = true;
           const steps = Math.max(1, Math.round(ms / (1000 / 60)));
           for (let i = 0; i < steps; i += 1) this.update(1 / 60);
           this.render();
@@ -2125,8 +2163,10 @@
         }
 
         animate() {
-          const dt = Math.min(this.clock.getDelta(), 1 / 30);
-          this.update(dt);
+          if (!this.manualStepping) {
+            const dt = Math.min(this.clock.getDelta(), 1 / 30);
+            this.update(dt);
+          }
           this.render();
           requestAnimationFrame(this.animate);
         }

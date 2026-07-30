@@ -14,6 +14,7 @@ Original prompt: Criar um novo jogo retro inspirado em River Raid, em Three.js, 
 - Validação de velocidade e pausa: acelerar elevou a velocidade de 36 para 45,5; frear reduziu para 32,5; P pausou e retomou.
 - Screenshots inspecionadas em `output/web-game/river-raid-*`; nenhum erro de console encontrado.
 - TODOs: nenhum bloqueador conhecido.
+- Ideias futuras consolidadas em `IDEIAS.md`, incluindo mísseis, inércia de velocidade, clima, inimigos, equipamentos, pontes especiais e bifurcações do rio em dois canais.
 - Helicópteros agora nascem e patrulham com orientação horizontal, apontando para a direção lateral do voo e girando ao tocar a margem.
 - Cada ponte recebeu dois faróis náuticos low-poly nas entradas do canal, com sinalização vermelha/verde e luz pulsante.
 - TODO: validar visualmente helicópteros em ambas as direções e faróis junto à ponte.
@@ -68,3 +69,11 @@ Original prompt: Criar um novo jogo retro inspirado em River Raid, em Three.js, 
 - Patrulha dos navios validada: ao alcançar a margem, a velocidade lateral inverteu de +3,5 para -3,5 e permaneceu dentro do rio.
 - Nenhum erro de console ou regressão de renderização encontrado.
 - TODOs: nenhum bloqueador conhecido.
+- Primeira ideia da nova evolução concluída: velocidade real agora é separada da potência selecionada pelo jogador.
+- W/Cima e S/Baixo ajustam uma potência persistente; ao soltar os controles, o avião mantém a velocidade escolhida em vez de retornar automaticamente ao cruzeiro.
+- A velocidade atual alcança a velocidade desejada com inércia, usando aceleração e frenagem com respostas diferentes e uma faixa ampliada de 16 a 58 unidades por segundo.
+- Estado textual passou a expor `targetSpeed`, `throttlePercent` e `speedState`; o relógio de testes também foi tornado determinístico após a primeira chamada de `advanceTime`.
+- Validação automatizada: cruzeiro estável em 36,2; pressão curta elevou a meta a 38,5 enquanto a velocidade ainda estava em 37,6 (`acelerando`); após soltar, estabilizou em 50,4 com 82% de potência.
+- Frenagem validada até 16,8; W/S, pausa sem variação de velocidade, movimento, disparo e ciclo Perseguição → Topo → Cockpit → Perseguição passaram.
+- Capturas inspecionadas em `output/web-game/river-raid-inertia-*`; HUD, cenário e controles permaneceram legíveis, sem erros de console.
+- Próxima ideia sugerida: mudanças visuais e sonoras conforme a velocidade. Ainda não implementada.
