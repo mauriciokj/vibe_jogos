@@ -615,6 +615,11 @@
         constructor() {
           this.context = null;
           this.master = null;
+          this.engineOscillator = null;
+          this.engineFilter = null;
+          this.engineGain = null;
+          this.enginePitch = 72;
+          this.engineLevel = 0;
         }
 
         enable() {
@@ -628,6 +633,31 @@
           this.master = this.context.createGain();
           this.master.gain.value = 0.16;
           this.master.connect(this.context.destination);
+
+          this.engineOscillator = this.context.createOscillator();
+          this.engineFilter = this.context.createBiquadFilter();
+          this.engineGain = this.context.createGain();
+          this.engineOscillator.type = 'sawtooth';
+          this.engineOscillator.frequency.value = this.enginePitch;
+          this.engineFilter.type = 'lowpass';
+          this.engineFilter.frequency.value = 480;
+          this.engineFilter.Q.value = 2.4;
+          this.engineGain.gain.value = 0.0001;
+          this.engineOscillator.connect(this.engineFilter);
+          this.engineFilter.connect(this.engineGain);
+          this.engineGain.connect(this.master);
+          this.engineOscillator.start();
+        }
+
+        setEngine(speedRatio, active) {
+          const ratio = clamp(speedRatio, 0, 1);
+          this.enginePitch = 72 + ratio * 148;
+          this.engineLevel = active ? 0.085 + ratio * 0.135 : 0;
+          if (!this.context || !this.engineOscillator || !this.engineFilter || !this.engineGain) return;
+          const now = this.context.currentTime;
+          this.engineOscillator.frequency.setTargetAtTime(this.enginePitch, now, 0.055);
+          this.engineFilter.frequency.setTargetAtTime(420 + ratio * 880, now, 0.07);
+          this.engineGain.gain.setTargetAtTime(Math.max(0.0001, this.engineLevel), now, 0.08);
         }
 
         tone(frequency, duration, type = 'square', volume = 0.35, slide = 0) {
@@ -720,6 +750,7 @@
           this.createLights();
           this.createBackdrop();
           this.createTerrain();
+          this.createSpeedLines();
           this.createSnow();
           this.setEnvironmentPhase(0, true);
           this.player = this.createPlayer();
@@ -884,6 +915,49 @@
           this.snow = new THREE.Points(geometry, material);
           this.snow.visible = false;
           this.scene.add(this.snow);
+        }
+
+        createSpeedLines() {
+          this.speedLineMaterial = new THREE.MeshBasicMaterial({
+            color: 0xb8f7ff,
+            transparent: true,
+            opacity: 0,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+          });
+          this.speedLineGroup = new THREE.Group();
+          this.speedLineGroup.visible = false;
+          for (let index = 0; index < 22; index += 1) {
+            const length = 1.1 + Math.random() * 1.8;
+            const line = new THREE.Mesh(
+              new THREE.BoxGeometry(0.055, 0.025, length),
+              this.speedLineMaterial
+            );
+            line.position.z = -16 - Math.random() * 125;
+            const river = this.getRiverAtZ(line.position.z);
+            line.position.x = river.center + (Math.random() - 0.5) * river.halfWidth * 1.55;
+            line.position.y = 0.2 + Math.random() * 0.08;
+            line.userData.drift = 0.82 + Math.random() * 0.4;
+            this.speedLineGroup.add(line);
+          }
+          this.scene.add(this.speedLineGroup);
+        }
+
+        updateSpeedEffects(dt, speed, active) {
+          const ratio = active ? this.getSpeedRatio() : 0;
+          const targetOpacity = active && ratio > 0.16 ? 0.015 + ratio * ratio * 0.25 : 0;
+          this.speedLineMaterial.opacity = damp(this.speedLineMaterial.opacity, targetOpacity, 5.5, dt);
+          this.speedLineGroup.visible = this.speedLineMaterial.opacity > 0.008;
+
+          for (const line of this.speedLineGroup.children) {
+            line.scale.z = 0.55 + ratio * 2.4;
+            line.position.z += speed * dt * line.userData.drift * (0.45 + ratio);
+            if (line.position.z > 17) {
+              line.position.z = -92 - Math.random() * 52;
+              const river = this.getRiverAtZ(line.position.z);
+              line.position.x = river.center + (Math.random() - 0.5) * river.halfWidth * 1.55;
+            }
+          }
         }
 
         captureEnvironment() {
@@ -1654,6 +1728,12 @@
           return this.currentSpeed;
         }
 
+        getSpeedRatio() {
+          const levelScale = 1 + (this.level - 1) * 0.035;
+          const normalizedSpeed = this.currentSpeed / levelScale;
+          return clamp((normalizedSpeed - CONFIG.minSpeed) / (CONFIG.maxSpeed - CONFIG.minSpeed), 0, 1);
+        }
+
         getSpeedState() {
           const difference = this.getTargetSpeed() - this.currentSpeed;
           if (Math.abs(difference) < 0.2) return 'estável';
@@ -1696,11 +1776,15 @@
           }
 
           if (this.mode === 'PAUSED' || this.mode === 'GAMEOVER') {
+            this.audio.setEngine(this.getSpeedRatio(), false);
+            this.updateSpeedEffects(dt, 0, false);
             this.updateCamera(dt);
             return;
           }
 
           if (this.mode === 'CRASH') {
+            this.audio.setEngine(this.getSpeedRatio(), false);
+            this.updateSpeedEffects(dt, 0, false);
             this.crashTimer -= dt;
             this.updateParticles(dt);
             this.updateCamera(dt);
@@ -1711,6 +1795,8 @@
           const isPlaying = this.mode === 'PLAYING';
           if (isPlaying) this.updateFlightSpeed(dt);
           const speed = isPlaying ? this.getSpeed() : 12;
+          this.audio.setEngine(this.getSpeedRatio(), isPlaying);
+          this.updateSpeedEffects(dt, speed, isPlaying);
           this.updateEnvironment(dt, speed);
           this.updateTerrain(dt, speed);
           this.updateEntities(dt, speed, isPlaying);
@@ -1737,7 +1823,10 @@
             this.player.rotation.z = damp(this.player.rotation.z, -axis * 0.46, 8, dt);
             this.player.rotation.y = damp(this.player.rotation.y, -axis * 0.12, 7, dt);
             this.player.position.y = 2.7 + Math.sin(this.elapsed * 5.5) * 0.08;
-            this.player.userData.exhaust.scale.y = 0.8 + this.throttle * 0.9 + Math.sin(this.elapsed * 28) * 0.1;
+            const speedRatio = this.getSpeedRatio();
+            this.player.userData.exhaust.scale.y =
+              0.62 + this.throttle * 0.5 + speedRatio * 1.35 + Math.sin(this.elapsed * 28) * 0.1;
+            this.player.userData.exhaust.material.opacity = 0.58 + speedRatio * 0.36;
             if (this.input.shoot) this.shoot();
 
             this.fuel -= CONFIG.fuelDrain * (0.72 + this.throttle * 0.58) * dt;
@@ -2027,18 +2116,33 @@
         }
 
         updateCamera(dt) {
+          const speedRatio = this.getSpeedRatio();
+          const chaseFov = lerp(56, 72, speedRatio);
+          const cockpitFov = lerp(66, 82, speedRatio);
+          this.cameraChase.fov = damp(this.cameraChase.fov, chaseFov, 5.5, dt);
+          this.cameraCockpit.fov = damp(this.cameraCockpit.fov, cockpitFov, 5.5, dt);
+          this.cameraTop.zoom = damp(this.cameraTop.zoom, lerp(1, 0.86, speedRatio), 5.5, dt);
+          this.cameraChase.updateProjectionMatrix();
+          this.cameraCockpit.updateProjectionMatrix();
+          this.cameraTop.updateProjectionMatrix();
+
           this.cameraTargetX = damp(this.cameraTargetX, this.player.position.x, 4.8, dt);
           if (this.cameraMode === 'chase') {
             this.cameraChase.position.x = damp(this.cameraChase.position.x, this.cameraTargetX * 0.78, 4, dt);
-            this.cameraChase.position.y = damp(this.cameraChase.position.y, 10.3, 4, dt);
-            this.cameraChase.position.z = damp(this.cameraChase.position.z, 23, 4, dt);
-            this.cameraChase.lookAt(this.cameraTargetX * 0.42, 1.0, -26);
+            this.cameraChase.position.y = damp(this.cameraChase.position.y, lerp(9.4, 11.2, speedRatio), 4, dt);
+            this.cameraChase.position.z = damp(this.cameraChase.position.z, lerp(20.5, 25, speedRatio), 4, dt);
+            this.cameraChase.lookAt(this.cameraTargetX * 0.42, 1.0, lerp(-24, -32, speedRatio));
           } else if (this.cameraMode === 'top') {
             this.cameraTop.position.set(this.cameraTargetX, 82, -25);
             this.cameraTop.up.set(0, 0, -1);
             this.cameraTop.lookAt(this.cameraTargetX, 0, -25);
           } else {
-            this.cameraCockpit.position.set(this.player.position.x, this.player.position.y + 0.72, CONFIG.playerZ - 0.7);
+            const shake = Math.max(0, speedRatio - 0.62) / 0.38;
+            this.cameraCockpit.position.set(
+              this.player.position.x + Math.sin(this.elapsed * 31) * 0.025 * shake,
+              this.player.position.y + 0.72 + Math.sin(this.elapsed * 37) * 0.018 * shake,
+              CONFIG.playerZ - 0.7
+            );
             this.cameraCockpit.up.set(0, 1, 0);
             this.cameraCockpit.lookAt(this.player.position.x, 1.4, -52);
             this.cameraCockpit.rotation.z = this.player.rotation.z * 0.55;
@@ -2052,6 +2156,9 @@
           dom.fuelNumber.style.color = this.fuel < 22 ? '#ff4d5f' : '#f5f0d0';
           dom.lives.textContent = Array.from({ length: Math.max(0, this.lives) }, () => '▲').join(' ') || '—';
           dom.speed.textContent = ` ${Math.round(this.getSpeed() * 7.4)}`;
+          const speedRatio = this.getSpeedRatio();
+          dom.speed.style.color = `hsl(${Math.round(190 - speedRatio * 145)} 100% 68%)`;
+          dom.speed.style.textShadow = `0 0 ${Math.round(4 + speedRatio * 10)}px currentColor`;
         }
 
         onResize() {
@@ -2135,6 +2242,15 @@
             targetSpeed: Number(this.getTargetSpeed().toFixed(1)),
             throttlePercent: Math.round(this.throttle * 100),
             speedState: this.getSpeedState(),
+            speedEffects: {
+              intensity: Number((this.getSpeedRatio() ** 2).toFixed(2)),
+              streaksVisible: this.speedLineGroup.visible,
+              chaseFov: Number(this.cameraChase.fov.toFixed(1)),
+              cockpitFov: Number(this.cameraCockpit.fov.toFixed(1)),
+              topZoom: Number(this.cameraTop.zoom.toFixed(2)),
+              enginePitch: Math.round(this.audio.enginePitch),
+              engineLevel: Number(this.audio.engineLevel.toFixed(2)),
+            },
             level: this.level,
             player: {
               x: Number(this.player.position.x.toFixed(1)),

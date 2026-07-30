@@ -77,3 +77,12 @@ Original prompt: Criar um novo jogo retro inspirado em River Raid, em Three.js, 
 - Frenagem validada até 16,8; W/S, pausa sem variação de velocidade, movimento, disparo e ciclo Perseguição → Topo → Cockpit → Perseguição passaram.
 - Capturas inspecionadas em `output/web-game/river-raid-inertia-*`; HUD, cenário e controles permaneceram legíveis, sem erros de console.
 - Próxima ideia sugerida: mudanças visuais e sonoras conforme a velocidade. Ainda não implementada.
+- Segunda ideia em implementação: câmeras Chase/Cockpit agora ampliam o FOV com a velocidade; a câmera Top-Down abre mais o enquadramento em alta velocidade.
+- Adicionados rastros luminosos sobre o rio, exaustão variável, cor dinâmica no velocímetro e vibração sutil no cockpit em alta velocidade.
+- Motor procedural contínuo adicionado com tom, filtro e volume controlados pela velocidade real; fica silencioso fora do estado de voo.
+- Estado textual expõe intensidade, visibilidade dos rastros, FOVs, zoom superior, tom e volume do motor.
+- Comparação validada: em baixa velocidade (16,8), rastros desligados, Chase em 56,3°, Cockpit em 66,3°, Top zoom 1,0 e motor próximo de 75 Hz.
+- Em alta velocidade (57,7), rastros visíveis, Chase em 71,3°, Cockpit em 81,3°, Top zoom 0,87 e motor próximo de 219 Hz.
+- Capturas Chase, Top-Down e Cockpit inspecionadas; enquadramento, exaustão, rastros e velocímetro comunicam corretamente a mudança de velocidade.
+- Pausa silencia o motor e oculta os rastros sem alterar a velocidade; movimento e disparo continuaram funcionando. AudioContext permaneceu ativo e não houve erros de console.
+- Segunda ideia concluída e marcada no `IDEIAS.md`. Próxima ideia sugerida: lançadores de mísseis após o primeiro ciclo ambiental; ainda não implementada.

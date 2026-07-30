@@ -5,7 +5,7 @@ Documento de referência para futuras atualizações do jogo.
 ## Prioridade recomendada
 
 - [x] Aceleração e frenagem com inércia real.
-- [ ] Mudanças visuais e sonoras conforme a velocidade.
+- [x] Mudanças visuais e sonoras conforme a velocidade.
 - [ ] Lançadores de mísseis após o primeiro ciclo ambiental.
 - [ ] Alerta de travamento, mísseis telegrafados e possibilidade de abatê-los.
 - [ ] Bônus por evasões e jogadas arriscadas.
@@ -24,7 +24,7 @@ Documento de referência para futuras atualizações do jogo.
 
 ## 2. Velocidade com sensação realista
 
-Status: núcleo de aceleração, frenagem, inércia e velocidade real concluído. Efeitos de câmera, áudio e manobrabilidade continuam planejados para a próxima etapa.
+Status: aceleração, frenagem, inércia, velocidade real, câmera dinâmica, motor procedural, exaustão e rastros concluídos. Alterações de manobrabilidade continuam como expansão futura.
 
 - Aceleração e frenagem graduais, com inércia do avião.
 - A velocidade altera de verdade o deslocamento do cenário, inimigos, obstáculos e mísseis.

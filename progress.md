@@ -34,3 +34,4 @@ Original prompt: Build a classic Snake game in this repo.
 - Deploy de produção do Analytics verificado em `https://vibe-jogos.vercel.app/`: endpoint da Vercel respondeu 200 e as sete páginas públicas passaram no Playwright sem erros de console.
 - Sugestão: acumular cerca de 30 dias de tráfego antes de decidir formatos e posições de anúncios.
 - Rio de Aço 3D: primeira ideia do roadmap concluída com aceleração/frenagem por inércia, potência persistente e velocidade real entre 16 e 58; controles e câmeras revalidados sem erros.
+- Rio de Aço 3D: segunda ideia do roadmap concluída localmente com câmeras dinâmicas, rastros de velocidade, exaustão variável, velocímetro responsivo e motor procedural; aguarda teste/aprovação antes do commit.
