@@ -43,3 +43,6 @@ Original prompt: Build a classic Snake game in this repo.
 - River Raid 3D: física dos mísseis corrigida para somar o avanço do mundo a uma propulsão constante, eliminando a impressão de recuo em alta velocidade; baixa/alta velocidade e abatimento validados.
 - River Raid 3D: modo de segurança de mísseis, faróis de ponte direcionais, bônus de velocidade dos helicópteros por ponte e navios com holofote/canhão após três ciclos implementados e validados sem erros.
 - River Raid 3D: faróis agora memorizam o primeiro travamento e continuam apontando para o avião após o disparo e mesmo depois da destruição da ponte.
+- River Raid 3D: seletor persistente de rodada inicial (01–10) adicionado ao menu para simular rapidamente desbloqueios, vidas, pontes, mísseis e combate naval.
+- River Raid 3D: navios armados agora só rastreiam e atiram numa faixa lateral próxima, com 0,65 s de alerta; cruzar pelo outro lado do rio cancela o ataque.
+- River Raid 3D: alcance de detecção e disparo dos navios agora corresponde exatamente às 22 unidades do próprio feixe de luz; fora dele não há alerta nem tiro.

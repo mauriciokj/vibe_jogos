@@ -151,3 +151,23 @@ Original prompt: Criar um novo jogo retro inspirado em River Raid, em Three.js, 
 - A marca de rastreamento é preservada em cada farol; ao destruir a ponte, os faróis desacoplados permanecem acesos e seguem o movimento lateral do jogador até saírem do cenário.
 - Validação confirmou ponte rastreando com alerta `none`, dois faróis preservados com `trackingPlayer/lightOn/beamOn = true` e mudança real das orientações antes e depois da destruição.
 - Captura Top-Down inspecionada mostrou os dois feixes persistentes direcionados ao avião; regressão comum passou sem erros de console.
+- Seletor `RODADA INICIAL` adicionado à tela de menu com opções 01–10 e descrição dos recursos liberados.
+- Rodada de teste configura ciclos já completos, cinco pontes por ciclo, vidas acumuladas, bônus dos helicópteros, lançadores e combate naval; escolha fica salva no navegador.
+- Estado textual agora expõe `startingRound`, `currentRound` e `simulationMode` para validação. TODO: testar rodadas 1, 2 e 4, persistência e reinício.
+- Rodada 1 validada com 3 vidas, zero ciclos/pontes prévios, nenhum lançador e `simulationMode: false`.
+- Rodada 2 validada com 4 vidas, um ciclo, cinco pontes simuladas e dois lançadores; descrição informa mísseis e helicópteros +30%.
+- Rodada 4 validada com 6 vidas, três ciclos, 15 pontes simuladas, dois lançadores, navios armados e multiplicador efetivo 1,72 para helicópteros.
+- Seleção persistiu após recarregar; mudança na tela de Game Over reiniciou corretamente na rodada 3. Menu e gameplay da rodada 4 foram inspecionados sem erros de console.
+- TODOs: aguardar teste do usuário; seletor ainda não commitado.
+- Combate naval em ajuste: refletor agora exige passagem longitudinal a até 72 unidades e proximidade lateral máxima de 7; canhão exige faixa ainda mais estreita de 6,2 e distância longitudinal de 54.
+- Navio acumula 0,65 s de travamento visível antes do primeiro disparo e cancela imediatamente o alerta ao sair da faixa ou cruzar pelo outro lado do rio.
+- Estado textual expõe tempo/progresso de travamento e distância lateral. TODO: validar passagem próxima, distante e cancelamento antes do tiro.
+- Passagem distante validada a 9 unidades laterais: refletor apagado, travamento zero, nenhum disparo e nenhum projétil.
+- Passagem próxima validada a 4 unidades: refletor acendeu imediatamente, permaneceu 0,65 s como alerta e só então disparou; projétil atingiu o avião posteriormente.
+- Cancelamento validado: sair de 4 para 9 unidades laterais durante o alerta zerou o progresso e impediu totalmente o tiro.
+- Capturas comparativas inspecionadas mostraram navio distante sem feixe e navio próximo iluminando o avião; regressão geral passou sem erros de console.
+- Segundo ajuste de proximidade: refletor reduzido de 72/7 para 42 unidades longitudinais e 5,5 laterais; canhão reduzido de 54/6,2 para 28 longitudinais e 4,8 laterais.
+- Tempo de alerta encurtado para 0,55 s para manter uma chance real de disparo dentro da nova zona curta. TODO: revalidar visualmente as zonas.
+- Regra final de proximidade naval: as zonas retangulares invisíveis foram substituídas pela distância física do próprio feixe, com 22 unidades de comprimento; refletor, travamento e canhão só funcionam enquanto o avião estiver ao alcance dessa luz.
+- Limite validado: a 23,4 unidades o navio não rastreou nem atirou; a 17,4 unidades o feixe alcançou o avião e iniciou o alerta, disparando após 0,35 s de exposição. Uma passagem rápida ainda consegue escapar antes do tiro.
+- Capturas externas e internas ao alcance físico do feixe foram inspecionadas; estado textual e console permaneceram sem erros.

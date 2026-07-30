@@ -338,6 +338,48 @@
         font-size: 13px;
       }
 
+      .simulation-round {
+        display: grid;
+        grid-template-columns: auto 92px;
+        align-items: center;
+        justify-content: center;
+        gap: 8px 14px;
+        margin: -8px auto 22px;
+        color: var(--cyan);
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+
+      #start-round {
+        appearance: none;
+        width: 92px;
+        padding: 9px 28px 9px 12px;
+        border: 1px solid rgba(102, 245, 255, 0.65);
+        border-radius: 0;
+        background:
+          linear-gradient(45deg, transparent 50%, var(--yellow) 50%) calc(100% - 14px) 50% / 6px 6px no-repeat,
+          linear-gradient(135deg, var(--yellow) 50%, transparent 50%) calc(100% - 8px) 50% / 6px 6px no-repeat,
+          rgba(5, 20, 33, 0.96);
+        color: var(--yellow);
+        font: 900 15px/1 "Courier New", monospace;
+        cursor: pointer;
+      }
+
+      #start-round:focus-visible {
+        outline: 2px solid white;
+        outline-offset: 3px;
+      }
+
+      #round-description {
+        grid-column: 1 / -1;
+        min-height: 13px;
+        color: #789da8;
+        font-size: 9px;
+        letter-spacing: 0.12em;
+      }
+
       #start-button {
         appearance: none;
         min-width: 230px;
@@ -462,6 +504,22 @@
           <div class="control"><b>↑ W · S ↓</b>ACELERAR / FREAR</div>
           <div class="control"><b>ESPAÇO</b>DISPARAR</div>
         </div>
+        <label class="simulation-round" for="start-round">
+          <span>Rodada inicial</span>
+          <select id="start-round" aria-describedby="round-description">
+            <option value="1">01</option>
+            <option value="2">02</option>
+            <option value="3">03</option>
+            <option value="4">04</option>
+            <option value="5">05</option>
+            <option value="6">06</option>
+            <option value="7">07</option>
+            <option value="8">08</option>
+            <option value="9">09</option>
+            <option value="10">10</option>
+          </select>
+          <span id="round-description">BASE · SEM MÍSSEIS</span>
+        </label>
         <button id="start-button" type="button">DECOLAR</button>
         <div class="menu-foot">DESTRUA AS PONTES · REABASTEÇA NOS DEPÓSITOS FUEL</div>
       </section>
@@ -492,8 +550,8 @@
         safetyModeBraking: 52,
         shipMinSpeed: 2.2,
         shipMaxSpeed: 3.2,
-        shipSearchlightDistance: 105,
-        shipCannonRange: 62,
+        shipSearchlightLength: 22,
+        shipTargetLockTime: 0.35,
         shipCannonSpeed: 44,
         shipCombatCycle: 3,
         helicopterMinSpeed: 5.4,
@@ -637,6 +695,8 @@
         title: document.querySelector('#menu-title'),
         subtitle: document.querySelector('#menu-subtitle'),
         start: document.querySelector('#start-button'),
+        startRound: document.querySelector('#start-round'),
+        roundDescription: document.querySelector('#round-description'),
         finalScore: document.querySelector('#final-score'),
         score: document.querySelector('#score'),
         fuelFill: document.querySelector('#fuel-fill'),
@@ -843,6 +903,10 @@
           this.safetyModeActive = false;
           this.bridgesDestroyed = 0;
           this.cannonShotsFired = 0;
+          const storedStartingRound = Number.parseInt(localStorage.getItem('rio-de-aco-start-round') || '1', 10);
+          this.selectedStartingRound = Number.isFinite(storedStartingRound)
+            ? clamp(storedStartingRound, 1, 10)
+            : 1;
           this.environmentIndex = 0;
           this.environmentCyclesCompleted = 0;
           this.environmentTransition = null;
@@ -869,6 +933,7 @@
           this.player = this.createPlayer();
           this.scene.add(this.player);
           this.seedOpeningRun();
+          this.updateRoundSelector();
           this.bindEvents();
           this.onResize();
           this.updateHUD();
@@ -1538,7 +1603,7 @@
           this.addSearchlight(group, {
             origin: [0, 1.08, -2.35],
             direction: 'forward',
-            length: 22,
+            length: CONFIG.shipSearchlightLength,
             radius: 2.9,
             kind: 'ship',
             phase: Math.random() * Math.PI,
@@ -1557,7 +1622,8 @@
             phase: Math.random() * 6,
             vx: lateralSpeed,
             trackingPlayer: false,
-            cannonCooldown: 0.7 + Math.random() * 0.8,
+            targetLockTime: 0,
+            cannonCooldown: 0,
             cannonShotsFired: 0,
           };
         }
@@ -2002,12 +2068,37 @@
           this.entities.push(entity);
         }
 
+        updateRoundSelector() {
+          dom.startRound.value = String(this.selectedStartingRound);
+          const completedCycles = this.selectedStartingRound - 1;
+          const simulatedBridges = completedCycles * ENVIRONMENT_PHASES.length;
+          const helicopterBonus = Math.min(simulatedBridges, 12) * CONFIG.helicopterBridgeSpeedBonus;
+          if (this.selectedStartingRound === 1) {
+            dom.roundDescription.textContent = 'BASE · SEM MÍSSEIS';
+          } else if (this.selectedStartingRound < 4) {
+            dom.roundDescription.textContent =
+              `MÍSSEIS · HELICÓPTEROS +${Math.round(helicopterBonus * 100)}%`;
+          } else {
+            dom.roundDescription.textContent =
+              `NAVIOS ARMADOS · HELICÓPTEROS +${Math.round(helicopterBonus * 100)}%`;
+          }
+        }
+
+        setStartingRound(value) {
+          const parsed = Number.parseInt(value, 10);
+          this.selectedStartingRound = Number.isFinite(parsed) ? clamp(parsed, 1, 10) : 1;
+          localStorage.setItem('rio-de-aco-start-round', String(this.selectedStartingRound));
+          this.updateRoundSelector();
+        }
+
         bindEvents() {
           dom.start.addEventListener('click', () => this.startOrRestart());
+          dom.startRound.addEventListener('change', (event) => this.setStartingRound(event.target.value));
           addEventListener('resize', () => this.onResize());
           document.addEventListener('fullscreenchange', () => this.onResize());
 
           addEventListener('keydown', (event) => {
+            if (event.target === dom.startRound) return;
             if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space'].includes(event.code)) {
               event.preventDefault();
             }
@@ -2056,8 +2147,9 @@
 
         startOrRestart() {
           this.audio.enable();
+          const completedCycles = this.selectedStartingRound - 1;
           this.score = 0;
-          this.lives = 3;
+          this.lives = 3 + completedCycles;
           this.fuel = 100;
           this.throttle = CONFIG.initialThrottle;
           this.currentSpeed = lerp(CONFIG.minSpeed, CONFIG.maxSpeed, this.throttle);
@@ -2066,11 +2158,11 @@
           this.fireCooldown = 0;
           this.spawnDistance = 80;
           this.nextBridgeDistance = 620;
-          this.environmentCyclesCompleted = 0;
+          this.environmentCyclesCompleted = completedCycles;
           this.missilesDestroyed = 0;
           this.missileAlertTimer = 0;
           this.safetyModeActive = false;
-          this.bridgesDestroyed = 0;
+          this.bridgesDestroyed = completedCycles * ENVIRONMENT_PHASES.length;
           this.cannonShotsFired = 0;
           this.setEnvironmentPhase(0, true);
           this.player.position.x = this.getRiverAtZ(CONFIG.playerZ).center;
@@ -2080,7 +2172,12 @@
           this.seedOpeningRun();
           this.updateMissileAlert(0, false);
           dom.overlay.classList.add('hidden');
-          this.showToast('MISSÃO INICIADA', 1.4);
+          this.showToast(
+            this.selectedStartingRound > 1
+              ? `SIMULAÇÃO · RODADA ${String(this.selectedStartingRound).padStart(2, '0')}`
+              : 'MISSÃO INICIADA',
+            1.4
+          );
           this.updateHUD();
         }
 
@@ -2320,22 +2417,29 @@
               entity.group.rotation.y = damp(entity.group.rotation.y, targetHeading, 8, dt);
               entity.group.rotation.z = Math.sin(this.elapsed * 2 + entity.phase) * 0.04;
               entity.group.position.y = 0.72 + Math.sin(this.elapsed * 2.5 + entity.phase) * 0.07;
+              const lateralDistanceToPlayer = Math.abs(entity.group.position.x - this.player.position.x);
               const distanceToPlayer = Math.hypot(
                 entity.group.position.x - this.player.position.x,
                 entity.group.position.z - CONFIG.playerZ
               );
+              const searchlight = (entity.group.userData.searchLights || []).find(
+                (item) => item.kind === 'ship'
+              );
+              const beamReach = searchlight?.length || CONFIG.shipSearchlightLength;
               const combatUnlocked = this.environmentCyclesCompleted >= CONFIG.shipCombatCycle;
               entity.trackingPlayer = Boolean(
                 canInteract &&
                 combatUnlocked &&
                 entity.group.position.z < CONFIG.playerZ + 12 &&
-                distanceToPlayer <= CONFIG.shipSearchlightDistance
+                distanceToPlayer <= beamReach
               );
+              entity.targetLockTime = entity.trackingPlayer ? entity.targetLockTime + dt : 0;
               if (combatUnlocked && canInteract) entity.cannonCooldown -= dt;
               if (
                 entity.trackingPlayer &&
                 entity.group.position.z < CONFIG.playerZ - 6 &&
-                distanceToPlayer <= CONFIG.shipCannonRange &&
+                distanceToPlayer <= beamReach &&
+                entity.targetLockTime >= CONFIG.shipTargetLockTime &&
                 entity.cannonCooldown <= 0
               ) {
                 this.launchCannonShell(entity);
@@ -2872,6 +2976,19 @@
                 ? {
                     combatUnlocked: this.environmentCyclesCompleted >= CONFIG.shipCombatCycle,
                     trackingPlayer: entity.trackingPlayer,
+                    targetLockTime: Number(entity.targetLockTime.toFixed(2)),
+                    targetLockProgress: Number(
+                      clamp(entity.targetLockTime / CONFIG.shipTargetLockTime, 0, 1).toFixed(2)
+                    ),
+                    lateralDistanceToPlayer: Number(
+                      Math.abs(entity.group.position.x - this.player.position.x).toFixed(1)
+                    ),
+                    distanceToPlayer: Number(
+                      Math.hypot(
+                        entity.group.position.x - this.player.position.x,
+                        entity.group.position.z - CONFIG.playerZ
+                      ).toFixed(1)
+                    ),
                     cannonCooldown: Number(Math.max(0, entity.cannonCooldown).toFixed(2)),
                     cannonShotsFired: entity.cannonShotsFired,
                   }
@@ -2916,6 +3033,9 @@
             score: this.score,
             lives: this.lives,
             fuel: Number(this.fuel.toFixed(1)),
+            startingRound: this.selectedStartingRound,
+            currentRound: this.environmentCyclesCompleted + 1,
+            simulationMode: this.selectedStartingRound > 1,
             rules: {
               lifePerCompletedCycle: 1,
               fuelDestructionPenalty: CONFIG.fuelPenalty,
@@ -2924,8 +3044,8 @@
               missilePropulsionSpeed: CONFIG.missilePropulsionSpeed,
               safetyModeSpeed: CONFIG.safetyModeSpeed,
               shipCombatCycle: CONFIG.shipCombatCycle,
-              shipSearchlightDistance: CONFIG.shipSearchlightDistance,
-              shipCannonRange: CONFIG.shipCannonRange,
+              shipSearchlightLength: CONFIG.shipSearchlightLength,
+              shipTargetLockTime: CONFIG.shipTargetLockTime,
               helicopterBridgeSpeedBonus: CONFIG.helicopterBridgeSpeedBonus,
             },
             speed: Number(this.getSpeed().toFixed(1)),
