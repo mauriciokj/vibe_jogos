@@ -8,6 +8,12 @@ O jogo usa versionamento semântico:
 
 Cada publicação deve atualizar `GAME_VERSION` no `index.html` e registrar as mudanças neste arquivo.
 
+## 1.2.0 — 2026-07-31
+
+- `TURBO SCORE ×1,5` para destruições realizadas a partir de 52 unidades/s.
+- Multiplicador acumulável com combos e indicador próprio no HUD.
+- Recompensas fixas de evasão, rasante e ponte no limite continuam sem multiplicação.
+
 ## 1.1.0 — 2026-07-31
 
 - Bônus `PONTE NO LIMITE` por destruir uma ponte a até 16 unidades do avião.

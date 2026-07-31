@@ -229,7 +229,8 @@
       .camera-chip,
       .moment-chip,
       .help-chip,
-      #bank-skim {
+      #bank-skim,
+      #high-speed-score {
         padding: 8px 12px;
         border: 1px solid var(--line);
         background: var(--panel);
@@ -253,6 +254,24 @@
       #bank-skim[data-complete="true"] {
         color: var(--cyan);
         border-color: rgba(102, 245, 255, 0.62);
+      }
+
+      #high-speed-score {
+        display: none;
+        border-color: rgba(255, 114, 76, 0.72);
+        color: #ff9b58;
+        font-weight: 900;
+        text-shadow: 0 0 11px currentColor;
+        animation: turbo-score-pulse 0.72s ease-in-out infinite alternate;
+      }
+
+      #high-speed-score.active {
+        display: block;
+      }
+
+      @keyframes turbo-score-pulse {
+        from { box-shadow: inset 0 0 0 rgba(255, 114, 76, 0); }
+        to { box-shadow: inset 0 0 13px rgba(255, 114, 76, 0.18); }
       }
 
       #camera-name {
@@ -573,6 +592,7 @@
           <div class="camera-chip">CÂMERA: <span id="camera-name">PERSEGUIÇÃO</span></div>
           <div class="moment-chip">AMBIENTE: <span id="moment-name">DIA CLARO</span></div>
           <div id="bank-skim" data-complete="false">RASANTE <span id="bank-skim-progress">0%</span></div>
+          <div id="high-speed-score">TURBO SCORE ×1,5</div>
         </div>
         <div class="help-chip">[C] TROCAR CÂMERA (3 MODOS) · [P] PAUSA · [F] TELA CHEIA</div>
       </div>
@@ -619,7 +639,7 @@
     <script type="module">
       import * as THREE from 'https://unpkg.com/three@0.168.0/build/three.module.js';
 
-      const GAME_VERSION = '1.1.0';
+      const GAME_VERSION = '1.2.0';
 
       const CONFIG = {
         segmentLength: 32,
@@ -651,6 +671,8 @@
         bankSkimScore: 200,
         lastMomentBridgeDistance: 16,
         lastMomentBridgeScore: 500,
+        highSpeedScoreThreshold: 52,
+        highSpeedScoreMultiplier: 1.5,
         safetyModeSpeed: 27,
         safetyModeBraking: 52,
         shipMinSpeed: 2.2,
@@ -812,6 +834,7 @@
         comboFill: document.querySelector('#combo-fill'),
         bankSkim: document.querySelector('#bank-skim'),
         bankSkimProgress: document.querySelector('#bank-skim-progress'),
+        highSpeedScore: document.querySelector('#high-speed-score'),
         fuelFill: document.querySelector('#fuel-fill'),
         fuelNumber: document.querySelector('#fuel-number'),
         lives: document.querySelector('#lives'),
@@ -1025,6 +1048,8 @@
           this.bankSkims = 0;
           this.lastMomentBridges = 0;
           this.lastBridgeDestructionDistance = null;
+          this.highSpeedBonuses = 0;
+          this.lastHighSpeedBonusPoints = 0;
           this.lives = 3;
           this.fuel = 100;
           this.throttle = CONFIG.initialThrottle;
@@ -2334,6 +2359,8 @@
           this.bankSkims = 0;
           this.lastMomentBridges = 0;
           this.lastBridgeDestructionDistance = null;
+          this.highSpeedBonuses = 0;
+          this.lastHighSpeedBonusPoints = 0;
           this.lives = 3 + completedCycles;
           this.fuel = 100;
           this.throttle = CONFIG.initialThrottle;
@@ -2878,7 +2905,7 @@
                 const comboAward = this.awardCombatScore(CONFIG.missileDestroyScore, 'MÍSSIL ABATIDO');
                 this.missilesDestroyed += 1;
                 this.audio.missileDestroyed();
-                if (comboAward.multiplier === 1) {
+                if (comboAward.multiplier === 1 && comboAward.speedMultiplier === 1) {
                   this.showToast(`MÍSSIL ABATIDO · +${comboAward.points}`, 1.25);
                 }
                 consumed = true;
@@ -2934,8 +2961,11 @@
             helicóptero: 'HELICÓPTERO DESTRUÍDO',
             lançador: 'LANÇADOR DESTRUÍDO',
           };
+          let scoreAward = null;
           if (combatLabels[entity.type]) {
-            this.awardCombatScore(entity.score, combatLabels[entity.type]);
+            scoreAward = this.awardCombatScore(entity.score, combatLabels[entity.type]);
+          } else if (entity.score > 0) {
+            scoreAward = this.awardSpeedAdjustedScore(entity.score);
           } else {
             this.score = Math.max(0, this.score + entity.score);
             if (entity.type === 'fuel') this.resetCombo();
@@ -2958,10 +2988,21 @@
           if (entity.type === 'ponte') {
             const lifeMessage = nextEnvironment.lifeAwarded ? ' · VIDA EXTRA' : '';
             const navalMessage = nextEnvironment.navalCombatUnlocked ? ' · NAVIOS ARMADOS' : '';
+            const turboMessage = scoreAward.speedMultiplier > 1
+              ? ` · TURBO ×${this.formatScoreMultiplier(scoreAward.speedMultiplier)}`
+              : '';
             if (lastMomentBridge) {
               this.audio.riskBonus();
+              const pointsMessage = scoreAward.speedMultiplier > 1
+                ? scoreAward.points + CONFIG.lastMomentBridgeScore
+                : CONFIG.lastMomentBridgeScore;
               this.showToast(
-                `PONTE NO LIMITE · +${CONFIG.lastMomentBridgeScore} · ${nextEnvironment.label}${lifeMessage}${navalMessage}`,
+                `PONTE NO LIMITE${turboMessage} · +${pointsMessage} · ${nextEnvironment.label}${lifeMessage}${navalMessage}`,
+                2.4
+              );
+            } else if (scoreAward.speedMultiplier > 1) {
+              this.showToast(
+                `PONTE DESTRUÍDA${turboMessage} · +${scoreAward.points} · ${nextEnvironment.label}${lifeMessage}${navalMessage}`,
                 2.4
               );
             } else {
@@ -2977,13 +3018,39 @@
           this.comboMultiplier = Math.min(this.comboCount, CONFIG.comboMaxMultiplier);
           this.comboTimer = CONFIG.comboWindow;
           this.bestComboMultiplier = Math.max(this.bestComboMultiplier, this.comboMultiplier);
-          const points = baseScore * this.comboMultiplier;
-          this.score += points;
+          const award = this.awardSpeedAdjustedScore(baseScore, this.comboMultiplier);
           this.audio.combo(this.comboMultiplier);
-          if (this.comboMultiplier >= 2) {
-            this.showToast(`${label} · COMBO ×${this.comboMultiplier} · +${points}`, 1.45);
+          if (this.comboMultiplier >= 2 || award.speedMultiplier > 1) {
+            const comboMessage = this.comboMultiplier >= 2 ? ` · COMBO ×${this.comboMultiplier}` : '';
+            const turboMessage = award.speedMultiplier > 1
+              ? ` · TURBO ×${this.formatScoreMultiplier(award.speedMultiplier)}`
+              : '';
+            this.showToast(`${label}${comboMessage}${turboMessage} · +${award.points}`, 1.45);
           }
-          return { points, multiplier: this.comboMultiplier };
+          return { ...award, multiplier: this.comboMultiplier };
+        }
+
+        awardSpeedAdjustedScore(baseScore, baseMultiplier = 1) {
+          const speedMultiplier = this.getHighSpeedScoreMultiplier();
+          const pointsBeforeTurbo = baseScore * baseMultiplier;
+          const points = Math.round(pointsBeforeTurbo * speedMultiplier);
+          const extraPoints = points - pointsBeforeTurbo;
+          this.score += points;
+          if (extraPoints > 0) {
+            this.highSpeedBonuses += 1;
+            this.lastHighSpeedBonusPoints = extraPoints;
+          }
+          return { points, speedMultiplier, extraPoints };
+        }
+
+        getHighSpeedScoreMultiplier() {
+          return this.getSpeed() >= CONFIG.highSpeedScoreThreshold
+            ? CONFIG.highSpeedScoreMultiplier
+            : 1;
+        }
+
+        formatScoreMultiplier(multiplier) {
+          return multiplier.toFixed(1).replace('.', ',');
         }
 
         updateCombo(dt) {
@@ -3226,6 +3293,10 @@
           dom.bankSkimProgress.textContent = this.bankSkimAwarded
             ? '✓'
             : `${Math.round(clamp(this.bankSkimProgress / CONFIG.bankSkimHoldTime, 0, 1) * 100)}%`;
+          const highSpeedScoreActive = Boolean(
+            this.mode === 'PLAYING' && this.getHighSpeedScoreMultiplier() > 1
+          );
+          dom.highSpeedScore.classList.toggle('active', highSpeedScoreActive);
           dom.fuelFill.style.transform = `scaleX(${clamp(this.fuel / 100, 0, 1)})`;
           dom.fuelNumber.textContent = `${Math.ceil(this.fuel)}%`;
           dom.fuelNumber.style.color = this.fuel < 22 ? '#ff4d5f' : '#f5f0d0';
@@ -3374,6 +3445,8 @@
               bankSkimScore: CONFIG.bankSkimScore,
               lastMomentBridgeDistance: CONFIG.lastMomentBridgeDistance,
               lastMomentBridgeScore: CONFIG.lastMomentBridgeScore,
+              highSpeedScoreThreshold: CONFIG.highSpeedScoreThreshold,
+              highSpeedScoreMultiplier: CONFIG.highSpeedScoreMultiplier,
               safetyModeSpeed: CONFIG.safetyModeSpeed,
               shipCombatCycle: CONFIG.shipCombatCycle,
               shipSearchlightLength: CONFIG.shipSearchlightLength,
@@ -3390,6 +3463,11 @@
             lastBridgeDestructionDistance: this.lastBridgeDestructionDistance == null
               ? null
               : Number(this.lastBridgeDestructionDistance.toFixed(1)),
+            highSpeedScore: {
+              active: this.mode === 'PLAYING' && this.getHighSpeedScoreMultiplier() > 1,
+              bonuses: this.highSpeedBonuses,
+              lastExtraPoints: this.lastHighSpeedBonusPoints,
+            },
             cannonShotsFired: this.cannonShotsFired,
             combo: {
               count: this.comboCount,

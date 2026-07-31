@@ -204,3 +204,10 @@ Original prompt: Criar um novo jogo retro inspirado em River Raid, em Three.js, 
 - Validação concluída: ponte a 28 unidades manteve 1.000 pontos; a 14 e no limite exato de 16 concedeu 1.500; ponte já ultrapassada não recebeu bônus.
 - Disparo real destruiu a ponte a 4,6 unidades, removeu o obstáculo, avançou para Entardecer e mostrou `PONTE NO LIMITE · +500`. Captura e badge `v1.1.0` foram inspecionados sem erros de console.
 - Etapa `v1.1.0` concluída localmente e ainda não commitada.
+- `PONTE NO LIMITE` aprovado e registrado no commit `7f693f3` como `v1.1.0`.
+- `v1.2.0` em implementação com `TURBO SCORE`: destruições feitas a partir de 52 unidades/s valem ×1,5 e exibem um indicador laranja próprio no HUD.
+- O multiplicador turbo acumula com combos: navio em ×1 valeu 375 e helicóptero em combo ×2 valeu 900, totalizando 1.275. Abaixo do limite, a mesma sequência permaneceu em 850.
+- Pontes e mísseis foram integrados: ponte distante em turbo valeu 1.500; `PONTE NO LIMITE` em turbo totalizou 2.000; míssil abatido passou de 200 para 300.
+- Recompensas fixas e penalidades não foram multiplicadas: rasante permaneceu em 200, FUEL continuou retirando 250 e ponte no limite manteve seus 500 extras fixos.
+- Limite exato validado em 51,9/52,0; chip desaparece abaixo do limiar e durante a pausa. Movimento, disparo, três câmeras, pausa/retomada e viewport móvel passaram sem erros de console.
+- Capturas do combo, ponte e layout móvel inspecionadas; `render_game_to_text` expõe regra, estado, total de bônus e pontos extras da última destruição. Etapa local ainda não commitada para teste do usuário.

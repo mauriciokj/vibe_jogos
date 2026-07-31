@@ -12,7 +12,7 @@ Documento de referência para futuras atualizações do jogo.
 - [x] Helicópteros progressivos e navios com holofote/canhão após três ciclos.
 - [x] Bônus por evasão perfeita de mísseis.
 - [x] Combo por destruições consecutivas.
-- [ ] Outros bônus por jogadas arriscadas.
+- [x] Outros bônus por jogadas arriscadas.
 - [ ] Bifurcações que dividem o rio em dois canais e depois voltam a uni-lo.
 - [ ] Ranking online com nome do jogador.
 - [ ] Bioma desértico desbloqueado em um ciclo avançado.
@@ -101,13 +101,13 @@ Os novos biomas não aparecem desde o início. Cada ciclo completo possui um bio
 
 ## 7. Combos e risco
 
-Status: `EVASÃO PERFEITA`, combo por destruições e bônus de rasante concluídos; os demais bônus de risco continuam como expansões futuras.
+Status: `EVASÃO PERFEITA`, combo por destruições, bônus de rasante, `PONTE NO LIMITE` e `TURBO SCORE` concluídos.
 
 - Destruir inimigos consecutivamente aumenta um multiplicador. Implementado: janela de 4,5 s, multiplicador de ×1 a ×5 e barra regressiva no HUD.
 - Voar próximo às margens gera bônus de rasante. Implementado: sustentar velocidade mínima 42 próximo à borda por 1,15 s concede 200 pontos uma vez por aproximação.
 - Destruir uma ponte no último instante concede bônus. Implementado: destruir a até 16 unidades do avião concede 500 pontos extras.
 - Escapar de um míssil por pouco gera uma `EVASÃO PERFEITA`. Implementado: passagem a até 4,8 unidades concede 350 pontos e encerra a perseguição.
-- A velocidade máxima pode multiplicar a pontuação, mas aumenta o perigo.
+- A velocidade máxima pode multiplicar a pontuação, mas aumenta o perigo. Implementado: a partir de 52 unidades/s, destruições valem ×1,5 e o bônus se combina com o multiplicador de combo.
 
 ## 8. Armas e equipamentos temporários
 
