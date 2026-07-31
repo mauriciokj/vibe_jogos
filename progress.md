@@ -48,3 +48,14 @@ Original prompt: Build a classic Snake game in this repo.
 - River Raid 3D: alcance de detecção e disparo dos navios agora corresponde exatamente às 22 unidades do próprio feixe de luz; fora dele não há alerta nem tiro.
 - River Raid 3D: bônus local de `EVASÃO PERFEITA` concede 350 pontos quando um míssil passa a até 4,8 unidades sem atingir o avião; cenários próximo, distante e impacto foram validados.
 - River Raid 3D: seletor de rodada agora é um modo secreto persistente, revelado por cinco cliques rápidos no título; bloqueio, desbloqueio, rodada 4 e recarga foram validados.
+- Sinuca iniciada em `games/sinuca/index.html` como arquivo único: canvas responsivo, bolas numeradas com volume 3D, física elástica com correção posicional, substeps adaptativos, atrito, tabelas, seis caçapas, turnos contra CPU, menu, placar e reinício.
+- Sinuca: primeira inspeção Playwright confirmou menu e mesa; margens do canvas e ordem visual do HUD foram ajustadas, e o triângulo passou a usar distância de dois raios com epsilon microscópico anti-sobreposição.
+- Sinuca: sem TODOs funcionais pendentes após a validação final.
+- Sinuca: testes automatizados validaram arraste/mira, bloqueio de segunda tacada, break, distância mínima entre bolas, choque elástico frontal, reflexão nas tabelas, correção de sobreposição, reposição da branca, pontuação, continuação de turno e tacada da CPU sem erros de console.
+- Novo jogo iniciado em `games/xadrez-3d`: xadrez 3D autocontido em um único HTML, sem bibliotecas externas.
+- Arcana Xadrez 3D concluído: WebGL2 direto, geometria procedural, sombras, regras oficiais completas, SAN, engine alfa-beta assíncrona e UI; regras raras e interação validadas no Playwright sem erros.
+- Novo jogo iniciado em `games/luta-pixel`: luta 2D lateral com quatro personagens originais em pixel art, seleção, rounds, IA e golpes especiais.
+- Novo jogo criado em `games/ruptura-fps`: FPS tático de sobrevivência autocontido com raycasting 3D, três armas, ondas, drones com A*/percepção/memória/cobertura/coordenação, áudio procedural e painel F1.
+- Ruptura: movimento usa substeps e resolução iterativa de contatos para impedir tunneling e deslizar em quinas; inclui degrau automático, rampas caminháveis e declive íngreme com escorregamento.
+- Ruptura: testes Playwright validaram movimento contra obstáculo (parada em x=6,28), automática, projétil carregado, escopeta de 9 pellets, ADS, estados de recarga, painel F1 e ausência de erros de console.
+- Artefatos de QA do Ruptura salvos em `output/web-game/ruptura-clean`, `output/web-game/ruptura-debug.png` e execuções auxiliares `ruptura-*`.

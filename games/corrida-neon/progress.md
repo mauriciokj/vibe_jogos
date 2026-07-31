@@ -1,0 +1,22 @@
+Original prompt: CORRIDA — Crie um jogo de corrida arcade futurista em HTML, com pista pseudo-3D, tráfego, nitro, colisões, partículas, iluminação neon, dificuldade crescente e interface cyberpunk responsiva.
+
+- Projeto iniciado em `games/corrida-neon` como jogo Canvas 2D autocontido.
+- Objetivo visual: pista pseudo-3D noturna, cidade neon, tráfego estilizado e HUD cyberpunk.
+- TODO: implementar loop completo, testar controles, nitro, colisões, reinício e responsividade com Playwright.
+- Loop completo implementado: tráfego com mudança de faixa, nitro, integridade, colisões, quase-acidentes, combo, partículas, pausa, game over e controles de toque.
+- Integrações de teste adicionadas: `window.render_game_to_text` e `window.advanceTime(ms)`.
+- Catálogo raiz atualizado com card para Neon Apex.
+- TODO: revisar screenshots e validar sequências de controles no Playwright.
+- Primeira captura desktop revisada: composição, tráfego e HUD estão legíveis e com bom contraste.
+- Corrigido alinhamento visual/lógico do carro do jogador com as faixas e carros do tráfego.
+- Analytics passou a carregar apenas fora de localhost para manter testes locais sem 404 de console.
+- Curva de dificuldade calibrada para avançar de setor a cada 7,5 km, elevando densidade, agressividade e velocidade do tráfego até o setor 12.
+- HUD agora comunica setor e distância percorrida; estado do jogo exposto em `window.__neon_apex_state` para validações automatizadas controladas.
+- Teste mobile 390x844 confirmou direção por toque, pausa estável, consumo de nitro, game over por colisão e reinício com integridade restaurada.
+- Capturas mobile geradas; proteção adicionada ao pointer capture para eventos sintéticos de teste.
+- Botão de som reposicionado no mobile para não cobrir o painel de pontuação.
+- Validação final desktop: menu e gameplay renderizados sem erros de console; nitro consumiu carga, direção alterou `player.x` e colisões reduziram integridade.
+- Validação final mobile (390x844): HUD, pista, tráfego e controles permanecem visíveis; botão de som não sobrepõe mais o placar.
+- Fluxos completos confirmados: iniciar -> dirigir/nitro -> pausar/retomar -> colidir/game over -> reiniciar.
+- `node --check` e `git diff --check` passaram sem erros.
+- TODO: nenhum bloqueio conhecido.

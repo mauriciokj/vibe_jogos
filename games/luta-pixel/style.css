@@ -1,0 +1,123 @@
+@import url("https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Press+Start+2P&display=swap");
+
+:root {
+  color-scheme: dark;
+  --ink: #080212;
+  --paper: #fff4d2;
+  --pink: #ff2975;
+  --cyan: #20e3ff;
+  --yellow: #ffd33d;
+}
+
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+
+body {
+  margin: 0;
+  display: grid;
+  place-items: center;
+  overflow-x: hidden;
+  background:
+    linear-gradient(rgba(32, 227, 255, .045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(32, 227, 255, .045) 1px, transparent 1px),
+    radial-gradient(circle at 50% 20%, #351064 0, #120522 42%, #050109 100%);
+  background-size: 32px 32px, 32px 32px, auto;
+  color: var(--paper);
+  font-family: "Press Start 2P", monospace;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, transparent 0 3px, rgba(0,0,0,.12) 4px);
+  z-index: 5;
+}
+
+.game-shell { width: min(100vw, 1120px); padding: 18px 18px 12px; }
+
+.marquee {
+  height: 36px;
+  overflow: hidden;
+  display: flex;
+  gap: 90px;
+  align-items: center;
+  border: 3px solid var(--ink);
+  background: var(--yellow);
+  color: var(--ink);
+  box-shadow: 7px 7px 0 var(--pink);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.marquee span { animation: ticker 10s linear infinite; }
+@keyframes ticker { to { transform: translateX(-100%); } }
+
+.cabinet {
+  position: relative;
+  margin-top: 14px;
+  padding: 10px;
+  border: 4px solid #050109;
+  background: linear-gradient(135deg, #44118a, #18062c 48%, #ff2975);
+  box-shadow: 10px 10px 0 #050109, 14px 14px 0 rgba(32,227,255,.4);
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  background: #110827;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  outline: 2px solid rgba(255,255,255,.18);
+  touch-action: none;
+}
+
+.screen-tip {
+  margin: 18px 0 0;
+  text-align: center;
+  color: #a98fbc;
+  font-size: clamp(7px, 1.2vw, 10px);
+  line-height: 1.7;
+}
+
+.touch-controls {
+  display: none;
+  position: absolute;
+  inset: auto 18px 18px;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.touch-group { display: flex; align-items: end; gap: 7px; pointer-events: auto; }
+.touch-group button {
+  width: 50px;
+  height: 50px;
+  border: 2px solid rgba(255,255,255,.7);
+  border-radius: 50%;
+  background: rgba(8,2,18,.72);
+  color: white;
+  font: 14px "Press Start 2P", monospace;
+  box-shadow: 3px 3px 0 rgba(0,0,0,.65);
+  touch-action: none;
+}
+
+.touch-group button:active, .touch-group button.active { transform: translate(2px,2px); box-shadow: 1px 1px 0 #000; }
+.touch-group .light { border-color: var(--cyan); }
+.touch-group .heavy { border-color: var(--yellow); }
+.touch-group .special { border-color: var(--pink); }
+
+@media (pointer: coarse), (max-width: 720px) {
+  .game-shell { padding: 8px; }
+  .marquee { display: none; }
+  .cabinet { margin-top: 0; padding: 4px; box-shadow: 4px 4px 0 #050109; }
+  .touch-controls.show { display: flex; }
+  .screen-tip { margin-top: 10px; }
+}
+
+@media (max-width: 480px) {
+  .touch-group button { width: 40px; height: 40px; font-size: 10px; }
+  .touch-controls { inset: auto 8px 8px; }
+}

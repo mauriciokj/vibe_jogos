@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+  <meta name="theme-color" content="#070b12" />
+  <title>Ruptura // FPS Tático</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <canvas id="game" aria-label="Ruptura, FPS tático de sobrevivência"></canvas>
+  <div id="hud" hidden>
+    <div class="topline">
+      <div><small>INTEGRIDADE</small><strong id="health">100</strong><i><b id="healthbar"></b></i></div>
+      <div class="objective"><small>PROTOCOLO DE CONTENÇÃO</small><strong id="wave">ONDA 01</strong></div>
+      <div class="right"><small>DRONES RESTANTES</small><strong id="remaining">0</strong></div>
+    </div>
+    <div id="crosshair" hidden><span></span><span></span><span></span><span></span><em></em></div>
+    <div id="hitmarker">×</div>
+    <div id="damage-arrow">▲</div>
+    <div id="charge"><b></b><span>CARGA</span></div>
+    <div class="bottomline">
+      <div id="statehint">SETOR EM VARREDURA</div>
+      <div class="weapon-readout"><small id="weapon-name">VX-9 RAPTOR</small><strong><span id="mag">30</span><i>/</i><span id="reserve">150</span></strong></div>
+    </div>
+    <div id="debug"></div>
+  </div>
+
+  <section id="menu" class="panel">
+    <div class="eyebrow">ORBITAL DEFENSE // SIMULAÇÃO 07</div>
+    <h1>RUPTURA</h1>
+    <p class="lede">Sobreviva às ondas. Quebre a linha de visada. Faça os drones acreditarem na posição que você deixou para trás.</p>
+    <button id="start-btn">INICIAR CONTENÇÃO</button>
+    <div class="controls">
+      <span><b>WASD</b> mover</span><span><b>MOUSE</b> mirar</span><span><b>SHIFT</b> correr</span>
+      <span><b>LMB</b> disparar/carregar</span><span><b>RMB</b> ADS</span><span><b>1 2 3</b> armas</span>
+      <span><b>R</b> recarregar</span><span><b>F1</b> diagnóstico</span><span><b>F</b> tela cheia</span>
+    </div>
+  </section>
+
+  <section id="summary" class="panel" hidden>
+    <div class="eyebrow">SINAL BIOMÉTRICO PERDIDO</div>
+    <h2>CONTENÇÃO ROMPIDA</h2>
+    <div class="stats">
+      <div><small>TEMPO</small><strong id="sum-time">00:00</strong></div>
+      <div><small>PRECISÃO</small><strong id="sum-accuracy">0%</strong></div>
+      <div><small>ACERTOS</small><strong id="sum-hits">0</strong></div>
+      <div><small>ONDA</small><strong id="sum-wave">1</strong></div>
+    </div>
+    <button id="restart-btn">REINICIAR SIMULAÇÃO</button>
+  </section>
+
+  <div id="pause" hidden>PAUSADO<br><small>clique para retornar</small></div>
+  <div class="scanlines"></div>
+  <script src="game.js"></script>
+</body>
+</html>

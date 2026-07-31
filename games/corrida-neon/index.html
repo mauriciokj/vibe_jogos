@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#050310" />
+    <script>
+      window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+    </script>
+    <script>
+      if (!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
+        const analytics = document.createElement("script");
+        analytics.defer = true;
+        analytics.src = "/_vercel/insights/script.js";
+        document.head.appendChild(analytics);
+      }
+    </script>
+    <title>Neon Apex — Corrida Arcade</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main id="game-shell" aria-label="Neon Apex, jogo de corrida arcade futurista">
+      <canvas id="game" aria-label="Pista de corrida futurista"></canvas>
+      <button id="mute" type="button" aria-label="Ativar ou desativar som">SOM: ON</button>
+      <p id="screen-reader-status" class="sr-only" aria-live="polite"></p>
+    </main>
+    <script src="main.js"></script>
+  </body>
+</html>
