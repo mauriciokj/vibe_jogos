@@ -189,3 +189,12 @@ Original prompt: Criar um novo jogo retro inspirado em River Raid, em Three.js, 
 - Pausa congelou o cronômetro; após 4,5 s ativos o indicador desapareceu e o multiplicador voltou a ×1. Ponte preservou a sequência, enquanto FUEL e colisão zeraram o combo.
 - Abatimento real por projétil validado para navio e míssil: o míssil entrou como segunda destruição, recebeu ×2, valeu 400 pontos e atualizou o aviso central.
 - Capturas ×3, ×5 e expirada foram inspecionadas; HUD, barra regressiva e toasts ficaram legíveis. Testes controlados e fluxo comum passaram sem erros de console. Etapa concluída localmente e ainda não commitada.
+- Combo aprovado e registrado no commit `e48407c`.
+- `RASANTE PERFEITO` em implementação: manter velocidade mínima 42 a até 1,8 unidade da borda segura por 1,15 s concede 200 pontos; HUD mostra progresso e confirmação.
+- O bônus só pode ser recebido uma vez por aproximação e rearma quando o avião retorna a pelo menos 3,2 unidades da borda. Pausa congela o progresso e colisão o cancela. TODO: validar baixa/alta velocidade, duas margens, reentrada, pausa e limite de colisão.
+- Validação concluída: velocidade 36 não iniciou o bônus; velocidade 50 acumulou progresso e concedeu 200 pontos após 1,15 s com aviso `RASANTE PERFEITO`.
+- Permanecer na margem não repetiu a pontuação; voltar ao centro rearmou o desafio e a margem oposta concedeu o segundo bônus. Pausa congelou 43% de progresso e ultrapassar a borda retirou uma vida sem premiar.
+- Capturas de progresso, conclusão e colisão foram inspecionadas; chip inferior e toast ficaram legíveis sem cobrir o gameplay. Fluxo comum e testes controlados passaram sem erros de console. Etapa concluída localmente e ainda não commitada.
+- `RASANTE PERFEITO` aprovado para publicação.
+- Versionamento semântico iniciado em `v1.0.0`; número aparece no canto inferior direito, título da página e estado textual. `CHANGELOG.md` registra política e conteúdo de cada versão. TODO: validar versão no menu, gameplay, resolução móvel e produção.
+- `v1.0.0` validada no menu, gameplay e viewport móvel; badge recebeu fundo translúcido e contraste reforçado após a primeira inspeção. Título e estado textual retornaram a mesma versão, sem erros de console.

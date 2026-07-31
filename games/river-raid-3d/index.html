@@ -75,6 +75,23 @@
         box-shadow: inset 0 0 150px rgba(0, 0, 0, 0.48);
       }
 
+      #game-version {
+        position: fixed;
+        right: clamp(6px, 1vw, 12px);
+        bottom: 4px;
+        z-index: 12;
+        padding: 4px 6px;
+        border-top: 1px solid rgba(102, 245, 255, 0.28);
+        background: rgba(4, 14, 25, 0.58);
+        color: rgba(185, 220, 228, 0.84);
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: 0.14em;
+        line-height: 1;
+        text-shadow: 0 0 8px rgba(102, 245, 255, 0.25);
+        pointer-events: none;
+      }
+
       #hud {
         position: fixed;
         inset: 0;
@@ -211,13 +228,31 @@
 
       .camera-chip,
       .moment-chip,
-      .help-chip {
+      .help-chip,
+      #bank-skim {
         padding: 8px 12px;
         border: 1px solid var(--line);
         background: var(--panel);
         color: #b9dce4;
         font-size: 11px;
         letter-spacing: 0.08em;
+      }
+
+      #bank-skim {
+        display: none;
+        border-color: rgba(255, 216, 77, 0.62);
+        color: var(--yellow);
+        font-weight: 900;
+        text-shadow: 0 0 10px currentColor;
+      }
+
+      #bank-skim.active {
+        display: block;
+      }
+
+      #bank-skim[data-complete="true"] {
+        color: var(--cyan);
+        border-color: rgba(102, 245, 255, 0.62);
       }
 
       #camera-name {
@@ -506,6 +541,7 @@
     <div id="game" aria-label="Jogo Rio de Aço 3D"></div>
     <div class="vignette"></div>
     <div class="scanlines"></div>
+    <div id="game-version" aria-label="Versão do jogo"></div>
 
     <div id="hud" aria-live="polite">
       <div class="hud-top">
@@ -536,6 +572,7 @@
         <div class="hud-status">
           <div class="camera-chip">CÂMERA: <span id="camera-name">PERSEGUIÇÃO</span></div>
           <div class="moment-chip">AMBIENTE: <span id="moment-name">DIA CLARO</span></div>
+          <div id="bank-skim" data-complete="false">RASANTE <span id="bank-skim-progress">0%</span></div>
         </div>
         <div class="help-chip">[C] TROCAR CÂMERA (3 MODOS) · [P] PAUSA · [F] TELA CHEIA</div>
       </div>
@@ -582,6 +619,8 @@
     <script type="module">
       import * as THREE from 'https://unpkg.com/three@0.168.0/build/three.module.js';
 
+      const GAME_VERSION = '1.0.0';
+
       const CONFIG = {
         segmentLength: 32,
         segmentCount: 12,
@@ -605,6 +644,11 @@
         perfectEvasionScore: 350,
         comboWindow: 4.5,
         comboMaxMultiplier: 5,
+        bankSkimClearance: 1.8,
+        bankSkimResetClearance: 3.2,
+        bankSkimMinSpeed: 42,
+        bankSkimHoldTime: 1.15,
+        bankSkimScore: 200,
         safetyModeSpeed: 27,
         safetyModeBraking: 52,
         shipMinSpeed: 2.2,
@@ -750,6 +794,7 @@
 
       const dom = {
         mount: document.querySelector('#game'),
+        version: document.querySelector('#game-version'),
         overlay: document.querySelector('#overlay'),
         title: document.querySelector('#menu-title'),
         subtitle: document.querySelector('#menu-subtitle'),
@@ -763,6 +808,8 @@
         comboLabel: document.querySelector('#combo-label'),
         comboTime: document.querySelector('#combo-time'),
         comboFill: document.querySelector('#combo-fill'),
+        bankSkim: document.querySelector('#bank-skim'),
+        bankSkimProgress: document.querySelector('#bank-skim-progress'),
         fuelFill: document.querySelector('#fuel-fill'),
         fuelNumber: document.querySelector('#fuel-number'),
         lives: document.querySelector('#lives'),
@@ -921,6 +968,11 @@
           if (multiplier >= 4) this.tone(780, 0.18, 'triangle', 0.12, 360);
         }
 
+        riskBonus() {
+          this.tone(540, 0.12, 'triangle', 0.16, 280);
+          this.tone(820, 0.22, 'square', 0.13, 420);
+        }
+
         cannon() {
           this.tone(132, 0.24, 'sawtooth', 0.34, -72);
           this.tone(68, 0.32, 'square', 0.2, -24);
@@ -963,6 +1015,12 @@
           this.comboMultiplier = 1;
           this.comboTimer = 0;
           this.bestComboMultiplier = 1;
+          this.bankSkimProgress = 0;
+          this.bankSkimAwarded = false;
+          this.bankSkimEligible = false;
+          this.bankSkimClearance = Infinity;
+          this.bankSkimSide = 'centro';
+          this.bankSkims = 0;
           this.lives = 3;
           this.fuel = 100;
           this.throttle = CONFIG.initialThrottle;
@@ -1011,6 +1069,8 @@
           this.createTerrain();
           this.createSpeedLines();
           this.createSnow();
+          dom.version.textContent = `v${GAME_VERSION}`;
+          document.title = `Rio de Aço 3D · v${GAME_VERSION}`;
           this.setEnvironmentPhase(0, true);
           this.player = this.createPlayer();
           this.scene.add(this.player);
@@ -2262,6 +2322,12 @@
           this.comboMultiplier = 1;
           this.comboTimer = 0;
           this.bestComboMultiplier = 1;
+          this.bankSkimProgress = 0;
+          this.bankSkimAwarded = false;
+          this.bankSkimEligible = false;
+          this.bankSkimClearance = Infinity;
+          this.bankSkimSide = 'centro';
+          this.bankSkims = 0;
           this.lives = 3 + completedCycles;
           this.fuel = 100;
           this.throttle = CONFIG.initialThrottle;
@@ -2471,6 +2537,7 @@
               this.crash('SEM COMBUSTÍVEL');
             } else {
               this.checkPlayerCollisions();
+              if (this.mode === 'PLAYING') this.updateBankSkim(dt);
             }
             this.updateHUD();
           } else {
@@ -2907,6 +2974,45 @@
           this.comboTimer = 0;
         }
 
+        updateBankSkim(dt) {
+          const river = this.getRiverAtZ(CONFIG.playerZ);
+          const safeHalfWidth = river.halfWidth - 2.5;
+          const lateralOffset = this.player.position.x - river.center;
+          this.bankSkimClearance = safeHalfWidth - Math.abs(lateralOffset);
+          this.bankSkimSide = Math.abs(lateralOffset) < 1
+            ? 'centro'
+            : lateralOffset < 0 ? 'esquerda' : 'direita';
+          this.bankSkimEligible = Boolean(
+            this.bankSkimClearance >= 0 &&
+            this.bankSkimClearance <= CONFIG.bankSkimClearance &&
+            this.getSpeed() >= CONFIG.bankSkimMinSpeed
+          );
+
+          if (this.bankSkimClearance >= CONFIG.bankSkimResetClearance) {
+            this.bankSkimProgress = 0;
+            this.bankSkimAwarded = false;
+          } else if (!this.bankSkimEligible) {
+            this.bankSkimProgress = 0;
+          } else if (!this.bankSkimAwarded) {
+            this.bankSkimProgress = Math.min(CONFIG.bankSkimHoldTime, this.bankSkimProgress + dt);
+            if (this.bankSkimProgress >= CONFIG.bankSkimHoldTime) {
+              this.bankSkimAwarded = true;
+              this.bankSkims += 1;
+              this.score += CONFIG.bankSkimScore;
+              this.audio.riskBonus();
+              this.showToast(`RASANTE PERFEITO · +${CONFIG.bankSkimScore}`, 1.55);
+            }
+          }
+        }
+
+        resetBankSkim() {
+          this.bankSkimProgress = 0;
+          this.bankSkimAwarded = false;
+          this.bankSkimEligible = false;
+          this.bankSkimClearance = Infinity;
+          this.bankSkimSide = 'centro';
+        }
+
         preserveBridgeBeacons(bridge) {
           const beacons = [...(bridge.group.userData.beacons || [])];
           bridge.group.updateWorldMatrix(true, true);
@@ -3000,6 +3106,7 @@
           this.mode = 'CRASH';
           this.lives -= 1;
           this.resetCombo();
+          this.resetBankSkim();
           this.crashTimer = 1.15;
           this.clearMissiles();
           this.syncCameraVisuals();
@@ -3086,6 +3193,12 @@
           dom.comboLabel.textContent = `COMBO ×${this.comboMultiplier}`;
           dom.comboTime.textContent = `${this.comboTimer.toFixed(1).replace('.', ',')}s`;
           dom.comboFill.style.transform = `scaleX(${clamp(this.comboTimer / CONFIG.comboWindow, 0, 1)})`;
+          const bankSkimVisible = this.bankSkimEligible || this.bankSkimAwarded;
+          dom.bankSkim.classList.toggle('active', bankSkimVisible);
+          dom.bankSkim.dataset.complete = String(this.bankSkimAwarded);
+          dom.bankSkimProgress.textContent = this.bankSkimAwarded
+            ? '✓'
+            : `${Math.round(clamp(this.bankSkimProgress / CONFIG.bankSkimHoldTime, 0, 1) * 100)}%`;
           dom.fuelFill.style.transform = `scaleX(${clamp(this.fuel / 100, 0, 1)})`;
           dom.fuelNumber.textContent = `${Math.ceil(this.fuel)}%`;
           dom.fuelNumber.style.color = this.fuel < 22 ? '#ff4d5f' : '#f5f0d0';
@@ -3194,6 +3307,7 @@
             }))
             .sort((a, b) => b.z - a.z);
           return JSON.stringify({
+            version: GAME_VERSION,
             coordinateSystem: 'x: esquerda(-)/direita(+); z: à frente é negativo; avião permanece em z=8',
             mode: this.mode,
             camera: {
@@ -3227,6 +3341,10 @@
               perfectEvasionScore: CONFIG.perfectEvasionScore,
               comboWindow: CONFIG.comboWindow,
               comboMaxMultiplier: CONFIG.comboMaxMultiplier,
+              bankSkimClearance: CONFIG.bankSkimClearance,
+              bankSkimMinSpeed: CONFIG.bankSkimMinSpeed,
+              bankSkimHoldTime: CONFIG.bankSkimHoldTime,
+              bankSkimScore: CONFIG.bankSkimScore,
               safetyModeSpeed: CONFIG.safetyModeSpeed,
               shipCombatCycle: CONFIG.shipCombatCycle,
               shipSearchlightLength: CONFIG.shipSearchlightLength,
@@ -3245,6 +3363,18 @@
               multiplier: this.comboMultiplier,
               timeRemaining: Number(this.comboTimer.toFixed(2)),
               bestMultiplier: this.bestComboMultiplier,
+            },
+            bankSkim: {
+              eligible: this.bankSkimEligible,
+              side: this.bankSkimSide,
+              clearance: Number(
+                (Number.isFinite(this.bankSkimClearance) ? this.bankSkimClearance : 999).toFixed(2)
+              ),
+              progress: Number(
+                clamp(this.bankSkimProgress / CONFIG.bankSkimHoldTime, 0, 1).toFixed(2)
+              ),
+              awardedThisPass: this.bankSkimAwarded,
+              total: this.bankSkims,
             },
             missileAlert: {
               state: this.currentMissileAlert.state,
