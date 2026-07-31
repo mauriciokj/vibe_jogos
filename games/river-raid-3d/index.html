@@ -352,6 +352,10 @@
         text-transform: uppercase;
       }
 
+      .simulation-round[hidden] {
+        display: none;
+      }
+
       #start-round {
         appearance: none;
         width: 92px;
@@ -504,7 +508,7 @@
           <div class="control"><b>↑ W · S ↓</b>ACELERAR / FREAR</div>
           <div class="control"><b>ESPAÇO</b>DISPARAR</div>
         </div>
-        <label class="simulation-round" for="start-round">
+        <label id="simulation-round" class="simulation-round" for="start-round" hidden>
           <span>Rodada inicial</span>
           <select id="start-round" aria-describedby="round-description">
             <option value="1">01</option>
@@ -698,6 +702,7 @@
         title: document.querySelector('#menu-title'),
         subtitle: document.querySelector('#menu-subtitle'),
         start: document.querySelector('#start-button'),
+        simulationRound: document.querySelector('#simulation-round'),
         startRound: document.querySelector('#start-round'),
         roundDescription: document.querySelector('#round-description'),
         finalScore: document.querySelector('#final-score'),
@@ -912,8 +917,11 @@
           this.safetyModeActive = false;
           this.bridgesDestroyed = 0;
           this.cannonShotsFired = 0;
+          this.simulationUnlocked = localStorage.getItem('rio-de-aco-simulation-unlocked') === '1';
+          this.secretTitleClicks = 0;
+          this.secretTitleClickStartedAt = 0;
           const storedStartingRound = Number.parseInt(localStorage.getItem('rio-de-aco-start-round') || '1', 10);
-          this.selectedStartingRound = Number.isFinite(storedStartingRound)
+          this.selectedStartingRound = this.simulationUnlocked && Number.isFinite(storedStartingRound)
             ? clamp(storedStartingRound, 1, 10)
             : 1;
           this.environmentIndex = 0;
@@ -2081,6 +2089,7 @@
         }
 
         updateRoundSelector() {
+          dom.simulationRound.hidden = !this.simulationUnlocked;
           dom.startRound.value = String(this.selectedStartingRound);
           const completedCycles = this.selectedStartingRound - 1;
           const simulatedBridges = completedCycles * ENVIRONMENT_PHASES.length;
@@ -2103,8 +2112,31 @@
           this.updateRoundSelector();
         }
 
+        handleSecretTitleClick() {
+          if (this.simulationUnlocked) return;
+          const now = performance.now();
+          if (
+            this.secretTitleClicks === 0 ||
+            now - this.secretTitleClickStartedAt > 2500
+          ) {
+            this.secretTitleClicks = 0;
+            this.secretTitleClickStartedAt = now;
+          }
+          this.secretTitleClicks += 1;
+          if (this.secretTitleClicks < 5) return;
+
+          this.simulationUnlocked = true;
+          localStorage.setItem('rio-de-aco-simulation-unlocked', '1');
+          this.updateRoundSelector();
+          this.audio.enable();
+          this.audio.extraLife();
+          this.showToast('SIMULAÇÃO LIBERADA', 1.6);
+          dom.startRound.focus();
+        }
+
         bindEvents() {
           dom.start.addEventListener('click', () => this.startOrRestart());
+          dom.title.addEventListener('click', () => this.handleSecretTitleClick());
           dom.startRound.addEventListener('change', (event) => this.setStartingRound(event.target.value));
           addEventListener('resize', () => this.onResize());
           document.addEventListener('fullscreenchange', () => this.onResize());
@@ -3067,6 +3099,7 @@
             startingRound: this.selectedStartingRound,
             currentRound: this.environmentCyclesCompleted + 1,
             simulationMode: this.selectedStartingRound > 1,
+            simulationSelectorUnlocked: this.simulationUnlocked,
             rules: {
               lifePerCompletedCycle: 1,
               fuelDestructionPenalty: CONFIG.fuelPenalty,

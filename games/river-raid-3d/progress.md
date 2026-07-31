@@ -176,3 +176,9 @@ Original prompt: Criar um novo jogo retro inspirado em River Raid, em Three.js, 
 - Validação controlada concluída: raspão com menor distância de 3,0 concedeu 350 pontos, registrou uma evasão e encerrou imediatamente o alerta; passagem a 7,1 não pontuou; impacto frontal reduziu as vidas de 4 para 3.
 - Capturas dos três resultados foram inspecionadas; `EVASÃO PERFEITA · +350`, placar e míssil passando ao lado do avião ficaram legíveis. Teste comum de movimento e inicialização passou sem erros de console.
 - Etapa concluída localmente e ainda não commitada. Próxima ideia sugerida: combos e outros bônus de risco, ou primeira bifurcação simples do rio.
+- `EVASÃO PERFEITA` aprovada e registrada no commit `c6b0d20`.
+- Seletor de rodada inicial agora nasce oculto; cinco cliques no título em até 2,5 segundos liberam o painel com som e aviso `SIMULAÇÃO LIBERADA`.
+- Desbloqueio fica salvo apenas no navegador que descobriu o segredo. Em uma instalação nova, o jogo força a rodada 1 enquanto o seletor continuar bloqueado. TODO: validar bloqueio inicial, sequência incompleta/completa, persistência e início na rodada escolhida.
+- Validação concluída: perfil novo exibiu a tela limpa, seletor oculto, rodada 1 e estado bloqueado; quatro cliques mantiveram o segredo fechado e o quinto liberou o painel, focou o seletor e gravou a descoberta.
+- Rodada 4 iniciada pelo painel secreto com três ciclos completos, seis vidas e modo de simulação ativo. Após recarregar, painel e seleção 04 permaneceram disponíveis.
+- Capturas da tela bloqueada, desbloqueio e estado persistido foram inspecionadas; layout permaneceu equilibrado e não houve erros de console. Alteração ainda não commitada para teste do usuário.
