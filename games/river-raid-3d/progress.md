@@ -182,3 +182,10 @@ Original prompt: Criar um novo jogo retro inspirado em River Raid, em Three.js, 
 - Validação concluída: perfil novo exibiu a tela limpa, seletor oculto, rodada 1 e estado bloqueado; quatro cliques mantiveram o segredo fechado e o quinto liberou o painel, focou o seletor e gravou a descoberta.
 - Rodada 4 iniciada pelo painel secreto com três ciclos completos, seis vidas e modo de simulação ativo. Após recarregar, painel e seleção 04 permaneceram disponíveis.
 - Capturas da tela bloqueada, desbloqueio e estado persistido foram inspecionadas; layout permaneceu equilibrado e não houve erros de console. Alteração ainda não commitada para teste do usuário.
+- Roadmap expandido com ranking online, Deserto, Jungle, caça perseguidor, trem armado e tanques; biomas avançados organizados a partir dos ciclos 3 e 4 e registrados no commit `56f45ca`.
+- Sistema de combo em implementação: destruições de navios, helicópteros, lançadores e mísseis dentro de 4,5 s elevam o multiplicador de ×1 até ×5; HUD mostra multiplicador, tempo e barra regressiva.
+- Pontes mantêm pontuação normal sem alterar a sequência; destruir FUEL ou perder uma vida encerra o combo. Estado textual expõe contagem, multiplicador, tempo restante e melhor multiplicador. TODO: validar sequência, teto ×5, expiração, pausa e resets.
+- Progressão validada: navio 250 em ×1, helicóptero 600 em ×2 e lançador 1.200 em ×3; sequência alcançou ×5 e uma sexta destruição permaneceu corretamente no teto.
+- Pausa congelou o cronômetro; após 4,5 s ativos o indicador desapareceu e o multiplicador voltou a ×1. Ponte preservou a sequência, enquanto FUEL e colisão zeraram o combo.
+- Abatimento real por projétil validado para navio e míssil: o míssil entrou como segunda destruição, recebeu ×2, valeu 400 pontos e atualizou o aviso central.
+- Capturas ×3, ×5 e expirada foram inspecionadas; HUD, barra regressiva e toasts ficaram legíveis. Testes controlados e fluxo comum passaram sem erros de console. Etapa concluída localmente e ainda não commitada.

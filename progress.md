@@ -51,6 +51,7 @@ Original prompt: Build a classic Snake game in this repo.
 - River Raid 3D: roadmap ampliado com ranking online por nome, ambiente desértico, caça perseguidor, trem armado lateral e tanques atirando das margens.
 - River Raid 3D: bioma Jungle adicionado ao roadmap com floresta densa, chuva tropical, canais estreitos, ruínas e emboscadas camufladas.
 - River Raid 3D: biomas reorganizados por progressão — ciclos 1–2 permanecem no Vale Verde, ciclo 3 desbloqueia Deserto e ciclo 4 desbloqueia Jungle; cada bioma terá cinco fases próprias de horário/clima.
+- River Raid 3D: combo local por destruições consecutivas implementado com janela de 4,5 s, multiplicador até ×5, HUD regressivo e resets por FUEL, expiração ou perda de vida.
 - Sinuca iniciada em `games/sinuca/index.html` como arquivo único: canvas responsivo, bolas numeradas com volume 3D, física elástica com correção posicional, substeps adaptativos, atrito, tabelas, seis caçapas, turnos contra CPU, menu, placar e reinício.
 - Sinuca: primeira inspeção Playwright confirmou menu e mesa; margens do canvas e ordem visual do HUD foram ajustadas, e o triângulo passou a usar distância de dois raios com epsilon microscópico anti-sobreposição.
 - Sinuca: sem TODOs funcionais pendentes após a validação final.

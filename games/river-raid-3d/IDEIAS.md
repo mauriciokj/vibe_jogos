@@ -11,7 +11,8 @@ Documento de referência para futuras atualizações do jogo.
 - [x] Modo de segurança no travamento e faróis capturados acompanhando o avião permanentemente.
 - [x] Helicópteros progressivos e navios com holofote/canhão após três ciclos.
 - [x] Bônus por evasão perfeita de mísseis.
-- [ ] Combos e outras jogadas arriscadas.
+- [x] Combo por destruições consecutivas.
+- [ ] Outros bônus por jogadas arriscadas.
 - [ ] Bifurcações que dividem o rio em dois canais e depois voltam a uni-lo.
 - [ ] Ranking online com nome do jogador.
 - [ ] Bioma desértico desbloqueado em um ciclo avançado.
@@ -100,9 +101,9 @@ Os novos biomas não aparecem desde o início. Cada ciclo completo possui um bio
 
 ## 7. Combos e risco
 
-Status: `EVASÃO PERFEITA` concluída; os demais bônus e multiplicadores continuam como expansões futuras.
+Status: `EVASÃO PERFEITA` e combo por destruições concluídos; os demais bônus de risco continuam como expansões futuras.
 
-- Destruir inimigos consecutivamente aumenta um multiplicador.
+- Destruir inimigos consecutivamente aumenta um multiplicador. Implementado: janela de 4,5 s, multiplicador de ×1 a ×5 e barra regressiva no HUD.
 - Voar próximo às margens gera bônus de rasante.
 - Passar próximo ao facho de um farol concede pontos de risco.
 - Destruir uma ponte no último instante concede bônus.

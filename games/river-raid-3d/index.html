@@ -120,6 +120,51 @@
         letter-spacing: 0.08em;
       }
 
+      #combo {
+        display: grid;
+        grid-template-columns: auto auto 1fr;
+        align-items: center;
+        gap: 6px;
+        max-height: 0;
+        margin-top: 0;
+        overflow: hidden;
+        color: var(--cyan);
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: 0.1em;
+        opacity: 0;
+        transform: translateY(-3px);
+        transition: opacity 120ms ease, transform 120ms ease, max-height 120ms ease, margin 120ms ease;
+      }
+
+      #combo.active {
+        max-height: 14px;
+        margin-top: 4px;
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      #combo-time {
+        color: var(--yellow);
+        font-size: 9px;
+      }
+
+      .combo-track {
+        display: block;
+        height: 3px;
+        background: rgba(255, 255, 255, 0.16);
+        overflow: hidden;
+      }
+
+      #combo-fill {
+        display: block;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, var(--cyan), var(--yellow), var(--red));
+        box-shadow: 0 0 8px currentColor;
+        transform-origin: left;
+      }
+
       #lives {
         color: var(--red);
         letter-spacing: 0.16em;
@@ -467,6 +512,11 @@
         <div class="hud-cell">
           <span class="hud-label">PONTUAÇÃO</span>
           <span id="score" class="hud-value">000000</span>
+          <div id="combo" aria-live="polite">
+            <span id="combo-label">COMBO ×1</span>
+            <span id="combo-time">4,5s</span>
+            <span class="combo-track"><span id="combo-fill"></span></span>
+          </div>
         </div>
         <div class="hud-cell">
           <span class="hud-label">COMBUSTÍVEL</span>
@@ -553,6 +603,8 @@
         perfectEvasionRadius: 4.8,
         perfectEvasionPassDistance: 2.2,
         perfectEvasionScore: 350,
+        comboWindow: 4.5,
+        comboMaxMultiplier: 5,
         safetyModeSpeed: 27,
         safetyModeBraking: 52,
         shipMinSpeed: 2.2,
@@ -707,6 +759,10 @@
         roundDescription: document.querySelector('#round-description'),
         finalScore: document.querySelector('#final-score'),
         score: document.querySelector('#score'),
+        combo: document.querySelector('#combo'),
+        comboLabel: document.querySelector('#combo-label'),
+        comboTime: document.querySelector('#combo-time'),
+        comboFill: document.querySelector('#combo-fill'),
         fuelFill: document.querySelector('#fuel-fill'),
         fuelNumber: document.querySelector('#fuel-number'),
         lives: document.querySelector('#lives'),
@@ -860,6 +916,11 @@
           this.tone(880, 0.2, 'triangle', 0.16, 420);
         }
 
+        combo(multiplier) {
+          this.tone(460 + multiplier * 95, 0.1, 'square', 0.15, 180);
+          if (multiplier >= 4) this.tone(780, 0.18, 'triangle', 0.12, 360);
+        }
+
         cannon() {
           this.tone(132, 0.24, 'sawtooth', 0.34, -72);
           this.tone(68, 0.32, 'square', 0.2, -24);
@@ -898,6 +959,10 @@
           this.mode = 'MENU';
           this.elapsed = 0;
           this.score = 0;
+          this.comboCount = 0;
+          this.comboMultiplier = 1;
+          this.comboTimer = 0;
+          this.bestComboMultiplier = 1;
           this.lives = 3;
           this.fuel = 100;
           this.throttle = CONFIG.initialThrottle;
@@ -2193,6 +2258,10 @@
           this.audio.enable();
           const completedCycles = this.selectedStartingRound - 1;
           this.score = 0;
+          this.comboCount = 0;
+          this.comboMultiplier = 1;
+          this.comboTimer = 0;
+          this.bestComboMultiplier = 1;
           this.lives = 3 + completedCycles;
           this.fuel = 100;
           this.throttle = CONFIG.initialThrottle;
@@ -2358,6 +2427,7 @@
 
           const isPlaying = this.mode === 'PLAYING';
           if (isPlaying) this.updateFlightSpeed(dt);
+          if (isPlaying) this.updateCombo(dt);
           const speed = isPlaying ? this.getSpeed() : 12;
           this.audio.setEngine(this.getSpeedRatio(), isPlaying);
           this.updateSpeedEffects(dt, speed, isPlaying);
@@ -2732,10 +2802,12 @@
                 this.spawnExplosion(missile.group.position.clone(), 12);
                 this.scene.remove(missile.group);
                 this.missiles.splice(missileIndex, 1);
-                this.score += CONFIG.missileDestroyScore;
+                const comboAward = this.awardCombatScore(CONFIG.missileDestroyScore, 'MÍSSIL ABATIDO');
                 this.missilesDestroyed += 1;
                 this.audio.missileDestroyed();
-                this.showToast(`MÍSSIL ABATIDO · +${CONFIG.missileDestroyScore}`, 1.25);
+                if (comboAward.multiplier === 1) {
+                  this.showToast(`MÍSSIL ABATIDO · +${comboAward.points}`, 1.25);
+                }
                 consumed = true;
                 break;
               }
@@ -2776,7 +2848,17 @@
 
         destroyEntity(index) {
           const entity = this.entities[index];
-          this.score = Math.max(0, this.score + entity.score);
+          const combatLabels = {
+            navio: 'NAVIO DESTRUÍDO',
+            helicóptero: 'HELICÓPTERO DESTRUÍDO',
+            lançador: 'LANÇADOR DESTRUÍDO',
+          };
+          if (combatLabels[entity.type]) {
+            this.awardCombatScore(entity.score, combatLabels[entity.type]);
+          } else {
+            this.score = Math.max(0, this.score + entity.score);
+            if (entity.type === 'fuel') this.resetCombo();
+          }
           this.spawnExplosion(entity.group.position.clone(), entity.type === 'ponte' ? 34 : 20);
           this.audio.explosion();
           let nextEnvironment = null;
@@ -2794,6 +2876,35 @@
           } else if (entity.type === 'fuel') {
             this.showToast(`FUEL DESTRUÍDO · -${CONFIG.fuelPenalty} PONTOS`, 1.8);
           }
+        }
+
+        awardCombatScore(baseScore, label) {
+          this.comboCount = this.comboTimer > 0 ? this.comboCount + 1 : 1;
+          this.comboMultiplier = Math.min(this.comboCount, CONFIG.comboMaxMultiplier);
+          this.comboTimer = CONFIG.comboWindow;
+          this.bestComboMultiplier = Math.max(this.bestComboMultiplier, this.comboMultiplier);
+          const points = baseScore * this.comboMultiplier;
+          this.score += points;
+          this.audio.combo(this.comboMultiplier);
+          if (this.comboMultiplier >= 2) {
+            this.showToast(`${label} · COMBO ×${this.comboMultiplier} · +${points}`, 1.45);
+          }
+          return { points, multiplier: this.comboMultiplier };
+        }
+
+        updateCombo(dt) {
+          if (this.comboTimer <= 0) return;
+          this.comboTimer = Math.max(0, this.comboTimer - dt);
+          if (this.comboTimer === 0) {
+            this.comboCount = 0;
+            this.comboMultiplier = 1;
+          }
+        }
+
+        resetCombo() {
+          this.comboCount = 0;
+          this.comboMultiplier = 1;
+          this.comboTimer = 0;
         }
 
         preserveBridgeBeacons(bridge) {
@@ -2888,6 +2999,7 @@
           if (this.mode !== 'PLAYING') return;
           this.mode = 'CRASH';
           this.lives -= 1;
+          this.resetCombo();
           this.crashTimer = 1.15;
           this.clearMissiles();
           this.syncCameraVisuals();
@@ -2969,6 +3081,11 @@
 
         updateHUD() {
           dom.score.textContent = String(this.score).padStart(6, '0');
+          const comboActive = this.comboTimer > 0 && this.comboCount > 0;
+          dom.combo.classList.toggle('active', comboActive);
+          dom.comboLabel.textContent = `COMBO ×${this.comboMultiplier}`;
+          dom.comboTime.textContent = `${this.comboTimer.toFixed(1).replace('.', ',')}s`;
+          dom.comboFill.style.transform = `scaleX(${clamp(this.comboTimer / CONFIG.comboWindow, 0, 1)})`;
           dom.fuelFill.style.transform = `scaleX(${clamp(this.fuel / 100, 0, 1)})`;
           dom.fuelNumber.textContent = `${Math.ceil(this.fuel)}%`;
           dom.fuelNumber.style.color = this.fuel < 22 ? '#ff4d5f' : '#f5f0d0';
@@ -3108,6 +3225,8 @@
               missilePropulsionSpeed: CONFIG.missilePropulsionSpeed,
               perfectEvasionRadius: CONFIG.perfectEvasionRadius,
               perfectEvasionScore: CONFIG.perfectEvasionScore,
+              comboWindow: CONFIG.comboWindow,
+              comboMaxMultiplier: CONFIG.comboMaxMultiplier,
               safetyModeSpeed: CONFIG.safetyModeSpeed,
               shipCombatCycle: CONFIG.shipCombatCycle,
               shipSearchlightLength: CONFIG.shipSearchlightLength,
@@ -3121,6 +3240,12 @@
             safetyModeActive: this.safetyModeActive,
             bridgesDestroyed: this.bridgesDestroyed,
             cannonShotsFired: this.cannonShotsFired,
+            combo: {
+              count: this.comboCount,
+              multiplier: this.comboMultiplier,
+              timeRemaining: Number(this.comboTimer.toFixed(2)),
+              bestMultiplier: this.bestComboMultiplier,
+            },
             missileAlert: {
               state: this.currentMissileAlert.state,
               direction: this.currentMissileAlert.direction,
