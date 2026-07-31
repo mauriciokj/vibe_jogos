@@ -230,7 +230,8 @@
       .moment-chip,
       .help-chip,
       #bank-skim,
-      #high-speed-score {
+      #high-speed-score,
+      #fork-route {
         padding: 8px 12px;
         border: 1px solid var(--line);
         background: var(--panel);
@@ -267,6 +268,26 @@
 
       #high-speed-score.active {
         display: block;
+      }
+
+      #fork-route {
+        display: none;
+        font-weight: 900;
+        text-shadow: 0 0 11px currentColor;
+      }
+
+      #fork-route.active {
+        display: block;
+      }
+
+      #fork-route[data-role="supply"] {
+        border-color: rgba(102, 245, 255, 0.72);
+        color: var(--cyan);
+      }
+
+      #fork-route[data-role="combat"] {
+        border-color: rgba(255, 114, 76, 0.78);
+        color: #ff9b58;
       }
 
       @keyframes turbo-score-pulse {
@@ -593,6 +614,7 @@
           <div class="moment-chip">AMBIENTE: <span id="moment-name">DIA CLARO</span></div>
           <div id="bank-skim" data-complete="false">RASANTE <span id="bank-skim-progress">0%</span></div>
           <div id="high-speed-score">TURBO SCORE ×1,5</div>
+          <div id="fork-route" data-role="supply">ROTA FUEL</div>
         </div>
         <div class="help-chip">[C] TROCAR CÂMERA (3 MODOS) · [P] PAUSA · [F] TELA CHEIA</div>
       </div>
@@ -639,7 +661,7 @@
     <script type="module">
       import * as THREE from 'https://unpkg.com/three@0.168.0/build/three.module.js';
 
-      const GAME_VERSION = '1.3.0';
+      const GAME_VERSION = '1.4.0';
 
       const CONFIG = {
         segmentLength: 32,
@@ -698,6 +720,8 @@
         riverForkMaxHalfWidth: 2.3,
         riverForkExpansion: 5,
         riverForkWarningDistance: 125,
+        riverCombatRouteMultiplier: 1.35,
+        riverSupplyFuelChance: 0.34,
       };
 
       const COLORS = {
@@ -845,6 +869,7 @@
         bankSkim: document.querySelector('#bank-skim'),
         bankSkimProgress: document.querySelector('#bank-skim-progress'),
         highSpeedScore: document.querySelector('#high-speed-score'),
+        forkRoute: document.querySelector('#fork-route'),
         fuelFill: document.querySelector('#fuel-fill'),
         fuelNumber: document.querySelector('#fuel-number'),
         lives: document.querySelector('#lives'),
@@ -1060,6 +1085,8 @@
           this.lastBridgeDestructionDistance = null;
           this.highSpeedBonuses = 0;
           this.lastHighSpeedBonusPoints = 0;
+          this.routeCombatBonuses = 0;
+          this.lastRouteBonusPoints = 0;
           this.lastForkWarningIndex = -1;
           this.forkWasActive = false;
           this.forksCompleted = 0;
@@ -1621,6 +1648,11 @@
             this.materials.soil
           );
 
+          const islandVisible = Math.max(ahead.islandHalfWidth, behind.islandHalfWidth) > 0.03;
+          island.visible = islandVisible;
+          islandLeftCliff.visible = islandVisible;
+          islandRightCliff.visible = islandVisible;
+
           segment.meshes.push(
             water,
             leftBank,
@@ -1749,9 +1781,27 @@
           }
           const side = randomValue < 0.5 ? -1 : 1;
           const sideRandom = (randomValue % 0.5) * 2;
+          return this.pickRiverChannelX(river, side, sideRandom, spread);
+        }
+
+        pickRiverChannelX(river, side, randomValue = Math.random(), spread = 0.78) {
+          if (!river.forkActive) {
+            return river.center + (randomValue - 0.5) * river.halfWidth * 2 * spread;
+          }
           const channelCenter = river.center + side * (river.halfWidth + river.islandHalfWidth) * 0.5;
           const channelHalfWidth = (river.halfWidth - river.islandHalfWidth) * 0.5;
-          return channelCenter + (sideRandom - 0.5) * channelHalfWidth * 2 * spread;
+          return channelCenter + (randomValue - 0.5) * channelHalfWidth * 2 * spread;
+        }
+
+        getForkRouteSides(forkIndex = 0) {
+          const supplySide = Math.abs(forkIndex || 0) % 2 === 0 ? -1 : 1;
+          return { supplySide, combatSide: -supplySide };
+        }
+
+        getForkRouteRole(river, x) {
+          if (!river.forkActive) return 'single';
+          const side = x < river.center ? -1 : 1;
+          return side === this.getForkRouteSides(river.forkIndex).supplySide ? 'supply' : 'combat';
         }
 
         getRiverNavigation(river, x) {
@@ -2449,14 +2499,33 @@
           const z = -190 - Math.random() * 35;
           const river = this.getRiverAtZ(z);
           const roll = Math.random();
-          const spawnX = this.pickNavigableRiverX(river, Math.random(), 0.68);
           let entity;
-          if (roll < 0.22) {
-            entity = this.createFuel(spawnX, z);
-          } else if (roll < 0.61) {
-            entity = this.createShip(spawnX, z);
+          if (river.forkActive) {
+            const routes = this.getForkRouteSides(river.forkIndex);
+            if (roll < CONFIG.riverSupplyFuelChance) {
+              const spawnX = this.pickRiverChannelX(river, routes.supplySide, Math.random(), 0.68);
+              entity = this.createFuel(spawnX, z);
+              entity.forkRoute = 'supply';
+            } else {
+              const spawnX = this.pickRiverChannelX(river, routes.combatSide, Math.random(), 0.68);
+              const combatRoll = (roll - CONFIG.riverSupplyFuelChance) /
+                (1 - CONFIG.riverSupplyFuelChance);
+              entity = combatRoll < 0.58
+                ? this.createShip(spawnX, z)
+                : this.createHelicopter(spawnX, z);
+              entity.forkRoute = 'combat';
+              entity.routeScoreMultiplier = CONFIG.riverCombatRouteMultiplier;
+            }
+            entity.forkIndex = river.forkIndex;
           } else {
-            entity = this.createHelicopter(spawnX, z);
+            const spawnX = this.pickNavigableRiverX(river, Math.random(), 0.68);
+            if (roll < 0.22) {
+              entity = this.createFuel(spawnX, z);
+            } else if (roll < 0.61) {
+              entity = this.createShip(spawnX, z);
+            } else {
+              entity = this.createHelicopter(spawnX, z);
+            }
           }
           this.entities.push(entity);
         }
@@ -2580,6 +2649,8 @@
           this.lastBridgeDestructionDistance = null;
           this.highSpeedBonuses = 0;
           this.lastHighSpeedBonusPoints = 0;
+          this.routeCombatBonuses = 0;
+          this.lastRouteBonusPoints = 0;
           this.lastForkWarningIndex = -1;
           this.forkWasActive = false;
           this.forksCompleted = 0;
@@ -2654,6 +2725,7 @@
             this.toastTimer = 0;
             dom.toast.classList.remove('show');
           }
+          this.updateHUD();
         }
 
         toggleFullscreen() {
@@ -2831,7 +2903,10 @@
             this.lastForkWarningIndex !== nextIndex
           ) {
             this.lastForkWarningIndex = nextIndex;
-            this.showToast('RIO DIVIDIDO À FRENTE', 2.1);
+            const routes = this.getForkRouteSides(nextIndex);
+            const leftRoute = routes.supplySide < 0 ? 'FUEL' : 'COMBATE ×1,35';
+            const rightRoute = routes.supplySide > 0 ? 'FUEL' : 'COMBATE ×1,35';
+            this.showToast(`ROTAS · ESQ ${leftRoute} · DIR ${rightRoute}`, 2.6);
           }
         }
 
@@ -2861,11 +2936,16 @@
               const river = this.getRiverAtZ(entity.group.position.z);
               let lateralVelocity = this.getVehicleLateralSpeed(entity);
               entity.group.position.x += lateralVelocity * dt;
-              const limit = river.halfWidth * 0.72;
-              if (entity.group.position.x > river.center + limit || entity.group.position.x < river.center - limit) {
+              const bounds = river.forkActive
+                ? this.getRiverChannelBounds(river, entity.group.position.x, entity.radius + 0.8)
+                : {
+                    min: river.center - river.halfWidth * 0.72,
+                    max: river.center + river.halfWidth * 0.72,
+                  };
+              if (entity.group.position.x > bounds.max || entity.group.position.x < bounds.min) {
                 entity.vx *= -1;
                 lateralVelocity *= -1;
-                entity.group.position.x = clamp(entity.group.position.x, river.center - limit, river.center + limit);
+                entity.group.position.x = clamp(entity.group.position.x, bounds.min, bounds.max);
               }
               const targetHeading = -Math.sign(lateralVelocity) * Math.PI / 2;
               entity.group.rotation.y = damp(entity.group.rotation.y, targetHeading, 8, dt);
@@ -3219,7 +3299,11 @@
           };
           let scoreAward = null;
           if (combatLabels[entity.type]) {
-            scoreAward = this.awardCombatScore(entity.score, combatLabels[entity.type]);
+            scoreAward = this.awardCombatScore(
+              entity.score,
+              combatLabels[entity.type],
+              entity.routeScoreMultiplier || 1
+            );
           } else if (entity.score > 0) {
             scoreAward = this.awardSpeedAdjustedScore(entity.score);
           } else {
@@ -3269,21 +3353,35 @@
           }
         }
 
-        awardCombatScore(baseScore, label) {
+        awardCombatScore(baseScore, label, routeMultiplier = 1) {
           this.comboCount = this.comboTimer > 0 ? this.comboCount + 1 : 1;
           this.comboMultiplier = Math.min(this.comboCount, CONFIG.comboMaxMultiplier);
           this.comboTimer = CONFIG.comboWindow;
           this.bestComboMultiplier = Math.max(this.bestComboMultiplier, this.comboMultiplier);
-          const award = this.awardSpeedAdjustedScore(baseScore, this.comboMultiplier);
+          const routeAdjustedBase = Math.round(baseScore * routeMultiplier);
+          const routeBonusPoints = (routeAdjustedBase - baseScore) * this.comboMultiplier;
+          const award = this.awardSpeedAdjustedScore(routeAdjustedBase, this.comboMultiplier);
+          if (routeBonusPoints > 0) {
+            this.routeCombatBonuses += 1;
+            this.lastRouteBonusPoints = routeBonusPoints;
+          }
           this.audio.combo(this.comboMultiplier);
-          if (this.comboMultiplier >= 2 || award.speedMultiplier > 1) {
+          if (this.comboMultiplier >= 2 || award.speedMultiplier > 1 || routeMultiplier > 1) {
             const comboMessage = this.comboMultiplier >= 2 ? ` · COMBO ×${this.comboMultiplier}` : '';
             const turboMessage = award.speedMultiplier > 1
               ? ` · TURBO ×${this.formatScoreMultiplier(award.speedMultiplier)}`
               : '';
-            this.showToast(`${label}${comboMessage}${turboMessage} · +${award.points}`, 1.45);
+            const routeMessage = routeMultiplier > 1
+              ? ` · ROTA ×${this.formatScoreMultiplier(routeMultiplier, 2)}`
+              : '';
+            this.showToast(`${label}${routeMessage}${comboMessage}${turboMessage} · +${award.points}`, 1.45);
           }
-          return { ...award, multiplier: this.comboMultiplier };
+          return {
+            ...award,
+            multiplier: this.comboMultiplier,
+            routeMultiplier,
+            routeBonusPoints,
+          };
         }
 
         awardSpeedAdjustedScore(baseScore, baseMultiplier = 1) {
@@ -3305,8 +3403,8 @@
             : 1;
         }
 
-        formatScoreMultiplier(multiplier) {
-          return multiplier.toFixed(1).replace('.', ',');
+        formatScoreMultiplier(multiplier, digits = 1) {
+          return multiplier.toFixed(digits).replace('.', ',');
         }
 
         updateCombo(dt) {
@@ -3555,6 +3653,14 @@
             this.mode === 'PLAYING' && this.getHighSpeedScoreMultiplier() > 1
           );
           dom.highSpeedScore.classList.toggle('active', highSpeedScoreActive);
+          const river = this.getRiverAtZ(CONFIG.playerZ);
+          const routeRole = this.getForkRouteRole(river, this.player.position.x);
+          const routeActive = this.mode === 'PLAYING' && routeRole !== 'single';
+          dom.forkRoute.classList.toggle('active', routeActive);
+          dom.forkRoute.dataset.role = routeRole === 'combat' ? 'combat' : 'supply';
+          dom.forkRoute.textContent = routeRole === 'combat'
+            ? 'ROTA COMBATE ×1,35'
+            : 'ROTA FUEL';
           dom.fuelFill.style.transform = `scaleX(${clamp(this.fuel / 100, 0, 1)})`;
           dom.fuelNumber.textContent = `${Math.ceil(this.fuel)}%`;
           dom.fuelNumber.style.color = this.fuel < 22 ? '#ff4d5f' : '#f5f0d0';
@@ -3593,6 +3699,9 @@
           const nextForkDistance = firstForkDistance == null
             ? null
             : firstForkDistance + nextForkIndex * CONFIG.riverForkInterval - this.distance;
+          const routeIndex = river.forkActive ? river.forkIndex : nextForkIndex;
+          const forkRoutes = this.getForkRouteSides(routeIndex);
+          const currentForkRoute = this.getForkRouteRole(river, this.player.position.x);
           const visibleEntities = this.entities
             .filter((entity) => entity.group.position.z > -150 && entity.group.position.z < 45)
             .map((entity) => ({
@@ -3600,6 +3709,13 @@
               x: Number(entity.group.position.x.toFixed(1)),
               z: Number(entity.group.position.z.toFixed(1)),
               health: entity.health,
+              ...(entity.forkRoute
+                ? {
+                    forkRoute: entity.forkRoute,
+                    forkIndex: entity.forkIndex,
+                    routeScoreMultiplier: entity.routeScoreMultiplier || 1,
+                  }
+                : {}),
               ...(['navio', 'helicóptero'].includes(entity.type)
                 ? {
                     vx: Number(this.getVehicleLateralSpeed(entity).toFixed(1)),
@@ -3726,6 +3842,8 @@
               riverForkRampLength: CONFIG.riverForkRampLength,
               riverForkApproachLength: CONFIG.riverForkApproachLength,
               riverForkMaxHalfWidth: CONFIG.riverForkMaxHalfWidth,
+              riverCombatRouteMultiplier: CONFIG.riverCombatRouteMultiplier,
+              riverSupplyFuelChance: CONFIG.riverSupplyFuelChance,
             },
             speed: Number(this.getSpeed().toFixed(1)),
             targetSpeed: Number(this.getTargetSpeed().toFixed(1)),
@@ -3741,6 +3859,10 @@
               islandHalfWidth: Number(river.islandHalfWidth.toFixed(2)),
               outerHalfWidth: Number(river.halfWidth.toFixed(2)),
               channel: riverNavigation.channel,
+              currentRoute: currentForkRoute,
+              supplySide: forkRoutes.supplySide < 0 ? 'esquerdo' : 'direito',
+              combatSide: forkRoutes.combatSide < 0 ? 'esquerdo' : 'direito',
+              combatMultiplier: CONFIG.riverCombatRouteMultiplier,
               bank: riverNavigation.bank,
               safeClearance: Number(riverNavigation.clearance.toFixed(2)),
               completed: this.forksCompleted,
@@ -3757,6 +3879,12 @@
               active: this.mode === 'PLAYING' && this.getHighSpeedScoreMultiplier() > 1,
               bonuses: this.highSpeedBonuses,
               lastExtraPoints: this.lastHighSpeedBonusPoints,
+            },
+            routeScoring: {
+              active: currentForkRoute === 'combat',
+              bonuses: this.routeCombatBonuses,
+              lastExtraPoints: this.lastRouteBonusPoints,
+              multiplier: CONFIG.riverCombatRouteMultiplier,
             },
             cannonShotsFired: this.cannonShotsFired,
             combo: {

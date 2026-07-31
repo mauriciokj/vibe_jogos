@@ -142,7 +142,7 @@ Status: `EVASÃO PERFEITA`, combo por destruições, bônus de rasante, `PONTE N
 
 Inspirado nas bifurcações do River Raid original.
 
-Status: estrutura procedural básica concluída. As bifurcações ficam bloqueadas na rodada 1. A partir da rodada 2, a primeira surge 320 unidades depois do desbloqueio, permanece por 280 unidades e os eventos seguintes se repetem a cada 1.800 unidades. As margens externas começam a se alargar antes de a ilha nascer. Diferenças de recompensa entre as rotas ficam para a próxima etapa.
+Status: estrutura procedural e primeira escolha de rota concluídas. As bifurcações ficam bloqueadas na rodada 1. A partir da rodada 2, a primeira surge 320 unidades depois do desbloqueio, permanece por 280 unidades e os eventos seguintes se repetem a cada 1.800 unidades. As margens externas começam a se alargar antes de a ilha nascer.
 
 - Depois de algum tempo, uma faixa de terra começa a surgir no centro do rio.
 - Essa faixa cresce gradualmente até separar o rio em dois canais navegáveis.
@@ -153,8 +153,9 @@ Status: estrutura procedural básica concluída. As bifurcações ficam bloquead
 
 ### Escolhas de rota
 
-- Um canal pode ter mais combustível e menos espaço para manobras.
-- O outro pode ter mais inimigos e um multiplicador maior de pontuação.
+- Implementado: um canal recebe os depósitos FUEL e funciona como rota de suprimento.
+- Implementado: o outro concentra navios e helicópteros e concede multiplicador de pontuação ×1,35.
+- Implementado: os lados de suprimento e combate alternam a cada bifurcação, com aviso antecipado e indicador no HUD.
 - Pontes podem bloquear somente um canal.
 - Lançadores podem defender um lado enquanto navios ocupam o outro.
 - Minas e obstáculos podem obrigar o jogador a trocar de canal antes da separação completa.
@@ -240,8 +241,8 @@ Desbloqueio sugerido: início do quarto ciclo completo, depois de o jogador atra
 
 1. Reestruturar aceleração, frenagem e sensação de velocidade.
 2. Implementar lançadores, mísseis, alertas e evasão.
-3. Criar a primeira bifurcação simples com dois canais equivalentes.
-4. Adicionar recompensas diferentes para cada rota.
+3. Concluído: criar a primeira bifurcação simples com dois canais equivalentes.
+4. Concluído: adicionar recompensas diferentes para cada rota.
 5. Adicionar tanques nas margens como primeiro inimigo terrestre móvel.
 6. Criar o ciclo 3 no Deserto e integrar tanques e tempestades de areia.
 7. Criar o ciclo 4 na Jungle com canais estreitos, chuva e emboscadas.

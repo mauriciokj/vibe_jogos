@@ -222,4 +222,11 @@ Original prompt: Criar um novo jogo retro inspirado em River Raid, em Three.js, 
 - Ajuste após teste do usuário: trecho dividido reduzido de 520 para 280 unidades, ilha afinada de 2,8 para 2,3 de meia largura e expansão lateral aumentada de 2,8 para 5 unidades.
 - A abertura das margens agora começa 100 unidades antes da ilha, criando uma entrada larga para a escolha. Na rodada 1, amostras até 5.000 unidades permaneceram sem bifurcação; completar o ciclo destravou corretamente o primeiro evento 320 unidades depois.
 - Controles reais passaram pelos dois lados na rodada 2. A folga segura no centro dos canais ficou acima de 4 unidades durante toda a divisão; colisão, reaparecimento e reunião após 280 unidades continuaram corretos, sem erros de console.
-- Próxima expansão sugerida: recompensas e distribuição de inimigos diferentes em cada rota. Etapa `v1.3.0` permanece local e sem commit para teste do usuário.
+- `v1.3.0` aprovada e registrada no commit `774f3ba` com bifurcações navegáveis a partir da rodada 2.
+- `v1.4.0` em implementação: cada bifurcação agora alterna entre uma rota de suprimento com FUEL e uma rota de combate com navios e helicópteros.
+- A rota de combate vale ×1,35 e acumula com combo e Turbo Score. O aviso antecipado mostra os lados e um chip no HUD identifica a rota atual.
+- Validação controlada: navio da rota de combate valeu 338 pontos; navio seguido de helicóptero em combo totalizou 1.148; navio com Turbo Score valeu 507.
+- Primeira bifurcação usa FUEL à esquerda e combate à direita; a seguinte inverte os lados. Geração, canais, três câmeras e viewport móvel passaram sem erros de console.
+- Etapa `v1.4.0` permanece local e sem commit para teste do usuário.
+- Correção visual da `v1.4.0`: as faces da ilha central agora ficam ocultas enquanto a largura é zero, eliminando a linha marrom no centro do rio antes das bifurcações.
+- Capturas do rio único e da primeira divisão foram inspecionadas: o centro permanece somente com água na rodada 1 e a ilha reaparece normalmente na rodada 2. Movimento e tiro passaram sem erros de console.

@@ -8,6 +8,14 @@ O jogo usa versionamento semântico:
 
 Cada publicação deve atualizar `GAME_VERSION` no `index.html` e registrar as mudanças neste arquivo.
 
+## 1.4.0 — 2026-07-31
+
+- Cada bifurcação oferece uma rota de FUEL e uma rota de combate com navios e helicópteros.
+- Rota de combate concede multiplicador de pontuação ×1,35, acumulável com combo e Turbo Score.
+- Lados das rotas alternam a cada bifurcação e são avisados antes da separação.
+- Indicador no HUD identifica a rota atual; inimigos permanecem dentro do canal escolhido.
+- Geometria da ilha fica oculta quando sua largura é zero, removendo a linha marrom do rio único.
+
 ## 1.3.0 — 2026-07-31
 
 - Bifurcações procedurais liberadas somente a partir da rodada 2, abrindo o rio em dois canais e voltando a reuni-lo gradualmente.
