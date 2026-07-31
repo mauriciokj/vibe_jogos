@@ -10,7 +10,8 @@ Documento de referência para futuras atualizações do jogo.
 - [x] Alerta de travamento, mísseis telegrafados e possibilidade de abatê-los.
 - [x] Modo de segurança no travamento e faróis capturados acompanhando o avião permanentemente.
 - [x] Helicópteros progressivos e navios com holofote/canhão após três ciclos.
-- [ ] Bônus por evasões e jogadas arriscadas.
+- [x] Bônus por evasão perfeita de mísseis.
+- [ ] Combos e outras jogadas arriscadas.
 - [ ] Bifurcações que dividem o rio em dois canais e depois voltam a uni-lo.
 
 ## 1. Lançadores de mísseis
@@ -81,11 +82,13 @@ Status: travamento telegrafado, aviso direcional, alarme progressivo, luz no Coc
 
 ## 7. Combos e risco
 
+Status: `EVASÃO PERFEITA` concluída; os demais bônus e multiplicadores continuam como expansões futuras.
+
 - Destruir inimigos consecutivamente aumenta um multiplicador.
 - Voar próximo às margens gera bônus de rasante.
 - Passar próximo ao facho de um farol concede pontos de risco.
 - Destruir uma ponte no último instante concede bônus.
-- Escapar de um míssil por pouco gera uma `EVASÃO PERFEITA`.
+- Escapar de um míssil por pouco gera uma `EVASÃO PERFEITA`. Implementado: passagem a até 4,8 unidades concede 350 pontos e encerra a perseguição.
 - A velocidade máxima pode multiplicar a pontuação, mas aumenta o perigo.
 
 ## 8. Armas e equipamentos temporários

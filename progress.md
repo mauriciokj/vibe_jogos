@@ -46,3 +46,4 @@ Original prompt: Build a classic Snake game in this repo.
 - River Raid 3D: seletor persistente de rodada inicial (01–10) adicionado ao menu para simular rapidamente desbloqueios, vidas, pontes, mísseis e combate naval.
 - River Raid 3D: navios armados agora só rastreiam e atiram numa faixa lateral próxima, com 0,65 s de alerta; cruzar pelo outro lado do rio cancela o ataque.
 - River Raid 3D: alcance de detecção e disparo dos navios agora corresponde exatamente às 22 unidades do próprio feixe de luz; fora dele não há alerta nem tiro.
+- River Raid 3D: bônus local de `EVASÃO PERFEITA` concede 350 pontos quando um míssil passa a até 4,8 unidades sem atingir o avião; cenários próximo, distante e impacto foram validados.

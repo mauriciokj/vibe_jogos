@@ -546,6 +546,9 @@
         missileLifetime: 5.5,
         missileLockDistance: 150,
         missileDestroyScore: 200,
+        perfectEvasionRadius: 4.8,
+        perfectEvasionPassDistance: 2.2,
+        perfectEvasionScore: 350,
         safetyModeSpeed: 27,
         safetyModeBraking: 52,
         shipMinSpeed: 2.2,
@@ -847,6 +850,11 @@
           this.tone(420, 0.2, 'triangle', 0.16, 260);
         }
 
+        perfectEvasion() {
+          this.tone(620, 0.12, 'square', 0.18, 320);
+          this.tone(880, 0.2, 'triangle', 0.16, 420);
+        }
+
         cannon() {
           this.tone(132, 0.24, 'sawtooth', 0.34, -72);
           this.tone(68, 0.32, 'square', 0.2, -24);
@@ -900,6 +908,7 @@
           this.missileAlertTimer = 0;
           this.currentMissileAlert = { state: 'none', direction: 'center', distance: null };
           this.missilesDestroyed = 0;
+          this.perfectEvasions = 0;
           this.safetyModeActive = false;
           this.bridgesDestroyed = 0;
           this.cannonShotsFired = 0;
@@ -1944,6 +1953,9 @@
             sourceSide: launcher.side,
             exhaust,
             trail,
+            closestDistance: Infinity,
+            passedPlayer: false,
+            perfectEvasion: false,
           });
           launcher.shotsFired += 1;
           this.audio.missileLaunch();
@@ -2160,6 +2172,7 @@
           this.nextBridgeDistance = 620;
           this.environmentCyclesCompleted = completedCycles;
           this.missilesDestroyed = 0;
+          this.perfectEvasions = 0;
           this.missileAlertTimer = 0;
           this.safetyModeActive = false;
           this.bridgesDestroyed = completedCycles * ENVIRONMENT_PHASES.length;
@@ -2519,16 +2532,18 @@
             missile.currentSpeed = missileSpeed;
             const dx = this.player.position.x - missile.group.position.x;
             const dz = CONFIG.playerZ - missile.group.position.z;
-            const desiredAngle = Math.atan2(dx, dz);
-            const angleDifference = Math.atan2(
-              Math.sin(desiredAngle - missile.angle),
-              Math.cos(desiredAngle - missile.angle)
-            );
-            missile.angle += clamp(
-              angleDifference,
-              -CONFIG.missileTurnRate * dt,
-              CONFIG.missileTurnRate * dt
-            );
+            if (!missile.passedPlayer) {
+              const desiredAngle = Math.atan2(dx, dz);
+              const angleDifference = Math.atan2(
+                Math.sin(desiredAngle - missile.angle),
+                Math.cos(desiredAngle - missile.angle)
+              );
+              missile.angle += clamp(
+                angleDifference,
+                -CONFIG.missileTurnRate * dt,
+                CONFIG.missileTurnRate * dt
+              );
+            }
             missile.group.rotation.y = missile.angle;
             missile.group.position.x += Math.sin(missile.angle) * missileSpeed * dt;
             missile.closureSpeed = worldScrollSpeed + Math.cos(missile.angle) * missileSpeed;
@@ -2541,11 +2556,26 @@
               missile.group.position.x - this.player.position.x,
               missile.group.position.z - CONFIG.playerZ
             );
+            missile.closestDistance = Math.min(missile.closestDistance, distanceToPlayer);
             if (distanceToPlayer < 1.45) {
               this.scene.remove(missile.group);
               this.missiles.splice(index, 1);
               this.crash('ATINGIDO POR MÍSSIL');
               return;
+            }
+
+            if (
+              !missile.passedPlayer &&
+              missile.group.position.z > CONFIG.playerZ + CONFIG.perfectEvasionPassDistance
+            ) {
+              missile.passedPlayer = true;
+              if (missile.closestDistance <= CONFIG.perfectEvasionRadius) {
+                missile.perfectEvasion = true;
+                this.score += CONFIG.perfectEvasionScore;
+                this.perfectEvasions += 1;
+                this.audio.perfectEvasion();
+                this.showToast(`EVASÃO PERFEITA · +${CONFIG.perfectEvasionScore}`, 1.55);
+              }
             }
 
             if (
@@ -2568,8 +2598,9 @@
         }
 
         getMissileThreat() {
-          if (this.missiles.length > 0) {
-            const missile = this.missiles.reduce((closest, candidate) => {
+          const activeMissiles = this.missiles.filter((missile) => !missile.passedPlayer);
+          if (activeMissiles.length > 0) {
+            const missile = activeMissiles.reduce((closest, candidate) => {
               const candidateDistance = Math.hypot(
                 candidate.group.position.x - this.player.position.x,
                 candidate.group.position.z - CONFIG.playerZ
@@ -3042,6 +3073,8 @@
               fuelRefillPerSecond: CONFIG.fuelRefillRate,
               missileLockDistance: CONFIG.missileLockDistance,
               missilePropulsionSpeed: CONFIG.missilePropulsionSpeed,
+              perfectEvasionRadius: CONFIG.perfectEvasionRadius,
+              perfectEvasionScore: CONFIG.perfectEvasionScore,
               safetyModeSpeed: CONFIG.safetyModeSpeed,
               shipCombatCycle: CONFIG.shipCombatCycle,
               shipSearchlightLength: CONFIG.shipSearchlightLength,
@@ -3062,6 +3095,7 @@
                 ? null
                 : Number(this.currentMissileAlert.distance.toFixed(1)),
               destroyed: this.missilesDestroyed,
+              perfectEvasions: this.perfectEvasions,
             },
             speedEffects: {
               intensity: Number((this.getSpeedRatio() ** 2).toFixed(2)),
@@ -3091,6 +3125,11 @@
               age: Number(missile.age.toFixed(2)),
               speed: Number(missile.currentSpeed.toFixed(1)),
               closureSpeed: Number(missile.closureSpeed.toFixed(1)),
+              closestDistance: Number(
+                (Number.isFinite(missile.closestDistance) ? missile.closestDistance : 999).toFixed(1)
+              ),
+              passedPlayer: missile.passedPlayer,
+              perfectEvasion: missile.perfectEvasion,
               sourceSide: missile.sourceSide < 0 ? 'esquerda' : 'direita',
             })),
             enemyShells: this.enemyShells.map((shell) => ({

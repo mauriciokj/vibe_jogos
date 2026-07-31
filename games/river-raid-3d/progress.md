@@ -171,3 +171,8 @@ Original prompt: Criar um novo jogo retro inspirado em River Raid, em Three.js, 
 - Regra final de proximidade naval: as zonas retangulares invisíveis foram substituídas pela distância física do próprio feixe, com 22 unidades de comprimento; refletor, travamento e canhão só funcionam enquanto o avião estiver ao alcance dessa luz.
 - Limite validado: a 23,4 unidades o navio não rastreou nem atirou; a 17,4 unidades o feixe alcançou o avião e iniciou o alerta, disparando após 0,35 s de exposição. Uma passagem rápida ainda consegue escapar antes do tiro.
 - Capturas externas e internas ao alcance físico do feixe foram inspecionadas; estado textual e console permaneceram sem erros.
+- Nova etapa em implementação: mísseis que passam pelo avião a até 4,8 unidades sem colidir concedem `EVASÃO PERFEITA` e 350 pontos; depois da passagem, deixam de perseguir e saem do estado de ameaça.
+- Estado textual expõe total de evasões, menor distância alcançada e resultado individual de cada míssil. TODO: validar evasão próxima, passagem distante, impacto e encerramento do modo de segurança.
+- Validação controlada concluída: raspão com menor distância de 3,0 concedeu 350 pontos, registrou uma evasão e encerrou imediatamente o alerta; passagem a 7,1 não pontuou; impacto frontal reduziu as vidas de 4 para 3.
+- Capturas dos três resultados foram inspecionadas; `EVASÃO PERFEITA · +350`, placar e míssil passando ao lado do avião ficaram legíveis. Teste comum de movimento e inicialização passou sem erros de console.
+- Etapa concluída localmente e ainda não commitada. Próxima ideia sugerida: combos e outros bônus de risco, ou primeira bifurcação simples do rio.
