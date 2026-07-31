@@ -8,6 +8,11 @@ O jogo usa versionamento semântico:
 
 Cada publicação deve atualizar `GAME_VERSION` no `index.html` e registrar as mudanças neste arquivo.
 
+## 1.1.0 — 2026-07-31
+
+- Bônus `PONTE NO LIMITE` por destruir uma ponte a até 16 unidades do avião.
+- Recompensa adicional de 500 pontos e aviso próprio na tela.
+
 ## 1.0.0 — 2026-07-31
 
 - Primeira versão formalmente numerada.

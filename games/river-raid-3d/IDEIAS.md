@@ -105,8 +105,7 @@ Status: `EVASÃO PERFEITA`, combo por destruições e bônus de rasante concluí
 
 - Destruir inimigos consecutivamente aumenta um multiplicador. Implementado: janela de 4,5 s, multiplicador de ×1 a ×5 e barra regressiva no HUD.
 - Voar próximo às margens gera bônus de rasante. Implementado: sustentar velocidade mínima 42 próximo à borda por 1,15 s concede 200 pontos uma vez por aproximação.
-- Passar próximo ao facho de um farol concede pontos de risco.
-- Destruir uma ponte no último instante concede bônus.
+- Destruir uma ponte no último instante concede bônus. Implementado: destruir a até 16 unidades do avião concede 500 pontos extras.
 - Escapar de um míssil por pouco gera uma `EVASÃO PERFEITA`. Implementado: passagem a até 4,8 unidades concede 350 pontos e encerra a perseguição.
 - A velocidade máxima pode multiplicar a pontuação, mas aumenta o perigo.
 

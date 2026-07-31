@@ -619,7 +619,7 @@
     <script type="module">
       import * as THREE from 'https://unpkg.com/three@0.168.0/build/three.module.js';
 
-      const GAME_VERSION = '1.0.0';
+      const GAME_VERSION = '1.1.0';
 
       const CONFIG = {
         segmentLength: 32,
@@ -649,6 +649,8 @@
         bankSkimMinSpeed: 42,
         bankSkimHoldTime: 1.15,
         bankSkimScore: 200,
+        lastMomentBridgeDistance: 16,
+        lastMomentBridgeScore: 500,
         safetyModeSpeed: 27,
         safetyModeBraking: 52,
         shipMinSpeed: 2.2,
@@ -1021,6 +1023,8 @@
           this.bankSkimClearance = Infinity;
           this.bankSkimSide = 'centro';
           this.bankSkims = 0;
+          this.lastMomentBridges = 0;
+          this.lastBridgeDestructionDistance = null;
           this.lives = 3;
           this.fuel = 100;
           this.throttle = CONFIG.initialThrottle;
@@ -2328,6 +2332,8 @@
           this.bankSkimClearance = Infinity;
           this.bankSkimSide = 'centro';
           this.bankSkims = 0;
+          this.lastMomentBridges = 0;
+          this.lastBridgeDestructionDistance = null;
           this.lives = 3 + completedCycles;
           this.fuel = 100;
           this.throttle = CONFIG.initialThrottle;
@@ -2915,6 +2921,14 @@
 
         destroyEntity(index) {
           const entity = this.entities[index];
+          const bridgeDistance = entity.type === 'ponte'
+            ? CONFIG.playerZ - entity.group.position.z
+            : null;
+          const lastMomentBridge = Boolean(
+            entity.type === 'ponte' &&
+            bridgeDistance >= 0 &&
+            bridgeDistance <= CONFIG.lastMomentBridgeDistance
+          );
           const combatLabels = {
             navio: 'NAVIO DESTRUÍDO',
             helicóptero: 'HELICÓPTERO DESTRUÍDO',
@@ -2931,6 +2945,11 @@
           let nextEnvironment = null;
           if (entity.type === 'ponte') {
             this.bridgesDestroyed += 1;
+            this.lastBridgeDestructionDistance = bridgeDistance;
+            if (lastMomentBridge) {
+              this.lastMomentBridges += 1;
+              this.score += CONFIG.lastMomentBridgeScore;
+            }
             this.preserveBridgeBeacons(entity);
             nextEnvironment = this.advanceEnvironment();
           }
@@ -2939,7 +2958,15 @@
           if (entity.type === 'ponte') {
             const lifeMessage = nextEnvironment.lifeAwarded ? ' · VIDA EXTRA' : '';
             const navalMessage = nextEnvironment.navalCombatUnlocked ? ' · NAVIOS ARMADOS' : '';
-            this.showToast(`PONTE DESTRUÍDA · ${nextEnvironment.label}${lifeMessage}${navalMessage}`, 2.4);
+            if (lastMomentBridge) {
+              this.audio.riskBonus();
+              this.showToast(
+                `PONTE NO LIMITE · +${CONFIG.lastMomentBridgeScore} · ${nextEnvironment.label}${lifeMessage}${navalMessage}`,
+                2.4
+              );
+            } else {
+              this.showToast(`PONTE DESTRUÍDA · ${nextEnvironment.label}${lifeMessage}${navalMessage}`, 2.4);
+            }
           } else if (entity.type === 'fuel') {
             this.showToast(`FUEL DESTRUÍDO · -${CONFIG.fuelPenalty} PONTOS`, 1.8);
           }
@@ -3345,6 +3372,8 @@
               bankSkimMinSpeed: CONFIG.bankSkimMinSpeed,
               bankSkimHoldTime: CONFIG.bankSkimHoldTime,
               bankSkimScore: CONFIG.bankSkimScore,
+              lastMomentBridgeDistance: CONFIG.lastMomentBridgeDistance,
+              lastMomentBridgeScore: CONFIG.lastMomentBridgeScore,
               safetyModeSpeed: CONFIG.safetyModeSpeed,
               shipCombatCycle: CONFIG.shipCombatCycle,
               shipSearchlightLength: CONFIG.shipSearchlightLength,
@@ -3357,6 +3386,10 @@
             speedState: this.getSpeedState(),
             safetyModeActive: this.safetyModeActive,
             bridgesDestroyed: this.bridgesDestroyed,
+            lastMomentBridges: this.lastMomentBridges,
+            lastBridgeDestructionDistance: this.lastBridgeDestructionDistance == null
+              ? null
+              : Number(this.lastBridgeDestructionDistance.toFixed(1)),
             cannonShotsFired: this.cannonShotsFired,
             combo: {
               count: this.comboCount,

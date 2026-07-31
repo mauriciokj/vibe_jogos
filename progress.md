@@ -54,6 +54,7 @@ Original prompt: Build a classic Snake game in this repo.
 - River Raid 3D: combo local por destruições consecutivas implementado com janela de 4,5 s, multiplicador até ×5, HUD regressivo e resets por FUEL, expiração ou perda de vida.
 - River Raid 3D: bônus local `RASANTE PERFEITO` concede 200 pontos por sustentar voo rápido próximo à margem; progresso, reentrada, duas margens, pausa e colisão foram validados.
 - River Raid 3D: versionamento semântico iniciado em `v1.0.0`, com versão visível na tela, exposta para testes e documentada em changelog.
+- River Raid 3D: `v1.1.0` local adiciona bônus `PONTE NO LIMITE` de 500 pontos para destruições a até 16 unidades do avião; ideia de bônus por facho foi descartada.
 - Sinuca iniciada em `games/sinuca/index.html` como arquivo único: canvas responsivo, bolas numeradas com volume 3D, física elástica com correção posicional, substeps adaptativos, atrito, tabelas, seis caçapas, turnos contra CPU, menu, placar e reinício.
 - Sinuca: primeira inspeção Playwright confirmou menu e mesa; margens do canvas e ordem visual do HUD foram ajustadas, e o triângulo passou a usar distância de dois raios com epsilon microscópico anti-sobreposição.
 - Sinuca: sem TODOs funcionais pendentes após a validação final.

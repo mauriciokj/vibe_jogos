@@ -198,3 +198,9 @@ Original prompt: Criar um novo jogo retro inspirado em River Raid, em Three.js, 
 - `RASANTE PERFEITO` aprovado para publicação.
 - Versionamento semântico iniciado em `v1.0.0`; número aparece no canto inferior direito, título da página e estado textual. `CHANGELOG.md` registra política e conteúdo de cada versão. TODO: validar versão no menu, gameplay, resolução móvel e produção.
 - `v1.0.0` validada no menu, gameplay e viewport móvel; badge recebeu fundo translúcido e contraste reforçado após a primeira inspeção. Título e estado textual retornaram a mesma versão, sem erros de console.
+- Bônus por facho de farol descartado a pedido do usuário.
+- `v1.1.0` em implementação com `PONTE NO LIMITE`: destruir uma ponte ainda à frente e a até 16 unidades do avião concede 500 pontos extras, som e aviso próprios.
+- Estado textual expõe distância do último abate, total de bônus e regras de alcance/pontuação. TODO: validar destruição distante, próxima, limite exato, ponte já ultrapassada e disparo real.
+- Validação concluída: ponte a 28 unidades manteve 1.000 pontos; a 14 e no limite exato de 16 concedeu 1.500; ponte já ultrapassada não recebeu bônus.
+- Disparo real destruiu a ponte a 4,6 unidades, removeu o obstáculo, avançou para Entardecer e mostrou `PONTE NO LIMITE · +500`. Captura e badge `v1.1.0` foram inspecionados sem erros de console.
+- Etapa `v1.1.0` concluída localmente e ainda não commitada.
