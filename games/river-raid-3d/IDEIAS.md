@@ -13,7 +13,7 @@ Documento de referência para futuras atualizações do jogo.
 - [x] Bônus por evasão perfeita de mísseis.
 - [x] Combo por destruições consecutivas.
 - [x] Outros bônus por jogadas arriscadas.
-- [ ] Bifurcações que dividem o rio em dois canais e depois voltam a uni-lo.
+- [x] Bifurcações que dividem o rio em dois canais e depois voltam a uni-lo.
 - [ ] Ranking online com nome do jogador.
 - [ ] Bioma desértico desbloqueado em um ciclo avançado.
 - [ ] Bioma Jungle desbloqueado depois do Deserto.
@@ -142,11 +142,14 @@ Status: `EVASÃO PERFEITA`, combo por destruições, bônus de rasante, `PONTE N
 
 Inspirado nas bifurcações do River Raid original.
 
+Status: estrutura procedural básica concluída. As bifurcações ficam bloqueadas na rodada 1. A partir da rodada 2, a primeira surge 320 unidades depois do desbloqueio, permanece por 280 unidades e os eventos seguintes se repetem a cada 1.800 unidades. As margens externas começam a se alargar antes de a ilha nascer. Diferenças de recompensa entre as rotas ficam para a próxima etapa.
+
 - Depois de algum tempo, uma faixa de terra começa a surgir no centro do rio.
 - Essa faixa cresce gradualmente até separar o rio em dois canais navegáveis.
 - O jogador precisa escolher rapidamente o canal da esquerda ou da direita.
 - Depois de uma determinada distância, a ilha central termina e os canais voltam a formar um único rio.
 - A abertura e o reencontro dos canais devem ser graduais e fáceis de identificar.
+- Implementado: aviso antecipado, colisão com a ilha, reaparecimento seguro, navios presos ao próprio canal e pontes somente fora da bifurcação.
 
 ### Escolhas de rota
 

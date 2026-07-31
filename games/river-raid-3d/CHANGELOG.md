@@ -8,6 +8,15 @@ O jogo usa versionamento semântico:
 
 Cada publicação deve atualizar `GAME_VERSION` no `index.html` e registrar as mudanças neste arquivo.
 
+## 1.3.0 — 2026-07-31
+
+- Bifurcações procedurais liberadas somente a partir da rodada 2, abrindo o rio em dois canais e voltando a reuni-lo gradualmente.
+- Canais ampliados antes de a ilha surgir e trecho dividido reduzido para 280 unidades.
+- Ilha central low-poly com árvores, rochas, colisão própria e aviso antecipado.
+- Navios permanecem no canal escolhido; entidades aquáticas nascem fora da ilha.
+- Pontes são adiadas até um trecho de rio único e o avião reserva reaparece dentro de um canal seguro.
+- Estado da bifurcação disponível nas três câmeras e na saída textual de testes.
+
 ## 1.2.0 — 2026-07-31
 
 - `TURBO SCORE ×1,5` para destruições realizadas a partir de 52 unidades/s.

@@ -211,3 +211,15 @@ Original prompt: Criar um novo jogo retro inspirado em River Raid, em Three.js, 
 - Recompensas fixas e penalidades não foram multiplicadas: rasante permaneceu em 200, FUEL continuou retirando 250 e ponte no limite manteve seus 500 extras fixos.
 - Limite exato validado em 51,9/52,0; chip desaparece abaixo do limiar e durante a pausa. Movimento, disparo, três câmeras, pausa/retomada e viewport móvel passaram sem erros de console.
 - Capturas do combo, ponte e layout móvel inspecionadas; `render_game_to_text` expõe regra, estado, total de bônus e pontos extras da última destruição. Etapa local ainda não commitada para teste do usuário.
+- `TURBO SCORE` aprovado e registrado no commit `0d95bcf` como `v1.2.0`.
+- `v1.3.0` em implementação com bifurcações procedurais liberadas somente ao completar o primeiro ciclo ambiental e entrar na rodada 2.
+- O rio se alarga enquanto uma ilha central low-poly cresce gradualmente, formando canais esquerdo e direito; no final, a ilha afunila e o rio volta a ser único.
+- Aviso `RIO DIVIDIDO À FRENTE` aparece 125 unidades antes. Colidir com a ilha retira uma vida e o avião reserva reaparece no centro seguro de um dos canais.
+- Entidades aquáticas passam a nascer somente sobre água; navios escolhem um canal e invertem a patrulha antes da ilha. Pontes são adiadas até a bifurcação terminar.
+- Controles reais conduziram o avião com sucesso pelos dois lados. Ilha, margem externa, reaparecimento, abertura máxima e reunião foram validados; uma travessia completa incrementou o contador de bifurcações.
+- Câmeras Chase, Top-Down e Cockpit foram inspecionadas durante a divisão; a escolha dos canais permaneceu legível. Movimento, tiro, troca de câmeras, pausa e sistemas anteriores passaram sem erros de console.
+- A bifurcação também foi inspecionada em viewport móvel de 390×844, sem rolagem horizontal e com o canal escolhido visível.
+- Ajuste após teste do usuário: trecho dividido reduzido de 520 para 280 unidades, ilha afinada de 2,8 para 2,3 de meia largura e expansão lateral aumentada de 2,8 para 5 unidades.
+- A abertura das margens agora começa 100 unidades antes da ilha, criando uma entrada larga para a escolha. Na rodada 1, amostras até 5.000 unidades permaneceram sem bifurcação; completar o ciclo destravou corretamente o primeiro evento 320 unidades depois.
+- Controles reais passaram pelos dois lados na rodada 2. A folga segura no centro dos canais ficou acima de 4 unidades durante toda a divisão; colisão, reaparecimento e reunião após 280 unidades continuaram corretos, sem erros de console.
+- Próxima expansão sugerida: recompensas e distribuição de inimigos diferentes em cada rota. Etapa `v1.3.0` permanece local e sem commit para teste do usuário.

@@ -639,7 +639,7 @@
     <script type="module">
       import * as THREE from 'https://unpkg.com/three@0.168.0/build/three.module.js';
 
-      const GAME_VERSION = '1.2.0';
+      const GAME_VERSION = '1.3.0';
 
       const CONFIG = {
         segmentLength: 32,
@@ -688,6 +688,16 @@
         fuelRefillRate: 78,
         fuelPenalty: 250,
         terrainHalfWidth: 90,
+        riverBankClearance: 2.5,
+        riverForkUnlockCycle: 1,
+        riverForkStartDistance: 320,
+        riverForkInterval: 1800,
+        riverForkLength: 280,
+        riverForkRampLength: 64,
+        riverForkApproachLength: 100,
+        riverForkMaxHalfWidth: 2.3,
+        riverForkExpansion: 5,
+        riverForkWarningDistance: 125,
       };
 
       const COLORS = {
@@ -1050,6 +1060,10 @@
           this.lastBridgeDestructionDistance = null;
           this.highSpeedBonuses = 0;
           this.lastHighSpeedBonusPoints = 0;
+          this.lastForkWarningIndex = -1;
+          this.forkWasActive = false;
+          this.forksCompleted = 0;
+          this.riverForkUnlockDistance = null;
           this.lives = 3;
           this.fuel = 100;
           this.throttle = CONFIG.initialThrottle;
@@ -1296,7 +1310,7 @@
             );
             line.position.z = -16 - Math.random() * 125;
             const river = this.getRiverAtZ(line.position.z);
-            line.position.x = river.center + (Math.random() - 0.5) * river.halfWidth * 1.55;
+            line.position.x = this.pickNavigableRiverX(river, Math.random(), 0.78);
             line.position.y = 0.2 + Math.random() * 0.08;
             line.userData.drift = 0.82 + Math.random() * 0.4;
             this.speedLineGroup.add(line);
@@ -1316,7 +1330,7 @@
             if (line.position.z > 17) {
               line.position.z = -92 - Math.random() * 52;
               const river = this.getRiverAtZ(line.position.z);
-              line.position.x = river.center + (Math.random() - 0.5) * river.halfWidth * 1.55;
+              line.position.x = this.pickNavigableRiverX(river, Math.random(), 0.78);
             }
           }
         }
@@ -1386,6 +1400,14 @@
           let navalCombatUnlocked = false;
           if (this.environmentIndex === ENVIRONMENT_PHASES.length - 1) {
             this.environmentCyclesCompleted += 1;
+            if (
+              this.environmentCyclesCompleted >= CONFIG.riverForkUnlockCycle &&
+              this.riverForkUnlockDistance == null
+            ) {
+              this.riverForkUnlockDistance = this.distance;
+              this.lastForkWarningIndex = -1;
+              this.refreshTerrainShapes();
+            }
             navalCombatUnlocked = this.environmentCyclesCompleted === CONFIG.shipCombatCycle;
             this.lives += 1;
             lifeAwarded = true;
@@ -1421,10 +1443,67 @@
           positions.needsUpdate = true;
         }
 
+        getFirstRiverForkDistance() {
+          return this.riverForkUnlockDistance == null
+            ? null
+            : this.riverForkUnlockDistance + CONFIG.riverForkStartDistance;
+        }
+
+        riverForkProfileAt(distance) {
+          const firstStart = this.getFirstRiverForkDistance();
+          if (firstStart == null || distance < firstStart - CONFIG.riverForkApproachLength) {
+            return { active: false, amount: 0, expansionAmount: 0, index: null, localDistance: null };
+          }
+          const elapsed = distance - firstStart;
+          const index = Math.floor(
+            (elapsed + CONFIG.riverForkApproachLength) / CONFIG.riverForkInterval
+          );
+          const localDistance = elapsed - index * CONFIG.riverForkInterval;
+          if (
+            localDistance < -CONFIG.riverForkApproachLength ||
+            localDistance > CONFIG.riverForkLength
+          ) {
+            return { active: false, amount: 0, expansionAmount: 0, index, localDistance };
+          }
+          if (localDistance < 0) {
+            const approach = clamp(
+              (localDistance + CONFIG.riverForkApproachLength) / CONFIG.riverForkApproachLength,
+              0,
+              1
+            );
+            const expansionAmount = approach * approach * (3 - 2 * approach);
+            return { active: false, amount: 0, expansionAmount, index, localDistance };
+          }
+          const rampIn = clamp(localDistance / CONFIG.riverForkRampLength, 0, 1);
+          const rampOut = clamp(
+            (CONFIG.riverForkLength - localDistance) / CONFIG.riverForkRampLength,
+            0,
+            1
+          );
+          const linearAmount = Math.min(rampIn, rampOut);
+          const amount = linearAmount * linearAmount * (3 - 2 * linearAmount);
+          const expansionLinear = localDistance <= CONFIG.riverForkLength - CONFIG.riverForkRampLength
+            ? 1
+            : rampOut;
+          const expansionAmount = expansionLinear * expansionLinear * (3 - 2 * expansionLinear);
+          return { active: amount > 0.001, amount, expansionAmount, index, localDistance };
+        }
+
         riverShapeAt(distance) {
+          const fork = this.riverForkProfileAt(distance);
           return {
+            distance,
             center: Math.sin(distance * 0.0088) * 2.15 + Math.sin(distance * 0.0029 + 1.2) * 1.25,
-            halfWidth: 11.2 + Math.sin(distance * 0.013 + 0.6) * 1.7 + Math.sin(distance * 0.004) * 1.0,
+            halfWidth:
+              11.2 +
+              Math.sin(distance * 0.013 + 0.6) * 1.7 +
+              Math.sin(distance * 0.004) * 1.0 +
+              fork.expansionAmount * CONFIG.riverForkExpansion,
+            islandHalfWidth: fork.amount * CONFIG.riverForkMaxHalfWidth,
+            forkAmount: fork.amount,
+            forkExpansion: fork.expansionAmount,
+            forkActive: fork.active,
+            forkIndex: fork.active ? fork.index : null,
           };
         }
 
@@ -1437,6 +1516,12 @@
             this.scene.add(group);
             this.terrain.push(segment);
             this.rebuildTerrainSegment(segment, index);
+          }
+        }
+
+        refreshTerrainShapes() {
+          for (const segment of this.terrain) {
+            this.rebuildTerrainSegment(segment, segment.worldIndex);
           }
         }
 
@@ -1506,7 +1591,46 @@
             this.materials.soil
           );
 
-          segment.meshes.push(water, leftBank, rightBank, leftCliff, rightCliff);
+          const island = new THREE.Mesh(
+            makeQuadGeometry([
+              [behind.center - behind.islandHalfWidth, 0.22, halfLength],
+              [behind.center + behind.islandHalfWidth, 0.22, halfLength],
+              [ahead.center - ahead.islandHalfWidth, 0.22, -halfLength],
+              [ahead.center + ahead.islandHalfWidth, 0.22, -halfLength],
+            ]),
+            worldIndex % 2 ? this.materials.bankDark : this.materials.bank
+          );
+
+          const islandLeftCliff = new THREE.Mesh(
+            makeQuadGeometry([
+              [behind.center - behind.islandHalfWidth, -0.5, halfLength],
+              [behind.center - behind.islandHalfWidth, 0.24, halfLength],
+              [ahead.center - ahead.islandHalfWidth, -0.5, -halfLength],
+              [ahead.center - ahead.islandHalfWidth, 0.24, -halfLength],
+            ]),
+            this.materials.soil
+          );
+
+          const islandRightCliff = new THREE.Mesh(
+            makeQuadGeometry([
+              [behind.center + behind.islandHalfWidth, 0.24, halfLength],
+              [behind.center + behind.islandHalfWidth, -0.5, halfLength],
+              [ahead.center + ahead.islandHalfWidth, 0.24, -halfLength],
+              [ahead.center + ahead.islandHalfWidth, -0.5, -halfLength],
+            ]),
+            this.materials.soil
+          );
+
+          segment.meshes.push(
+            water,
+            leftBank,
+            rightBank,
+            leftCliff,
+            rightCliff,
+            island,
+            islandLeftCliff,
+            islandRightCliff
+          );
           segment.group.add(...segment.meshes);
           this.addTerrainDecorations(segment);
         }
@@ -1538,21 +1662,45 @@
             }
           }
 
+          const islandWidth = Math.min(segment.ahead.islandHalfWidth, segment.behind.islandHalfWidth);
+          if (islandWidth > 1.65) {
+            const seed = segment.worldIndex * 19.37;
+            const islandCenter = (segment.ahead.center + segment.behind.center) * 0.5;
+            const islandTree = new THREE.Mesh(this.shared.tree, this.materials.bankDark);
+            const treeScale = 0.58 + seededNoise(seed) * 0.28;
+            islandTree.position.set(
+              islandCenter + (seededNoise(seed + 1) - 0.5) * islandWidth * 0.8,
+              1.9 * treeScale,
+              (seededNoise(seed + 2) - 0.5) * CONFIG.segmentLength * 0.58
+            );
+            islandTree.scale.setScalar(treeScale);
+            segment.decorations.add(islandTree);
+
+            if (seededNoise(seed + 3) > 0.42) {
+              const markerRock = new THREE.Mesh(this.shared.hill, this.materials.rockLight);
+              const rockScale = 0.22 + seededNoise(seed + 4) * 0.16;
+              markerRock.position.set(
+                islandCenter + (seededNoise(seed + 5) - 0.5) * islandWidth,
+                2.55 * rockScale,
+                (seededNoise(seed + 6) - 0.5) * CONFIG.segmentLength * 0.68
+              );
+              markerRock.scale.setScalar(rockScale);
+              segment.decorations.add(markerRock);
+            }
+          }
+
           const waveCount = 3;
           for (let i = 0; i < waveCount; i += 1) {
             const distance = segment.worldIndex * 17 + i * 4;
             const t = seededNoise(distance);
-            const river = {
-              center: lerp(segment.ahead.center, segment.behind.center, t),
-              halfWidth: lerp(segment.ahead.halfWidth, segment.behind.halfWidth, t),
-            };
+            const river = this.interpolateRiverShape(segment.ahead, segment.behind, t);
             const wave = new THREE.Mesh(
               new THREE.PlaneGeometry(2.6 + seededNoise(distance + 3) * 2.5, 0.09),
               new THREE.MeshBasicMaterial({ color: COLORS.waterBright, transparent: true, opacity: 0.58 })
             );
             wave.rotation.x = -Math.PI / 2;
             wave.position.set(
-              river.center + (seededNoise(distance + 9) - 0.5) * river.halfWidth * 1.3,
+              this.pickNavigableRiverX(river, seededNoise(distance + 9), 0.72),
               0.09,
               lerp(-halfLength, halfLength, t)
             );
@@ -1573,13 +1721,83 @@
             }
             if (localZ >= -halfLength && localZ <= halfLength) {
               const t = clamp((localZ + halfLength) / CONFIG.segmentLength, 0, 1);
-              return {
-                center: lerp(segment.ahead.center, segment.behind.center, t),
-                halfWidth: lerp(segment.ahead.halfWidth, segment.behind.halfWidth, t),
-              };
+              return this.interpolateRiverShape(segment.ahead, segment.behind, t);
             }
           }
-          return { center: closest.behind.center, halfWidth: closest.behind.halfWidth };
+          return { ...closest.behind };
+        }
+
+        interpolateRiverShape(ahead, behind, t) {
+          const islandHalfWidth = lerp(ahead.islandHalfWidth, behind.islandHalfWidth, t);
+          const forkAmount = lerp(ahead.forkAmount, behind.forkAmount, t);
+          const forkExpansion = lerp(ahead.forkExpansion, behind.forkExpansion, t);
+          return {
+            distance: lerp(ahead.distance, behind.distance, t),
+            center: lerp(ahead.center, behind.center, t),
+            halfWidth: lerp(ahead.halfWidth, behind.halfWidth, t),
+            islandHalfWidth,
+            forkAmount,
+            forkExpansion,
+            forkActive: islandHalfWidth > 0.18,
+            forkIndex: ahead.forkIndex ?? behind.forkIndex,
+          };
+        }
+
+        pickNavigableRiverX(river, randomValue = Math.random(), spread = 0.78) {
+          if (!river.forkActive) {
+            return river.center + (randomValue - 0.5) * river.halfWidth * 2 * spread;
+          }
+          const side = randomValue < 0.5 ? -1 : 1;
+          const sideRandom = (randomValue % 0.5) * 2;
+          const channelCenter = river.center + side * (river.halfWidth + river.islandHalfWidth) * 0.5;
+          const channelHalfWidth = (river.halfWidth - river.islandHalfWidth) * 0.5;
+          return channelCenter + (sideRandom - 0.5) * channelHalfWidth * 2 * spread;
+        }
+
+        getRiverNavigation(river, x) {
+          const offset = x - river.center;
+          const outerDistance = river.halfWidth - Math.abs(offset);
+          const outerSafeClearance = outerDistance - CONFIG.riverBankClearance;
+          if (!river.forkActive) {
+            return {
+              channel: 'único',
+              bank: offset < 0 ? 'esquerda' : 'direita',
+              clearance: outerSafeClearance,
+              outerCollision: outerSafeClearance < 0,
+              islandCollision: false,
+            };
+          }
+          const channel = offset < 0 ? 'esquerdo' : 'direito';
+          const islandDistance = Math.abs(offset) - river.islandHalfWidth;
+          const islandSafety = CONFIG.riverBankClearance * clamp(
+            river.islandHalfWidth / CONFIG.riverForkMaxHalfWidth,
+            0,
+            1
+          );
+          const islandSafeClearance = islandDistance - islandSafety;
+          return {
+            channel,
+            bank: islandSafeClearance < outerSafeClearance ? 'ilha central' : offset < 0 ? 'esquerda' : 'direita',
+            clearance: Math.min(outerSafeClearance, islandSafeClearance),
+            outerCollision: outerSafeClearance < 0,
+            islandCollision: islandSafeClearance < 0,
+          };
+        }
+
+        getRiverChannelBounds(river, x, margin) {
+          if (!river.forkActive) {
+            return { min: river.center - river.halfWidth + margin, max: river.center + river.halfWidth - margin };
+          }
+          const side = x < river.center ? -1 : 1;
+          const outer = river.center + side * (river.halfWidth - margin);
+          const inner = river.center + side * (river.islandHalfWidth + margin);
+          return { min: Math.min(outer, inner), max: Math.max(outer, inner) };
+        }
+
+        getSafeRiverRespawnX(river, previousX) {
+          if (!river.forkActive) return river.center;
+          const side = previousX < river.center ? -1 : 1;
+          return river.center + side * (river.halfWidth + river.islandHalfWidth) * 0.5;
         }
 
         createPlayer() {
@@ -2231,13 +2449,14 @@
           const z = -190 - Math.random() * 35;
           const river = this.getRiverAtZ(z);
           const roll = Math.random();
+          const spawnX = this.pickNavigableRiverX(river, Math.random(), 0.68);
           let entity;
           if (roll < 0.22) {
-            entity = this.createFuel(river.center + (Math.random() - 0.5) * river.halfWidth * 0.85, z);
+            entity = this.createFuel(spawnX, z);
           } else if (roll < 0.61) {
-            entity = this.createShip(river.center + (Math.random() - 0.5) * river.halfWidth * 1.15, z);
+            entity = this.createShip(spawnX, z);
           } else {
-            entity = this.createHelicopter(river.center + (Math.random() - 0.5) * river.halfWidth * 1.05, z);
+            entity = this.createHelicopter(spawnX, z);
           }
           this.entities.push(entity);
         }
@@ -2361,6 +2580,10 @@
           this.lastBridgeDestructionDistance = null;
           this.highSpeedBonuses = 0;
           this.lastHighSpeedBonusPoints = 0;
+          this.lastForkWarningIndex = -1;
+          this.forkWasActive = false;
+          this.forksCompleted = 0;
+          this.riverForkUnlockDistance = completedCycles >= CONFIG.riverForkUnlockCycle ? 0 : null;
           this.lives = 3 + completedCycles;
           this.fuel = 100;
           this.throttle = CONFIG.initialThrottle;
@@ -2378,6 +2601,7 @@
           this.bridgesDestroyed = completedCycles * ENVIRONMENT_PHASES.length;
           this.cannonShotsFired = 0;
           this.setEnvironmentPhase(0, true);
+          this.refreshTerrainShapes();
           this.player.position.x = this.getRiverAtZ(CONFIG.playerZ).center;
           this.player.rotation.set(0, 0, 0);
           this.mode = 'PLAYING';
@@ -2540,6 +2764,7 @@
 
           if (isPlaying) {
             this.distance += speed * dt;
+            this.updateRiverForkProgress();
             this.level = 1 + Math.floor(this.distance / 1150);
             this.fireCooldown = Math.max(0, this.fireCooldown - dt);
             this.spawnDistance -= speed * dt;
@@ -2548,9 +2773,14 @@
               this.spawnDistance = 68 + Math.random() * 72;
             }
             if (this.distance >= this.nextBridgeDistance) {
-              this.spawnBridgeEncounter(-215);
-              this.nextBridgeDistance += 720;
-              this.showToast('PONTE À FRENTE', 1.5);
+              const bridgeRiver = this.getRiverAtZ(-215);
+              if (bridgeRiver.forkActive) {
+                this.nextBridgeDistance += CONFIG.segmentLength * 2;
+              } else {
+                this.spawnBridgeEncounter(-215);
+                this.nextBridgeDistance += 720;
+                this.showToast('PONTE À FRENTE', 1.5);
+              }
             }
 
             const axis = (this.input.right ? 1 : 0) - (this.input.left ? 1 : 0);
@@ -2580,6 +2810,29 @@
 
           this.updateMissileAlert(dt, isPlaying && this.mode === 'PLAYING');
           this.updateCamera(dt);
+        }
+
+        updateRiverForkProgress() {
+          const river = this.getRiverAtZ(CONFIG.playerZ);
+          if (!river.forkActive && this.forkWasActive) this.forksCompleted += 1;
+          this.forkWasActive = river.forkActive;
+
+          const firstStart = this.getFirstRiverForkDistance();
+          if (firstStart == null) return;
+          let nextIndex = 0;
+          if (this.distance >= firstStart) {
+            nextIndex = Math.floor((this.distance - firstStart) / CONFIG.riverForkInterval) + 1;
+          }
+          const nextStart = firstStart + nextIndex * CONFIG.riverForkInterval;
+          const distanceToNext = nextStart - this.distance;
+          if (
+            distanceToNext > 0 &&
+            distanceToNext <= CONFIG.riverForkWarningDistance &&
+            this.lastForkWarningIndex !== nextIndex
+          ) {
+            this.lastForkWarningIndex = nextIndex;
+            this.showToast('RIO DIVIDIDO À FRENTE', 2.1);
+          }
         }
 
         updateTerrain(dt, speed) {
@@ -2620,14 +2873,17 @@
               this.updateVehicleNavigationLights(entity.group);
             } else if (entity.type === 'navio') {
               const river = this.getRiverAtZ(entity.group.position.z);
-              const limit = Math.max(1.5, river.halfWidth - entity.radius - 0.8);
+              const bounds = this.getRiverChannelBounds(river, entity.group.position.x, entity.radius + 0.8);
               let lateralVelocity = this.getVehicleLateralSpeed(entity);
               entity.group.position.x += lateralVelocity * dt;
-              if (entity.group.position.x > river.center + limit || entity.group.position.x < river.center - limit) {
+              if (entity.group.position.x > bounds.max || entity.group.position.x < bounds.min) {
                 entity.vx *= -1;
                 lateralVelocity *= -1;
-                entity.group.position.x = clamp(entity.group.position.x, river.center - limit, river.center + limit);
+                entity.group.position.x = clamp(entity.group.position.x, bounds.min, bounds.max);
               }
+              entity.channel = river.forkActive
+                ? entity.group.position.x < river.center ? 'esquerdo' : 'direito'
+                : 'único';
               const targetHeading = -Math.sign(lateralVelocity) * Math.PI / 2;
               entity.group.rotation.y = damp(entity.group.rotation.y, targetHeading, 8, dt);
               entity.group.rotation.z = Math.sin(this.elapsed * 2 + entity.phase) * 0.04;
@@ -3070,12 +3326,9 @@
 
         updateBankSkim(dt) {
           const river = this.getRiverAtZ(CONFIG.playerZ);
-          const safeHalfWidth = river.halfWidth - 2.5;
-          const lateralOffset = this.player.position.x - river.center;
-          this.bankSkimClearance = safeHalfWidth - Math.abs(lateralOffset);
-          this.bankSkimSide = Math.abs(lateralOffset) < 1
-            ? 'centro'
-            : lateralOffset < 0 ? 'esquerda' : 'direita';
+          const navigation = this.getRiverNavigation(river, this.player.position.x);
+          this.bankSkimClearance = navigation.clearance;
+          this.bankSkimSide = navigation.bank;
           this.bankSkimEligible = Boolean(
             this.bankSkimClearance >= 0 &&
             this.bankSkimClearance <= CONFIG.bankSkimClearance &&
@@ -3176,8 +3429,13 @@
 
         checkPlayerCollisions() {
           const river = this.getRiverAtZ(CONFIG.playerZ);
-          if (Math.abs(this.player.position.x - river.center) > river.halfWidth - 2.5) {
+          const navigation = this.getRiverNavigation(river, this.player.position.x);
+          if (navigation.outerCollision) {
             this.crash('COLISÃO COM A MARGEM');
+            return;
+          }
+          if (navigation.islandCollision) {
+            this.crash('COLISÃO COM A ILHA CENTRAL');
             return;
           }
 
@@ -3217,7 +3475,7 @@
           }
 
           const river = this.getRiverAtZ(CONFIG.playerZ);
-          this.player.position.x = river.center;
+          this.player.position.x = this.getSafeRiverRespawnX(river, this.player.position.x);
           this.player.rotation.set(0, 0, 0);
           this.fuel = Math.max(this.fuel, 38);
           for (let index = this.entities.length - 1; index >= 0; index -= 1) {
@@ -3327,6 +3585,14 @@
 
         renderGameToText() {
           const river = this.getRiverAtZ(CONFIG.playerZ);
+          const riverNavigation = this.getRiverNavigation(river, this.player.position.x);
+          const firstForkDistance = this.getFirstRiverForkDistance();
+          const nextForkIndex = firstForkDistance == null || this.distance < firstForkDistance
+            ? 0
+            : Math.floor((this.distance - firstForkDistance) / CONFIG.riverForkInterval) + 1;
+          const nextForkDistance = firstForkDistance == null
+            ? null
+            : firstForkDistance + nextForkIndex * CONFIG.riverForkInterval - this.distance;
           const visibleEntities = this.entities
             .filter((entity) => entity.group.position.z > -150 && entity.group.position.z < 45)
             .map((entity) => ({
@@ -3382,6 +3648,7 @@
                     ),
                     cannonCooldown: Number(Math.max(0, entity.cannonCooldown).toFixed(2)),
                     cannonShotsFired: entity.cannonShotsFired,
+                    channel: entity.channel || 'único',
                   }
                 : {}),
               ...(entity.type === 'farol'
@@ -3452,12 +3719,35 @@
               shipSearchlightLength: CONFIG.shipSearchlightLength,
               shipTargetLockTime: CONFIG.shipTargetLockTime,
               helicopterBridgeSpeedBonus: CONFIG.helicopterBridgeSpeedBonus,
+              riverForkUnlockCycle: CONFIG.riverForkUnlockCycle,
+              riverForkStartDistance: CONFIG.riverForkStartDistance,
+              riverForkInterval: CONFIG.riverForkInterval,
+              riverForkLength: CONFIG.riverForkLength,
+              riverForkRampLength: CONFIG.riverForkRampLength,
+              riverForkApproachLength: CONFIG.riverForkApproachLength,
+              riverForkMaxHalfWidth: CONFIG.riverForkMaxHalfWidth,
             },
             speed: Number(this.getSpeed().toFixed(1)),
             targetSpeed: Number(this.getTargetSpeed().toFixed(1)),
             throttlePercent: Math.round(this.throttle * 100),
             speedState: this.getSpeedState(),
             safetyModeActive: this.safetyModeActive,
+            riverFork: {
+              unlocked: firstForkDistance != null,
+              unlockRound: CONFIG.riverForkUnlockCycle + 1,
+              active: river.forkActive,
+              index: river.forkIndex,
+              opening: Number(river.forkAmount.toFixed(2)),
+              islandHalfWidth: Number(river.islandHalfWidth.toFixed(2)),
+              outerHalfWidth: Number(river.halfWidth.toFixed(2)),
+              channel: riverNavigation.channel,
+              bank: riverNavigation.bank,
+              safeClearance: Number(riverNavigation.clearance.toFixed(2)),
+              completed: this.forksCompleted,
+              nextIn: nextForkDistance == null
+                ? null
+                : Number(Math.max(0, nextForkDistance).toFixed(1)),
+            },
             bridgesDestroyed: this.bridgesDestroyed,
             lastMomentBridges: this.lastMomentBridges,
             lastBridgeDestructionDistance: this.lastBridgeDestructionDistance == null
@@ -3505,12 +3795,14 @@
               enginePitch: Math.round(this.audio.enginePitch),
               engineLevel: Number(this.audio.engineLevel.toFixed(2)),
             },
+            distance: Number(this.distance.toFixed(1)),
             level: this.level,
             player: {
               x: Number(this.player.position.x.toFixed(1)),
               z: CONFIG.playerZ,
               riverCenter: Number(river.center.toFixed(1)),
-              safeHalfWidth: Number((river.halfWidth - 2.5).toFixed(1)),
+              safeHalfWidth: Number((river.halfWidth - CONFIG.riverBankClearance).toFixed(1)),
+              channel: riverNavigation.channel,
               canShoot: this.fireCooldown <= 0,
             },
             visibleEntities,
