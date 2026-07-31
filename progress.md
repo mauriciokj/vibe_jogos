@@ -48,6 +48,9 @@ Original prompt: Build a classic Snake game in this repo.
 - River Raid 3D: alcance de detecção e disparo dos navios agora corresponde exatamente às 22 unidades do próprio feixe de luz; fora dele não há alerta nem tiro.
 - River Raid 3D: bônus local de `EVASÃO PERFEITA` concede 350 pontos quando um míssil passa a até 4,8 unidades sem atingir o avião; cenários próximo, distante e impacto foram validados.
 - River Raid 3D: seletor de rodada agora é um modo secreto persistente, revelado por cinco cliques rápidos no título; bloqueio, desbloqueio, rodada 4 e recarga foram validados.
+- River Raid 3D: roadmap ampliado com ranking online por nome, ambiente desértico, caça perseguidor, trem armado lateral e tanques atirando das margens.
+- River Raid 3D: bioma Jungle adicionado ao roadmap com floresta densa, chuva tropical, canais estreitos, ruínas e emboscadas camufladas.
+- River Raid 3D: biomas reorganizados por progressão — ciclos 1–2 permanecem no Vale Verde, ciclo 3 desbloqueia Deserto e ciclo 4 desbloqueia Jungle; cada bioma terá cinco fases próprias de horário/clima.
 - Sinuca iniciada em `games/sinuca/index.html` como arquivo único: canvas responsivo, bolas numeradas com volume 3D, física elástica com correção posicional, substeps adaptativos, atrito, tabelas, seis caçapas, turnos contra CPU, menu, placar e reinício.
 - Sinuca: primeira inspeção Playwright confirmou menu e mesa; margens do canvas e ordem visual do HUD foram ajustadas, e o triângulo passou a usar distância de dois raios com epsilon microscópico anti-sobreposição.
 - Sinuca: sem TODOs funcionais pendentes após a validação final.

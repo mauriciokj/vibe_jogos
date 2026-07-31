@@ -13,6 +13,10 @@ Documento de referência para futuras atualizações do jogo.
 - [x] Bônus por evasão perfeita de mísseis.
 - [ ] Combos e outras jogadas arriscadas.
 - [ ] Bifurcações que dividem o rio em dois canais e depois voltam a uni-lo.
+- [ ] Ranking online com nome do jogador.
+- [ ] Bioma desértico desbloqueado em um ciclo avançado.
+- [ ] Bioma Jungle desbloqueado depois do Deserto.
+- [ ] Eventos avançados: caça perseguidor, trem armado e tanques nas margens.
 
 ## 1. Lançadores de mísseis
 
@@ -63,20 +67,34 @@ Status: travamento telegrafado, aviso direcional, alarme progressivo, luz no Coc
 
 ## 5. Clima afetando a jogabilidade
 
+Os novos biomas não aparecem desde o início. Cada ciclo completo possui um bioma principal e suas próprias variações de horário e clima.
+
 - Neblina reduz a visibilidade do jogador e a precisão dos mísseis.
 - Noite faz inimigos dependerem de faróis, holofotes e luzes de busca.
 - Inverno deixa a resposta lateral do avião mais lenta.
 - Entardecer cria reflexos no rio que dificultam identificar obstáculos.
 - Faróis podem denunciar antecipadamente pontes e posições inimigas.
 - Diferentes ambientes alteram velocidade do vento e consumo de combustível.
+- Deserto transforma as margens em dunas e cânions, usa névoa de calor e reduz a quantidade de depósitos de combustível.
+- Tempestades de areia no deserto diminuem temporariamente a visibilidade e destacam tiros, faróis e rastros.
+- Jungle estreita trechos do rio, usa chuva tropical e permite que inimigos se escondam parcialmente entre árvores e ruínas.
+
+### Progressão de biomas por ciclo
+
+- Ciclo 1 — Vale Verde: Dia Claro, Entardecer, Noite, Neblina e Inverno, como no jogo atual.
+- Ciclo 2 — Vale Verde em dificuldade maior: mantém o cenário conhecido enquanto introduz lançadores e novos padrões.
+- Ciclo 3 — Deserto: Sol Forte, Entardecer, Noite Fria, Névoa de Calor e Tempestade de Areia.
+- Ciclo 4 — Jungle: Dia Úmido, Entardecer, Noite Tropical, Neblina Baixa e Tempestade com Relâmpagos.
+- Ciclo 5 em diante — biomas alternados ou combinados com defesas, inimigos e clima mais difíceis.
+- A troca de bioma acontece somente ao completar o ciclo e destruir sua última ponte, nunca no meio da sequência.
 
 ## 6. Novos inimigos por ciclo
 
 - Ciclo 1: navios e helicópteros comuns.
 - Ciclo 2: lançadores de mísseis.
-- Ciclo 3: barcos blindados e minas flutuantes.
-- Ciclo 4: helicópteros armados e baterias antiaéreas.
-- Ciclo 5: caças inimigos e pontes fortificadas.
+- Ciclo 3: barcos blindados, minas flutuantes e tanques nas margens.
+- Ciclo 4: helicópteros armados, baterias antiaéreas e eventos com trem armado.
+- Ciclo 5: caça perseguidor e pontes fortificadas.
 - Ciclos seguintes combinam inimigos e padrões anteriores.
 - Implementado: cada ponte destruída acelera os helicópteros em 6%; após o terceiro ciclo completo, navios próximos rastreiam o avião e disparam o canhão.
 
@@ -155,10 +173,76 @@ Inspirado nas bifurcações do River Raid original.
 - Passagens rasantes geram deslocamento de água.
 - Música ganha novas camadas a cada ciclo e durante travamentos de mísseis.
 
+## 13. Ranking online
+
+- Ao terminar a partida, o jogador pode informar um nome curto para registrar a pontuação.
+- Mostrar ranking global, melhor pontuação pessoal e posição aproximada do jogador.
+- Registrar também rodada alcançada, pontes destruídas, evasões perfeitas e data da partida.
+- Permitir jogar sem cadastrar nome; nesse caso, a pontuação permanece apenas local.
+- Limitar tamanho e caracteres do nome, filtrar termos inadequados e impedir HTML ou scripts.
+- A pontuação deve ser validada pelo serviço do ranking para reduzir envios manipulados.
+- A primeira versão pode mostrar os 20 melhores resultados e destacar a pontuação atual.
+
+## 14. Ambiente desértico
+
+Desbloqueio sugerido: início do terceiro ciclo completo; não aparece nas primeiras rodadas.
+
+- O rio continua navegável, mas passa entre margens arenosas, dunas, cânions e formações rochosas secas.
+- Paleta quente, céu esbranquiçado, névoa de calor e partículas de areia diferenciam o bioma.
+- Depósitos FUEL aparecem com menor frequência, incentivando controle de velocidade e planejamento.
+- Tanques, baterias antiaéreas e trens armados aparecem com mais frequência nesse ambiente.
+- Variação futura: tempestade de areia que reduz a precisão de inimigos e do jogador.
+
+## 15. Caça perseguidor
+
+- Em um ciclo avançado, um caça inimigo surge atrás do jogador e inicia uma perseguição temporária.
+- Ele acompanha mudanças laterais, tenta manter distância e dispara rajadas ou mísseis telegrafados.
+- O objetivo principal é sobreviver até o caça perder combustível, abandonar a perseguição ou chegar a uma zona segura.
+- Acelerar aumenta a distância, enquanto desacelerar ajuda a executar curvas e fazer os mísseis ultrapassarem.
+- O jogador pode abater o caça com uma sequência difícil de disparos, recebendo um bônus maior.
+- O evento deve ter aviso próprio no HUD, música de perseguição e duração limitada.
+
+## 16. Trem armado
+
+- Trilhos aparecem paralelos ao rio em determinados trechos, atravessando túneis e pontes ferroviárias.
+- Um trem ocasional acompanha o avião por alguns segundos e dispara pelas laterais.
+- Locomotiva, vagões de canhão e vagões de combustível podem ser alvos separados.
+- Destruir um vagão de combustível causa uma explosão em cadeia, mas não reabastece o jogador.
+- O trem precisa respeitar curvas e limites dos trilhos, desaparecendo em um túnel no fim do evento.
+- No deserto, o trem armado pode ter maior frequência e visibilidade à distância.
+
+## 17. Tanques nas margens
+
+- Tanques patrulham estradas ou posições fortificadas fora do rio.
+- A torre acompanha o avião apenas quando ele entra no alcance e mostra uma mira antes do disparo.
+- Projéteis de tanque seguem trajetória visível e podem ser evitados acelerando ou mudando de lado.
+- Alguns tanques protegem depósitos, pontes, lançadores ou entradas de bifurcações.
+- Tanques comuns ficam parados; versões avançadas se movimentam paralelamente ao jogador.
+- Destruir tanques em sequência contribui para o multiplicador de combo.
+
+## 18. Ambiente Jungle
+
+Desbloqueio sugerido: início do quarto ciclo completo, depois de o jogador atravessar o Deserto.
+
+- Floresta tropical densa com árvores altas, cipós, pedras cobertas por musgo e ruínas antigas nas margens.
+- O rio alterna entre áreas abertas e canais estreitos, exigindo mudanças de velocidade e decisões rápidas.
+- Chuva tropical cria ondulações na água, reduz visibilidade e mascara parte do som dos inimigos.
+- Helicópteros podem surgir atrás das copas das árvores e tanques usam clareiras como posições de emboscada.
+- Holofotes e tiros revelam inimigos escondidos por alguns segundos durante noite, chuva e neblina.
+- Troncos, pequenas ilhas e pontes de madeira funcionam como obstáculos característicos do bioma.
+- Depósitos de combustível camuflados e ruínas bônus recompensam a exploração de canais mais perigosos.
+- Variação futura: tempestade tropical com relâmpagos que iluminam brevemente o cenário inteiro.
+
 ## Ordem sugerida para a próxima grande atualização
 
 1. Reestruturar aceleração, frenagem e sensação de velocidade.
 2. Implementar lançadores, mísseis, alertas e evasão.
 3. Criar a primeira bifurcação simples com dois canais equivalentes.
 4. Adicionar recompensas diferentes para cada rota.
-5. Integrar bifurcações, clima e defesas de pontes.
+5. Adicionar tanques nas margens como primeiro inimigo terrestre móvel.
+6. Criar o ciclo 3 no Deserto e integrar tanques e tempestades de areia.
+7. Criar o ciclo 4 na Jungle com canais estreitos, chuva e emboscadas.
+8. Implementar o trem armado como evento lateral temporário.
+9. Implementar o caça perseguidor como evento de ciclo avançado.
+10. Integrar bifurcações, biomas, clima e defesas de pontes.
+11. Adicionar o ranking online após estabilizar pontuação, combos e progressão.
