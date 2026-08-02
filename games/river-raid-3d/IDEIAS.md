@@ -14,6 +14,7 @@ Documento de referência para futuras atualizações do jogo.
 - [x] Combo por destruições consecutivas.
 - [x] Outros bônus por jogadas arriscadas.
 - [x] Bifurcações que dividem o rio em dois canais e depois voltam a uni-lo.
+- [x] Tanques nas margens a partir da rodada 3.
 - [ ] Ranking online com nome do jogador.
 - [ ] Bioma desértico desbloqueado em um ciclo avançado.
 - [ ] Bioma Jungle desbloqueado depois do Deserto.
@@ -217,6 +218,8 @@ Desbloqueio sugerido: início do terceiro ciclo completo; não aparece nas prime
 
 ## 17. Tanques nas margens
 
+Status: primeira versão concluída. Tanques comuns surgem nas margens a partir da rodada 3; na rodada 5 também podem ocupar ilhas centrais largas durante as bifurcações. Eles acompanham o avião com a torre, telegrafam o disparo, lançam projéteis evitáveis e entram no combo ao serem destruídos. Versões avançadas móveis e posições fortificadas ficam para expansões futuras.
+
 - Tanques patrulham estradas ou posições fortificadas fora do rio.
 - A torre acompanha o avião apenas quando ele entra no alcance e mostra uma mira antes do disparo.
 - Projéteis de tanque seguem trajetória visível e podem ser evitados acelerando ou mudando de lado.
@@ -243,7 +246,7 @@ Desbloqueio sugerido: início do quarto ciclo completo, depois de o jogador atra
 2. Implementar lançadores, mísseis, alertas e evasão.
 3. Concluído: criar a primeira bifurcação simples com dois canais equivalentes.
 4. Concluído: adicionar recompensas diferentes para cada rota.
-5. Adicionar tanques nas margens como primeiro inimigo terrestre móvel.
+5. Concluído: adicionar tanques comuns nas margens como primeiro inimigo terrestre.
 6. Criar o ciclo 3 no Deserto e integrar tanques e tempestades de areia.
 7. Criar o ciclo 4 na Jungle com canais estreitos, chuva e emboscadas.
 8. Implementar o trem armado como evento lateral temporário.

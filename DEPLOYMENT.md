@@ -18,4 +18,4 @@
 - Catálogo: https://vibe-jogos.vercel.app/
 - Rio de Aço 3D: https://vibe-jogos.vercel.app/games/river-raid-3d/
 
-Última atualização do registro: 2026-07-28.
+Última atualização do registro: 2026-08-02.

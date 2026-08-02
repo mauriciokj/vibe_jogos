@@ -230,3 +230,12 @@ Original prompt: Criar um novo jogo retro inspirado em River Raid, em Three.js, 
 - Etapa `v1.4.0` permanece local e sem commit para teste do usuário.
 - Correção visual da `v1.4.0`: as faces da ilha central agora ficam ocultas enquanto a largura é zero, eliminando a linha marrom no centro do rio antes das bifurcações.
 - Capturas do rio único e da primeira divisão foram inspecionadas: o centro permanece somente com água na rodada 1 e a ilha reaparece normalmente na rodada 2. Movimento e tiro passaram sem erros de console.
+- `v1.4.0` aprovada e registrada no commit `fa7d909` com rotas FUEL/combate e correção da linha central.
+- `v1.5.0` em implementação com tanques nas margens desbloqueados somente na rodada 3; a rodada 2 permaneceu sem tanques em geração forçada.
+- Tanques acompanham o avião dentro de 68 unidades, sinalizam a mira por 0,8 s e disparam projéteis de canhão evitáveis. Um acerto tirou uma vida; deslocar o avião lateralmente fez o projétil errar.
+- Três tiros reais destruíram um tanque, concederam 450 pontos e removeram a entidade. Dois tanques em sequência totalizaram 1.350; com Turbo Score, a mesma sequência totalizou 2.025.
+- Modelo, torre, clarão e projétil foram inspecionados nas câmeras Chase e Top-Down. Rodadas 1–3, movimento, tiro e estado textual passaram sem erros de console.
+- Etapa `v1.5.0` permanece local e sem commit para teste do usuário.
+- Ajuste solicitado na `v1.5.0`: tanques continuam exclusivos das margens nas rodadas 3 e 4; a partir da rodada 5, metade das novas posições durante bifurcações largas pode usar a ilha central.
+- Geração forçada confirmou margem na rodada 4 e ilha central na rodada 5. O tanque central permaneceu dentro de 0,6 unidade do eixo da ilha, preservando mais de 4,5 unidades de folga segura no canal escolhido.
+- Captura da câmera Chase inspecionada com tanque, torre e disparo sobre a ilha central; os dois canais permaneceram livres e não houve erros de console.

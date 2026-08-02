@@ -661,7 +661,7 @@
     <script type="module">
       import * as THREE from 'https://unpkg.com/three@0.168.0/build/three.module.js';
 
-      const GAME_VERSION = '1.4.0';
+      const GAME_VERSION = '1.5.0';
 
       const CONFIG = {
         segmentLength: 32,
@@ -722,6 +722,15 @@
         riverForkWarningDistance: 125,
         riverCombatRouteMultiplier: 1.35,
         riverSupplyFuelChance: 0.34,
+        tankUnlockCycle: 2,
+        tankSpawnChance: 0.2,
+        tankTargetRange: 68,
+        tankTargetLockTime: 0.8,
+        tankShellSpeed: 40,
+        tankFireCooldown: 2.5,
+        tankIslandUnlockCycle: 4,
+        tankIslandPlacementChance: 0.5,
+        tankIslandMinHalfWidth: 1.75,
       };
 
       const COLORS = {
@@ -1110,6 +1119,7 @@
           this.safetyModeActive = false;
           this.bridgesDestroyed = 0;
           this.cannonShotsFired = 0;
+          this.tankShotsFired = 0;
           this.simulationUnlocked = localStorage.getItem('rio-de-aco-simulation-unlocked') === '1';
           this.secretTitleClicks = 0;
           this.secretTitleClickStartedAt = 0;
@@ -1176,6 +1186,8 @@
             glass: new THREE.MeshPhongMaterial({ color: 0x6ee9ff, emissive: 0x153d55, shininess: 100 }),
             bridge: new THREE.MeshLambertMaterial({ color: 0xd65b46, flatShading: true }),
             bridgeTop: new THREE.MeshLambertMaterial({ color: 0xffb357, flatShading: true }),
+            tank: new THREE.MeshLambertMaterial({ color: 0x6f793d, flatShading: true }),
+            tankDark: new THREE.MeshLambertMaterial({ color: 0x303b2b, flatShading: true }),
           };
 
           this.shared = {
@@ -2307,6 +2319,92 @@
           };
         }
 
+        createTank(side, z, placement = 'bank') {
+          const river = this.getRiverAtZ(z);
+          const group = new THREE.Group();
+          for (const trackSide of [-1, 1]) {
+            const track = new THREE.Mesh(
+              new THREE.BoxGeometry(0.72, 0.58, 4.4),
+              this.materials.tankDark
+            );
+            track.position.set(trackSide * 1.05, 0.52, 0);
+            group.add(track);
+          }
+
+          const hull = new THREE.Mesh(new THREE.BoxGeometry(2.75, 0.78, 3.8), this.materials.tank);
+          hull.position.y = 0.92;
+          group.add(hull);
+          const nose = new THREE.Mesh(new THREE.ConeGeometry(1.38, 1.35, 4), this.materials.tank);
+          nose.rotation.x = Math.PI / 2;
+          nose.rotation.z = Math.PI / 4;
+          nose.position.set(0, 0.92, 2.45);
+          group.add(nose);
+
+          const turret = new THREE.Group();
+          turret.position.y = 1.62;
+          const turretBase = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.92, 1.08, 0.62, 7),
+            this.materials.tank
+          );
+          turret.add(turretBase);
+          const barrel = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.13, 0.2, 3.6, 7),
+            this.materials.tankDark
+          );
+          barrel.rotation.x = Math.PI / 2;
+          barrel.position.set(0, 0.15, 1.75);
+          turret.add(barrel);
+          const muzzle = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.45, 7), this.materials.black);
+          muzzle.rotation.x = Math.PI / 2;
+          muzzle.position.set(0, 0.15, 3.62);
+          turret.add(muzzle);
+
+          const targetLens = new THREE.Mesh(
+            new THREE.OctahedronGeometry(0.22, 0),
+            new THREE.MeshBasicMaterial({ color: 0xff3048, transparent: true, opacity: 0.28 })
+          );
+          targetLens.position.set(0, 0.52, 1.0);
+          turret.add(targetLens);
+          const targetLight = new THREE.PointLight(0xff3048, 0, 9, 2);
+          targetLight.position.copy(targetLens.position);
+          turret.add(targetLight);
+          group.add(turret);
+
+          const bankOffset = 5.2;
+          const initialX = placement === 'island'
+            ? river.center
+            : river.center + side * (river.halfWidth + bankOffset);
+          group.position.set(initialX, 0.14, z);
+          group.userData.turret = turret;
+          group.userData.targetLens = targetLens;
+          group.userData.targetLight = targetLight;
+          this.scene.add(group);
+          return {
+            type: 'tanque',
+            group,
+            radius: 2.25,
+            hitRadius: 2.2,
+            health: 3,
+            score: 450,
+            phase: Math.random() * Math.PI * 2,
+            vx: 0,
+            side,
+            placement,
+            bankOffset,
+            trackingPlayer: false,
+            targetLockTime: 0,
+            fireCooldown: 0,
+            shotsFired: 0,
+          };
+        }
+
+        spawnTank(z, placement = 'bank') {
+          const side = placement === 'island' ? 0 : Math.random() < 0.5 ? -1 : 1;
+          const tank = this.createTank(side, z, placement);
+          this.entities.push(tank);
+          return tank;
+        }
+
         spawnBridgeEncounter(z) {
           const bridge = this.createBridge(z);
           this.entities.push(bridge);
@@ -2431,11 +2529,68 @@
           const velocityZ = dz * interceptScale;
           group.rotation.y = Math.atan2(velocityX, velocityZ);
           this.scene.add(group);
-          this.enemyShells.push({ group, velocityX, velocityZ, age: 0, trail });
+          this.enemyShells.push({ group, velocityX, velocityZ, age: 0, trail, sourceType: 'navio' });
           ship.cannonCooldown = 1.55 + Math.random() * 0.75;
           ship.cannonShotsFired += 1;
           this.cannonShotsFired += 1;
           this.spawnSparks(origin, 8);
+          this.audio.cannon();
+        }
+
+        launchTankShell(tank) {
+          const group = new THREE.Group();
+          const shell = new THREE.Mesh(
+            new THREE.OctahedronGeometry(0.4, 0),
+            new THREE.MeshBasicMaterial({ color: 0xffef72 })
+          );
+          group.add(shell);
+          const glow = new THREE.PointLight(0xff7b35, 4.4, 13, 2);
+          group.add(glow);
+          const trail = new THREE.Mesh(
+            new THREE.ConeGeometry(0.3, 1.7, 6),
+            new THREE.MeshBasicMaterial({
+              color: 0xff4d32,
+              transparent: true,
+              opacity: 0.78,
+              blending: THREE.AdditiveBlending,
+              depthWrite: false,
+            })
+          );
+          trail.rotation.x = -Math.PI / 2;
+          trail.position.z = -1;
+          group.add(trail);
+
+          const turret = tank.group.userData.turret;
+          tank.group.updateWorldMatrix(true, true);
+          const origin = turret.localToWorld(new THREE.Vector3(0, 0.15, 3.7));
+          group.position.copy(origin);
+          const dx = this.player.position.x - origin.x;
+          const dz = CONFIG.playerZ - origin.z;
+          const length = Math.max(0.001, Math.hypot(dx, dz));
+          const worldScrollSpeed = this.getSpeed();
+          const interceptRoot = Math.sqrt(Math.max(
+            0,
+            length * length * CONFIG.tankShellSpeed * CONFIG.tankShellSpeed -
+              dx * dx * worldScrollSpeed * worldScrollSpeed
+          ));
+          const interceptScale = (dz * worldScrollSpeed + interceptRoot) / (length * length);
+          const velocityX = dx * interceptScale;
+          const velocityZ = dz * interceptScale;
+          group.rotation.y = Math.atan2(velocityX, velocityZ);
+          this.scene.add(group);
+          this.enemyShells.push({
+            group,
+            velocityX,
+            velocityZ,
+            age: 0,
+            trail,
+            sourceType: 'tanque',
+          });
+          tank.fireCooldown = CONFIG.tankFireCooldown;
+          tank.targetLockTime = 0;
+          tank.shotsFired += 1;
+          this.tankShotsFired += 1;
+          this.spawnSparks(origin, 11);
           this.audio.cannon();
         }
 
@@ -2528,6 +2683,20 @@
             }
           }
           this.entities.push(entity);
+          if (
+            this.environmentCyclesCompleted >= CONFIG.tankUnlockCycle &&
+            Math.random() < CONFIG.tankSpawnChance
+          ) {
+            const tankZ = z + 12;
+            const tankRiver = this.getRiverAtZ(tankZ);
+            const islandPlacementUnlocked = Boolean(
+              this.environmentCyclesCompleted >= CONFIG.tankIslandUnlockCycle &&
+              tankRiver.forkActive &&
+              tankRiver.islandHalfWidth >= CONFIG.tankIslandMinHalfWidth &&
+              Math.random() < CONFIG.tankIslandPlacementChance
+            );
+            this.spawnTank(tankZ, islandPlacementUnlocked ? 'island' : 'bank');
+          }
         }
 
         updateRoundSelector() {
@@ -2538,12 +2707,18 @@
           const helicopterBonus = Math.min(simulatedBridges, 12) * CONFIG.helicopterBridgeSpeedBonus;
           if (this.selectedStartingRound === 1) {
             dom.roundDescription.textContent = 'BASE · SEM MÍSSEIS';
-          } else if (this.selectedStartingRound < 4) {
+          } else if (this.selectedStartingRound === 2) {
             dom.roundDescription.textContent =
               `MÍSSEIS · HELICÓPTEROS +${Math.round(helicopterBonus * 100)}%`;
+          } else if (this.selectedStartingRound === 3) {
+            dom.roundDescription.textContent =
+              `MÍSSEIS · TANQUES · HELICÓPTEROS +${Math.round(helicopterBonus * 100)}%`;
+          } else if (this.selectedStartingRound === 4) {
+            dom.roundDescription.textContent =
+              `NAVIOS ARMADOS · TANQUES · HELICÓPTEROS +${Math.round(helicopterBonus * 100)}%`;
           } else {
             dom.roundDescription.textContent =
-              `NAVIOS ARMADOS · HELICÓPTEROS +${Math.round(helicopterBonus * 100)}%`;
+              `NAVIOS ARMADOS · TANQUES NAS ILHAS · HELICÓPTEROS +${Math.round(helicopterBonus * 100)}%`;
           }
         }
 
@@ -2671,6 +2846,7 @@
           this.safetyModeActive = false;
           this.bridgesDestroyed = completedCycles * ENVIRONMENT_PHASES.length;
           this.cannonShotsFired = 0;
+          this.tankShotsFired = 0;
           this.setEnvironmentPhase(0, true);
           this.refreshTerrainShapes();
           this.player.position.x = this.getRiverAtZ(CONFIG.playerZ).center;
@@ -3000,6 +3176,67 @@
                 entity.trackingPlayer,
                 entity.trackingPlayer ? this.player.position : null
               );
+            } else if (entity.type === 'tanque') {
+              const river = this.getRiverAtZ(entity.group.position.z);
+              const patrolOffset = Math.sin(this.elapsed * 0.72 + entity.phase) * 1.1;
+              const islandPatrolLimit = Math.max(0, river.islandHalfWidth - 1.7);
+              const targetBankX = entity.placement === 'island'
+                ? river.center + Math.sin(this.elapsed * 0.58 + entity.phase) * islandPatrolLimit
+                : river.center + entity.side * (
+                    river.halfWidth + entity.bankOffset + patrolOffset
+                  );
+              entity.group.position.x = damp(entity.group.position.x, targetBankX, 4.2, dt);
+              const dx = this.player.position.x - entity.group.position.x;
+              const dz = CONFIG.playerZ - entity.group.position.z;
+              const distanceToPlayer = Math.hypot(dx, dz);
+              entity.trackingPlayer = Boolean(
+                canInteract &&
+                entity.group.position.z < CONFIG.playerZ + 10 &&
+                distanceToPlayer <= CONFIG.tankTargetRange
+              );
+
+              const turret = entity.group.userData.turret;
+              if (entity.trackingPlayer) {
+                const targetAngle = Math.atan2(dx, dz);
+                const angleDifference = Math.atan2(
+                  Math.sin(targetAngle - turret.rotation.y),
+                  Math.cos(targetAngle - turret.rotation.y)
+                );
+                turret.rotation.y += clamp(angleDifference, -2.4 * dt, 2.4 * dt);
+                entity.targetLockTime += dt;
+              } else {
+                const returnDifference = Math.atan2(
+                  Math.sin(-turret.rotation.y),
+                  Math.cos(-turret.rotation.y)
+                );
+                turret.rotation.y += clamp(returnDifference, -1.4 * dt, 1.4 * dt);
+                entity.targetLockTime = 0;
+              }
+
+              if (canInteract) entity.fireCooldown -= dt;
+              const lockProgress = clamp(
+                entity.targetLockTime / CONFIG.tankTargetLockTime,
+                0,
+                1
+              );
+              const pulse = 0.55 + Math.sin(this.elapsed * 16 + entity.phase) * 0.45;
+              entity.group.userData.targetLens.material.opacity = entity.trackingPlayer
+                ? 0.45 + lockProgress * 0.55
+                : 0.22;
+              entity.group.userData.targetLens.scale.setScalar(
+                entity.trackingPlayer ? 0.85 + pulse * 0.55 : 0.75
+              );
+              entity.group.userData.targetLight.intensity = entity.trackingPlayer
+                ? 0.7 + lockProgress * 3.2 + pulse
+                : 0;
+              if (
+                entity.trackingPlayer &&
+                entity.group.position.z < CONFIG.playerZ - 5 &&
+                entity.targetLockTime >= CONFIG.tankTargetLockTime &&
+                entity.fireCooldown <= 0
+              ) {
+                this.launchTankShell(entity);
+              }
             } else if (entity.type === 'ponte') {
               const trackingPlayer = Boolean(entity.group.userData.trackingPlayer);
               for (const beacon of entity.group.userData.beacons || []) {
@@ -3296,6 +3533,7 @@
             navio: 'NAVIO DESTRUÍDO',
             helicóptero: 'HELICÓPTERO DESTRUÍDO',
             lançador: 'LANÇADOR DESTRUÍDO',
+            tanque: 'TANQUE DESTRUÍDO',
           };
           let scoreAward = null;
           if (combatLabels[entity.type]) {
@@ -3767,6 +4005,28 @@
                     channel: entity.channel || 'único',
                   }
                 : {}),
+              ...(entity.type === 'tanque'
+                ? {
+                    combatUnlocked: this.environmentCyclesCompleted >= CONFIG.tankUnlockCycle,
+                    placement: entity.placement === 'island' ? 'ilha central' : 'margem',
+                    side: entity.placement === 'island'
+                      ? 'centro'
+                      : entity.side < 0 ? 'esquerda' : 'direita',
+                    trackingPlayer: entity.trackingPlayer,
+                    targetLockTime: Number(entity.targetLockTime.toFixed(2)),
+                    targetLockProgress: Number(
+                      clamp(entity.targetLockTime / CONFIG.tankTargetLockTime, 0, 1).toFixed(2)
+                    ),
+                    distanceToPlayer: Number(
+                      Math.hypot(
+                        entity.group.position.x - this.player.position.x,
+                        entity.group.position.z - CONFIG.playerZ
+                      ).toFixed(1)
+                    ),
+                    fireCooldown: Number(Math.max(0, entity.fireCooldown).toFixed(2)),
+                    shotsFired: entity.shotsFired,
+                  }
+                : {}),
               ...(entity.type === 'farol'
                 ? {
                     lightOn: entity.group.userData.light?.intensity > 0.05,
@@ -3844,6 +4104,14 @@
               riverForkMaxHalfWidth: CONFIG.riverForkMaxHalfWidth,
               riverCombatRouteMultiplier: CONFIG.riverCombatRouteMultiplier,
               riverSupplyFuelChance: CONFIG.riverSupplyFuelChance,
+              tankUnlockCycle: CONFIG.tankUnlockCycle,
+              tankSpawnChance: CONFIG.tankSpawnChance,
+              tankTargetRange: CONFIG.tankTargetRange,
+              tankTargetLockTime: CONFIG.tankTargetLockTime,
+              tankShellSpeed: CONFIG.tankShellSpeed,
+              tankIslandUnlockCycle: CONFIG.tankIslandUnlockCycle,
+              tankIslandPlacementChance: CONFIG.tankIslandPlacementChance,
+              tankIslandMinHalfWidth: CONFIG.tankIslandMinHalfWidth,
             },
             speed: Number(this.getSpeed().toFixed(1)),
             targetSpeed: Number(this.getTargetSpeed().toFixed(1)),
@@ -3887,6 +4155,14 @@
               multiplier: CONFIG.riverCombatRouteMultiplier,
             },
             cannonShotsFired: this.cannonShotsFired,
+            tankCombat: {
+              unlocked: this.environmentCyclesCompleted >= CONFIG.tankUnlockCycle,
+              unlockRound: CONFIG.tankUnlockCycle + 1,
+              islandPlacementUnlocked:
+                this.environmentCyclesCompleted >= CONFIG.tankIslandUnlockCycle,
+              islandPlacementUnlockRound: CONFIG.tankIslandUnlockCycle + 1,
+              shotsFired: this.tankShotsFired,
+            },
             combo: {
               count: this.comboCount,
               multiplier: this.comboMultiplier,
@@ -3955,6 +4231,7 @@
               x: Number(shell.group.position.x.toFixed(1)),
               z: Number(shell.group.position.z.toFixed(1)),
               age: Number(shell.age.toFixed(2)),
+              source: shell.sourceType || 'navio',
             })),
           });
         }

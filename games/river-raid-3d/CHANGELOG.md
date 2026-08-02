@@ -8,6 +8,15 @@ O jogo usa versionamento semântico:
 
 Cada publicação deve atualizar `GAME_VERSION` no `index.html` e registrar as mudanças neste arquivo.
 
+## 1.5.0 — 2026-08-02
+
+- Tanques terrestres começam a aparecer nas margens somente a partir da rodada 3.
+- Torres acompanham o avião dentro do alcance, sinalizam o travamento por 0,8 s e disparam projéteis visíveis.
+- Projéteis podem ser evitados mudando de lado; um impacto remove uma vida.
+- Tanques suportam três acertos, valem 450 pontos e participam do sistema de combo e Turbo Score.
+- Seletor de simulação e estado textual indicam o desbloqueio dos tanques na rodada 3.
+- A partir da rodada 5, tanques também podem ocupar o terreno central de bifurcações largas sem bloquear os canais.
+
 ## 1.4.0 — 2026-07-31
 
 - Cada bifurcação oferece uma rota de FUEL e uma rota de combate com navios e helicópteros.

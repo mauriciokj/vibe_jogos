@@ -60,6 +60,8 @@ Original prompt: Build a classic Snake game in this repo.
 - River Raid 3D: bifurcações da `v1.3.0` ajustadas para começar somente na rodada 2, durar 280 unidades e abrir canais bem mais largos antes do surgimento da ilha.
 - River Raid 3D: `v1.3.0` aprovada no commit `774f3ba`; `v1.4.0` local diferencia as bifurcações entre rota FUEL e rota de combate ×1,35, alternando os lados a cada evento.
 - River Raid 3D: removida da `v1.4.0` a linha marrom no rio único, causada pelas paredes da ilha sendo renderizadas com largura zero; a bifurcação continua aparecendo normalmente.
+- River Raid 3D: `v1.4.0` aprovada no commit `fa7d909`; `v1.5.0` local adiciona tanques nas margens a partir da rodada 3, com mira telegrafada, canhão evitável, três pontos de vida e recompensa de 450 pontos.
+- River Raid 3D: na `v1.5.0`, tanques também podem ocupar ilhas centrais largas a partir da rodada 5; rodadas 3 e 4 continuam usando somente as margens.
 - Sinuca iniciada em `games/sinuca/index.html` como arquivo único: canvas responsivo, bolas numeradas com volume 3D, física elástica com correção posicional, substeps adaptativos, atrito, tabelas, seis caçapas, turnos contra CPU, menu, placar e reinício.
 - Sinuca: primeira inspeção Playwright confirmou menu e mesa; margens do canvas e ordem visual do HUD foram ajustadas, e o triângulo passou a usar distância de dois raios com epsilon microscópico anti-sobreposição.
 - Sinuca: sem TODOs funcionais pendentes após a validação final.
