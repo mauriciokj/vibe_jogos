@@ -18,4 +18,4 @@
 - Catálogo: https://vibe-jogos.vercel.app/
 - Rio de Aço 3D: https://vibe-jogos.vercel.app/games/river-raid-3d/
 
-Publicação preparada: Rio de Aço 3D `v1.8.0`, commit `7650019`, em 2026-08-03.
+Última publicação verificada: Rio de Aço 3D `v1.8.0`, commit de jogo `7650019`, em 2026-08-03.
