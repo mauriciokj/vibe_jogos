@@ -661,7 +661,7 @@
     <script type="module">
       import * as THREE from 'https://unpkg.com/three@0.168.0/build/three.module.js';
 
-      const GAME_VERSION = '1.6.0';
+      const GAME_VERSION = '1.7.0';
 
       const CONFIG = {
         segmentLength: 32,
@@ -726,6 +726,7 @@
         tankSpawnChance: 0.2,
         tankTargetRange: 68,
         tankTargetLockTime: 0.8,
+        tankAimCommitTime: 0.45,
         tankShellSpeed: 40,
         tankFireCooldown: 2.5,
         tankIslandUnlockCycle: 4,
@@ -735,6 +736,10 @@
         desertFuelChance: 0.13,
         desertSupplyFuelChance: 0.24,
         desertTankSpawnChance: 0.28,
+        jungleUnlockCycle: 3,
+        jungleFuelChance: 0.18,
+        jungleSupplyFuelChance: 0.3,
+        jungleTankSpawnChance: 0.24,
       };
 
       const COLORS = {
@@ -979,6 +984,125 @@
         ][index],
         biome: 'desert',
         snow: false,
+      }));
+
+      const JUNGLE_ENVIRONMENT_PHASES = ENVIRONMENT_PHASES.map((phase, index) => ({
+        ...phase,
+        ...[
+          {
+            key: 'jungle-day',
+            label: 'JUNGLE · DIA ÚMIDO',
+            background: 0x73b7a3,
+            fog: 0x68a58e,
+            fogNear: 34,
+            fogFar: 172,
+            hemisphere: 2.05,
+            sun: 2.5,
+            exposure: 1.02,
+            water: 0x176f75,
+            bank: 0x277a3f,
+            bankDark: 0x15512f,
+            soil: 0x67452e,
+            rock: 0x4d6449,
+            rockLight: 0x718769,
+            sunDisc: 0xffda83,
+            guidanceLights: false,
+            rainIntensity: 0.2,
+            shipSpeedMultiplier: 0.96,
+            helicopterSpeedMultiplier: 1.18,
+          },
+          {
+            key: 'jungle-sunset',
+            label: 'JUNGLE · ENTARDECER',
+            background: 0xbd765b,
+            fog: 0x8d6d59,
+            fogNear: 28,
+            fogFar: 145,
+            hemisphere: 1.25,
+            sun: 1.75,
+            exposure: 0.96,
+            water: 0x285968,
+            bank: 0x34653b,
+            bankDark: 0x203f2d,
+            soil: 0x553827,
+            rock: 0x4f5545,
+            rockLight: 0x77705a,
+            sunDisc: 0xffad58,
+            guidanceLights: true,
+            rainIntensity: 0.34,
+            shipSpeedMultiplier: 1.08,
+            helicopterSpeedMultiplier: 1.28,
+          },
+          {
+            key: 'jungle-night',
+            label: 'JUNGLE · NOITE',
+            background: 0x061a22,
+            fog: 0x071a1d,
+            fogNear: 20,
+            fogFar: 112,
+            hemisphere: 0.55,
+            sun: 0.3,
+            exposure: 0.82,
+            water: 0x123b4a,
+            bank: 0x123a2a,
+            bankDark: 0x0a271d,
+            soil: 0x35271f,
+            rock: 0x34433c,
+            rockLight: 0x506057,
+            sunDisc: 0xd8eeff,
+            guidanceLights: true,
+            rainIntensity: 0.42,
+            shipSpeedMultiplier: 1.2,
+            helicopterSpeedMultiplier: 1.42,
+          },
+          {
+            key: 'tropical-rain',
+            label: 'JUNGLE · CHUVA TROPICAL',
+            background: 0x526e68,
+            fog: 0x526862,
+            fogNear: 9,
+            fogFar: 70,
+            hemisphere: 0.92,
+            sun: 0.45,
+            exposure: 0.86,
+            water: 0x315e66,
+            bank: 0x34583c,
+            bankDark: 0x213d2e,
+            soil: 0x4e3d31,
+            rock: 0x53605a,
+            rockLight: 0x748078,
+            sunDisc: 0xc8d3c9,
+            guidanceLights: true,
+            rainIntensity: 1,
+            shipSpeedMultiplier: 0.76,
+            helicopterSpeedMultiplier: 0.84,
+          },
+          {
+            key: 'jungle-mist',
+            label: 'JUNGLE · NÉVOA VERDE',
+            background: 0x78998a,
+            fog: 0x789485,
+            fogNear: 12,
+            fogFar: 82,
+            hemisphere: 1.15,
+            sun: 0.7,
+            exposure: 0.9,
+            water: 0x376c70,
+            bank: 0x466f4c,
+            bankDark: 0x2d5039,
+            soil: 0x5a4938,
+            rock: 0x5d6a60,
+            rockLight: 0x7e8c80,
+            sunDisc: 0xdce2c6,
+            guidanceLights: true,
+            rainIntensity: 0.16,
+            shipSpeedMultiplier: 0.82,
+            helicopterSpeedMultiplier: 0.94,
+          },
+        ][index],
+        biome: 'jungle',
+        snow: false,
+        sandIntensity: 0,
       }));
 
       const dom = {
@@ -1545,17 +1669,21 @@
         }
 
         getBiomeKey(completedCycles = this.environmentCyclesCompleted) {
-          return completedCycles >= CONFIG.desertUnlockCycle ? 'desert' : 'valley';
+          if (completedCycles >= CONFIG.jungleUnlockCycle) return 'jungle';
+          if (completedCycles >= CONFIG.desertUnlockCycle) return 'desert';
+          return 'valley';
         }
 
         getEnvironmentPhase(index = this.environmentIndex) {
           const normalized = ((index % ENVIRONMENT_PHASES.length) + ENVIRONMENT_PHASES.length) %
             ENVIRONMENT_PHASES.length;
+          if (this.getBiomeKey() === 'jungle') return JUNGLE_ENVIRONMENT_PHASES[normalized];
           if (this.getBiomeKey() === 'desert') return DESERT_ENVIRONMENT_PHASES[normalized];
           return {
             ...ENVIRONMENT_PHASES[normalized],
             biome: 'valley',
             sandIntensity: 0,
+            rainIntensity: 0,
           };
         }
 
@@ -1588,11 +1716,21 @@
           this.currentBiomeKey = target.biome;
           dom.moment.textContent = target.label;
           const sandIntensity = target.sandIntensity || 0;
-          this.snow.visible = Boolean(target.snow || sandIntensity > 0);
-          this.snow.userData.mode = target.snow ? 'snow' : sandIntensity > 0 ? 'sand' : 'none';
-          this.snow.material.color.set(target.snow ? 0xffffff : 0xf5c77a);
-          this.snow.material.size = target.snow ? 0.62 : 0.34 + sandIntensity * 0.34;
-          this.snow.material.opacity = target.snow ? 0.88 : 0.22 + sandIntensity * 0.56;
+          const rainIntensity = target.rainIntensity || 0;
+          this.snow.visible = Boolean(target.snow || sandIntensity > 0 || rainIntensity > 0);
+          this.snow.userData.mode = target.snow
+            ? 'snow'
+            : sandIntensity > 0 ? 'sand' : rainIntensity > 0 ? 'rain' : 'none';
+          this.snow.userData.intensity = Math.max(sandIntensity, rainIntensity);
+          this.snow.material.color.set(
+            target.snow ? 0xffffff : sandIntensity > 0 ? 0xf5c77a : 0xa8e9ef
+          );
+          this.snow.material.size = target.snow
+            ? 0.62
+            : sandIntensity > 0 ? 0.34 + sandIntensity * 0.34 : 0.18 + rainIntensity * 0.18;
+          this.snow.material.opacity = target.snow
+            ? 0.88
+            : sandIntensity > 0 ? 0.22 + sandIntensity * 0.56 : 0.28 + rainIntensity * 0.58;
           if (biomeChanged && this.terrain.length > 0) this.refreshTerrainShapes();
           if (instant) {
             this.applyEnvironmentValues(target, target, 1);
@@ -1653,6 +1791,12 @@
               y -= dt * (0.3 + (i % 3) * 0.22);
               z += speed * dt * 0.46;
               if (y < 0.35) y = 8 + Math.random() * 34;
+            } else if (particleMode === 'rain') {
+              const rainIntensity = this.snow.userData.intensity || 0.2;
+              x += dt * (0.8 + rainIntensity * 2.4) + Math.sin(this.elapsed * 2 + i) * dt * 0.35;
+              y -= dt * (12 + rainIntensity * 24 + (i % 6));
+              z += speed * dt * 0.24;
+              if (y < 0.35) y = 28 + Math.random() * 28;
             } else {
               x += Math.sin(this.elapsed * 0.7 + i) * dt * 0.45;
               y -= dt * (5 + (i % 5));
@@ -1715,6 +1859,9 @@
 
         riverShapeAt(distance) {
           const fork = this.riverForkProfileAt(distance);
+          const jungleNarrowing = this.getBiomeKey() === 'jungle'
+            ? 0.65 + (Math.sin(distance * 0.021 + 0.8) * 0.5 + 0.5) * 1.1
+            : 0;
           return {
             distance,
             center: Math.sin(distance * 0.0088) * 2.15 + Math.sin(distance * 0.0029 + 1.2) * 1.25,
@@ -1722,7 +1869,8 @@
               11.2 +
               Math.sin(distance * 0.013 + 0.6) * 1.7 +
               Math.sin(distance * 0.004) * 1.0 +
-              fork.expansionAmount * CONFIG.riverForkExpansion,
+              fork.expansionAmount * CONFIG.riverForkExpansion -
+              jungleNarrowing,
             islandHalfWidth: fork.amount * CONFIG.riverForkMaxHalfWidth,
             forkAmount: fork.amount,
             forkExpansion: fork.expansionAmount,
@@ -1867,13 +2015,15 @@
         addTerrainDecorations(segment) {
           const halfLength = CONFIG.segmentLength / 2;
           const desert = this.getBiomeKey() === 'desert';
+          const jungle = this.getBiomeKey() === 'jungle';
           for (let side = -1; side <= 1; side += 2) {
-            const mountainCount = 2 + Math.floor(seededNoise(segment.worldIndex * 13 + side) * 2);
+            const mountainCount = (jungle ? 3 : 2) +
+              Math.floor(seededNoise(segment.worldIndex * 13 + side) * 2);
             for (let i = 0; i < mountainCount; i += 1) {
               const seed = segment.worldIndex * 31 + i * 7 + side * 3;
               const sample = seededNoise(seed);
               const z = -halfLength + 4 + seededNoise(seed + 1) * (CONFIG.segmentLength - 8);
-              const x = side * (22 + sample * 18);
+              const x = side * ((jungle ? 18 : 22) + sample * (jungle ? 15 : 18));
               const scale = 0.7 + seededNoise(seed + 2) * 1.05;
               const mountain = new THREE.Mesh(
                 sample > 0.52 ? this.shared.mountain : this.shared.hill,
@@ -1890,6 +2040,19 @@
                   cactus.position.set(side * (16 + seededNoise(seed + 4) * 7), 0.22, z + 3.4);
                   cactus.rotation.y = seededNoise(seed + 6) * Math.PI;
                   segment.decorations.add(cactus);
+                } else if (jungle) {
+                  for (let treeIndex = 0; treeIndex < 2; treeIndex += 1) {
+                    const treeScale = 1.05 + seededNoise(seed + 5 + treeIndex) * 0.72;
+                    const tree = new THREE.Mesh(this.shared.tree, this.materials.bankDark);
+                    tree.position.set(
+                      side * (14 + seededNoise(seed + 4 + treeIndex * 3) * 8),
+                      2.15 * treeScale,
+                      z + 2.2 + treeIndex * 4.3
+                    );
+                    tree.scale.set(treeScale * 0.72, treeScale, treeScale * 0.72);
+                    tree.rotation.y = seededNoise(seed + 8 + treeIndex) * Math.PI;
+                    segment.decorations.add(tree);
+                  }
                 } else {
                   const tree = new THREE.Mesh(this.shared.tree, this.materials.bankDark);
                   tree.position.set(side * (16 + seededNoise(seed + 4) * 7), 2.15, z + 3.4);
@@ -1921,6 +2084,16 @@
               );
               islandTree.scale.setScalar(treeScale);
               segment.decorations.add(islandTree);
+              if (jungle) {
+                const secondTree = new THREE.Mesh(this.shared.tree, this.materials.bankDark);
+                secondTree.position.set(
+                  islandCenter - (seededNoise(seed + 7) - 0.5) * islandWidth * 0.7,
+                  1.7 * treeScale,
+                  (seededNoise(seed + 8) - 0.5) * CONFIG.segmentLength * 0.5
+                );
+                secondTree.scale.setScalar(treeScale * 0.82);
+                segment.decorations.add(secondTree);
+              }
             }
 
             if (seededNoise(seed + 3) > 0.42) {
@@ -2184,8 +2357,8 @@
 
         updateSearchlights(group, active, targetPosition = null) {
           const environmentKey = this.getEnvironmentPhase().key;
-          const obscured = environmentKey === 'fog' || environmentKey === 'sandstorm';
-          const night = environmentKey === 'night' || environmentKey === 'desert-night';
+          const obscured = ['fog', 'sandstorm', 'tropical-rain', 'jungle-mist'].includes(environmentKey);
+          const night = ['night', 'desert-night', 'jungle-night'].includes(environmentKey);
           const opacity = obscured ? 0.22 : night ? 0.16 : 0.1;
           for (const searchlight of group.userData.searchLights || []) {
             searchlight.beam.visible = active;
@@ -2598,6 +2771,8 @@
             bankOffset,
             trackingPlayer: false,
             targetLockTime: 0,
+            lockedAimX: null,
+            lockedAimZ: CONFIG.playerZ,
             fireCooldown: 0,
             shotsFired: 0,
           };
@@ -2769,18 +2944,13 @@
           tank.group.updateWorldMatrix(true, true);
           const origin = turret.localToWorld(new THREE.Vector3(0, 0.15, 3.7));
           group.position.copy(origin);
-          const dx = this.player.position.x - origin.x;
-          const dz = CONFIG.playerZ - origin.z;
+          const targetX = tank.lockedAimX ?? this.player.position.x;
+          const targetZ = tank.lockedAimZ ?? CONFIG.playerZ;
+          const dx = targetX - origin.x;
+          const dz = targetZ - origin.z;
           const length = Math.max(0.001, Math.hypot(dx, dz));
-          const worldScrollSpeed = this.getSpeed();
-          const interceptRoot = Math.sqrt(Math.max(
-            0,
-            length * length * CONFIG.tankShellSpeed * CONFIG.tankShellSpeed -
-              dx * dx * worldScrollSpeed * worldScrollSpeed
-          ));
-          const interceptScale = (dz * worldScrollSpeed + interceptRoot) / (length * length);
-          const velocityX = dx * interceptScale;
-          const velocityZ = dz * interceptScale;
+          const velocityX = (dx / length) * CONFIG.tankShellSpeed;
+          const velocityZ = (dz / length) * CONFIG.tankShellSpeed;
           group.rotation.y = Math.atan2(velocityX, velocityZ);
           this.scene.add(group);
           this.enemyShells.push({
@@ -2790,9 +2960,13 @@
             age: 0,
             trail,
             sourceType: 'tanque',
+            targetX,
+            targetZ,
           });
           tank.fireCooldown = CONFIG.tankFireCooldown;
           tank.targetLockTime = 0;
+          tank.lockedAimX = null;
+          tank.lockedAimZ = CONFIG.playerZ;
           tank.shotsFired += 1;
           this.tankShotsFired += 1;
           this.spawnSparks(origin, 11);
@@ -2859,11 +3033,13 @@
           const z = -190 - Math.random() * 35;
           const river = this.getRiverAtZ(z);
           const roll = Math.random();
-          const desert = this.getBiomeKey() === 'desert';
-          const supplyFuelChance = desert
+          const biome = this.getBiomeKey();
+          const supplyFuelChance = biome === 'desert'
             ? CONFIG.desertSupplyFuelChance
-            : CONFIG.riverSupplyFuelChance;
-          const openRiverFuelChance = desert ? CONFIG.desertFuelChance : 0.22;
+            : biome === 'jungle' ? CONFIG.jungleSupplyFuelChance : CONFIG.riverSupplyFuelChance;
+          const openRiverFuelChance = biome === 'desert'
+            ? CONFIG.desertFuelChance
+            : biome === 'jungle' ? CONFIG.jungleFuelChance : 0.22;
           let entity;
           if (river.forkActive) {
             const routes = this.getForkRouteSides(river.forkIndex);
@@ -2894,7 +3070,11 @@
           this.entities.push(entity);
           if (
             this.environmentCyclesCompleted >= CONFIG.tankUnlockCycle &&
-            Math.random() < (desert ? CONFIG.desertTankSpawnChance : CONFIG.tankSpawnChance)
+            Math.random() < (
+              biome === 'desert'
+                ? CONFIG.desertTankSpawnChance
+                : biome === 'jungle' ? CONFIG.jungleTankSpawnChance : CONFIG.tankSpawnChance
+            )
           ) {
             const tankZ = z + 12;
             const tankRiver = this.getRiverAtZ(tankZ);
@@ -2924,10 +3104,10 @@
               `DESERTO · MÍSSEIS · TANQUES · HELICÓPTEROS +${Math.round(helicopterBonus * 100)}%`;
           } else if (this.selectedStartingRound === 4) {
             dom.roundDescription.textContent =
-              `DESERTO · NAVIOS ARMADOS · TANQUES · HELICÓPTEROS +${Math.round(helicopterBonus * 100)}%`;
+              `JUNGLE · NAVIOS ARMADOS · TANQUES · HELICÓPTEROS +${Math.round(helicopterBonus * 100)}%`;
           } else {
             dom.roundDescription.textContent =
-              `DESERTO · NAVIOS ARMADOS · TANQUES NAS ILHAS · HELICÓPTEROS +${Math.round(helicopterBonus * 100)}%`;
+              `JUNGLE · NAVIOS ARMADOS · TANQUES NAS ILHAS · HELICÓPTEROS +${Math.round(helicopterBonus * 100)}%`;
           }
         }
 
@@ -3406,13 +3586,25 @@
 
               const turret = entity.group.userData.turret;
               if (entity.trackingPlayer) {
-                const targetAngle = Math.atan2(dx, dz);
+                entity.targetLockTime += dt;
+                if (
+                  entity.lockedAimX == null &&
+                  entity.targetLockTime >= CONFIG.tankAimCommitTime
+                ) {
+                  entity.lockedAimX = this.player.position.x;
+                  entity.lockedAimZ = CONFIG.playerZ;
+                }
+                const aimX = entity.lockedAimX ?? this.player.position.x;
+                const aimZ = entity.lockedAimZ ?? CONFIG.playerZ;
+                const targetAngle = Math.atan2(
+                  aimX - entity.group.position.x,
+                  aimZ - entity.group.position.z
+                );
                 const angleDifference = Math.atan2(
                   Math.sin(targetAngle - turret.rotation.y),
                   Math.cos(targetAngle - turret.rotation.y)
                 );
                 turret.rotation.y += clamp(angleDifference, -2.4 * dt, 2.4 * dt);
-                entity.targetLockTime += dt;
               } else {
                 const returnDifference = Math.atan2(
                   Math.sin(-turret.rotation.y),
@@ -3420,6 +3612,8 @@
                 );
                 turret.rotation.y += clamp(returnDifference, -1.4 * dt, 1.4 * dt);
                 entity.targetLockTime = 0;
+                entity.lockedAimX = null;
+                entity.lockedAimZ = CONFIG.playerZ;
               }
 
               if (canInteract) entity.fireCooldown -= dt;
@@ -4227,6 +4421,10 @@
                     targetLockProgress: Number(
                       clamp(entity.targetLockTime / CONFIG.tankTargetLockTime, 0, 1).toFixed(2)
                     ),
+                    aimCommitted: entity.lockedAimX != null,
+                    lockedAimX: entity.lockedAimX == null
+                      ? null
+                      : Number(entity.lockedAimX.toFixed(1)),
                     distanceToPlayer: Number(
                       Math.hypot(
                         entity.group.position.x - this.player.position.x,
@@ -4273,6 +4471,7 @@
               transitioning: Boolean(this.environmentTransition),
               guidanceLights: environmentPhase.guidanceLights,
               sandIntensity: environmentPhase.sandIntensity || 0,
+              rainIntensity: environmentPhase.rainIntensity || 0,
               completedCycles: this.environmentCyclesCompleted,
               shipSpeedMultiplier: environmentPhase.shipSpeedMultiplier,
               helicopterSpeedMultiplier: environmentPhase.helicopterSpeedMultiplier,
@@ -4320,6 +4519,7 @@
               tankSpawnChance: CONFIG.tankSpawnChance,
               tankTargetRange: CONFIG.tankTargetRange,
               tankTargetLockTime: CONFIG.tankTargetLockTime,
+              tankAimCommitTime: CONFIG.tankAimCommitTime,
               tankShellSpeed: CONFIG.tankShellSpeed,
               tankIslandUnlockCycle: CONFIG.tankIslandUnlockCycle,
               tankIslandPlacementChance: CONFIG.tankIslandPlacementChance,
@@ -4328,6 +4528,10 @@
               desertFuelChance: CONFIG.desertFuelChance,
               desertSupplyFuelChance: CONFIG.desertSupplyFuelChance,
               desertTankSpawnChance: CONFIG.desertTankSpawnChance,
+              jungleUnlockCycle: CONFIG.jungleUnlockCycle,
+              jungleFuelChance: CONFIG.jungleFuelChance,
+              jungleSupplyFuelChance: CONFIG.jungleSupplyFuelChance,
+              jungleTankSpawnChance: CONFIG.jungleTankSpawnChance,
             },
             speed: Number(this.getSpeed().toFixed(1)),
             targetSpeed: Number(this.getTargetSpeed().toFixed(1)),
@@ -4448,6 +4652,9 @@
               z: Number(shell.group.position.z.toFixed(1)),
               age: Number(shell.age.toFixed(2)),
               source: shell.sourceType || 'navio',
+              velocityX: Number(shell.velocityX.toFixed(2)),
+              velocityZ: Number(shell.velocityZ.toFixed(2)),
+              targetX: shell.targetX == null ? null : Number(shell.targetX.toFixed(1)),
             })),
           });
         }

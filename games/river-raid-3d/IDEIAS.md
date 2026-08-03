@@ -17,7 +17,7 @@ Documento de referência para futuras atualizações do jogo.
 - [x] Tanques nas margens a partir da rodada 3.
 - [ ] Ranking online com nome do jogador.
 - [x] Bioma desértico desbloqueado no terceiro ciclo.
-- [ ] Bioma Jungle desbloqueado depois do Deserto.
+- [x] Bioma Jungle desbloqueado depois do Deserto.
 - [ ] Eventos avançados: caça perseguidor, trem armado e tanques nas margens.
 
 ## 1. Lançadores de mísseis
@@ -233,6 +233,8 @@ Status: primeira versão concluída. Tanques comuns surgem nas margens a partir 
 
 Desbloqueio sugerido: início do quarto ciclo completo, depois de o jogador atravessar o Deserto.
 
+Status: primeira versão concluída. A Jungle começa na rodada 4 com cinco momentos próprios, floresta mais densa, canais mais estreitos, chuva tropical, névoa verde e balanceamento próprio de FUEL e tanques. Ruínas, obstáculos flutuantes e emboscadas camufladas continuam como expansões futuras.
+
 - Floresta tropical densa com árvores altas, cipós, pedras cobertas por musgo e ruínas antigas nas margens.
 - O rio alterna entre áreas abertas e canais estreitos, exigindo mudanças de velocidade e decisões rápidas.
 - Chuva tropical cria ondulações na água, reduz visibilidade e mascara parte do som dos inimigos.
@@ -250,7 +252,7 @@ Desbloqueio sugerido: início do quarto ciclo completo, depois de o jogador atra
 4. Concluído: adicionar recompensas diferentes para cada rota.
 5. Concluído: adicionar tanques comuns nas margens como primeiro inimigo terrestre.
 6. Concluído: criar o ciclo 3 no Deserto e integrar tanques e tempestades de areia.
-7. Criar o ciclo 4 na Jungle com canais estreitos, chuva e emboscadas.
+7. Concluído: criar o ciclo 4 na Jungle com canais estreitos, chuva e floresta densa.
 8. Implementar o trem armado como evento lateral temporário.
 9. Implementar o caça perseguidor como evento de ciclo avançado.
 10. Integrar bifurcações, biomas, clima e defesas de pontes.

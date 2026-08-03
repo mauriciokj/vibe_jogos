@@ -245,3 +245,12 @@ Original prompt: Criar um novo jogo retro inspirado em River Raid, em Three.js, 
 - Probabilidade de FUEL em rio aberto cai de 22% para 13%; na rota de suprimento cai de 34% para 24%. Tanques sobem de 20% para 28% dos eventos elegíveis.
 - Geração controlada com o mesmo valor 0,18 produziu FUEL na rodada 2 e navio na rodada 3. A troca natural ao completar o segundo ciclo concedeu vida e entrou em `DESERTO · SOL FORTE`.
 - As cinco fases, câmera Chase, Top-Down, Cockpit, pausa, movimento e viewport móvel de 390×844 passaram sem erros de console. Etapa local e ainda sem commit.
+- `v1.6.0` aprovada e registrada no commit `28fbd96` com o Deserto e sua progressão a partir da rodada 3.
+- `v1.7.0` em implementação com a Jungle desbloqueada na rodada 4. Rodadas 1 e 2 continuam no Vale Verde e a rodada 3 permanece no Deserto.
+- A Jungle possui Dia Úmido, Entardecer, Noite, Chuva Tropical e Névoa Verde; chuva e névoa ativam partículas, visibilidade reduzida, holofotes e velocidades ambientais próprias.
+- O mesmo cenário controlado mediu rio com largura 13,2 no Vale/Deserto e 11,87 na Jungle; a vegetação passou de 31 árvores no Vale para 96 na Jungle.
+- A troca natural do fim do Deserto para a Jungle concedeu uma vida e iniciou corretamente `JUNGLE · DIA ÚMIDO`.
+- Movimento, tiro, três câmeras, pausa, as cinco fases e viewport móvel de 390×844 passaram sem erros de console. Etapa local e ainda sem commit.
+- Correção local na `v1.7.0`: tanques confirmam a posição lateral do avião após 0,45 s de alerta e mantêm esse ponto até disparar; a torre deixa de corrigir a mira no último instante.
+- Projéteis de tanque agora recebem uma única velocidade normalizada de 40 unidades/s na direção travada e preservam o mesmo vetor durante todo o voo.
+- Validação controlada: o tanque travou em `x=0`, o avião desviou para `x=7,4` e cinco amostras do projétil mantiveram `vx=21,91` e `vz=33,47`; o tiro passou pelo ponto antigo, sem retirar vida e sem erros de console.

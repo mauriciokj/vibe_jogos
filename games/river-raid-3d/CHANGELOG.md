@@ -8,6 +8,16 @@ O jogo usa versionamento semântico:
 
 Cada publicação deve atualizar `GAME_VERSION` no `index.html` e registrar as mudanças neste arquivo.
 
+## 1.7.0 — 2026-08-03
+
+- Bioma Jungle desbloqueado ao entrar na rodada 4; Vale Verde e Deserto continuam nas rodadas anteriores.
+- Cinco momentos próprios: Dia Úmido, Entardecer, Noite, Chuva Tropical e Névoa Verde.
+- Floresta mais densa, margens mais fechadas e canais mais estreitos criam uma identidade própria de navegação.
+- Chuva tropical e névoa verde alteram visibilidade, iluminação, holofotes e velocidade dos inimigos.
+- Frequência de FUEL e tanques recebeu balanceamento específico para a Jungle.
+- Tanques agora confirmam a mira antes do disparo; seus projéteis seguem em linha reta até o ponto travado e podem ser evitados lateralmente.
+- Movimento, tiro, três câmeras, pausa, transição de ciclo e layout móvel foram preservados.
+
 ## 1.6.0 — 2026-08-02
 
 - Bioma Deserto desbloqueado ao entrar na rodada 3; as duas primeiras rodadas permanecem no Vale Verde.
