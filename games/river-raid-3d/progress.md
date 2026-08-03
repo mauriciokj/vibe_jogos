@@ -254,3 +254,18 @@ Original prompt: Criar um novo jogo retro inspirado em River Raid, em Three.js, 
 - Correção local na `v1.7.0`: tanques confirmam a posição lateral do avião após 0,45 s de alerta e mantêm esse ponto até disparar; a torre deixa de corrigir a mira no último instante.
 - Projéteis de tanque agora recebem uma única velocidade normalizada de 40 unidades/s na direção travada e preservam o mesmo vetor durante todo o voo.
 - Validação controlada: o tanque travou em `x=0`, o avião desviou para `x=7,4` e cinco amostras do projétil mantiveram `vx=21,91` e `vz=33,47`; o tiro passou pelo ponto antigo, sem retirar vida e sem erros de console.
+- `v1.7.0` aprovada, registrada no commit `c99b918`, enviada para `origin/main` e verificada em produção com Jungle, três câmeras e gameplay funcional.
+- `v1.8.0` em implementação com o Trem Armado desbloqueado na rodada 4. O primeiro evento surge após 380 unidades e os seguintes usam intervalo de 1.550 unidades.
+- Trem low-poly possui locomotiva, dois vagões, trilhos, rodas animadas, farol e torre; percorre uma margem, avisa o lado e dispara um projétil reto após confirmar a mira.
+- Validação controlada confirmou ausência na rodada 3, aparição automática na rodada 4, mira travada em `x=0`, esquiva até `x=7,4` e projétil mantendo `vx=23,65`, `vz=39,45` e velocidade 46.
+- Seis acertos destruíram o trem, concederam 900 pontos e iniciaram o combo. Transição natural para a Jungle liberou o evento, concedeu uma vida e programou a primeira aparição para 380 unidades depois.
+- Câmera Chase, Top-Down, movimento, tiro e viewport móvel de 390×844 passaram sem erros de console.
+- Redesign solicitado na `v1.8.0`: removido o trem paralelo à margem. O evento agora instala trilhos no tabuleiro e atravessa a ponte da direita para a esquerda.
+- O trem fica aguardando fora da margem direita até a ponte alcançar `z=-150`, cruza a 14 unidades/s e permanece sincronizado com a posição longitudinal da ponte.
+- Frequência validada: rodada 3 não cria trem; na rodada 4, pontes ferroviárias alternam presença nos índices simulados 15 (sim), 16 (não) e 17 (sim).
+- Durante a travessia, a mira continuou fixa em `x=0`; após o avião desviar para `x=7,4`, o projétil manteve velocidade 46 e vetor constante. Ao concluir a passagem, o trem foi removido.
+- Seis acertos destruíram somente o trem por 900 pontos, preservando a ponte. Chase, Top-Down, Cockpit e viewport móvel de 390×844 foram inspecionados sem erros de console.
+- Correção local na `v1.8.0`: o tiro de tanque agora é calculado em relação ao terreno e recebe separadamente o deslocamento do cenário, evitando a impressão de recuo na câmera Top-Down quando o avião está rápido.
+- Teste controlado nas velocidades 16, 36,16 e 58 confirmou que o projétil sempre ganhou distância sobre o próprio tanque. Na velocidade máxima, o tanque avançou 14,5 unidades na tela e o tiro avançou 22,22, abrindo 7,72 unidades de vantagem.
+- O projétil preservou velocidade própria de 40 unidades/s nos três cenários. Após travar em `x=0` e o avião desviar para `x=7,4`, o vetor permaneceu inalterado, confirmando que o tiro continua reto e não teleguiado.
+- Captura Top-Down inspecionada com tanque e projétil em trajetória correta; fluxo comum, movimento, tiro e troca de câmera passaram sem erros de console. `v1.8.0` aprovada para commit e publicação.

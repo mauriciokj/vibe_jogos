@@ -8,6 +8,17 @@ O jogo usa versionamento semântico:
 
 Cada publicação deve atualizar `GAME_VERSION` no `index.html` e registrar as mudanças neste arquivo.
 
+## 1.8.0 — 2026-08-03
+
+- Evento do Trem Armado desbloqueado a partir da rodada 4 em pontes ferroviárias alternadas.
+- Locomotiva low-poly, dois vagões, rodas animadas, farol e torre atravessam a ponte da direita para a esquerda.
+- Trilhos ficam presos ao tabuleiro da ponte; o trem aguarda a aproximação antes de iniciar a travessia com aviso próprio.
+- A torre confirma a mira antes de lançar um projétil reto e evitável durante a passagem.
+- Trem suporta seis acertos, vale 900 pontos e participa dos sistemas de combo e Turbo Score.
+- Rodada 3 permanece sem trens; transição natural para a rodada 4 libera corretamente o evento.
+- Projéteis dos tanques agora herdam o deslocamento visual do cenário sem perder sua velocidade própria em relação ao terreno, eliminando o recuo aparente em alta velocidade.
+- Movimento, tiro, três câmeras, progressão e layout móvel foram preservados.
+
 ## 1.7.0 — 2026-08-03
 
 - Bioma Jungle desbloqueado ao entrar na rodada 4; Vale Verde e Deserto continuam nas rodadas anteriores.

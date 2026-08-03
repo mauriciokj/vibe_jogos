@@ -661,7 +661,7 @@
     <script type="module">
       import * as THREE from 'https://unpkg.com/three@0.168.0/build/three.module.js';
 
-      const GAME_VERSION = '1.7.0';
+      const GAME_VERSION = '1.8.0';
 
       const CONFIG = {
         segmentLength: 32,
@@ -740,6 +740,15 @@
         jungleFuelChance: 0.18,
         jungleSupplyFuelChance: 0.3,
         jungleTankSpawnChance: 0.24,
+        trainUnlockCycle: 3,
+        trainBridgeInterval: 2,
+        trainCrossingTriggerZ: -150,
+        trainCrossingSpeed: 14,
+        trainTargetRange: 96,
+        trainTargetLockTime: 0.85,
+        trainAimCommitTime: 0.5,
+        trainShellSpeed: 46,
+        trainFireCooldown: 1.9,
       };
 
       const COLORS = {
@@ -1366,6 +1375,8 @@
           this.bridgesDestroyed = 0;
           this.cannonShotsFired = 0;
           this.tankShotsFired = 0;
+          this.trainEventsStarted = 0;
+          this.trainShotsFired = 0;
           this.simulationUnlocked = localStorage.getItem('rio-de-aco-simulation-unlocked') === '1';
           this.secretTitleClicks = 0;
           this.secretTitleClickStartedAt = 0;
@@ -1749,6 +1760,7 @@
         advanceEnvironment() {
           let lifeAwarded = false;
           let navalCombatUnlocked = false;
+          let trainCombatUnlocked = false;
           if (this.environmentIndex === ENVIRONMENT_PHASES.length - 1) {
             this.environmentCyclesCompleted += 1;
             if (
@@ -1760,6 +1772,7 @@
               this.refreshTerrainShapes();
             }
             navalCombatUnlocked = this.environmentCyclesCompleted === CONFIG.shipCombatCycle;
+            trainCombatUnlocked = this.environmentCyclesCompleted === CONFIG.trainUnlockCycle;
             this.lives += 1;
             lifeAwarded = true;
             this.audio.extraLife();
@@ -1769,6 +1782,7 @@
             ...this.setEnvironmentPhase(this.environmentIndex + 1, false),
             lifeAwarded,
             navalCombatUnlocked,
+            trainCombatUnlocked,
           };
         }
 
@@ -2785,9 +2799,193 @@
           return tank;
         }
 
+        createArmedTrain(bridge) {
+          const group = new THREE.Group();
+
+          const wheels = [];
+          const addWheelPair = (car, localZ) => {
+            for (const wheelX of [-1.55, 1.55]) {
+              const wheel = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.58, 0.58, 0.42, 8),
+                this.materials.black
+              );
+              wheel.rotation.z = Math.PI / 2;
+              wheel.position.set(wheelX, 0.62, localZ);
+              car.add(wheel);
+              wheels.push(wheel);
+            }
+          };
+
+          const locomotive = new THREE.Group();
+          locomotive.position.z = 8;
+          const engineDeck = new THREE.Mesh(
+            new THREE.BoxGeometry(3.7, 0.5, 7.8),
+            this.materials.red
+          );
+          engineDeck.position.y = 0.78;
+          locomotive.add(engineDeck);
+          const boiler = new THREE.Mesh(
+            new THREE.CylinderGeometry(1.18, 1.18, 4.9, 8),
+            this.materials.navy
+          );
+          boiler.rotation.x = Math.PI / 2;
+          boiler.position.set(0, 1.75, 1.05);
+          locomotive.add(boiler);
+          const nose = new THREE.Mesh(new THREE.ConeGeometry(1.22, 1.4, 8), this.materials.red);
+          nose.rotation.x = Math.PI / 2;
+          nose.position.set(0, 1.75, 4.15);
+          locomotive.add(nose);
+          const cab = new THREE.Mesh(new THREE.BoxGeometry(3.35, 3.1, 2.55), this.materials.tank);
+          cab.position.set(0, 1.95, -2.25);
+          locomotive.add(cab);
+          const windowMaterial = new THREE.MeshPhongMaterial({
+            color: 0x73e8ff,
+            emissive: 0x16465a,
+            flatShading: true,
+          });
+          const cabWindow = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.85, 0.12), windowMaterial);
+          cabWindow.position.set(0, 2.35, -3.56);
+          locomotive.add(cabWindow);
+          const chimney = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.38, 0.58, 2.25, 7),
+            this.materials.black
+          );
+          chimney.position.set(0, 3.15, 2.25);
+          locomotive.add(chimney);
+          addWheelPair(locomotive, -2.2);
+          addWheelPair(locomotive, 0.2);
+          addWheelPair(locomotive, 2.65);
+          group.add(locomotive);
+
+          const gunPivot = new THREE.Group();
+          let gunLens = null;
+          for (let carIndex = 0; carIndex < 2; carIndex += 1) {
+            const car = new THREE.Group();
+            car.position.z = -1.5 - carIndex * 8.1;
+            const chassis = new THREE.Mesh(
+              new THREE.BoxGeometry(3.8, 0.48, 6.7),
+              this.materials.red
+            );
+            chassis.position.y = 0.78;
+            car.add(chassis);
+            const cargo = new THREE.Mesh(
+              new THREE.BoxGeometry(3.25, carIndex === 0 ? 1.75 : 2.4, 5.6),
+              carIndex === 0 ? this.materials.tank : this.materials.rock
+            );
+            cargo.position.y = carIndex === 0 ? 1.85 : 2.15;
+            car.add(cargo);
+            addWheelPair(car, -2.15);
+            addWheelPair(car, 2.15);
+            if (carIndex === 0) {
+              gunPivot.position.set(0, 3.05, 0.25);
+              const turretBase = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.8, 0.95, 0.55, 7),
+                this.materials.navy
+              );
+              gunPivot.add(turretBase);
+              const barrel = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.12, 0.18, 3.5, 7),
+                this.materials.black
+              );
+              barrel.rotation.x = Math.PI / 2;
+              barrel.position.set(0, 0.2, 1.75);
+              gunPivot.add(barrel);
+              gunLens = new THREE.Mesh(
+                new THREE.OctahedronGeometry(0.24, 0),
+                new THREE.MeshBasicMaterial({ color: 0xffd84d, transparent: true, opacity: 0.35 })
+              );
+              gunLens.position.set(0, 0.5, 0.7);
+              gunPivot.add(gunLens);
+              car.add(gunPivot);
+            }
+            group.add(car);
+          }
+
+          const headlight = new THREE.PointLight(0xffe7a0, 3.2, 19, 2);
+          headlight.position.set(0, 2.1, 13.2);
+          group.add(headlight);
+          const headlightLens = new THREE.Mesh(
+            new THREE.OctahedronGeometry(0.38, 0),
+            new THREE.MeshBasicMaterial({ color: 0xfff0ad })
+          );
+          headlightLens.position.copy(headlight.position);
+          group.add(headlightLens);
+
+          const startX = bridge.group.position.x + bridge.halfWidth + 12;
+          const endX = bridge.group.position.x - bridge.halfWidth - 12;
+          group.position.set(startX, 1.72, bridge.group.position.z);
+          group.rotation.y = -Math.PI / 2;
+          group.userData.wheels = wheels;
+          group.userData.gunPivot = gunPivot;
+          group.userData.gunLens = gunLens;
+          this.scene.add(group);
+          return {
+            type: 'trem',
+            group,
+            radius: 7.2,
+            hitRadius: 7,
+            health: 6,
+            score: 900,
+            phase: Math.random() * Math.PI * 2,
+            vx: 0,
+            bridge,
+            startX,
+            endX,
+            crossingStarted: false,
+            crossingComplete: false,
+            trackingPlayer: false,
+            targetLockTime: 0,
+            lockedAimX: null,
+            lockedAimZ: CONFIG.playerZ,
+            fireCooldown: 0.55,
+            shotsFired: 0,
+          };
+        }
+
+        addRailwayToBridge(bridge) {
+          if (bridge.group.userData.railway) return;
+          const railway = new THREE.Group();
+          const width = bridge.halfWidth * 2 + 12;
+          for (const railZ of [-1.55, 1.55]) {
+            const rail = new THREE.Mesh(
+              new THREE.BoxGeometry(width, 0.18, 0.18),
+              this.materials.black
+            );
+            rail.position.set(0, 1.68, railZ);
+            railway.add(rail);
+          }
+          for (let sleeperX = -width / 2 + 1; sleeperX <= width / 2 - 1; sleeperX += 3.2) {
+            const sleeper = new THREE.Mesh(
+              new THREE.BoxGeometry(0.46, 0.14, 4.5),
+              this.materials.tankDark
+            );
+            sleeper.position.set(sleeperX, 1.54, 0);
+            railway.add(sleeper);
+          }
+          bridge.group.add(railway);
+          bridge.group.userData.railway = railway;
+        }
+
+        spawnArmedTrain(bridge) {
+          this.addRailwayToBridge(bridge);
+          const train = this.createArmedTrain(bridge);
+          this.entities.push(train);
+          this.trainEventsStarted += 1;
+          return train;
+        }
+
         spawnBridgeEncounter(z) {
           const bridge = this.createBridge(z);
           this.entities.push(bridge);
+          const trainBridgeIndex =
+            this.bridgesDestroyed - CONFIG.trainUnlockCycle * ENVIRONMENT_PHASES.length;
+          const trainEligible = Boolean(
+            this.environmentCyclesCompleted >= CONFIG.trainUnlockCycle &&
+            trainBridgeIndex >= 0 &&
+            trainBridgeIndex % CONFIG.trainBridgeInterval === 0 &&
+            !this.entities.some((entity) => entity.type === 'trem')
+          );
+          if (trainEligible) this.spawnArmedTrain(bridge);
           if (this.environmentCyclesCompleted < 1) return bridge;
 
           const river = this.getRiverAtZ(z);
@@ -2917,6 +3115,32 @@
           this.audio.cannon();
         }
 
+        calculateGroundProjectileVelocity(origin, targetX, targetZ, projectileSpeed) {
+          const dx = targetX - origin.x;
+          const dz = targetZ - origin.z;
+          const scrollSpeed = this.getSpeed();
+          const a = scrollSpeed * scrollSpeed - projectileSpeed * projectileSpeed;
+          const b = -2 * dz * scrollSpeed;
+          const c = dx * dx + dz * dz;
+          const travelTimes = [];
+          if (Math.abs(a) < 0.0001) {
+            if (Math.abs(b) > 0.0001) travelTimes.push(-c / b);
+          } else {
+            const discriminant = b * b - 4 * a * c;
+            if (discriminant >= 0) {
+              const root = Math.sqrt(discriminant);
+              travelTimes.push((-b - root) / (2 * a), (-b + root) / (2 * a));
+            }
+          }
+          const travelTime = travelTimes
+            .filter((value) => Number.isFinite(value) && value > 0.001)
+            .sort((left, right) => left - right)[0] ||
+            Math.max(0.001, Math.hypot(dx, dz) / projectileSpeed);
+          const velocityX = dx / travelTime;
+          const velocityZ = dz / travelTime - scrollSpeed;
+          return { velocityX, velocityZ, scrollSpeed, travelTime };
+        }
+
         launchTankShell(tank) {
           const group = new THREE.Group();
           const shell = new THREE.Mesh(
@@ -2946,12 +3170,14 @@
           group.position.copy(origin);
           const targetX = tank.lockedAimX ?? this.player.position.x;
           const targetZ = tank.lockedAimZ ?? CONFIG.playerZ;
-          const dx = targetX - origin.x;
-          const dz = targetZ - origin.z;
-          const length = Math.max(0.001, Math.hypot(dx, dz));
-          const velocityX = (dx / length) * CONFIG.tankShellSpeed;
-          const velocityZ = (dz / length) * CONFIG.tankShellSpeed;
-          group.rotation.y = Math.atan2(velocityX, velocityZ);
+          const trajectory = this.calculateGroundProjectileVelocity(
+            origin,
+            targetX,
+            targetZ,
+            CONFIG.tankShellSpeed
+          );
+          const { velocityX, velocityZ, scrollSpeed } = trajectory;
+          group.rotation.y = Math.atan2(velocityX, velocityZ + scrollSpeed);
           this.scene.add(group);
           this.enemyShells.push({
             group,
@@ -2962,6 +3188,9 @@
             sourceType: 'tanque',
             targetX,
             targetZ,
+            inheritsWorldScroll: true,
+            launchScrollSpeed: scrollSpeed,
+            travelTime: trajectory.travelTime,
           });
           tank.fireCooldown = CONFIG.tankFireCooldown;
           tank.targetLockTime = 0;
@@ -2973,13 +3202,72 @@
           this.audio.cannon();
         }
 
+        launchTrainShell(train) {
+          const group = new THREE.Group();
+          const shell = new THREE.Mesh(
+            new THREE.OctahedronGeometry(0.46, 0),
+            new THREE.MeshBasicMaterial({ color: 0xfff09a })
+          );
+          group.add(shell);
+          const glow = new THREE.PointLight(0xff5d35, 4.8, 15, 2);
+          group.add(glow);
+          const trail = new THREE.Mesh(
+            new THREE.ConeGeometry(0.34, 2, 6),
+            new THREE.MeshBasicMaterial({
+              color: 0xff3c27,
+              transparent: true,
+              opacity: 0.82,
+              blending: THREE.AdditiveBlending,
+              depthWrite: false,
+            })
+          );
+          trail.rotation.x = -Math.PI / 2;
+          trail.position.z = -1.15;
+          group.add(trail);
+
+          const gunPivot = train.group.userData.gunPivot;
+          train.group.updateWorldMatrix(true, true);
+          const origin = gunPivot.localToWorld(new THREE.Vector3(0, 0.2, 3.55));
+          group.position.copy(origin);
+          const targetX = train.lockedAimX ?? this.player.position.x;
+          const targetZ = train.lockedAimZ ?? CONFIG.playerZ;
+          const dx = targetX - origin.x;
+          const dz = targetZ - origin.z;
+          const length = Math.max(0.001, Math.hypot(dx, dz));
+          const velocityX = (dx / length) * CONFIG.trainShellSpeed;
+          const velocityZ = (dz / length) * CONFIG.trainShellSpeed;
+          group.rotation.y = Math.atan2(velocityX, velocityZ);
+          this.scene.add(group);
+          this.enemyShells.push({
+            group,
+            velocityX,
+            velocityZ,
+            age: 0,
+            trail,
+            sourceType: 'trem',
+            targetX,
+            targetZ,
+          });
+          train.fireCooldown = CONFIG.trainFireCooldown;
+          train.targetLockTime = 0;
+          train.lockedAimX = null;
+          train.lockedAimZ = CONFIG.playerZ;
+          train.shotsFired += 1;
+          this.trainShotsFired += 1;
+          this.spawnSparks(origin, 13);
+          this.audio.cannon();
+        }
+
         updateEnemyShells(dt, canInteract) {
           if (!canInteract) return;
           for (let index = this.enemyShells.length - 1; index >= 0; index -= 1) {
             const shell = this.enemyShells[index];
             shell.age += dt;
+            const inheritedScroll = shell.inheritsWorldScroll ? this.getSpeed() : 0;
+            const screenVelocityZ = shell.velocityZ + inheritedScroll;
             shell.group.position.x += shell.velocityX * dt;
-            shell.group.position.z += shell.velocityZ * dt;
+            shell.group.position.z += screenVelocityZ * dt;
+            shell.group.rotation.y = Math.atan2(shell.velocityX, screenVelocityZ);
             shell.group.position.y = 2.05 + Math.sin(shell.age * 18) * 0.1;
             shell.group.rotation.z += dt * 9;
             shell.trail.scale.y = 0.82 + Math.sin(this.elapsed * 28 + shell.age) * 0.14;
@@ -3104,10 +3392,10 @@
               `DESERTO · MÍSSEIS · TANQUES · HELICÓPTEROS +${Math.round(helicopterBonus * 100)}%`;
           } else if (this.selectedStartingRound === 4) {
             dom.roundDescription.textContent =
-              `JUNGLE · NAVIOS ARMADOS · TANQUES · HELICÓPTEROS +${Math.round(helicopterBonus * 100)}%`;
+              `JUNGLE · TREM ARMADO · NAVIOS · TANQUES · HELICÓPTEROS +${Math.round(helicopterBonus * 100)}%`;
           } else {
             dom.roundDescription.textContent =
-              `JUNGLE · NAVIOS ARMADOS · TANQUES NAS ILHAS · HELICÓPTEROS +${Math.round(helicopterBonus * 100)}%`;
+              `JUNGLE · TREM ARMADO · NAVIOS · TANQUES NAS ILHAS · HELICÓPTEROS +${Math.round(helicopterBonus * 100)}%`;
           }
         }
 
@@ -3236,6 +3524,8 @@
           this.bridgesDestroyed = completedCycles * ENVIRONMENT_PHASES.length;
           this.cannonShotsFired = 0;
           this.tankShotsFired = 0;
+          this.trainEventsStarted = 0;
+          this.trainShotsFired = 0;
           this.setEnvironmentPhase(0, true);
           this.refreshTerrainShapes();
           this.player.position.x = this.getRiverAtZ(CONFIG.playerZ).center;
@@ -3640,6 +3930,93 @@
               ) {
                 this.launchTankShell(entity);
               }
+            } else if (entity.type === 'trem') {
+              if (
+                !entity.crossingStarted &&
+                entity.group.position.z >= CONFIG.trainCrossingTriggerZ
+              ) {
+                entity.crossingStarted = true;
+                this.showToast('TREM NA PONTE · DIREITA → ESQUERDA', 2.1);
+              }
+              if (entity.crossingStarted) {
+                entity.group.position.x -= CONFIG.trainCrossingSpeed * dt;
+                for (const wheel of entity.group.userData.wheels || []) {
+                  wheel.rotation.x += CONFIG.trainCrossingSpeed * dt * 1.55;
+                }
+              }
+              if (entity.group.position.x <= entity.endX) {
+                entity.crossingComplete = true;
+                this.scene.remove(entity.group);
+                this.entities.splice(index, 1);
+                continue;
+              }
+
+              const dx = this.player.position.x - entity.group.position.x;
+              const dz = CONFIG.playerZ - entity.group.position.z;
+              const distanceToPlayer = Math.hypot(dx, dz);
+              entity.trackingPlayer = Boolean(
+                canInteract &&
+                entity.crossingStarted &&
+                entity.group.position.z < CONFIG.playerZ + 8 &&
+                distanceToPlayer <= CONFIG.trainTargetRange
+              );
+              const gunPivot = entity.group.userData.gunPivot;
+              if (entity.trackingPlayer) {
+                entity.targetLockTime += dt;
+                if (
+                  entity.lockedAimX == null &&
+                  entity.targetLockTime >= CONFIG.trainAimCommitTime
+                ) {
+                  entity.lockedAimX = this.player.position.x;
+                  entity.lockedAimZ = CONFIG.playerZ;
+                }
+                const aimX = entity.lockedAimX ?? this.player.position.x;
+                const aimZ = entity.lockedAimZ ?? CONFIG.playerZ;
+                entity.group.updateWorldMatrix(true, true);
+                const gunOrigin = gunPivot.getWorldPosition(new THREE.Vector3());
+                const localDirection = new THREE.Vector3(
+                  aimX - gunOrigin.x,
+                  0,
+                  aimZ - gunOrigin.z
+                ).normalize();
+                const parentQuaternion = gunPivot.parent
+                  .getWorldQuaternion(new THREE.Quaternion())
+                  .invert();
+                localDirection.applyQuaternion(parentQuaternion).normalize();
+                const targetAngle = Math.atan2(localDirection.x, localDirection.z);
+                const angleDifference = Math.atan2(
+                  Math.sin(targetAngle - gunPivot.rotation.y),
+                  Math.cos(targetAngle - gunPivot.rotation.y)
+                );
+                gunPivot.rotation.y += clamp(angleDifference, -2.8 * dt, 2.8 * dt);
+              } else {
+                entity.targetLockTime = 0;
+                entity.lockedAimX = null;
+                entity.lockedAimZ = CONFIG.playerZ;
+              }
+
+              if (canInteract) entity.fireCooldown -= dt;
+              const lockProgress = clamp(
+                entity.targetLockTime / CONFIG.trainTargetLockTime,
+                0,
+                1
+              );
+              const pulse = 0.5 + Math.sin(this.elapsed * 18 + entity.phase) * 0.5;
+              const gunLens = entity.group.userData.gunLens;
+              if (gunLens) {
+                gunLens.material.opacity = entity.trackingPlayer
+                  ? 0.45 + lockProgress * 0.55
+                  : 0.28;
+                gunLens.scale.setScalar(entity.trackingPlayer ? 0.85 + pulse * 0.65 : 0.8);
+              }
+              if (
+                entity.trackingPlayer &&
+                entity.group.position.z < CONFIG.playerZ - 7 &&
+                entity.targetLockTime >= CONFIG.trainTargetLockTime &&
+                entity.fireCooldown <= 0
+              ) {
+                this.launchTrainShell(entity);
+              }
             } else if (entity.type === 'ponte') {
               const trackingPlayer = Boolean(entity.group.userData.trackingPlayer);
               for (const beacon of entity.group.userData.beacons || []) {
@@ -3937,6 +4314,7 @@
             helicóptero: 'HELICÓPTERO DESTRUÍDO',
             lançador: 'LANÇADOR DESTRUÍDO',
             tanque: 'TANQUE DESTRUÍDO',
+            trem: 'TREM ARMADO DESTRUÍDO',
           };
           let scoreAward = null;
           if (combatLabels[entity.type]) {
@@ -3969,6 +4347,7 @@
           if (entity.type === 'ponte') {
             const lifeMessage = nextEnvironment.lifeAwarded ? ' · VIDA EXTRA' : '';
             const navalMessage = nextEnvironment.navalCombatUnlocked ? ' · NAVIOS ARMADOS' : '';
+            const trainMessage = nextEnvironment.trainCombatUnlocked ? ' · TREM ARMADO' : '';
             const turboMessage = scoreAward.speedMultiplier > 1
               ? ` · TURBO ×${this.formatScoreMultiplier(scoreAward.speedMultiplier)}`
               : '';
@@ -3978,16 +4357,16 @@
                 ? scoreAward.points + CONFIG.lastMomentBridgeScore
                 : CONFIG.lastMomentBridgeScore;
               this.showToast(
-                `PONTE NO LIMITE${turboMessage} · +${pointsMessage} · ${nextEnvironment.label}${lifeMessage}${navalMessage}`,
+                `PONTE NO LIMITE${turboMessage} · +${pointsMessage} · ${nextEnvironment.label}${lifeMessage}${navalMessage}${trainMessage}`,
                 2.4
               );
             } else if (scoreAward.speedMultiplier > 1) {
               this.showToast(
-                `PONTE DESTRUÍDA${turboMessage} · +${scoreAward.points} · ${nextEnvironment.label}${lifeMessage}${navalMessage}`,
+                `PONTE DESTRUÍDA${turboMessage} · +${scoreAward.points} · ${nextEnvironment.label}${lifeMessage}${navalMessage}${trainMessage}`,
                 2.4
               );
             } else {
-              this.showToast(`PONTE DESTRUÍDA · ${nextEnvironment.label}${lifeMessage}${navalMessage}`, 2.4);
+              this.showToast(`PONTE DESTRUÍDA · ${nextEnvironment.label}${lifeMessage}${navalMessage}${trainMessage}`, 2.4);
             }
           } else if (entity.type === 'fuel') {
             this.showToast(`FUEL DESTRUÍDO · -${CONFIG.fuelPenalty} PONTOS`, 1.8);
@@ -4179,7 +4558,7 @@
           }
 
           for (const entity of this.entities) {
-            if (entity.type === 'fuel' || entity.type === 'farol') continue;
+            if (entity.type === 'fuel' || entity.type === 'farol' || entity.type === 'trem') continue;
             const dz = Math.abs(entity.group.position.z - CONFIG.playerZ);
             const dx = Math.abs(entity.group.position.x - this.player.position.x);
             const collision = entity.type === 'ponte'
@@ -4368,7 +4747,12 @@
               ...(['navio', 'helicóptero'].includes(entity.type)
                 ? { heading: entity.vx > 0 ? 'direita' : 'esquerda' }
                 : {}),
-              ...(entity.type === 'ponte' ? { navigationBeacons: entity.group.userData.beacons?.length || 0 } : {}),
+              ...(entity.type === 'ponte'
+                ? {
+                    navigationBeacons: entity.group.userData.beacons?.length || 0,
+                    railway: Boolean(entity.group.userData.railway),
+                  }
+                : {}),
               ...(entity.type === 'ponte'
                 ? {
                     rotatingBeamsOn: (entity.group.userData.beacons || []).some((beacon) =>
@@ -4420,6 +4804,38 @@
                     targetLockTime: Number(entity.targetLockTime.toFixed(2)),
                     targetLockProgress: Number(
                       clamp(entity.targetLockTime / CONFIG.tankTargetLockTime, 0, 1).toFixed(2)
+                    ),
+                    aimCommitted: entity.lockedAimX != null,
+                    lockedAimX: entity.lockedAimX == null
+                      ? null
+                      : Number(entity.lockedAimX.toFixed(1)),
+                    distanceToPlayer: Number(
+                      Math.hypot(
+                        entity.group.position.x - this.player.position.x,
+                        entity.group.position.z - CONFIG.playerZ
+                      ).toFixed(1)
+                    ),
+                    fireCooldown: Number(Math.max(0, entity.fireCooldown).toFixed(2)),
+                    shotsFired: entity.shotsFired,
+                  }
+                : {}),
+              ...(entity.type === 'trem'
+                ? {
+                    direction: 'direita para esquerda',
+                    crossingStarted: entity.crossingStarted,
+                    crossingProgress: Number(
+                      clamp(
+                        (entity.startX - entity.group.position.x) /
+                          Math.max(0.001, entity.startX - entity.endX),
+                        0,
+                        1
+                      ).toFixed(2)
+                    ),
+                    bridgeZ: Number(entity.group.position.z.toFixed(1)),
+                    trackingPlayer: entity.trackingPlayer,
+                    targetLockTime: Number(entity.targetLockTime.toFixed(2)),
+                    targetLockProgress: Number(
+                      clamp(entity.targetLockTime / CONFIG.trainTargetLockTime, 0, 1).toFixed(2)
                     ),
                     aimCommitted: entity.lockedAimX != null,
                     lockedAimX: entity.lockedAimX == null
@@ -4532,6 +4948,14 @@
               jungleFuelChance: CONFIG.jungleFuelChance,
               jungleSupplyFuelChance: CONFIG.jungleSupplyFuelChance,
               jungleTankSpawnChance: CONFIG.jungleTankSpawnChance,
+              trainUnlockCycle: CONFIG.trainUnlockCycle,
+              trainBridgeInterval: CONFIG.trainBridgeInterval,
+              trainCrossingTriggerZ: CONFIG.trainCrossingTriggerZ,
+              trainCrossingSpeed: CONFIG.trainCrossingSpeed,
+              trainTargetRange: CONFIG.trainTargetRange,
+              trainTargetLockTime: CONFIG.trainTargetLockTime,
+              trainAimCommitTime: CONFIG.trainAimCommitTime,
+              trainShellSpeed: CONFIG.trainShellSpeed,
             },
             speed: Number(this.getSpeed().toFixed(1)),
             targetSpeed: Number(this.getTargetSpeed().toFixed(1)),
@@ -4582,6 +5006,15 @@
                 this.environmentCyclesCompleted >= CONFIG.tankIslandUnlockCycle,
               islandPlacementUnlockRound: CONFIG.tankIslandUnlockCycle + 1,
               shotsFired: this.tankShotsFired,
+            },
+            trainCombat: {
+              unlocked: this.environmentCyclesCompleted >= CONFIG.trainUnlockCycle,
+              unlockRound: CONFIG.trainUnlockCycle + 1,
+              eventsStarted: this.trainEventsStarted,
+              shotsFired: this.trainShotsFired,
+              active: this.entities.some((entity) => entity.type === 'trem'),
+              crossingDirection: 'direita para esquerda',
+              bridgeInterval: CONFIG.trainBridgeInterval,
             },
             combo: {
               count: this.comboCount,
@@ -4654,6 +5087,14 @@
               source: shell.sourceType || 'navio',
               velocityX: Number(shell.velocityX.toFixed(2)),
               velocityZ: Number(shell.velocityZ.toFixed(2)),
+              inheritsWorldScroll: Boolean(shell.inheritsWorldScroll),
+              screenVelocityZ: Number(
+                (shell.velocityZ + (shell.inheritsWorldScroll ? this.getSpeed() : 0)).toFixed(2)
+              ),
+              groundSpeed: Number(Math.hypot(shell.velocityX, shell.velocityZ).toFixed(2)),
+              launchScrollSpeed: shell.launchScrollSpeed == null
+                ? null
+                : Number(shell.launchScrollSpeed.toFixed(2)),
               targetX: shell.targetX == null ? null : Number(shell.targetX.toFixed(1)),
             })),
           });

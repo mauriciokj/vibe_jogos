@@ -18,7 +18,8 @@ Documento de referência para futuras atualizações do jogo.
 - [ ] Ranking online com nome do jogador.
 - [x] Bioma desértico desbloqueado no terceiro ciclo.
 - [x] Bioma Jungle desbloqueado depois do Deserto.
-- [ ] Eventos avançados: caça perseguidor, trem armado e tanques nas margens.
+- [x] Trem armado atravessando pontes ferroviárias.
+- [ ] Caça perseguidor como evento de ciclo avançado.
 
 ## 1. Lançadores de mísseis
 
@@ -211,8 +212,10 @@ Status: primeira versão concluída. O Deserto começa na rodada 3 com cinco mom
 
 ## 16. Trem armado
 
-- Trilhos aparecem paralelos ao rio em determinados trechos, atravessando túneis e pontes ferroviárias.
-- Um trem ocasional acompanha o avião por alguns segundos e dispara pelas laterais.
+Status: primeira versão concluída. A partir da rodada 4, pontes alternadas recebem trilhos e um trem com locomotiva, vagões e torre armada atravessa da direita para a esquerda quando a ponte se aproxima. Ele dispara em linha reta e pode ser destruído por 900 pontos. Vagões com alvos separados e explosão em cadeia continuam como expansões futuras.
+
+- Implementado: trilhos cruzam o rio sobre o tabuleiro de pontes ferroviárias alternadas.
+- Implementado: o trem aguarda fora da margem direita e cruza toda a ponte até sair pela esquerda.
 - Locomotiva, vagões de canhão e vagões de combustível podem ser alvos separados.
 - Destruir um vagão de combustível causa uma explosão em cadeia, mas não reabastece o jogador.
 - O trem precisa respeitar curvas e limites dos trilhos, desaparecendo em um túnel no fim do evento.
@@ -253,7 +256,7 @@ Status: primeira versão concluída. A Jungle começa na rodada 4 com cinco mome
 5. Concluído: adicionar tanques comuns nas margens como primeiro inimigo terrestre.
 6. Concluído: criar o ciclo 3 no Deserto e integrar tanques e tempestades de areia.
 7. Concluído: criar o ciclo 4 na Jungle com canais estreitos, chuva e floresta densa.
-8. Implementar o trem armado como evento lateral temporário.
+8. Concluído: implementar o trem armado como evento lateral temporário.
 9. Implementar o caça perseguidor como evento de ciclo avançado.
 10. Integrar bifurcações, biomas, clima e defesas de pontes.
 11. Adicionar o ranking online após estabilizar pontuação, combos e progressão.
