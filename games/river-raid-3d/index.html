@@ -661,7 +661,7 @@
     <script type="module">
       import * as THREE from 'https://unpkg.com/three@0.168.0/build/three.module.js';
 
-      const GAME_VERSION = '1.5.0';
+      const GAME_VERSION = '1.6.0';
 
       const CONFIG = {
         segmentLength: 32,
@@ -731,6 +731,10 @@
         tankIslandUnlockCycle: 4,
         tankIslandPlacementChance: 0.5,
         tankIslandMinHalfWidth: 1.75,
+        desertUnlockCycle: 2,
+        desertFuelChance: 0.13,
+        desertSupplyFuelChance: 0.24,
+        desertTankSpawnChance: 0.28,
       };
 
       const COLORS = {
@@ -858,6 +862,124 @@
           helicopterSpeedMultiplier: 0.95,
         },
       ];
+
+      const DESERT_ENVIRONMENT_PHASES = ENVIRONMENT_PHASES.map((phase, index) => ({
+        ...phase,
+        ...[
+          {
+            key: 'desert-day',
+            label: 'DESERTO · SOL FORTE',
+            background: 0xe8c98d,
+            fog: 0xd6b577,
+            fogNear: 38,
+            fogFar: 195,
+            hemisphere: 2.25,
+            sun: 3.55,
+            exposure: 1.08,
+            water: 0x287c91,
+            bank: 0xc9904e,
+            bankDark: 0xa96b38,
+            soil: 0x84502e,
+            rock: 0xa96f43,
+            rockLight: 0xd5a66a,
+            sunDisc: 0xffd36a,
+            guidanceLights: false,
+            sandIntensity: 0.22,
+            shipSpeedMultiplier: 1.08,
+            helicopterSpeedMultiplier: 1.12,
+          },
+          {
+            key: 'desert-sunset',
+            label: 'DESERTO · ENTARDECER',
+            background: 0xd97354,
+            fog: 0xbd674d,
+            fogNear: 30,
+            fogFar: 160,
+            hemisphere: 1.45,
+            sun: 2.35,
+            exposure: 1,
+            water: 0x315f72,
+            bank: 0xb77942,
+            bankDark: 0x87502f,
+            soil: 0x6d3e29,
+            rock: 0x82513b,
+            rockLight: 0xb77b59,
+            sunDisc: 0xffa43d,
+            guidanceLights: true,
+            sandIntensity: 0.32,
+            shipSpeedMultiplier: 1.18,
+            helicopterSpeedMultiplier: 1.24,
+          },
+          {
+            key: 'desert-night',
+            label: 'DESERTO · NOITE',
+            background: 0x10162d,
+            fog: 0x14162a,
+            fogNear: 24,
+            fogFar: 132,
+            hemisphere: 0.64,
+            sun: 0.38,
+            exposure: 0.86,
+            water: 0x183c5b,
+            bank: 0x57462f,
+            bankDark: 0x382d24,
+            soil: 0x412c22,
+            rock: 0x4e4440,
+            rockLight: 0x746257,
+            sunDisc: 0xd9e7ff,
+            guidanceLights: true,
+            sandIntensity: 0.18,
+            shipSpeedMultiplier: 1.28,
+            helicopterSpeedMultiplier: 1.4,
+          },
+          {
+            key: 'sandstorm',
+            label: 'DESERTO · TEMPESTADE',
+            background: 0xb98c58,
+            fog: 0xb48450,
+            fogNear: 8,
+            fogFar: 66,
+            hemisphere: 1.05,
+            sun: 0.58,
+            exposure: 0.88,
+            water: 0x456b72,
+            bank: 0xa66d38,
+            bankDark: 0x7d4d2d,
+            soil: 0x704126,
+            rock: 0x806047,
+            rockLight: 0xaa825f,
+            sunDisc: 0xe4ba77,
+            guidanceLights: true,
+            sandIntensity: 0.92,
+            shipSpeedMultiplier: 0.78,
+            helicopterSpeedMultiplier: 0.88,
+          },
+          {
+            key: 'desert-dawn',
+            label: 'DESERTO · AMANHECER',
+            background: 0xe6b98d,
+            fog: 0xd2a777,
+            fogNear: 34,
+            fogFar: 172,
+            hemisphere: 1.85,
+            sun: 1.8,
+            exposure: 1.02,
+            water: 0x39859a,
+            bank: 0xc28a50,
+            bankDark: 0x966036,
+            soil: 0x815032,
+            rock: 0x9a6b4b,
+            rockLight: 0xc9976d,
+            sunDisc: 0xffd09a,
+            guidanceLights: false,
+            sandIntensity: 0.2,
+            shipSpeedMultiplier: 0.94,
+            helicopterSpeedMultiplier: 1.02,
+          },
+        ][index],
+        biome: 'desert',
+        snow: false,
+      }));
 
       const dom = {
         mount: document.querySelector('#game'),
@@ -1129,6 +1251,7 @@
             : 1;
           this.environmentIndex = 0;
           this.environmentCyclesCompleted = 0;
+          this.currentBiomeKey = 'valley';
           this.environmentTransition = null;
           this.input = { left: false, right: false, up: false, down: false, shoot: false };
           this.entities = [];
@@ -1188,6 +1311,7 @@
             bridgeTop: new THREE.MeshLambertMaterial({ color: 0xffb357, flatShading: true }),
             tank: new THREE.MeshLambertMaterial({ color: 0x6f793d, flatShading: true }),
             tankDark: new THREE.MeshLambertMaterial({ color: 0x303b2b, flatShading: true }),
+            cactus: new THREE.MeshLambertMaterial({ color: 0x37633c, flatShading: true }),
           };
 
           this.shared = {
@@ -1196,6 +1320,33 @@
             tree: new THREE.ConeGeometry(1.25, 3.8, 5),
             trunk: new THREE.CylinderGeometry(0.24, 0.32, 1.5, 5),
           };
+        }
+
+        createCactus(scale = 1) {
+          const cactus = new THREE.Group();
+          const stem = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.28, 0.36, 3.4, 6),
+            this.materials.cactus
+          );
+          stem.position.y = 1.7;
+          cactus.add(stem);
+          for (const side of [-1, 1]) {
+            const arm = new THREE.Mesh(
+              new THREE.CylinderGeometry(0.17, 0.21, 1.35, 6),
+              this.materials.cactus
+            );
+            arm.position.set(side * 0.48, 1.75 + (side > 0 ? 0.35 : 0), 0);
+            arm.rotation.z = side * Math.PI / 2.7;
+            cactus.add(arm);
+            const tip = new THREE.Mesh(
+              new THREE.CylinderGeometry(0.15, 0.19, 0.9, 6),
+              this.materials.cactus
+            );
+            tip.position.set(side * 0.92, 2.1 + (side > 0 ? 0.35 : 0), 0);
+            cactus.add(tip);
+          }
+          cactus.scale.setScalar(scale);
+          return cactus;
         }
 
         createCockpitRig() {
@@ -1393,6 +1544,21 @@
           };
         }
 
+        getBiomeKey(completedCycles = this.environmentCyclesCompleted) {
+          return completedCycles >= CONFIG.desertUnlockCycle ? 'desert' : 'valley';
+        }
+
+        getEnvironmentPhase(index = this.environmentIndex) {
+          const normalized = ((index % ENVIRONMENT_PHASES.length) + ENVIRONMENT_PHASES.length) %
+            ENVIRONMENT_PHASES.length;
+          if (this.getBiomeKey() === 'desert') return DESERT_ENVIRONMENT_PHASES[normalized];
+          return {
+            ...ENVIRONMENT_PHASES[normalized],
+            biome: 'valley',
+            sandIntensity: 0,
+          };
+        }
+
         blendColor(target, from, to, amount) {
           target.set(from).lerp(new THREE.Color(to), amount);
         }
@@ -1417,9 +1583,17 @@
 
         setEnvironmentPhase(index, instant = false) {
           this.environmentIndex = ((index % ENVIRONMENT_PHASES.length) + ENVIRONMENT_PHASES.length) % ENVIRONMENT_PHASES.length;
-          const target = ENVIRONMENT_PHASES[this.environmentIndex];
+          const target = this.getEnvironmentPhase();
+          const biomeChanged = target.biome !== this.currentBiomeKey;
+          this.currentBiomeKey = target.biome;
           dom.moment.textContent = target.label;
-          this.snow.visible = target.snow;
+          const sandIntensity = target.sandIntensity || 0;
+          this.snow.visible = Boolean(target.snow || sandIntensity > 0);
+          this.snow.userData.mode = target.snow ? 'snow' : sandIntensity > 0 ? 'sand' : 'none';
+          this.snow.material.color.set(target.snow ? 0xffffff : 0xf5c77a);
+          this.snow.material.size = target.snow ? 0.62 : 0.34 + sandIntensity * 0.34;
+          this.snow.material.opacity = target.snow ? 0.88 : 0.22 + sandIntensity * 0.56;
+          if (biomeChanged && this.terrain.length > 0) this.refreshTerrainShapes();
           if (instant) {
             this.applyEnvironmentValues(target, target, 1);
             this.environmentTransition = null;
@@ -1469,11 +1643,22 @@
           }
           if (!this.snow.visible) return;
           const positions = this.snow.geometry.attributes.position;
+          const particleMode = this.snow.userData.mode;
           for (let i = 0; i < positions.count; i += 1) {
-            let x = positions.getX(i) + Math.sin(this.elapsed * 0.7 + i) * dt * 0.45;
-            let y = positions.getY(i) - dt * (5 + (i % 5));
-            let z = positions.getZ(i) + speed * dt * 0.32;
-            if (y < 0.5) y = 38 + Math.random() * 14;
+            let x = positions.getX(i);
+            let y = positions.getY(i);
+            let z = positions.getZ(i);
+            if (particleMode === 'sand') {
+              x += dt * (5.5 + (i % 7)) + Math.sin(this.elapsed * 1.8 + i) * dt * 1.8;
+              y -= dt * (0.3 + (i % 3) * 0.22);
+              z += speed * dt * 0.46;
+              if (y < 0.35) y = 8 + Math.random() * 34;
+            } else {
+              x += Math.sin(this.elapsed * 0.7 + i) * dt * 0.45;
+              y -= dt * (5 + (i % 5));
+              z += speed * dt * 0.32;
+              if (y < 0.5) y = 38 + Math.random() * 14;
+            }
             if (z > 55) z = -190;
             if (x > 78) x = -78;
             if (x < -78) x = 78;
@@ -1681,6 +1866,7 @@
 
         addTerrainDecorations(segment) {
           const halfLength = CONFIG.segmentLength / 2;
+          const desert = this.getBiomeKey() === 'desert';
           for (let side = -1; side <= 1; side += 2) {
             const mountainCount = 2 + Math.floor(seededNoise(segment.worldIndex * 13 + side) * 2);
             for (let i = 0; i < mountainCount; i += 1) {
@@ -1699,9 +1885,16 @@
               segment.decorations.add(mountain);
 
               if (sample < 0.65) {
-                const tree = new THREE.Mesh(this.shared.tree, this.materials.bankDark);
-                tree.position.set(side * (16 + seededNoise(seed + 4) * 7), 2.15, z + 3.4);
-                segment.decorations.add(tree);
+                if (desert) {
+                  const cactus = this.createCactus(0.62 + seededNoise(seed + 5) * 0.42);
+                  cactus.position.set(side * (16 + seededNoise(seed + 4) * 7), 0.22, z + 3.4);
+                  cactus.rotation.y = seededNoise(seed + 6) * Math.PI;
+                  segment.decorations.add(cactus);
+                } else {
+                  const tree = new THREE.Mesh(this.shared.tree, this.materials.bankDark);
+                  tree.position.set(side * (16 + seededNoise(seed + 4) * 7), 2.15, z + 3.4);
+                  segment.decorations.add(tree);
+                }
               }
             }
           }
@@ -1710,15 +1903,25 @@
           if (islandWidth > 1.65) {
             const seed = segment.worldIndex * 19.37;
             const islandCenter = (segment.ahead.center + segment.behind.center) * 0.5;
-            const islandTree = new THREE.Mesh(this.shared.tree, this.materials.bankDark);
             const treeScale = 0.58 + seededNoise(seed) * 0.28;
-            islandTree.position.set(
-              islandCenter + (seededNoise(seed + 1) - 0.5) * islandWidth * 0.8,
-              1.9 * treeScale,
-              (seededNoise(seed + 2) - 0.5) * CONFIG.segmentLength * 0.58
-            );
-            islandTree.scale.setScalar(treeScale);
-            segment.decorations.add(islandTree);
+            if (desert) {
+              const islandCactus = this.createCactus(treeScale * 0.72);
+              islandCactus.position.set(
+                islandCenter + (seededNoise(seed + 1) - 0.5) * islandWidth * 0.65,
+                0.24,
+                (seededNoise(seed + 2) - 0.5) * CONFIG.segmentLength * 0.58
+              );
+              segment.decorations.add(islandCactus);
+            } else {
+              const islandTree = new THREE.Mesh(this.shared.tree, this.materials.bankDark);
+              islandTree.position.set(
+                islandCenter + (seededNoise(seed + 1) - 0.5) * islandWidth * 0.8,
+                1.9 * treeScale,
+                (seededNoise(seed + 2) - 0.5) * CONFIG.segmentLength * 0.58
+              );
+              islandTree.scale.setScalar(treeScale);
+              segment.decorations.add(islandTree);
+            }
 
             if (seededNoise(seed + 3) > 0.42) {
               const markerRock = new THREE.Mesh(this.shared.hill, this.materials.rockLight);
@@ -1980,12 +2183,14 @@
         }
 
         updateSearchlights(group, active, targetPosition = null) {
-          const environmentKey = ENVIRONMENT_PHASES[this.environmentIndex].key;
-          const opacity = environmentKey === 'fog' ? 0.22 : environmentKey === 'night' ? 0.16 : 0.1;
+          const environmentKey = this.getEnvironmentPhase().key;
+          const obscured = environmentKey === 'fog' || environmentKey === 'sandstorm';
+          const night = environmentKey === 'night' || environmentKey === 'desert-night';
+          const opacity = obscured ? 0.22 : night ? 0.16 : 0.1;
           for (const searchlight of group.userData.searchLights || []) {
             searchlight.beam.visible = active;
             searchlight.beam.material.opacity = active ? (targetPosition ? Math.max(opacity, 0.2) : opacity) : 0;
-            searchlight.spot.intensity = active ? (environmentKey === 'fog' ? 7 : environmentKey === 'night' ? 5.8 : 4.2) : 0;
+            searchlight.spot.intensity = active ? (obscured ? 7 : night ? 5.8 : 4.2) : 0;
             searchlight.trackingTarget = Boolean(active && targetPosition);
             if (targetPosition) {
               searchlight.pivot.rotation.set(0, 0, 0);
@@ -2009,7 +2214,7 @@
         }
 
         updateVehicleNavigationLights(group, forceSearchlight = false, targetPosition = null) {
-          const active = ENVIRONMENT_PHASES[this.environmentIndex].guidanceLights;
+          const active = this.getEnvironmentPhase().guidanceLights;
           for (const item of group.userData.navigationLights || []) {
             const wave = 0.5 + Math.sin(this.elapsed * (item.blinking ? 7.5 : 3.2) + item.phase) * 0.5;
             const pulse = item.blinking ? (wave > 0.42 ? 1 : 0.12) : 0.82 + wave * 0.18;
@@ -2021,7 +2226,7 @@
         }
 
         getVehicleSpeedMultiplier(type) {
-          const environment = ENVIRONMENT_PHASES[this.environmentIndex];
+          const environment = this.getEnvironmentPhase();
           if (type === 'helicóptero') {
             const bridgeBoost = 1 + Math.min(this.bridgesDestroyed, 12) * CONFIG.helicopterBridgeSpeedBonus;
             return environment.helicopterSpeedMultiplier * bridgeBoost;
@@ -2214,7 +2419,7 @@
         }
 
         updateNavigationBeacon(beacon, targetPosition = null) {
-          const active = ENVIRONMENT_PHASES[this.environmentIndex].guidanceLights || Boolean(targetPosition);
+          const active = this.getEnvironmentPhase().guidanceLights || Boolean(targetPosition);
           const pulse = 0.72 + Math.sin(this.elapsed * 5.5 + beacon.userData.phase) * 0.28;
           beacon.userData.lens.scale.setScalar(active ? 0.85 + pulse * 0.55 : 0.82);
           beacon.userData.lens.material.opacity = active ? 1 : 0.5;
@@ -2654,17 +2859,21 @@
           const z = -190 - Math.random() * 35;
           const river = this.getRiverAtZ(z);
           const roll = Math.random();
+          const desert = this.getBiomeKey() === 'desert';
+          const supplyFuelChance = desert
+            ? CONFIG.desertSupplyFuelChance
+            : CONFIG.riverSupplyFuelChance;
+          const openRiverFuelChance = desert ? CONFIG.desertFuelChance : 0.22;
           let entity;
           if (river.forkActive) {
             const routes = this.getForkRouteSides(river.forkIndex);
-            if (roll < CONFIG.riverSupplyFuelChance) {
+            if (roll < supplyFuelChance) {
               const spawnX = this.pickRiverChannelX(river, routes.supplySide, Math.random(), 0.68);
               entity = this.createFuel(spawnX, z);
               entity.forkRoute = 'supply';
             } else {
               const spawnX = this.pickRiverChannelX(river, routes.combatSide, Math.random(), 0.68);
-              const combatRoll = (roll - CONFIG.riverSupplyFuelChance) /
-                (1 - CONFIG.riverSupplyFuelChance);
+              const combatRoll = (roll - supplyFuelChance) / (1 - supplyFuelChance);
               entity = combatRoll < 0.58
                 ? this.createShip(spawnX, z)
                 : this.createHelicopter(spawnX, z);
@@ -2674,9 +2883,9 @@
             entity.forkIndex = river.forkIndex;
           } else {
             const spawnX = this.pickNavigableRiverX(river, Math.random(), 0.68);
-            if (roll < 0.22) {
+            if (roll < openRiverFuelChance) {
               entity = this.createFuel(spawnX, z);
-            } else if (roll < 0.61) {
+            } else if (roll < openRiverFuelChance + 0.39) {
               entity = this.createShip(spawnX, z);
             } else {
               entity = this.createHelicopter(spawnX, z);
@@ -2685,7 +2894,7 @@
           this.entities.push(entity);
           if (
             this.environmentCyclesCompleted >= CONFIG.tankUnlockCycle &&
-            Math.random() < CONFIG.tankSpawnChance
+            Math.random() < (desert ? CONFIG.desertTankSpawnChance : CONFIG.tankSpawnChance)
           ) {
             const tankZ = z + 12;
             const tankRiver = this.getRiverAtZ(tankZ);
@@ -2712,13 +2921,13 @@
               `MÍSSEIS · HELICÓPTEROS +${Math.round(helicopterBonus * 100)}%`;
           } else if (this.selectedStartingRound === 3) {
             dom.roundDescription.textContent =
-              `MÍSSEIS · TANQUES · HELICÓPTEROS +${Math.round(helicopterBonus * 100)}%`;
+              `DESERTO · MÍSSEIS · TANQUES · HELICÓPTEROS +${Math.round(helicopterBonus * 100)}%`;
           } else if (this.selectedStartingRound === 4) {
             dom.roundDescription.textContent =
-              `NAVIOS ARMADOS · TANQUES · HELICÓPTEROS +${Math.round(helicopterBonus * 100)}%`;
+              `DESERTO · NAVIOS ARMADOS · TANQUES · HELICÓPTEROS +${Math.round(helicopterBonus * 100)}%`;
           } else {
             dom.roundDescription.textContent =
-              `NAVIOS ARMADOS · TANQUES NAS ILHAS · HELICÓPTEROS +${Math.round(helicopterBonus * 100)}%`;
+              `DESERTO · NAVIOS ARMADOS · TANQUES NAS ILHAS · HELICÓPTEROS +${Math.round(helicopterBonus * 100)}%`;
           }
         }
 
@@ -3930,6 +4139,7 @@
         renderGameToText() {
           const river = this.getRiverAtZ(CONFIG.playerZ);
           const riverNavigation = this.getRiverNavigation(river, this.player.position.x);
+          const environmentPhase = this.getEnvironmentPhase();
           const firstForkDistance = this.getFirstRiverForkDistance();
           const nextForkIndex = firstForkDistance == null || this.distance < firstForkDistance
             ? 0
@@ -4057,13 +4267,15 @@
               cockpit: 'cockpit',
             }[this.cameraMode],
             environment: {
-              key: ENVIRONMENT_PHASES[this.environmentIndex].key,
-              label: ENVIRONMENT_PHASES[this.environmentIndex].label,
+              key: environmentPhase.key,
+              label: environmentPhase.label,
+              biome: environmentPhase.biome,
               transitioning: Boolean(this.environmentTransition),
-              guidanceLights: ENVIRONMENT_PHASES[this.environmentIndex].guidanceLights,
+              guidanceLights: environmentPhase.guidanceLights,
+              sandIntensity: environmentPhase.sandIntensity || 0,
               completedCycles: this.environmentCyclesCompleted,
-              shipSpeedMultiplier: ENVIRONMENT_PHASES[this.environmentIndex].shipSpeedMultiplier,
-              helicopterSpeedMultiplier: ENVIRONMENT_PHASES[this.environmentIndex].helicopterSpeedMultiplier,
+              shipSpeedMultiplier: environmentPhase.shipSpeedMultiplier,
+              helicopterSpeedMultiplier: environmentPhase.helicopterSpeedMultiplier,
             },
             score: this.score,
             lives: this.lives,
@@ -4112,6 +4324,10 @@
               tankIslandUnlockCycle: CONFIG.tankIslandUnlockCycle,
               tankIslandPlacementChance: CONFIG.tankIslandPlacementChance,
               tankIslandMinHalfWidth: CONFIG.tankIslandMinHalfWidth,
+              desertUnlockCycle: CONFIG.desertUnlockCycle,
+              desertFuelChance: CONFIG.desertFuelChance,
+              desertSupplyFuelChance: CONFIG.desertSupplyFuelChance,
+              desertTankSpawnChance: CONFIG.desertTankSpawnChance,
             },
             speed: Number(this.getSpeed().toFixed(1)),
             targetSpeed: Number(this.getTargetSpeed().toFixed(1)),

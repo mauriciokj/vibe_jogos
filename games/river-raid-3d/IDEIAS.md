@@ -16,7 +16,7 @@ Documento de referência para futuras atualizações do jogo.
 - [x] Bifurcações que dividem o rio em dois canais e depois voltam a uni-lo.
 - [x] Tanques nas margens a partir da rodada 3.
 - [ ] Ranking online com nome do jogador.
-- [ ] Bioma desértico desbloqueado em um ciclo avançado.
+- [x] Bioma desértico desbloqueado no terceiro ciclo.
 - [ ] Bioma Jungle desbloqueado depois do Deserto.
 - [ ] Eventos avançados: caça perseguidor, trem armado e tanques nas margens.
 
@@ -192,6 +192,8 @@ Status: estrutura procedural e primeira escolha de rota concluídas. As bifurca�
 
 Desbloqueio sugerido: início do terceiro ciclo completo; não aparece nas primeiras rodadas.
 
+Status: primeira versão concluída. O Deserto começa na rodada 3 com cinco momentos próprios, margens arenosas, formações secas, cactos, areia no ar, menor frequência de FUEL e maior presença de tanques. Variações de precisão e eventos exclusivos continuam como expansões futuras.
+
 - O rio continua navegável, mas passa entre margens arenosas, dunas, cânions e formações rochosas secas.
 - Paleta quente, céu esbranquiçado, névoa de calor e partículas de areia diferenciam o bioma.
 - Depósitos FUEL aparecem com menor frequência, incentivando controle de velocidade e planejamento.
@@ -247,7 +249,7 @@ Desbloqueio sugerido: início do quarto ciclo completo, depois de o jogador atra
 3. Concluído: criar a primeira bifurcação simples com dois canais equivalentes.
 4. Concluído: adicionar recompensas diferentes para cada rota.
 5. Concluído: adicionar tanques comuns nas margens como primeiro inimigo terrestre.
-6. Criar o ciclo 3 no Deserto e integrar tanques e tempestades de areia.
+6. Concluído: criar o ciclo 3 no Deserto e integrar tanques e tempestades de areia.
 7. Criar o ciclo 4 na Jungle com canais estreitos, chuva e emboscadas.
 8. Implementar o trem armado como evento lateral temporário.
 9. Implementar o caça perseguidor como evento de ciclo avançado.

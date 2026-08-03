@@ -239,3 +239,9 @@ Original prompt: Criar um novo jogo retro inspirado em River Raid, em Three.js, 
 - Ajuste solicitado na `v1.5.0`: tanques continuam exclusivos das margens nas rodadas 3 e 4; a partir da rodada 5, metade das novas posições durante bifurcações largas pode usar a ilha central.
 - Geração forçada confirmou margem na rodada 4 e ilha central na rodada 5. O tanque central permaneceu dentro de 0,6 unidade do eixo da ilha, preservando mais de 4,5 unidades de folga segura no canal escolhido.
 - Captura da câmera Chase inspecionada com tanque, torre e disparo sobre a ilha central; os dois canais permaneceram livres e não houve erros de console.
+- `v1.5.0` aprovada, registrada no commit `19ea18a` e publicada em produção em `https://vibe-jogos.vercel.app/games/river-raid-3d/`; a página pública retornou e exibiu `v1.5.0` com gameplay funcional.
+- `v1.6.0` em implementação com o Deserto desbloqueado ao entrar na rodada 3. Rodadas 1 e 2 continuam usando o Vale Verde.
+- O Deserto possui Sol Forte, Entardecer, Noite, Tempestade e Amanhecer, com paletas próprias, cactos, formações secas e partículas de areia; a tempestade usa neblina curta e areia intensa.
+- Probabilidade de FUEL em rio aberto cai de 22% para 13%; na rota de suprimento cai de 34% para 24%. Tanques sobem de 20% para 28% dos eventos elegíveis.
+- Geração controlada com o mesmo valor 0,18 produziu FUEL na rodada 2 e navio na rodada 3. A troca natural ao completar o segundo ciclo concedeu vida e entrou em `DESERTO · SOL FORTE`.
+- As cinco fases, câmera Chase, Top-Down, Cockpit, pausa, movimento e viewport móvel de 390×844 passaram sem erros de console. Etapa local e ainda sem commit.

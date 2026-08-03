@@ -8,6 +8,14 @@ O jogo usa versionamento semântico:
 
 Cada publicação deve atualizar `GAME_VERSION` no `index.html` e registrar as mudanças neste arquivo.
 
+## 1.6.0 — 2026-08-02
+
+- Bioma Deserto desbloqueado ao entrar na rodada 3; as duas primeiras rodadas permanecem no Vale Verde.
+- Cinco momentos próprios: Sol Forte, Entardecer, Noite, Tempestade e Amanhecer.
+- Margens arenosas, cânions, cactos e partículas de areia substituem a vegetação do vale.
+- FUEL fica menos frequente e tanques aparecem com maior probabilidade no Deserto.
+- Transição de ciclo, três câmeras, pausa, controles e layout móvel preservados.
+
 ## 1.5.0 — 2026-08-02
 
 - Tanques terrestres começam a aparecer nas margens somente a partir da rodada 3.
