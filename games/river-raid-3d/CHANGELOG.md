@@ -8,6 +8,15 @@ O jogo usa versionamento semântico:
 
 Cada publicação deve atualizar `GAME_VERSION` no `index.html` e registrar as mudanças neste arquivo.
 
+## 1.14.1 — 2026-08-04
+
+- O jogo pausa automaticamente ao ocultar a aba, trocar de aplicativo ou perder o foco da janela.
+- Todos os controles pressionados são liberados imediatamente para impedir movimento, aceleração ou tiro presos no retorno.
+- A partida permanece pausada até o jogador escolher `CONTINUAR`, evitando retomadas perigosas sem confirmação.
+- O aviso de retorno mostra `PRESSIONE [P]` no computador e `TOQUE EM CONTINUAR` somente quando os controles móveis estão ativos.
+- O relógio interno é reiniciado ao voltar para primeiro plano, sem saltos de tempo, consumo extra de combustível ou avanço de ameaças.
+- Estado textual informa se a pausa foi automática e qual evento a acionou.
+
 ## 1.14.0 — 2026-08-04
 
 - Jogadores podem alternar entre dois layouts móveis durante a partida; a escolha fica salva no aparelho.

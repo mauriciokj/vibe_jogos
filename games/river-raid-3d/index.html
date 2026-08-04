@@ -1313,7 +1313,7 @@
 
     <script src="./vendor/three.min.js"></script>
     <script>
-      const GAME_VERSION = '1.14.0';
+      const GAME_VERSION = '1.14.1';
       const platformOverrides =
         window.RIO_DE_ACO_CONFIG && typeof window.RIO_DE_ACO_CONFIG === 'object'
           ? window.RIO_DE_ACO_CONFIG
@@ -2132,6 +2132,8 @@
           this.clock = new THREE.Clock();
           this.manualStepping = false;
           this.mode = 'MENU';
+          this.autoPaused = false;
+          this.backgroundPauseSource = null;
           this.elapsed = 0;
           this.score = 0;
           this.comboCount = 0;
@@ -5081,7 +5083,42 @@
 
           addEventListener('blur', () => {
             this.releaseTouchInputs();
+            this.pauseForBackground('janela sem foco');
           });
+          addEventListener('focus', () => this.prepareForegroundReturn());
+          addEventListener('pagehide', () => this.pauseForBackground('aplicativo em segundo plano'));
+          addEventListener('pageshow', () => this.prepareForegroundReturn());
+          document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+              this.pauseForBackground('aba oculta');
+            } else {
+              this.prepareForegroundReturn();
+            }
+          });
+        }
+
+        pauseForBackground(source = 'segundo plano') {
+          this.releaseTouchInputs();
+          if (this.mode !== 'PLAYING') return;
+          this.mode = 'PAUSED';
+          this.autoPaused = true;
+          this.backgroundPauseSource = source;
+          this.showToast(this.getPauseResumeMessage(), 999);
+          this.audio.setEngine(this.getSpeedRatio(), false);
+          this.updateHUD();
+        }
+
+        getPauseResumeMessage() {
+          return this.mobileLayout
+            ? 'JOGO PAUSADO · TOQUE EM CONTINUAR'
+            : 'JOGO PAUSADO · PRESSIONE [P] PARA CONTINUAR';
+        }
+
+        prepareForegroundReturn() {
+          if (!this.manualStepping) this.clock.start();
+          if (!this.autoPaused || this.mode !== 'PAUSED') return;
+          this.showToast(this.getPauseResumeMessage(), 999);
+          this.updateHUD();
         }
 
         startOrRestart(requestedMode = 'classic') {
@@ -5182,6 +5219,9 @@
           this.player.rotation.set(0, 0, 0);
           this.cameraTargetX = this.player.position.x;
           this.mode = 'PLAYING';
+          this.autoPaused = false;
+          this.backgroundPauseSource = null;
+          if (!this.manualStepping) this.clock.start();
           this.syncCameraVisuals();
           this.seedOpeningRun();
           this.updateMissileAlert(0, false);
@@ -5234,9 +5274,14 @@
           if (this.mode === 'PLAYING') {
             this.releaseTouchInputs();
             this.mode = 'PAUSED';
+            this.autoPaused = false;
+            this.backgroundPauseSource = null;
             this.showToast('PAUSA', 999);
           } else if (this.mode === 'PAUSED') {
             this.mode = 'PLAYING';
+            this.autoPaused = false;
+            this.backgroundPauseSource = null;
+            if (!this.manualStepping) this.clock.start();
             this.toastTimer = 0;
             dom.toast.classList.remove('show');
           }
@@ -5389,7 +5434,6 @@
         }
 
         update(dt) {
-          this.elapsed += dt;
           if (this.toastTimer > 0) {
             this.toastTimer -= dt;
             if (this.toastTimer <= 0) dom.toast.classList.remove('show');
@@ -5402,6 +5446,8 @@
             this.updateCamera(dt);
             return;
           }
+
+          this.elapsed += dt;
 
           if (this.mode === 'CRASH') {
             this.audio.setEngine(this.getSpeedRatio(), false);
@@ -6812,6 +6858,11 @@
             },
             coordinateSystem: 'x: esquerda(-)/direita(+); z: à frente é negativo; avião permanece em z=8',
             mode: this.mode,
+            pause: {
+              automatic: this.autoPaused,
+              source: this.backgroundPauseSource,
+              requiresPlayerResume: this.mode === 'PAUSED',
+            },
             challenge: {
               mode: this.runMode,
               date: this.runMode === 'daily' ? this.dailyChallengeDate : null,

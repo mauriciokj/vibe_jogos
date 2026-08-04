@@ -351,3 +351,10 @@ Original prompt: Criar um novo jogo retro inspirado em River Raid, em Three.js, 
 - Cliente oficial confirmou que teclado, tiro, movimento e apresentação desktop continuam sem regressões.
 - `v1.14.0` aprovada pelo usuário após teste dos dois layouts móveis; pronta para registro no histórico do projeto.
 - `v1.14.0` publicada em produção para teste móvel em `https://vibe-jogos.vercel.app/games/river-raid-3d/`; o HTML público confirmou a versão, o seletor persistente e os dois layouts de controles.
+- `v1.14.1` local adiciona pausa automática ao perder foco, ocultar a aba ou enviar o aplicativo para segundo plano. O retorno permanece em `PAUSED` até uma ação explícita em `CONTINUAR`/`P`.
+- A pausa automática libera imediatamente teclado e toques pressionados e registra a origem no estado textual. O relógio do Three.js é reiniciado antes da retomada para descartar o intervalo em segundo plano.
+- O aviso de retorno agora se adapta à plataforma: desktop mostra `PRESSIONE [P] PARA CONTINUAR`; celular mostra `TOQUE EM CONTINUAR` junto ao botão móvel. Capturas 1280×720 e 390×844 foram inspecionadas sem sobreposições problemáticas.
+- Em uma espera simulada de 1,4 s, tempo, distância, combustível e posição permaneceram idênticos. Um segundo cenário confirmou que um tiro em voo e seu cooldown também ficaram exatamente congelados por 1,2 s e só avançaram após `CONTINUAR`.
+- Cliente oficial revalidou movimento, disparo, pausa manual e retomada sem erros de console.
+- Testes dedicados confirmaram que `P` retoma no computador e o botão `CONTINUAR` retoma no celular; clicar apenas no cenário não é apresentado como comando.
+- `v1.14.1` aprovada pelo usuário após validar a pausa automática e a instrução específica para computador; pronta para commit e publicação.

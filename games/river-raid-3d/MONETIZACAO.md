@@ -204,7 +204,7 @@ As notas abaixo são uma estimativa nossa, não uma promessa das plataformas. Fo
 - [ ] Permitir ajustar posição e tamanho dos botões.
 - [ ] Testar em telas pequenas, grandes, com recorte e em diferentes densidades.
 - [ ] Criar níveis gráficos automáticos para aparelhos mais lentos.
-- [ ] Pausar ao perder foco e retomar sem saltos de tempo.
+- [x] Pausar ao perder foco e retomar sem saltos de tempo (`v1.14.1`).
 
 ### Etapa 3 — primeiro teste de mercado
 
