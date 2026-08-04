@@ -72,6 +72,7 @@ Original prompt: Build a classic Snake game in this repo.
 - River Raid 3D: `v1.9.0` adiciona o Caça Perseguidor na rodada 5, com perseguição de 5 segundos, enquadramento de fuga, míssil perto do fim, flare contextual por `E`/toque e bônus de 1.000 pontos.
 - River Raid 3D: `v1.10.0` adiciona barrel roll defensivo por `Q`, proteção de 0,9 segundo contra projéteis e um uso recarregado a cada fase ambiental.
 - River Raid 3D: `v1.11.0` adiciona ranking global isolado por jogo no Vercel KV, Top 5 no menu, envio de nome e estatísticas no Game Over e fallback persistente offline.
+- River Raid 3D: `v1.11.1` local estabiliza a memória gráfica com reutilização de terreno, pools de tiros/partículas, descarte de recursos, atualização incremental de biomas, HUD a 20 Hz e menor custo em telas Retina.
 - Sinuca iniciada em `games/sinuca/index.html` como arquivo único: canvas responsivo, bolas numeradas com volume 3D, física elástica com correção posicional, substeps adaptativos, atrito, tabelas, seis caçapas, turnos contra CPU, menu, placar e reinício.
 - Sinuca: primeira inspeção Playwright confirmou menu e mesa; margens do canvas e ordem visual do HUD foram ajustadas, e o triângulo passou a usar distância de dois raios com epsilon microscópico anti-sobreposição.
 - Sinuca: sem TODOs funcionais pendentes após a validação final.

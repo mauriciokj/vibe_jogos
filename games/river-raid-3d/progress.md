@@ -310,3 +310,9 @@ Original prompt: Criar um novo jogo retro inspirado em River Raid, em Three.js, 
 - Fallback offline salvou e recuperou o resultado após recarregar a página. Fluxo global simulado validou GET, POST, posição #2, reinício limpo e persistência do Top 5.
 - Sete testes de API e compatibilidade do Snake passaram. Menu, Game Over antes/depois do envio, gameplay e viewport 390×844 foram inspecionados sem erros ou rolagem horizontal.
 - Próximo bloco planejado: desafio diário determinístico com o mesmo percurso para todos os jogadores.
+- `v1.11.1` corrige as travadas periódicas: os oito planos de cada trecho do rio agora têm suas posições atualizadas sem recriar geometrias, e a troca completa de bioma é distribuída entre doze quadros.
+- Tiros, faíscas, explosões e flares passaram a usar geometrias compartilhadas e pools; inimigos, mísseis, projéteis, texturas de rótulo e materiais exclusivos são descartados ao sair da cena.
+- HUD foi limitado a 20 atualizações por segundo, holofotes deixaram de criar vetores temporários por quadro e luzes reais fora do campo visível são desativadas. Pixel ratio máximo caiu de 1,6 para 1,4 em telas Retina.
+- Medição anterior crescia de 254 para 273 geometrias durante uma sessão curta e de 273 para 310 após uma explosão. Na versão otimizada, seis reinícios estabilizaram em 155 geometrias e explosões repetidas reutilizaram os mesmos recursos.
+- Cliente oficial validou movimento, tiro e reciclagem contínua sem erros. Testes adicionais passaram nas três câmeras, pausa congelada, aceleração, barrel roll nos dois sentidos, Jungle noturna e seis reinícios consecutivos.
+- Capturas Chase, Top-Down, Cockpit e Jungle foram inspecionadas; visual low-poly, HUD, iluminação e enquadramentos permaneceram corretos. Alterações ainda locais, sem commit/deploy.

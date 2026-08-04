@@ -8,6 +8,18 @@ O jogo usa versionamento semântico:
 
 Cada publicação deve atualizar `GAME_VERSION` no `index.html` e registrar as mudanças neste arquivo.
 
+## 1.11.1 — 2026-08-04
+
+- Trechos do rio agora atualizam as mesmas geometrias em vez de destruir e recriar oito malhas a cada reciclagem.
+- Ondas, cactos, tiros, faíscas, explosões e flares reutilizam geometrias e materiais compartilhados.
+- Tiros e partículas usam pools limitados, evitando novas alocações durante rajadas e explosões repetidas.
+- Inimigos, mísseis, projéteis, rótulos e luzes liberam seus recursos gráficos ao sair da cena ou no reinício.
+- Mudanças grandes de bioma distribuem a renovação dos doze trechos ao longo de vários quadros.
+- HUD passou de atualizações em todos os quadros para 20 atualizações por segundo, mantendo respostas importantes imediatas.
+- Holofotes reutilizam vetores temporários e luzes reais ficam desativadas fora da área visível.
+- Resolução Retina foi limitada a `1.4×`, reduzindo aproximadamente 23% dos pixels em relação ao limite anterior de `1.6×`.
+- Diagnóstico de desempenho foi adicionado ao estado textual com geometrias, texturas, chamadas de desenho e pools.
+
 ## 1.11.0 — 2026-08-04
 
 - Ranking global do Rio de Aço isolado do placar do Snake na API serverless com Vercel KV.

@@ -914,7 +914,7 @@
     <script type="module">
       import * as THREE from 'https://unpkg.com/three@0.168.0/build/three.module.js';
 
-      const GAME_VERSION = '1.11.0';
+      const GAME_VERSION = '1.11.1';
       const LEADERBOARD_API_URL = '/api/leaderboard';
       const LEADERBOARD_GAME = 'river-raid-3d';
       const LEADERBOARD_STORAGE_KEY = 'rio-de-aco-leaderboard';
@@ -1021,6 +1021,10 @@
         barrelRollDuration: 0.9,
         barrelRollLift: 2.1,
         barrelRollLateralDistance: 3.2,
+        maxPixelRatio: 1.4,
+        hudRefreshRate: 20,
+        maxBulletPool: 48,
+        maxParticlePool: 180,
       };
 
       const COLORS = {
@@ -1486,6 +1490,17 @@
         return geometry;
       }
 
+      function updateQuadGeometry(geometry, points) {
+        const positions = geometry.attributes.position;
+        let offset = 0;
+        for (const point of points) {
+          positions.setXYZ(offset, point[0], point[1], point[2]);
+          offset += 1;
+        }
+        positions.needsUpdate = true;
+        geometry.computeVertexNormals();
+      }
+
       function makeLabelSprite(text, foreground = '#15243a', background = '#ffd84d') {
         const canvas = document.createElement('canvas');
         canvas.width = 256;
@@ -1633,7 +1648,7 @@
       class RiverRaidGame {
         constructor() {
           this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-          this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.6));
+          this.renderer.setPixelRatio(Math.min(devicePixelRatio, CONFIG.maxPixelRatio));
           this.renderer.setSize(innerWidth, innerHeight);
           this.renderer.outputColorSpace = THREE.SRGBColorSpace;
           this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -1740,8 +1755,17 @@
           this.missiles = [];
           this.enemyShells = [];
           this.particles = [];
+          this.bulletPool = [];
+          this.particlePool = [];
           this.terrain = [];
+          this.terrainRefreshQueue = [];
           this.waterMaterials = [];
+          this.lastHudUpdateAt = -Infinity;
+          this.tempVectorA = new THREE.Vector3();
+          this.tempVectorB = new THREE.Vector3();
+          this.tempVectorC = new THREE.Vector3();
+          this.tempQuaternion = new THREE.Quaternion();
+          this.downVector = new THREE.Vector3(0, -1, 0);
 
           this.createMaterials();
           this.cockpitRig = this.createCockpitRig();
@@ -1795,6 +1819,11 @@
             tank: new THREE.MeshLambertMaterial({ color: 0x6f793d, flatShading: true }),
             tankDark: new THREE.MeshLambertMaterial({ color: 0x303b2b, flatShading: true }),
             cactus: new THREE.MeshLambertMaterial({ color: 0x37633c, flatShading: true }),
+            wave: new THREE.MeshBasicMaterial({ color: COLORS.waterBright, transparent: true, opacity: 0.58 }),
+            bullet: new THREE.MeshBasicMaterial({ color: 0xfff36a }),
+            flareWhite: new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.96 }),
+            flareYellow: new THREE.MeshBasicMaterial({ color: 0xffd84d, transparent: true, opacity: 0.96 }),
+            flareRed: new THREE.MeshBasicMaterial({ color: 0xff5a45, transparent: true, opacity: 0.96 }),
           };
 
           this.shared = {
@@ -1802,27 +1831,99 @@
             hill: new THREE.ConeGeometry(3.4, 5.2, 6),
             tree: new THREE.ConeGeometry(1.25, 3.8, 5),
             trunk: new THREE.CylinderGeometry(0.24, 0.32, 1.5, 5),
+            cactusStem: new THREE.CylinderGeometry(0.28, 0.36, 3.4, 6),
+            cactusArm: new THREE.CylinderGeometry(0.17, 0.21, 1.35, 6),
+            cactusTip: new THREE.CylinderGeometry(0.15, 0.19, 0.9, 6),
+            wave: new THREE.PlaneGeometry(1, 0.09),
+            bullet: new THREE.BoxGeometry(0.24, 0.24, 2.1),
+            particle: new THREE.TetrahedronGeometry(1, 0),
+            flareParticle: new THREE.OctahedronGeometry(1, 0),
           };
+          this.persistentGeometries = new Set(Object.values(this.shared));
+          this.persistentMaterials = new Set(Object.values(this.materials));
+        }
+
+        disposeObject3D(root) {
+          if (!root) return;
+          const disposedGeometries = new Set();
+          const disposedMaterials = new Set();
+          root.traverse((object) => {
+            const geometry = object.geometry;
+            if (
+              geometry &&
+              !this.persistentGeometries.has(geometry) &&
+              !disposedGeometries.has(geometry)
+            ) {
+              geometry.dispose();
+              disposedGeometries.add(geometry);
+            }
+            const materials = Array.isArray(object.material)
+              ? object.material
+              : object.material ? [object.material] : [];
+            for (const material of materials) {
+              if (this.persistentMaterials.has(material) || disposedMaterials.has(material)) continue;
+              material.map?.dispose();
+              material.dispose();
+              disposedMaterials.add(material);
+            }
+          });
+        }
+
+        removeObject3D(root, dispose = true) {
+          if (!root) return;
+          root.removeFromParent();
+          if (dispose) this.disposeObject3D(root);
+        }
+
+        acquireBullet() {
+          const mesh = this.bulletPool.pop() || new THREE.Mesh(this.shared.bullet, this.materials.bullet);
+          mesh.visible = true;
+          mesh.rotation.set(0, 0, 0);
+          mesh.scale.set(1, 1, 1);
+          return mesh;
+        }
+
+        releaseBullet(mesh) {
+          if (!mesh) return;
+          mesh.removeFromParent();
+          mesh.visible = false;
+          if (this.bulletPool.length < CONFIG.maxBulletPool) this.bulletPool.push(mesh);
+        }
+
+        acquireParticle(geometry, material) {
+          const mesh = this.particlePool.pop() || new THREE.Mesh(geometry, material);
+          mesh.geometry = geometry;
+          mesh.material = material;
+          mesh.visible = true;
+          mesh.rotation.set(0, 0, 0);
+          return mesh;
+        }
+
+        releaseParticle(mesh) {
+          if (!mesh) return;
+          mesh.removeFromParent();
+          mesh.visible = false;
+          if (this.particlePool.length < CONFIG.maxParticlePool) this.particlePool.push(mesh);
         }
 
         createCactus(scale = 1) {
           const cactus = new THREE.Group();
           const stem = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.28, 0.36, 3.4, 6),
+            this.shared.cactusStem,
             this.materials.cactus
           );
           stem.position.y = 1.7;
           cactus.add(stem);
           for (const side of [-1, 1]) {
             const arm = new THREE.Mesh(
-              new THREE.CylinderGeometry(0.17, 0.21, 1.35, 6),
+              this.shared.cactusArm,
               this.materials.cactus
             );
             arm.position.set(side * 0.48, 1.75 + (side > 0 ? 0.35 : 0), 0);
             arm.rotation.z = side * Math.PI / 2.7;
             cactus.add(arm);
             const tip = new THREE.Mesh(
-              new THREE.CylinderGeometry(0.15, 0.19, 0.9, 6),
+              this.shared.cactusTip,
               this.materials.cactus
             );
             tip.position.set(side * 0.92, 2.1 + (side > 0 ? 0.35 : 0), 0);
@@ -2263,12 +2364,13 @@
         }
 
         refreshTerrainShapes() {
-          for (const segment of this.terrain) {
-            this.rebuildTerrainSegment(segment, segment.worldIndex);
-          }
+          this.terrainRefreshQueue = [...this.terrain].sort(
+            (left, right) => right.group.position.z - left.group.position.z
+          );
         }
 
         resetTerrainRun() {
+          this.terrainRefreshQueue.length = 0;
           for (let index = 0; index < this.terrain.length; index += 1) {
             const segment = this.terrain[index];
             const worldIndex = index - 1;
@@ -2279,11 +2381,7 @@
 
         rebuildTerrainSegment(segment, worldIndex) {
           segment.worldIndex = worldIndex;
-          for (const mesh of segment.meshes) {
-            segment.group.remove(mesh);
-            mesh.geometry.dispose();
-          }
-          segment.meshes.length = 0;
+          this.disposeObject3D(segment.decorations);
           segment.decorations.clear();
 
           const halfLength = CONFIG.segmentLength / 2;
@@ -2293,102 +2391,89 @@
           segment.ahead = ahead;
           segment.behind = behind;
 
-          const water = new THREE.Mesh(
-            makeQuadGeometry([
+          const quadPoints = [
+            [
               [behind.center - behind.halfWidth, 0.03, halfLength],
               [behind.center + behind.halfWidth, 0.03, halfLength],
               [ahead.center - ahead.halfWidth, 0.03, -halfLength],
               [ahead.center + ahead.halfWidth, 0.03, -halfLength],
-            ]),
-            this.materials.water
-          );
-
-          const leftBank = new THREE.Mesh(
-            makeQuadGeometry([
+            ],
+            [
               [-CONFIG.terrainHalfWidth, 0.18, halfLength],
               [behind.center - behind.halfWidth, 0.18, halfLength],
               [-CONFIG.terrainHalfWidth, 0.18, -halfLength],
               [ahead.center - ahead.halfWidth, 0.18, -halfLength],
-            ]),
-            worldIndex % 2 ? this.materials.bank : this.materials.bankDark
-          );
-
-          const rightBank = new THREE.Mesh(
-            makeQuadGeometry([
+            ],
+            [
               [behind.center + behind.halfWidth, 0.18, halfLength],
               [CONFIG.terrainHalfWidth, 0.18, halfLength],
               [ahead.center + ahead.halfWidth, 0.18, -halfLength],
               [CONFIG.terrainHalfWidth, 0.18, -halfLength],
-            ]),
-            worldIndex % 2 ? this.materials.bankDark : this.materials.bank
-          );
-
-          const leftCliff = new THREE.Mesh(
-            makeQuadGeometry([
+            ],
+            [
               [behind.center - behind.halfWidth, -0.55, halfLength],
               [behind.center - behind.halfWidth, 0.2, halfLength],
               [ahead.center - ahead.halfWidth, -0.55, -halfLength],
               [ahead.center - ahead.halfWidth, 0.2, -halfLength],
-            ]),
-            this.materials.soil
-          );
-
-          const rightCliff = new THREE.Mesh(
-            makeQuadGeometry([
+            ],
+            [
               [behind.center + behind.halfWidth, 0.2, halfLength],
               [behind.center + behind.halfWidth, -0.55, halfLength],
               [ahead.center + ahead.halfWidth, 0.2, -halfLength],
               [ahead.center + ahead.halfWidth, -0.55, -halfLength],
-            ]),
-            this.materials.soil
-          );
-
-          const island = new THREE.Mesh(
-            makeQuadGeometry([
+            ],
+            [
               [behind.center - behind.islandHalfWidth, 0.22, halfLength],
               [behind.center + behind.islandHalfWidth, 0.22, halfLength],
               [ahead.center - ahead.islandHalfWidth, 0.22, -halfLength],
               [ahead.center + ahead.islandHalfWidth, 0.22, -halfLength],
-            ]),
-            worldIndex % 2 ? this.materials.bankDark : this.materials.bank
-          );
-
-          const islandLeftCliff = new THREE.Mesh(
-            makeQuadGeometry([
+            ],
+            [
               [behind.center - behind.islandHalfWidth, -0.5, halfLength],
               [behind.center - behind.islandHalfWidth, 0.24, halfLength],
               [ahead.center - ahead.islandHalfWidth, -0.5, -halfLength],
               [ahead.center - ahead.islandHalfWidth, 0.24, -halfLength],
-            ]),
-            this.materials.soil
-          );
-
-          const islandRightCliff = new THREE.Mesh(
-            makeQuadGeometry([
+            ],
+            [
               [behind.center + behind.islandHalfWidth, 0.24, halfLength],
               [behind.center + behind.islandHalfWidth, -0.5, halfLength],
               [ahead.center + ahead.islandHalfWidth, 0.24, -halfLength],
               [ahead.center + ahead.islandHalfWidth, -0.5, -halfLength],
-            ]),
-            this.materials.soil
-          );
+            ],
+          ];
+          const materials = [
+            this.materials.water,
+            worldIndex % 2 ? this.materials.bank : this.materials.bankDark,
+            worldIndex % 2 ? this.materials.bankDark : this.materials.bank,
+            this.materials.soil,
+            this.materials.soil,
+            worldIndex % 2 ? this.materials.bankDark : this.materials.bank,
+            this.materials.soil,
+            this.materials.soil,
+          ];
+
+          if (segment.meshes.length === 0) {
+            for (let index = 0; index < quadPoints.length; index += 1) {
+              const mesh = new THREE.Mesh(makeQuadGeometry(quadPoints[index]), materials[index]);
+              segment.meshes.push(mesh);
+            }
+            segment.group.add(...segment.meshes);
+          } else {
+            for (let index = 0; index < segment.meshes.length; index += 1) {
+              updateQuadGeometry(segment.meshes[index].geometry, quadPoints[index]);
+              segment.meshes[index].material = materials[index];
+            }
+          }
+
+          const island = segment.meshes[5];
+          const islandLeftCliff = segment.meshes[6];
+          const islandRightCliff = segment.meshes[7];
 
           const islandVisible = Math.max(ahead.islandHalfWidth, behind.islandHalfWidth) > 0.03;
           island.visible = islandVisible;
           islandLeftCliff.visible = islandVisible;
           islandRightCliff.visible = islandVisible;
 
-          segment.meshes.push(
-            water,
-            leftBank,
-            rightBank,
-            leftCliff,
-            rightCliff,
-            island,
-            islandLeftCliff,
-            islandRightCliff
-          );
-          segment.group.add(...segment.meshes);
           this.addTerrainDecorations(segment);
         }
 
@@ -2494,10 +2579,8 @@
             const distance = segment.worldIndex * 17 + i * 4;
             const t = seededNoise(distance);
             const river = this.interpolateRiverShape(segment.ahead, segment.behind, t);
-            const wave = new THREE.Mesh(
-              new THREE.PlaneGeometry(2.6 + seededNoise(distance + 3) * 2.5, 0.09),
-              new THREE.MeshBasicMaterial({ color: COLORS.waterBright, transparent: true, opacity: 0.58 })
-            );
+            const wave = new THREE.Mesh(this.shared.wave, this.materials.wave);
+            wave.scale.x = 2.6 + seededNoise(distance + 3) * 2.5;
             wave.rotation.x = -Math.PI / 2;
             wave.position.set(
               this.pickNavigableRiverX(river, seededNoise(distance + 9), 0.72),
@@ -2788,6 +2871,7 @@
             group.add(lens);
             const light = new THREE.PointLight(spec.color, 0, index === 2 ? 18 : 12, 1.8);
             light.position.copy(lens.position);
+            light.visible = false;
             group.add(light);
             return { lens, light, phase: spec.phase, baseIntensity: spec.baseIntensity, blinking };
           });
@@ -2817,6 +2901,7 @@
 
           const spot = new THREE.SpotLight(color, 0, length * 1.25, Math.atan(radius / length) * 1.45, 0.62, 1.35);
           spot.position.set(0, 0, 0);
+          spot.visible = false;
           const target = new THREE.Object3D();
           target.position.set(0, -length, 0);
           aim.add(spot, target);
@@ -2844,18 +2929,22 @@
           const obscured = ['fog', 'sandstorm', 'tropical-rain', 'jungle-mist'].includes(environmentKey);
           const night = ['night', 'desert-night', 'jungle-night'].includes(environmentKey);
           const opacity = obscured ? 0.22 : night ? 0.16 : 0.1;
+          const lightWorldZ = group.getWorldPosition(this.tempVectorC).z;
+          const inLightingRange = lightWorldZ > -145 && lightWorldZ < 55;
+          const renderActive = active && inLightingRange;
           for (const searchlight of group.userData.searchLights || []) {
-            searchlight.beam.visible = active;
-            searchlight.beam.material.opacity = active ? (targetPosition ? Math.max(opacity, 0.2) : opacity) : 0;
-            searchlight.spot.intensity = active ? (obscured ? 7 : night ? 5.8 : 4.2) : 0;
+            searchlight.beam.visible = renderActive;
+            searchlight.beam.material.opacity = renderActive ? (targetPosition ? Math.max(opacity, 0.2) : opacity) : 0;
+            searchlight.spot.visible = renderActive;
+            searchlight.spot.intensity = renderActive ? (obscured ? 7 : night ? 5.8 : 4.2) : 0;
             searchlight.trackingTarget = Boolean(active && targetPosition);
             if (targetPosition) {
               searchlight.pivot.rotation.set(0, 0, 0);
-              const origin = searchlight.pivot.getWorldPosition(new THREE.Vector3());
-              const direction = targetPosition.clone().sub(origin).normalize();
-              const parentQuaternion = searchlight.aim.parent.getWorldQuaternion(new THREE.Quaternion()).invert();
+              const origin = searchlight.pivot.getWorldPosition(this.tempVectorA);
+              const direction = this.tempVectorB.copy(targetPosition).sub(origin).normalize();
+              const parentQuaternion = searchlight.aim.parent.getWorldQuaternion(this.tempQuaternion).invert();
               direction.applyQuaternion(parentQuaternion).normalize();
-              searchlight.aim.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), direction);
+              searchlight.aim.quaternion.setFromUnitVectors(this.downVector, direction);
             } else {
               searchlight.aim.quaternion.copy(searchlight.defaultAimQuaternion);
             }
@@ -2872,9 +2961,12 @@
 
         updateVehicleNavigationLights(group, forceSearchlight = false, targetPosition = null) {
           const active = this.getEnvironmentPhase().guidanceLights;
+          const lightWorldZ = group.getWorldPosition(this.tempVectorC).z;
+          const inLightingRange = lightWorldZ > -120 && lightWorldZ < 50;
           for (const item of group.userData.navigationLights || []) {
             const wave = 0.5 + Math.sin(this.elapsed * (item.blinking ? 7.5 : 3.2) + item.phase) * 0.5;
             const pulse = item.blinking ? (wave > 0.42 ? 1 : 0.12) : 0.82 + wave * 0.18;
+            item.light.visible = active && inLightingRange;
             item.light.intensity = active ? item.baseIntensity * pulse : 0;
             item.lens.material.opacity = active ? 0.95 : 0.38;
             item.lens.scale.setScalar(active ? 0.9 + pulse * 0.42 : 0.72);
@@ -3058,6 +3150,7 @@
 
           const light = new THREE.PointLight(color, 0, 18, 1.7);
           light.position.y = 5.0;
+          light.visible = false;
           beacon.add(light);
           beacon.userData.lens = lens;
           beacon.userData.light = light;
@@ -3077,9 +3170,12 @@
 
         updateNavigationBeacon(beacon, targetPosition = null) {
           const active = this.getEnvironmentPhase().guidanceLights || Boolean(targetPosition);
+          const lightWorldZ = beacon.getWorldPosition(this.tempVectorC).z;
+          const inLightingRange = lightWorldZ > -145 && lightWorldZ < 55;
           const pulse = 0.72 + Math.sin(this.elapsed * 5.5 + beacon.userData.phase) * 0.28;
           beacon.userData.lens.scale.setScalar(active ? 0.85 + pulse * 0.55 : 0.82);
           beacon.userData.lens.material.opacity = active ? 1 : 0.5;
+          beacon.userData.light.visible = active && inLightingRange;
           beacon.userData.light.intensity = active ? 1.5 + pulse * 2.4 : 0;
           this.updateSearchlights(beacon, active, targetPosition);
         }
@@ -3640,16 +3736,14 @@
           origin.y += 0.2;
           origin.z += 2.2;
           for (let index = 0; index < 22; index += 1) {
-            const material = new THREE.MeshBasicMaterial({
-              color: index % 3 === 0 ? 0xffffff : index % 2 ? 0xffd84d : 0xff5a45,
-              transparent: true,
-              opacity: 0.96,
-            });
-            const mesh = new THREE.Mesh(
-              new THREE.OctahedronGeometry(0.16 + Math.random() * 0.2, 0),
-              material
-            );
+            const material = index % 3 === 0
+              ? this.materials.flareWhite
+              : index % 2 ? this.materials.flareYellow : this.materials.flareRed;
+            const mesh = this.acquireParticle(this.shared.flareParticle, material);
+            const baseScale = 0.16 + Math.random() * 0.2;
+            const life = 0.7 + Math.random() * 0.65;
             mesh.position.copy(origin);
+            mesh.scale.setScalar(baseScale * life);
             this.scene.add(mesh);
             this.particles.push({
               mesh,
@@ -3658,7 +3752,8 @@
                 2 + Math.random() * 8,
                 4 + Math.random() * 11
               ),
-              life: 0.7 + Math.random() * 0.65,
+              life,
+              baseScale,
             });
           }
         }
@@ -3669,7 +3764,7 @@
           const missileIndex = this.missiles.indexOf(missile);
           this.spawnFlareBurst();
           this.spawnSparks(missile.group.position.clone(), 12);
-          this.scene.remove(missile.group);
+          this.removeObject3D(missile.group);
           if (missileIndex >= 0) this.missiles.splice(missileIndex, 1);
           this.flaresUsed += 1;
           this.audio.missileDestroyed();
@@ -3681,11 +3776,11 @@
 
         endFighterPursuit(escaped, interrupted = false, reason = 'survival') {
           if (!this.pursuitFighter) return;
-          this.scene.remove(this.pursuitFighter.group);
+          this.removeObject3D(this.pursuitFighter.group);
           this.pursuitFighter = null;
           for (let index = this.missiles.length - 1; index >= 0; index -= 1) {
             if (this.missiles[index].sourceType !== 'caça') continue;
-            this.scene.remove(this.missiles[index].group);
+            this.removeObject3D(this.missiles[index].group);
             this.missiles.splice(index, 1);
           }
           this.nextFighterDistance = this.distance + CONFIG.fighterInterval;
@@ -3964,7 +4059,7 @@
                 this.evadeProjectileWithBarrelRoll(this.enemyShells, index, shell);
                 continue;
               }
-              this.scene.remove(shell.group);
+              this.removeObject3D(shell.group);
               this.enemyShells.splice(index, 1);
               this.crash('ATINGIDO POR CANHÃO');
               return;
@@ -3975,7 +4070,7 @@
               shell.group.position.z > 90 ||
               Math.abs(shell.group.position.x) > 100
             ) {
-              this.scene.remove(shell.group);
+              this.removeObject3D(shell.group);
               this.enemyShells.splice(index, 1);
             }
           }
@@ -3993,12 +4088,12 @@
         }
 
         clearEntities() {
-          for (const entity of this.entities) this.scene.remove(entity.group);
-          for (const bullet of this.bullets) this.scene.remove(bullet.mesh);
-          for (const missile of this.missiles) this.scene.remove(missile.group);
-          for (const shell of this.enemyShells) this.scene.remove(shell.group);
-          for (const particle of this.particles) this.scene.remove(particle.mesh);
-          if (this.pursuitFighter) this.scene.remove(this.pursuitFighter.group);
+          for (const entity of this.entities) this.removeObject3D(entity.group);
+          for (const bullet of this.bullets) this.releaseBullet(bullet.mesh);
+          for (const missile of this.missiles) this.removeObject3D(missile.group);
+          for (const shell of this.enemyShells) this.removeObject3D(shell.group);
+          for (const particle of this.particles) this.releaseParticle(particle.mesh);
+          if (this.pursuitFighter) this.removeObject3D(this.pursuitFighter.group);
           this.entities.length = 0;
           this.bullets.length = 0;
           this.missiles.length = 0;
@@ -4361,7 +4456,7 @@
           this.audio.enable();
           this.resetLeaderboardSubmission();
           if (this.pursuitFighter) {
-            this.scene.remove(this.pursuitFighter.group);
+            this.removeObject3D(this.pursuitFighter.group);
             this.pursuitFighter = null;
           }
           const completedCycles = this.selectedStartingRound - 1;
@@ -4627,7 +4722,7 @@
 
         evadeProjectileWithBarrelRoll(collection, index, projectile) {
           const impactPosition = projectile.group.position.clone();
-          this.scene.remove(projectile.group);
+          this.removeObject3D(projectile.group);
           collection.splice(index, 1);
           this.barrelRollEvades += 1;
           this.spawnSparks(impactPosition, 14);
@@ -4637,10 +4732,7 @@
 
         shoot() {
           if (this.fireCooldown > 0 || this.mode !== 'PLAYING') return;
-          const mesh = new THREE.Mesh(
-            new THREE.BoxGeometry(0.24, 0.24, 2.1),
-            new THREE.MeshBasicMaterial({ color: 0xfff36a })
-          );
+          const mesh = this.acquireBullet();
           mesh.position.set(this.player.position.x, this.player.position.y - 0.12, CONFIG.playerZ - 3.1);
           this.scene.add(mesh);
           this.bullets.push({ mesh });
@@ -4746,7 +4838,7 @@
               this.checkPlayerCollisions();
               if (this.mode === 'PLAYING') this.updateBankSkim(dt);
             }
-            this.updateHUD();
+            this.updateHUD(false);
           } else {
             this.player.position.y = 2.7 + Math.sin(this.elapsed * 2.6) * 0.16;
             this.player.rotation.z = Math.sin(this.elapsed * 0.7) * 0.09;
@@ -4794,6 +4886,11 @@
               maxWorldIndex += 1;
               this.rebuildTerrainSegment(segment, maxWorldIndex);
             }
+          }
+
+          const queuedSegment = this.terrainRefreshQueue.shift();
+          if (queuedSegment) {
+            this.rebuildTerrainSegment(queuedSegment, queuedSegment.worldIndex);
           }
         }
 
@@ -4963,7 +5060,7 @@
               }
               if (entity.group.position.x <= entity.endX) {
                 entity.crossingComplete = true;
-                this.scene.remove(entity.group);
+                this.removeObject3D(entity.group);
                 this.entities.splice(index, 1);
                 continue;
               }
@@ -4990,14 +5087,14 @@
                 const aimX = entity.lockedAimX ?? this.player.position.x;
                 const aimZ = entity.lockedAimZ ?? CONFIG.playerZ;
                 entity.group.updateWorldMatrix(true, true);
-                const gunOrigin = gunPivot.getWorldPosition(new THREE.Vector3());
-                const localDirection = new THREE.Vector3(
+                const gunOrigin = gunPivot.getWorldPosition(this.tempVectorA);
+                const localDirection = this.tempVectorB.set(
                   aimX - gunOrigin.x,
                   0,
                   aimZ - gunOrigin.z
                 ).normalize();
                 const parentQuaternion = gunPivot.parent
-                  .getWorldQuaternion(new THREE.Quaternion())
+                  .getWorldQuaternion(this.tempQuaternion)
                   .invert();
                 localDirection.applyQuaternion(parentQuaternion).normalize();
                 const targetAngle = Math.atan2(localDirection.x, localDirection.z);
@@ -5088,7 +5185,7 @@
             }
 
             if (entity.group.position.z > 72) {
-              this.scene.remove(entity.group);
+              this.removeObject3D(entity.group);
               this.entities.splice(index, 1);
             }
           }
@@ -5140,7 +5237,7 @@
                 this.evadeProjectileWithBarrelRoll(this.missiles, index, missile);
                 continue;
               }
-              this.scene.remove(missile.group);
+              this.removeObject3D(missile.group);
               this.missiles.splice(index, 1);
               this.crash('ATINGIDO POR MÍSSIL');
               return;
@@ -5166,15 +5263,15 @@
               missile.group.position.z > 84 ||
               Math.abs(missile.group.position.x) > 95
             ) {
-              this.scene.remove(missile.group);
+              this.removeObject3D(missile.group);
               this.missiles.splice(index, 1);
             }
           }
         }
 
         clearMissiles() {
-          for (const missile of this.missiles) this.scene.remove(missile.group);
-          for (const shell of this.enemyShells) this.scene.remove(shell.group);
+          for (const missile of this.missiles) this.removeObject3D(missile.group);
+          for (const shell of this.enemyShells) this.removeObject3D(shell.group);
           this.missiles.length = 0;
           this.enemyShells.length = 0;
         }
@@ -5295,7 +5392,7 @@
                 const dx = Math.abs(bullet.mesh.position.x - missile.group.position.x);
                 if (dz >= 2.5 || dx >= 1.55) continue;
                 this.spawnExplosion(missile.group.position.clone(), 12);
-                this.scene.remove(missile.group);
+                this.removeObject3D(missile.group);
                 this.missiles.splice(missileIndex, 1);
                 const comboAward = this.awardCombatScore(CONFIG.missileDestroyScore, 'MÍSSIL ABATIDO');
                 this.missilesDestroyed += 1;
@@ -5335,7 +5432,7 @@
             }
 
             if (consumed || bullet.mesh.position.z < -240) {
-              this.scene.remove(bullet.mesh);
+              this.releaseBullet(bullet.mesh);
               this.bullets.splice(bulletIndex, 1);
             }
           }
@@ -5384,7 +5481,7 @@
             this.preserveBridgeBeacons(entity);
             nextEnvironment = this.advanceEnvironment();
           }
-          this.scene.remove(entity.group);
+          this.removeObject3D(entity.group);
           this.entities.splice(index, 1);
           if (entity.type === 'ponte') {
             const lifeMessage = nextEnvironment.lifeAwarded ? ' · VIDA EXTRA' : '';
@@ -5541,16 +5638,20 @@
 
         spawnSparks(position, count) {
           for (let i = 0; i < count; i += 1) {
-            const mesh = new THREE.Mesh(
-              new THREE.TetrahedronGeometry(0.12 + Math.random() * 0.12),
+            const mesh = this.acquireParticle(
+              this.shared.particle,
               Math.random() > 0.5 ? this.materials.yellow : this.materials.red
             );
+            const baseScale = 0.12 + Math.random() * 0.12;
+            const life = 0.35 + Math.random() * 0.35;
             mesh.position.copy(position);
+            mesh.scale.setScalar(baseScale * life);
             this.scene.add(mesh);
             this.particles.push({
               mesh,
               velocity: new THREE.Vector3((Math.random() - 0.5) * 7, Math.random() * 6, (Math.random() - 0.5) * 7),
-              life: 0.35 + Math.random() * 0.35,
+              life,
+              baseScale,
             });
           }
         }
@@ -5558,16 +5659,20 @@
         spawnExplosion(position, count = 24) {
           position.y += 1.2;
           for (let i = 0; i < count; i += 1) {
-            const mesh = new THREE.Mesh(
-              new THREE.TetrahedronGeometry(0.18 + Math.random() * 0.34),
+            const mesh = this.acquireParticle(
+              this.shared.particle,
               i % 3 === 0 ? this.materials.black : i % 2 ? this.materials.yellow : this.materials.red
             );
+            const baseScale = 0.18 + Math.random() * 0.34;
+            const life = 0.65 + Math.random() * 0.8;
             mesh.position.copy(position);
+            mesh.scale.setScalar(baseScale * life);
             this.scene.add(mesh);
             this.particles.push({
               mesh,
               velocity: new THREE.Vector3((Math.random() - 0.5) * 13, 2 + Math.random() * 10, (Math.random() - 0.5) * 13),
-              life: 0.65 + Math.random() * 0.8,
+              life,
+              baseScale,
             });
           }
         }
@@ -5580,9 +5685,11 @@
             particle.mesh.position.addScaledVector(particle.velocity, dt);
             particle.mesh.rotation.x += dt * 8;
             particle.mesh.rotation.y += dt * 10;
-            particle.mesh.scale.setScalar(Math.max(0.01, particle.life));
+            particle.mesh.scale.setScalar(
+              Math.max(0.01, particle.baseScale * Math.max(0.01, particle.life))
+            );
             if (particle.life <= 0) {
-              this.scene.remove(particle.mesh);
+              this.releaseParticle(particle.mesh);
               this.particles.splice(index, 1);
             }
           }
@@ -5647,7 +5754,7 @@
           for (let index = this.entities.length - 1; index >= 0; index -= 1) {
             const z = this.entities[index].group.position.z;
             if (z > CONFIG.playerZ - 18 && z < CONFIG.playerZ + 25) {
-              this.scene.remove(this.entities[index].group);
+              this.removeObject3D(this.entities[index].group);
               this.entities.splice(index, 1);
             }
           }
@@ -5684,14 +5791,23 @@
           );
           const chaseFov = lerp(56, 72, speedRatio);
           const cockpitFov = lerp(66, 82, speedRatio);
-          this.cameraChase.fov = damp(this.cameraChase.fov, chaseFov, 5.5, dt);
-          this.cameraCockpit.fov = damp(this.cameraCockpit.fov, cockpitFov, 5.5, dt);
+          const nextChaseFov = damp(this.cameraChase.fov, chaseFov, 5.5, dt);
+          const nextCockpitFov = damp(this.cameraCockpit.fov, cockpitFov, 5.5, dt);
           const topZoom =
             lerp(1, 0.86, speedRatio) * lerp(1, 0.88, this.pursuitCameraBlend);
-          this.cameraTop.zoom = damp(this.cameraTop.zoom, topZoom, 5.5, dt);
-          this.cameraChase.updateProjectionMatrix();
-          this.cameraCockpit.updateProjectionMatrix();
-          this.cameraTop.updateProjectionMatrix();
+          const nextTopZoom = damp(this.cameraTop.zoom, topZoom, 5.5, dt);
+          if (Math.abs(nextChaseFov - this.cameraChase.fov) > 0.005) {
+            this.cameraChase.fov = nextChaseFov;
+            this.cameraChase.updateProjectionMatrix();
+          }
+          if (Math.abs(nextCockpitFov - this.cameraCockpit.fov) > 0.005) {
+            this.cameraCockpit.fov = nextCockpitFov;
+            this.cameraCockpit.updateProjectionMatrix();
+          }
+          if (Math.abs(nextTopZoom - this.cameraTop.zoom) > 0.0005) {
+            this.cameraTop.zoom = nextTopZoom;
+            this.cameraTop.updateProjectionMatrix();
+          }
 
           this.cameraTargetX = damp(this.cameraTargetX, this.player.position.x, 4.8, dt);
           if (this.cameraMode === 'chase') {
@@ -5733,7 +5849,10 @@
           }
         }
 
-        updateHUD() {
+        updateHUD(force = true) {
+          const minInterval = 1 / CONFIG.hudRefreshRate;
+          if (!force && this.elapsed - this.lastHudUpdateAt < minInterval) return;
+          this.lastHudUpdateAt = this.elapsed;
           dom.score.textContent = String(this.score).padStart(6, '0');
           const comboActive = this.comboTimer > 0 && this.comboCount > 0;
           dom.combo.classList.toggle('active', comboActive);
@@ -5809,7 +5928,7 @@
           this.cameraTop.bottom = -vertical;
           this.cameraTop.updateProjectionMatrix();
           this.renderer.setSize(width, height);
-          this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.6));
+          this.renderer.setPixelRatio(Math.min(devicePixelRatio, CONFIG.maxPixelRatio));
         }
 
         renderGameToText() {
@@ -6233,6 +6352,16 @@
               topZoom: Number(this.cameraTop.zoom.toFixed(2)),
               enginePitch: Math.round(this.audio.enginePitch),
               engineLevel: Number(this.audio.engineLevel.toFixed(2)),
+            },
+            performance: {
+              geometries: this.renderer.info.memory.geometries,
+              textures: this.renderer.info.memory.textures,
+              drawCalls: this.renderer.info.render.calls,
+              triangles: this.renderer.info.render.triangles,
+              bulletPool: this.bulletPool.length,
+              particlePool: this.particlePool.length,
+              terrainRefreshPending: this.terrainRefreshQueue.length,
+              pixelRatio: Number(this.renderer.getPixelRatio().toFixed(2)),
             },
             distance: Number(this.distance.toFixed(1)),
             level: this.level,
