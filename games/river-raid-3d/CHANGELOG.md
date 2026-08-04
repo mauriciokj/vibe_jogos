@@ -8,6 +8,15 @@ O jogo usa versionamento semântico:
 
 Cada publicação deve atualizar `GAME_VERSION` no `index.html` e registrar as mudanças neste arquivo.
 
+## 1.15.0 — 2026-08-04
+
+- O botão `AJUSTE` abre uma área segura de personalização e pausa a partida durante a configuração.
+- Controles móveis oferecem três tamanhos: pequeno, médio e grande.
+- A visibilidade dos comandos de voo pode ser ajustada para 60%, 80% ou 100%.
+- Tamanho e visibilidade ficam salvos no aparelho e são restaurados ao abrir o jogo novamente.
+- O painel indica visualmente as opções ativas e mantém os dois layouts móveis compatíveis.
+- Estado textual informa tamanho, visibilidade e abertura do painel para testes e diagnóstico.
+
 ## 1.14.1 — 2026-08-04
 
 - O jogo pausa automaticamente ao ocultar a aba, trocar de aplicativo ou perder o foco da janela.

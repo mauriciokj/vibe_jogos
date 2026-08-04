@@ -443,6 +443,8 @@
 
       #mobile-controls {
         display: none;
+        --mobile-control-opacity: 1;
+        --mobile-control-scale: 1;
       }
 
       #mobile-controls[hidden] {
@@ -489,7 +491,7 @@
       }
 
       .mobile-command-row {
-        grid-template-columns: repeat(5, minmax(0, 1fr));
+        grid-template-columns: repeat(6, minmax(0, 1fr));
       }
 
       .mobile-command-row .mobile-control-button {
@@ -509,6 +511,62 @@
       #touch-fire {
         min-height: 62px;
         font-size: 24px;
+      }
+
+      .mobile-flight-row,
+      .mobile-layout-2 {
+        opacity: var(--mobile-control-opacity);
+        transition: opacity 140ms ease;
+      }
+
+      #mobile-controls[data-size="small"] { --mobile-control-scale: 0.82; }
+      #mobile-controls[data-size="medium"] { --mobile-control-scale: 0.91; }
+      #mobile-controls[data-size="large"] { --mobile-control-scale: 1; }
+
+      #mobile-settings {
+        display: grid;
+        gap: 8px;
+        padding: 10px;
+        border: 1px solid rgba(102, 245, 255, 0.58);
+        background: rgba(4, 16, 28, 0.96);
+        box-shadow: 4px 4px 0 rgba(17, 74, 94, 0.76), 0 0 24px rgba(1, 9, 17, 0.72);
+        pointer-events: auto;
+      }
+
+      #mobile-settings[hidden] {
+        display: none;
+      }
+
+      .mobile-setting-row {
+        display: grid;
+        grid-template-columns: 78px minmax(0, 1fr);
+        align-items: center;
+        gap: 8px;
+      }
+
+      .mobile-setting-label {
+        color: #9dbdc5;
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+      }
+
+      .mobile-setting-options {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px;
+      }
+
+      .mobile-setting-option {
+        min-height: 34px;
+        font-size: 9px;
+      }
+
+      .mobile-setting-option[aria-pressed="true"] {
+        border-color: var(--yellow);
+        background: rgba(122, 86, 24, 0.88);
+        color: #fff4b8;
+        box-shadow: 2px 2px 0 rgba(101, 65, 12, 0.9), 0 0 12px rgba(255, 216, 77, 0.25);
       }
 
       #touch-fire {
@@ -542,7 +600,7 @@
       }
 
       #mobile-controls[data-layout="2"] .mobile-command-row {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(4, minmax(0, 1fr));
       }
 
       #mobile-controls[data-layout="2"] #touch-camera,
@@ -1126,6 +1184,8 @@
           display: grid;
           gap: 7px;
           pointer-events: none;
+          transform: scale(var(--mobile-control-scale));
+          transform-origin: bottom center;
         }
 
         #mobile-controls .mobile-control-button {
@@ -1211,13 +1271,32 @@
       <span id="missile-alert-label">RASTREANDO</span>
     </div>
     <button id="flare-button" type="button">[E] LANÇAR FLARE</button>
-    <div id="mobile-controls" data-layout="1" aria-label="Controles de toque" hidden>
+    <div id="mobile-controls" data-layout="1" data-size="large" aria-label="Controles de toque" hidden>
+      <section id="mobile-settings" aria-label="Ajustes dos controles" hidden>
+        <div class="mobile-setting-row">
+          <span class="mobile-setting-label">TAMANHO</span>
+          <div class="mobile-setting-options">
+            <button class="mobile-control-button mobile-setting-option" type="button" data-control-size="small">PEQUENO</button>
+            <button class="mobile-control-button mobile-setting-option" type="button" data-control-size="medium">MÉDIO</button>
+            <button class="mobile-control-button mobile-setting-option" type="button" data-control-size="large">GRANDE</button>
+          </div>
+        </div>
+        <div class="mobile-setting-row">
+          <span class="mobile-setting-label">VISIBILIDADE</span>
+          <div class="mobile-setting-options">
+            <button class="mobile-control-button mobile-setting-option" type="button" data-control-opacity="0.6">60%</button>
+            <button class="mobile-control-button mobile-setting-option" type="button" data-control-opacity="0.8">80%</button>
+            <button class="mobile-control-button mobile-setting-option" type="button" data-control-opacity="1">100%</button>
+          </div>
+        </div>
+      </section>
       <div class="mobile-command-row">
         <button id="touch-camera" class="mobile-control-button" type="button" data-mobile-action="camera">CÂMERA</button>
         <button id="touch-barrel-roll" class="mobile-control-button" type="button" data-mobile-action="barrel">ROLL</button>
         <button id="touch-pause" class="mobile-control-button" type="button">PAUSA</button>
         <button id="touch-info" class="mobile-control-button" type="button" aria-expanded="false">INFO +</button>
         <button id="touch-layout" class="mobile-control-button" type="button">LAYOUT 1</button>
+        <button id="touch-settings" class="mobile-control-button" type="button" aria-expanded="false">AJUSTE</button>
       </div>
       <div class="mobile-layout-1 mobile-flight-row">
         <div class="mobile-flight-buttons">
@@ -1313,7 +1392,7 @@
 
     <script src="./vendor/three.min.js"></script>
     <script>
-      const GAME_VERSION = '1.14.1';
+      const GAME_VERSION = '1.15.0';
       const platformOverrides =
         window.RIO_DE_ACO_CONFIG && typeof window.RIO_DE_ACO_CONFIG === 'object'
           ? window.RIO_DE_ACO_CONFIG
@@ -1848,6 +1927,10 @@
         touchPause: document.querySelector('#touch-pause'),
         touchInfo: document.querySelector('#touch-info'),
         touchLayout: document.querySelector('#touch-layout'),
+        touchSettings: document.querySelector('#touch-settings'),
+        mobileSettings: document.querySelector('#mobile-settings'),
+        mobileControlSizeButtons: [...document.querySelectorAll('[data-control-size]')],
+        mobileControlOpacityButtons: [...document.querySelectorAll('[data-control-opacity]')],
         fuelFill: document.querySelector('#fuel-fill'),
         fuelNumber: document.querySelector('#fuel-number'),
         lives: document.querySelector('#lives'),
@@ -2227,6 +2310,17 @@
           this.mobileInfoExpanded = localStorage.getItem('rio-de-aco-mobile-info') === 'expanded';
           this.mobileControlLayout =
             localStorage.getItem('rio-de-aco-mobile-control-layout') === '2' ? '2' : '1';
+          const storedControlSize = localStorage.getItem('rio-de-aco-mobile-control-size');
+          this.mobileControlSize = ['small', 'medium', 'large'].includes(storedControlSize)
+            ? storedControlSize
+            : 'large';
+          const storedControlOpacity = Number.parseFloat(
+            localStorage.getItem('rio-de-aco-mobile-control-opacity') || '1'
+          );
+          this.mobileControlOpacity = [0.6, 0.8, 1].includes(storedControlOpacity)
+            ? storedControlOpacity
+            : 1;
+          this.mobileSettingsExpanded = false;
           this.entities = [];
           this.bullets = [];
           this.missiles = [];
@@ -2265,6 +2359,7 @@
           this.bindEvents();
           this.updateMobileInfoVisibility();
           this.updateMobileControlLayout();
+          this.updateMobileControlPreferences();
           this.onResize();
           this.updateHUD();
           this.renderLeaderboard();
@@ -4960,6 +5055,71 @@
           this.showToast(`CONTROLES · LAYOUT ${this.mobileControlLayout}`, 1.1);
         }
 
+        updateMobileControlPreferences() {
+          dom.mobileControls.dataset.size = this.mobileControlSize;
+          dom.mobileControls.style.setProperty(
+            '--mobile-control-opacity',
+            String(this.mobileControlOpacity)
+          );
+          for (const button of dom.mobileControlSizeButtons) {
+            button.setAttribute(
+              'aria-pressed',
+              String(button.dataset.controlSize === this.mobileControlSize)
+            );
+          }
+          for (const button of dom.mobileControlOpacityButtons) {
+            button.setAttribute(
+              'aria-pressed',
+              String(Number.parseFloat(button.dataset.controlOpacity) === this.mobileControlOpacity)
+            );
+          }
+        }
+
+        setMobileControlSize(size) {
+          if (!['small', 'medium', 'large'].includes(size)) return;
+          this.releaseTouchInputs();
+          this.mobileControlSize = size;
+          localStorage.setItem('rio-de-aco-mobile-control-size', size);
+          this.updateMobileControlPreferences();
+          this.onResize();
+          this.updateCamera(1);
+          const labels = { small: 'PEQUENO', medium: 'MÉDIO', large: 'GRANDE' };
+          this.showToast(`CONTROLES · ${labels[size]}`, 1);
+        }
+
+        setMobileControlOpacity(opacity) {
+          const value = Number.parseFloat(opacity);
+          if (![0.6, 0.8, 1].includes(value)) return;
+          this.releaseTouchInputs();
+          this.mobileControlOpacity = value;
+          localStorage.setItem('rio-de-aco-mobile-control-opacity', String(value));
+          this.updateMobileControlPreferences();
+          this.showToast(`VISIBILIDADE · ${Math.round(value * 100)}%`, 1);
+        }
+
+        setMobileSettingsExpanded(expanded, showMessage = true) {
+          this.mobileSettingsExpanded = Boolean(expanded);
+          dom.mobileSettings.hidden = !this.mobileSettingsExpanded;
+          dom.touchSettings.textContent = this.mobileSettingsExpanded ? 'FECHAR' : 'AJUSTE';
+          dom.touchSettings.setAttribute('aria-expanded', String(this.mobileSettingsExpanded));
+          dom.mobileControls.classList.toggle('settings-open', this.mobileSettingsExpanded);
+          if (showMessage) {
+            this.showToast(
+              this.mobileSettingsExpanded
+                ? 'AJUSTE OS CONTROLES'
+                : 'AJUSTES SALVOS · CONTINUE QUANDO PRONTO',
+              this.mobileSettingsExpanded ? 1.1 : 1.5
+            );
+          }
+          this.updateHUD();
+        }
+
+        toggleMobileSettings() {
+          this.releaseTouchInputs();
+          if (!this.mobileSettingsExpanded && this.mode === 'PLAYING') this.togglePause();
+          this.setMobileSettingsExpanded(!this.mobileSettingsExpanded);
+        }
+
         releaseTouchInputs() {
           this.touchPointers.clear();
           for (const button of dom.touchInputButtons) button.classList.remove('pressed');
@@ -5025,6 +5185,15 @@
           dom.touchPause.addEventListener('click', () => this.togglePause());
           dom.touchInfo.addEventListener('click', () => this.toggleMobileInfo());
           dom.touchLayout.addEventListener('click', () => this.toggleMobileControlLayout());
+          dom.touchSettings.addEventListener('click', () => this.toggleMobileSettings());
+          for (const button of dom.mobileControlSizeButtons) {
+            button.addEventListener('click', () => this.setMobileControlSize(button.dataset.controlSize));
+          }
+          for (const button of dom.mobileControlOpacityButtons) {
+            button.addEventListener('click', () =>
+              this.setMobileControlOpacity(button.dataset.controlOpacity)
+            );
+          }
           dom.flareButton.addEventListener('click', () => this.deployFlare());
           dom.title.addEventListener('click', () => this.handleSecretTitleClick());
           dom.startRound.addEventListener('change', (event) => this.setStartingRound(event.target.value));
@@ -5219,6 +5388,7 @@
           this.player.rotation.set(0, 0, 0);
           this.cameraTargetX = this.player.position.x;
           this.mode = 'PLAYING';
+          this.setMobileSettingsExpanded(false, false);
           this.autoPaused = false;
           this.backgroundPauseSource = null;
           if (!this.manualStepping) this.clock.start();
@@ -5278,6 +5448,7 @@
             this.backgroundPauseSource = null;
             this.showToast('PAUSA', 999);
           } else if (this.mode === 'PAUSED') {
+            if (this.mobileSettingsExpanded) this.setMobileSettingsExpanded(false, false);
             this.mode = 'PLAYING';
             this.autoPaused = false;
             this.backgroundPauseSource = null;
@@ -6647,7 +6818,8 @@
             button.disabled =
               this.mode !== 'PLAYING' || this.isBarrelRolling() || this.barrelRollUsedThisEnvironment;
           }
-          dom.touchPause.disabled = !barrelRollVisible;
+          dom.touchPause.disabled = !barrelRollVisible || this.mobileSettingsExpanded;
+          dom.touchSettings.disabled = !barrelRollVisible;
           dom.touchPause.textContent = this.mode === 'PAUSED' ? 'CONTINUAR' : 'PAUSA';
           dom.fuelFill.style.transform = `scaleX(${clamp(this.fuel / 100, 0, 1)})`;
           dom.fuelNumber.textContent = `${Math.ceil(this.fuel)}%`;
@@ -6853,6 +7025,9 @@
               visible: !dom.mobileControls.hidden && this.mobileLayout,
               coarsePointer: matchMedia('(hover: none) and (pointer: coarse)').matches,
               layout: Number(this.mobileControlLayout),
+              size: this.mobileControlSize,
+              opacity: this.mobileControlOpacity,
+              settingsOpen: this.mobileSettingsExpanded,
               infoExpanded: this.mobileInfoExpanded,
               activeInputs: [...new Set(this.touchPointers.values())],
             },

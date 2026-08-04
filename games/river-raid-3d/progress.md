@@ -358,3 +358,10 @@ Original prompt: Criar um novo jogo retro inspirado em River Raid, em Three.js, 
 - Cliente oficial revalidou movimento, disparo, pausa manual e retomada sem erros de console.
 - Testes dedicados confirmaram que `P` retoma no computador e o botão `CONTINUAR` retoma no celular; clicar apenas no cenário não é apresentado como comando.
 - `v1.14.1` aprovada pelo usuário após validar a pausa automática e a instrução específica para computador; pronta para commit e publicação.
+- `v1.14.1` registrada no commit `e6c76a1` e publicada em produção; o HTML público confirmou a versão e as mensagens específicas para desktop e celular.
+- `v1.15.0` local inicia a personalização dos controles móveis. `AJUSTE` pausa a partida e abre opções de tamanho pequeno/médio/grande e visibilidade 60%/80%/100%.
+- Preferências usam armazenamento local, aplicam-se aos dois layouts e aparecem no estado textual. Reposicionamento livre dos botões permanece reservado para uma etapa posterior.
+- Teste em 390×844 confirmou abertura segura em `PAUSED`, seleção visual das seis opções, persistência após recarregar e aplicação no Layout 2. Esquerda + tiro permaneceu simultâneo, moveu o avião para `x=-3,9` e criou dois disparos.
+- As escalas reais foram confirmadas em 0,82/0,91/1 e as visibilidades em 0,6/0,8/1. Capturas de painel grande, painel pequeno a 60% e Layout 2 pequeno a 60% foram inspecionadas.
+- Landscape 844×390 manteve painel e controles inteiros dentro da viewport, sem rolagem ou corte. Cliente oficial revalidou teclado, pausa, movimento e tiro no desktop; nenhum erro de console foi encontrado.
+- `v1.15.0` aprovada pelo usuário; pronta para commit e deploy. Reposicionamento livre continua como próxima expansão da personalização.
