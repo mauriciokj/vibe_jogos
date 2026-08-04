@@ -8,6 +8,17 @@ O jogo usa versionamento semântico:
 
 Cada publicação deve atualizar `GAME_VERSION` no `index.html` e registrar as mudanças neste arquivo.
 
+## 1.11.0 — 2026-08-04
+
+- Ranking global do Rio de Aço isolado do placar do Snake na API serverless com Vercel KV.
+- Tela inicial mostra os cinco melhores pilotos; o serviço mantém até 20 resultados com pontuação, rodada, pontes, evasões, distância, versão e data.
+- No Game Over, o jogador pode registrar um nome curto sem interromper o fluxo de `VOAR NOVAMENTE`.
+- Nome é normalizado e filtrado; a API rejeita jogos desconhecidos e valores numéricos inválidos ou fora dos limites.
+- Resultado recém-enviado recebe posição e destaque visual no ranking.
+- Se a API estiver indisponível, o placar usa armazenamento local e sobrevive ao recarregamento da página.
+- Estado textual expõe origem, carregamento, envio, posição e Top 5 para testes automatizados.
+- Layout desktop e móvel foi reorganizado para acomodar ranking e formulário sem ultrapassar a tela.
+
 ## 1.10.0 — 2026-08-03
 
 - Tecla `Q` executa um barrel roll completo de 0,9 segundo nas câmeras Chase, Top-Down e Cockpit.

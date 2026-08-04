@@ -304,3 +304,9 @@ Original prompt: Criar um novo jogo retro inspirado em River Raid, em Three.js, 
 - Corrigido `VOAR NOVAMENTE`: a partida zerava distância e placar, mas reutilizava posições e índices dos trechos de terreno já percorridos, produzindo largura e conteúdo diferentes no reinício.
 - O reinício agora reconstrói o rio desde o primeiro segmento da rodada selecionada e limpa relógio visual, câmera suavizada, controles pressionados, alerta, colisão, partículas, projéteis e habilidades temporárias.
 - Teste após Game Over comparou abertura e reinício em rodada 1: centro do rio, largura segura, posição do jogador, FUEL e inimigos voltaram aos mesmos valores iniciais. Rodada 5 também foi preservada como Jungle, com 7 vidas, combustível cheio, terreno reindexado e ameaças limpas. Cliente oficial, capturas visuais e console passaram sem erros.
+- `v1.11.0` inicia a monetização com ranking online: a API `/api/leaderboard` passou a aceitar placares isolados por jogo sem quebrar o Snake e armazena até 20 resultados do Rio de Aço no Vercel KV.
+- Game Over agora permite registrar nome, pontuação, rodada, pontes, evasões e distância. A tela inicial e o fim da missão exibem Top 5, origem global/local, posição conquistada e destaque do resultado enviado.
+- Entrada por teclado foi protegida para que `Enter` no formulário salve o placar sem reiniciar a partida. Nomes são normalizados, limitados e limpos de HTML/símbolos não permitidos; campos numéricos também são validados pela API.
+- Fallback offline salvou e recuperou o resultado após recarregar a página. Fluxo global simulado validou GET, POST, posição #2, reinício limpo e persistência do Top 5.
+- Sete testes de API e compatibilidade do Snake passaram. Menu, Game Over antes/depois do envio, gameplay e viewport 390×844 foram inspecionados sem erros ou rolagem horizontal.
+- Próximo bloco planejado: desafio diário determinístico com o mesmo percurso para todos os jogadores.

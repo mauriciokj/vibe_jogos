@@ -620,6 +620,146 @@
         display: block;
       }
 
+      .leaderboard-panel {
+        width: min(520px, 100%);
+        margin: 18px auto 22px;
+        padding: 12px 14px;
+        border: 1px solid rgba(102, 245, 255, 0.28);
+        background: rgba(2, 13, 23, 0.72);
+        text-align: left;
+      }
+
+      .leaderboard-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 8px;
+        color: var(--cyan);
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: 0.18em;
+      }
+
+      #leaderboard-meta {
+        color: #638996;
+        font-size: 8px;
+        letter-spacing: 0.1em;
+      }
+
+      #leaderboard-list {
+        display: grid;
+        gap: 3px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      #leaderboard-list li {
+        display: grid;
+        grid-template-columns: 28px minmax(0, 1fr) auto auto;
+        gap: 9px;
+        align-items: center;
+        min-height: 20px;
+        color: #9dbdc5;
+        font-size: 10px;
+      }
+
+      #leaderboard-list li.current-score {
+        color: var(--yellow);
+      }
+
+      .leaderboard-position {
+        color: var(--yellow);
+        font-weight: 900;
+      }
+
+      .leaderboard-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .leaderboard-details {
+        color: #638996;
+        font-size: 8px;
+        white-space: nowrap;
+      }
+
+      .leaderboard-score {
+        color: #fff3bd;
+        font-weight: 900;
+        font-variant-numeric: tabular-nums;
+      }
+
+      #score-form {
+        display: grid;
+        gap: 8px;
+        margin: 0 0 12px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid rgba(102, 245, 255, 0.15);
+      }
+
+      #score-form[hidden] {
+        display: none;
+      }
+
+      #score-form label {
+        color: #fff3bd;
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: 0.1em;
+      }
+
+      .score-form-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px;
+      }
+
+      #player-name {
+        min-width: 0;
+        padding: 9px 10px;
+        border: 1px solid rgba(102, 245, 255, 0.55);
+        border-radius: 0;
+        outline: 0;
+        background: rgba(5, 20, 33, 0.96);
+        color: white;
+        font: 900 12px/1 "Courier New", monospace;
+        text-transform: uppercase;
+      }
+
+      #player-name:focus {
+        border-color: var(--yellow);
+        box-shadow: 0 0 0 2px rgba(255, 216, 77, 0.15);
+      }
+
+      #save-score-button {
+        padding: 9px 14px;
+        border: 0;
+        background: var(--cyan);
+        color: #071827;
+        font: 900 10px/1 "Courier New", monospace;
+        cursor: pointer;
+      }
+
+      #save-score-button:disabled {
+        cursor: wait;
+        opacity: 0.55;
+      }
+
+      #score-save-status {
+        min-height: 12px;
+        color: #789da8;
+        font-size: 8px;
+        letter-spacing: 0.08em;
+      }
+
+      #overlay[data-mode="gameover"] .controls,
+      #overlay[data-mode="gameover"] .simulation-round {
+        display: none;
+      }
+
       @media (max-width: 620px) {
         .hud-top {
           grid-template-columns: 1fr 1.2fr;
@@ -639,6 +779,22 @@
 
         .control:last-child {
           grid-column: 1 / -1;
+        }
+
+        #overlay {
+          overflow-y: auto;
+        }
+
+        .menu-card {
+          padding: 22px 18px;
+        }
+
+        .leaderboard-details {
+          display: none;
+        }
+
+        #leaderboard-list li {
+          grid-template-columns: 25px minmax(0, 1fr) auto;
         }
 
         #flare-button {
@@ -733,6 +889,23 @@
           </select>
           <span id="round-description">BASE · SEM MÍSSEIS</span>
         </label>
+        <section id="leaderboard-panel" class="leaderboard-panel" aria-label="Ranking global">
+          <div class="leaderboard-head">
+            <span>TOP 5 PILOTOS</span>
+            <span id="leaderboard-meta">CARREGANDO...</span>
+          </div>
+          <form id="score-form" hidden>
+            <label for="player-name">REGISTRE SUA PONTUAÇÃO</label>
+            <div class="score-form-row">
+              <input id="player-name" name="playerName" maxlength="14" placeholder="SEU NOME" autocomplete="nickname" required />
+              <button id="save-score-button" type="submit">SALVAR</button>
+            </div>
+          </form>
+          <div id="score-save-status" aria-live="polite"></div>
+          <ol id="leaderboard-list" aria-live="polite">
+            <li>SEM RECORDES AINDA</li>
+          </ol>
+        </section>
         <button id="start-button" type="button">DECOLAR</button>
         <div class="menu-foot">DESTRUA AS PONTES · REABASTEÇA NOS DEPÓSITOS FUEL</div>
       </section>
@@ -741,7 +914,11 @@
     <script type="module">
       import * as THREE from 'https://unpkg.com/three@0.168.0/build/three.module.js';
 
-      const GAME_VERSION = '1.10.0';
+      const GAME_VERSION = '1.11.0';
+      const LEADERBOARD_API_URL = '/api/leaderboard';
+      const LEADERBOARD_GAME = 'river-raid-3d';
+      const LEADERBOARD_STORAGE_KEY = 'rio-de-aco-leaderboard';
+      const PLAYER_NAME_STORAGE_KEY = 'rio-de-aco-player-name';
 
       const CONFIG = {
         segmentLength: 32,
@@ -1220,6 +1397,12 @@
         startRound: document.querySelector('#start-round'),
         roundDescription: document.querySelector('#round-description'),
         finalScore: document.querySelector('#final-score'),
+        leaderboardMeta: document.querySelector('#leaderboard-meta'),
+        leaderboardList: document.querySelector('#leaderboard-list'),
+        scoreForm: document.querySelector('#score-form'),
+        playerName: document.querySelector('#player-name'),
+        saveScore: document.querySelector('#save-score-button'),
+        scoreSaveStatus: document.querySelector('#score-save-status'),
         score: document.querySelector('#score'),
         combo: document.querySelector('#combo'),
         comboLabel: document.querySelector('#combo-label'),
@@ -1247,6 +1430,47 @@
       const clamp = THREE.MathUtils.clamp;
       const lerp = THREE.MathUtils.lerp;
       const damp = THREE.MathUtils.damp;
+
+      function normalizePilotName(raw) {
+        const cleaned = String(raw ?? '')
+          .normalize('NFKC')
+          .replace(/[^\p{L}\p{N} ._-]/gu, '')
+          .trim()
+          .replace(/\s+/g, ' ');
+        return (cleaned || 'Jogador').slice(0, 14);
+      }
+
+      function normalizeLeaderboardEntries(rawEntries) {
+        if (!Array.isArray(rawEntries)) return [];
+        return rawEntries
+          .filter((entry) => entry && typeof entry.name === 'string' && Number.isFinite(Number(entry.score)))
+          .map((entry) => ({
+            id: typeof entry.id === 'string' ? entry.id : '',
+            name: normalizePilotName(entry.name),
+            score: Math.max(0, Math.floor(Number(entry.score) || 0)),
+            round: Math.max(1, Math.floor(Number(entry.round) || 1)),
+            bridges: Math.max(0, Math.floor(Number(entry.bridges) || 0)),
+            evasions: Math.max(0, Math.floor(Number(entry.evasions) || 0)),
+            distance: Math.max(0, Math.floor(Number(entry.distance) || 0)),
+            at: Math.max(0, Number(entry.at) || 0),
+            version: String(entry.version || '').slice(0, 16),
+          }))
+          .sort((a, b) => {
+            if (b.score !== a.score) return b.score - a.score;
+            if (b.round !== a.round) return b.round - a.round;
+            if (b.distance !== a.distance) return b.distance - a.distance;
+            return a.at - b.at;
+          })
+          .slice(0, 20);
+      }
+
+      function loadLocalLeaderboard() {
+        try {
+          return normalizeLeaderboardEntries(JSON.parse(localStorage.getItem(LEADERBOARD_STORAGE_KEY) || '[]'));
+        } catch {
+          return [];
+        }
+      }
 
       function seededNoise(seed) {
         const x = Math.sin(seed * 127.1 + 311.7) * 43758.5453;
@@ -1491,6 +1715,14 @@
           this.barrelRollUsedThisEnvironment = false;
           this.barrelRolls = 0;
           this.barrelRollEvades = 0;
+          this.leaderboard = loadLocalLeaderboard();
+          this.leaderboardSource = 'local';
+          this.leaderboardLoading = true;
+          this.pendingLeaderboardScore = null;
+          this.isSavingLeaderboardScore = false;
+          this.hasSubmittedLeaderboardScore = false;
+          this.submittedLeaderboardPosition = null;
+          this.lastSubmittedLeaderboardEntry = null;
           this.simulationUnlocked = localStorage.getItem('rio-de-aco-simulation-unlocked') === '1';
           this.secretTitleClicks = 0;
           this.secretTitleClickStartedAt = 0;
@@ -1531,8 +1763,10 @@
           this.bindEvents();
           this.onResize();
           this.updateHUD();
+          this.renderLeaderboard();
           this.updateCamera(1);
           this.render();
+          this.hydrateLeaderboard();
 
           window.render_game_to_text = () => this.renderGameToText();
           window.advanceTime = (ms) => this.advanceTime(ms);
@@ -3887,8 +4121,177 @@
           dom.startRound.focus();
         }
 
+        persistLeaderboard() {
+          try {
+            localStorage.setItem(LEADERBOARD_STORAGE_KEY, JSON.stringify(this.leaderboard));
+          } catch {
+            // O ranking continua disponível em memória quando o armazenamento local é bloqueado.
+          }
+        }
+
+        async hydrateLeaderboard() {
+          this.leaderboardLoading = true;
+          this.renderLeaderboard();
+          try {
+            const response = await fetch(
+              `${LEADERBOARD_API_URL}?game=${encodeURIComponent(LEADERBOARD_GAME)}`,
+              { headers: { Accept: 'application/json' } }
+            );
+            if (!response.ok) throw new Error(`Ranking indisponível: ${response.status}`);
+            const payload = await response.json();
+            this.leaderboard = normalizeLeaderboardEntries(payload.entries);
+            this.leaderboardSource = 'global';
+            this.persistLeaderboard();
+          } catch {
+            this.leaderboardSource = 'local';
+          } finally {
+            this.leaderboardLoading = false;
+            this.renderLeaderboard();
+          }
+        }
+
+        resetLeaderboardSubmission() {
+          this.pendingLeaderboardScore = null;
+          this.isSavingLeaderboardScore = false;
+          this.hasSubmittedLeaderboardScore = false;
+          this.submittedLeaderboardPosition = null;
+          this.lastSubmittedLeaderboardEntry = null;
+          dom.scoreForm.hidden = true;
+          dom.playerName.disabled = false;
+          dom.saveScore.disabled = false;
+          dom.scoreSaveStatus.textContent = '';
+          this.renderLeaderboard();
+        }
+
+        prepareLeaderboardSubmission() {
+          this.pendingLeaderboardScore = {
+            score: Math.max(0, Math.floor(this.score)),
+            round: this.environmentCyclesCompleted + 1,
+            bridges: Math.max(0, Math.floor(this.bridgesDestroyed)),
+            evasions: Math.max(0, Math.floor(this.perfectEvasions)),
+            distance: Math.max(0, Math.floor(this.distance)),
+            version: GAME_VERSION,
+          };
+          this.isSavingLeaderboardScore = false;
+          this.hasSubmittedLeaderboardScore = false;
+          this.submittedLeaderboardPosition = null;
+          this.lastSubmittedLeaderboardEntry = null;
+          const canSubmit = this.pendingLeaderboardScore.score > 0;
+          dom.scoreForm.hidden = !canSubmit;
+          dom.playerName.disabled = false;
+          dom.saveScore.disabled = false;
+          dom.playerName.value = localStorage.getItem(PLAYER_NAME_STORAGE_KEY) || '';
+          dom.scoreSaveStatus.textContent = canSubmit
+            ? `RODADA ${String(this.pendingLeaderboardScore.round).padStart(2, '0')} · ${this.pendingLeaderboardScore.bridges} PONTES · ${this.pendingLeaderboardScore.evasions} EVASÕES`
+            : 'FAÇA PONTOS PARA ENTRAR NO RANKING';
+          this.renderLeaderboard();
+        }
+
+        async submitLeaderboardScore() {
+          if (
+            !this.pendingLeaderboardScore ||
+            this.pendingLeaderboardScore.score <= 0 ||
+            this.isSavingLeaderboardScore ||
+            this.hasSubmittedLeaderboardScore
+          ) return;
+
+          const name = normalizePilotName(dom.playerName.value);
+          const submission = { game: LEADERBOARD_GAME, name, ...this.pendingLeaderboardScore };
+          this.isSavingLeaderboardScore = true;
+          dom.playerName.disabled = true;
+          dom.saveScore.disabled = true;
+          dom.saveScore.textContent = 'ENVIANDO';
+          dom.scoreSaveStatus.textContent = 'CONTATANDO A TORRE DE CONTROLE...';
+
+          try {
+            const response = await fetch(LEADERBOARD_API_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+              body: JSON.stringify(submission),
+            });
+            if (!response.ok) throw new Error(`Envio indisponível: ${response.status}`);
+            const payload = await response.json();
+            this.leaderboard = normalizeLeaderboardEntries(payload.entries);
+            this.leaderboardSource = 'global';
+            this.submittedLeaderboardPosition = Number.isInteger(payload.position)
+              ? payload.position
+              : null;
+            this.lastSubmittedLeaderboardEntry = this.submittedLeaderboardPosition
+              ? this.leaderboard[this.submittedLeaderboardPosition - 1] || null
+              : null;
+          } catch {
+            const localEntry = {
+              id: `local-${Date.now()}`,
+              name,
+              ...this.pendingLeaderboardScore,
+              at: Date.now(),
+            };
+            this.leaderboard = normalizeLeaderboardEntries([...this.leaderboard, localEntry]);
+            this.leaderboardSource = 'local';
+            const localIndex = this.leaderboard.findIndex((entry) => entry.id === localEntry.id);
+            this.submittedLeaderboardPosition = localIndex >= 0 ? localIndex + 1 : null;
+            this.lastSubmittedLeaderboardEntry = localIndex >= 0 ? this.leaderboard[localIndex] : null;
+          }
+
+          localStorage.setItem(PLAYER_NAME_STORAGE_KEY, name);
+          this.persistLeaderboard();
+          this.isSavingLeaderboardScore = false;
+          this.hasSubmittedLeaderboardScore = true;
+          this.pendingLeaderboardScore = null;
+          dom.playerName.disabled = false;
+          dom.saveScore.disabled = false;
+          dom.saveScore.textContent = 'SALVAR';
+          dom.scoreForm.hidden = true;
+          dom.scoreSaveStatus.textContent = this.submittedLeaderboardPosition
+            ? `PONTUAÇÃO REGISTRADA · POSIÇÃO #${this.submittedLeaderboardPosition}`
+            : 'PONTUAÇÃO REGISTRADA · FORA DO TOP 20';
+          this.renderLeaderboard();
+        }
+
+        renderLeaderboard() {
+          dom.leaderboardList.innerHTML = '';
+          dom.leaderboardMeta.textContent = this.leaderboardLoading
+            ? 'CARREGANDO...'
+            : this.leaderboardSource === 'global' ? 'GLOBAL' : 'LOCAL · OFFLINE';
+          const visibleEntries = this.leaderboard.slice(0, 5);
+          if (visibleEntries.length === 0) {
+            const empty = document.createElement('li');
+            empty.textContent = 'SEM RECORDES AINDA';
+            dom.leaderboardList.appendChild(empty);
+            return;
+          }
+
+          visibleEntries.forEach((entry, index) => {
+            const item = document.createElement('li');
+            if (
+              this.lastSubmittedLeaderboardEntry &&
+              entry.id &&
+              entry.id === this.lastSubmittedLeaderboardEntry.id
+            ) item.classList.add('current-score');
+
+            const position = document.createElement('span');
+            position.className = 'leaderboard-position';
+            position.textContent = `#${index + 1}`;
+            const name = document.createElement('span');
+            name.className = 'leaderboard-name';
+            name.textContent = entry.name.toUpperCase();
+            const details = document.createElement('span');
+            details.className = 'leaderboard-details';
+            details.textContent = `R${String(entry.round).padStart(2, '0')} · ${entry.bridges}P`;
+            const score = document.createElement('span');
+            score.className = 'leaderboard-score';
+            score.textContent = String(entry.score).padStart(6, '0');
+            item.append(position, name, details, score);
+            dom.leaderboardList.appendChild(item);
+          });
+        }
+
         bindEvents() {
           dom.start.addEventListener('click', () => this.startOrRestart());
+          dom.scoreForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            this.submitLeaderboardScore();
+          });
           dom.flareButton.addEventListener('click', () => this.deployFlare());
           dom.title.addEventListener('click', () => this.handleSecretTitleClick());
           dom.startRound.addEventListener('change', (event) => this.setStartingRound(event.target.value));
@@ -3896,7 +4299,10 @@
           document.addEventListener('fullscreenchange', () => this.onResize());
 
           addEventListener('keydown', (event) => {
-            if (event.target === dom.startRound) return;
+            if (
+              event.target instanceof HTMLElement &&
+              (event.target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName))
+            ) return;
             if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space'].includes(event.code)) {
               event.preventDefault();
             }
@@ -3953,6 +4359,7 @@
 
         startOrRestart() {
           this.audio.enable();
+          this.resetLeaderboardSubmission();
           if (this.pursuitFighter) {
             this.scene.remove(this.pursuitFighter.group);
             this.pursuitFighter = null;
@@ -5259,6 +5666,7 @@
           dom.subtitle.textContent = `RECORDE ${String(best).padStart(6, '0')}`;
           dom.finalScore.textContent = `PONTUAÇÃO ${String(this.score).padStart(6, '0')}`;
           dom.start.textContent = 'VOAR NOVAMENTE';
+          this.prepareLeaderboardSubmission();
           dom.overlay.classList.remove('hidden');
           dom.toast.classList.remove('show');
         }
@@ -5590,6 +5998,21 @@
             score: this.score,
             lives: this.lives,
             fuel: Number(this.fuel.toFixed(1)),
+            leaderboard: {
+              source: this.leaderboardSource,
+              loading: this.leaderboardLoading,
+              pendingSubmission: Boolean(this.pendingLeaderboardScore),
+              saving: this.isSavingLeaderboardScore,
+              submitted: this.hasSubmittedLeaderboardScore,
+              submittedPosition: this.submittedLeaderboardPosition,
+              top5: this.leaderboard.slice(0, 5).map((entry) => ({
+                name: entry.name,
+                score: entry.score,
+                round: entry.round,
+                bridges: entry.bridges,
+                evasions: entry.evasions,
+              })),
+            },
             startingRound: this.selectedStartingRound,
             currentRound: this.environmentCyclesCompleted + 1,
             simulationMode: this.selectedStartingRound > 1,

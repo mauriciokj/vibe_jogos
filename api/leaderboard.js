@@ -14,38 +14,64 @@ process.env.KV_REST_API_URL = unquoteEnv(process.env.KV_REST_API_URL || '');
 process.env.KV_REST_API_TOKEN = unquoteEnv(process.env.KV_REST_API_TOKEN || '');
 process.env.KV_REST_API_READ_ONLY_TOKEN = unquoteEnv(process.env.KV_REST_API_READ_ONLY_TOKEN || '');
 
-const { kv } = require('@vercel/kv');
+const { randomUUID } = require('node:crypto');
 
-const KEY = 'snake:leaderboard';
-const MAX_ENTRIES = 10;
+const DEFAULT_GAME = 'snake';
+const GAME_CONFIGS = Object.freeze({
+  snake: Object.freeze({ key: 'snake:leaderboard', maxEntries: 10, metadata: false }),
+  'river-raid-3d': Object.freeze({ key: 'river-raid-3d:leaderboard:v1', maxEntries: 20, metadata: true }),
+});
+
+function normalizeGame(raw) {
+  const game = String(raw || DEFAULT_GAME).trim().toLowerCase();
+  return Object.prototype.hasOwnProperty.call(GAME_CONFIGS, game) ? game : null;
+}
 
 function normalizeName(raw) {
-  const cleaned = String(raw ?? '').trim().replace(/\s+/g, ' ');
+  const cleaned = String(raw ?? '')
+    .normalize('NFKC')
+    .replace(/[^\p{L}\p{N} ._-]/gu, '')
+    .trim()
+    .replace(/\s+/g, ' ');
   if (!cleaned) return 'Jogador';
-  return cleaned.slice(0, 12);
+  return cleaned.slice(0, 14);
+}
+
+function normalizeInteger(raw, minimum, maximum, field) {
+  const value = Number(raw);
+  if (!Number.isFinite(value)) throw new Error(`${field} inválido`);
+  const integer = Math.floor(value);
+  if (integer < minimum || integer > maximum) throw new Error(`${field} fora do limite`);
+  return integer;
+}
+
+function normalizeEntry(raw, config, { submitted = false } = {}) {
+  if (!raw || typeof raw !== 'object') throw new Error('entrada inválida');
+  const entry = {
+    id: typeof raw.id === 'string' && raw.id ? raw.id.slice(0, 64) : randomUUID(),
+    name: normalizeName(raw.name),
+    score: normalizeInteger(raw.score, 0, 999_999_999, 'score'),
+    at: submitted ? Date.now() : normalizeInteger(raw.at || Date.now(), 1, 9_999_999_999_999, 'data'),
+  };
+
+  if (config.metadata) {
+    entry.round = normalizeInteger(raw.round ?? 1, 1, 999, 'rodada');
+    entry.bridges = normalizeInteger(raw.bridges ?? 0, 0, 99_999, 'pontes');
+    entry.evasions = normalizeInteger(raw.evasions ?? 0, 0, 99_999, 'evasões');
+    entry.distance = normalizeInteger(raw.distance ?? 0, 0, 999_999_999, 'distância');
+    entry.version = String(raw.version || '').trim().slice(0, 16);
+  }
+
+  return entry;
 }
 
 function sortEntries(entries) {
   return [...entries].sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
+    if ((b.round || 0) !== (a.round || 0)) return (b.round || 0) - (a.round || 0);
+    if ((b.distance || 0) !== (a.distance || 0)) return (b.distance || 0) - (a.distance || 0);
     return a.at - b.at;
   });
-}
-
-async function readEntries() {
-  const stored = await kv.get(KEY);
-  if (!Array.isArray(stored)) return [];
-  return stored
-    .filter((entry) => entry && typeof entry.name === 'string' && Number.isFinite(Number(entry.score)))
-    .map((entry) => ({
-      name: normalizeName(entry.name),
-      score: Number(entry.score),
-      at: Number(entry.at) || Date.now(),
-    }));
-}
-
-async function writeEntries(entries) {
-  await kv.set(KEY, entries);
 }
 
 function sendJson(res, statusCode, payload) {
@@ -71,56 +97,94 @@ async function parseBody(req) {
   let body = '';
   for await (const chunk of req) {
     body += chunk;
-    if (body.length > 10_000) break;
+    if (body.length > 10_000) throw new Error('payload muito grande');
   }
   if (!body) return {};
   return JSON.parse(body);
 }
 
-module.exports = async (req, res) => {
-  if (req.method === 'OPTIONS') {
-    sendJson(res, 204, {});
-    return;
-  }
-
-  if (req.method === 'GET') {
-    try {
-      const entries = sortEntries(await readEntries()).slice(0, MAX_ENTRIES);
-      sendJson(res, 200, { entries });
-    } catch (error) {
-      sendJson(res, 500, {
-        error: 'KV error',
-        details: error && error.message ? error.message : 'unknown',
-        env: getKvConfigStatus(),
-      });
+function createHandler(store = kv) {
+  async function readEntries(config) {
+    const stored = await store.get(config.key);
+    if (!Array.isArray(stored)) return [];
+    const entries = [];
+    for (const raw of stored) {
+      try {
+        entries.push(normalizeEntry(raw, config));
+      } catch {
+        // Entradas antigas ou corrompidas não devem derrubar o placar inteiro.
+      }
     }
-    return;
+    return entries;
   }
 
-  if (req.method === 'POST') {
-    try {
-      const body = await parseBody(req);
-      const name = normalizeName(body.name);
-      const score = Number(body.score) || 0;
-      const submittedEntry = { name, score, at: Date.now() };
-
-      const entries = await readEntries();
-      const next = sortEntries([...entries, submittedEntry]).slice(0, MAX_ENTRIES);
-      await writeEntries(next);
-
-      const position = next.findIndex(
-        (entry) => entry.name === submittedEntry.name && entry.score === submittedEntry.score && entry.at === submittedEntry.at,
-      );
-      sendJson(res, 200, { entries: next, position: position >= 0 ? position + 1 : null });
-    } catch (error) {
-      sendJson(res, 400, {
-        error: 'Invalid payload or KV error',
-        details: error && error.message ? error.message : 'unknown',
-        env: getKvConfigStatus(),
-      });
+  return async (req, res) => {
+    if (req.method === 'OPTIONS') {
+      sendJson(res, 204, {});
+      return;
     }
-    return;
-  }
 
-  sendJson(res, 405, { error: 'Method not allowed' });
+    const body = req.method === 'POST' ? await parseBody(req).catch((error) => ({ __error: error })) : null;
+    if (body?.__error) {
+      sendJson(res, 400, { error: body.__error.message || 'Payload inválido' });
+      return;
+    }
+    const game = normalizeGame(req.query?.game || body?.game);
+    if (!game) {
+      sendJson(res, 400, { error: 'Jogo não suportado' });
+      return;
+    }
+    const config = GAME_CONFIGS[game];
+
+    if (req.method === 'GET') {
+      try {
+        const entries = sortEntries(await readEntries(config)).slice(0, config.maxEntries);
+        sendJson(res, 200, { game, entries });
+      } catch (error) {
+        sendJson(res, 500, {
+          error: 'KV error',
+          details: error && error.message ? error.message : 'unknown',
+          env: getKvConfigStatus(),
+        });
+      }
+      return;
+    }
+
+    if (req.method === 'POST') {
+      try {
+        const submittedEntry = normalizeEntry(body, config, { submitted: true });
+        const entries = await readEntries(config);
+        const next = sortEntries([...entries, submittedEntry]).slice(0, config.maxEntries);
+        await store.set(config.key, next);
+        const position = next.findIndex((entry) => entry.id === submittedEntry.id);
+        sendJson(res, 200, {
+          game,
+          entries: next,
+          position: position >= 0 ? position + 1 : null,
+        });
+      } catch (error) {
+        sendJson(res, 400, {
+          error: 'Invalid payload or KV error',
+          details: error && error.message ? error.message : 'unknown',
+          env: getKvConfigStatus(),
+        });
+      }
+      return;
+    }
+
+    sendJson(res, 405, { error: 'Method not allowed' });
+  };
+}
+
+let defaultHandler = null;
+const handler = async (req, res) => {
+  if (!defaultHandler) {
+    const { kv } = require('@vercel/kv');
+    defaultHandler = createHandler(kv);
+  }
+  return defaultHandler(req, res);
 };
+handler.createHandler = createHandler;
+handler.testables = { GAME_CONFIGS, normalizeEntry, normalizeGame, normalizeName, sortEntries };
+
+module.exports = handler;

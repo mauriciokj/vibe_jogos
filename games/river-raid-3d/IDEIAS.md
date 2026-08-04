@@ -15,7 +15,7 @@ Documento de referência para futuras atualizações do jogo.
 - [x] Outros bônus por jogadas arriscadas.
 - [x] Bifurcações que dividem o rio em dois canais e depois voltam a uni-lo.
 - [x] Tanques nas margens a partir da rodada 3.
-- [ ] Ranking online com nome do jogador.
+- [x] Ranking online com nome do jogador.
 - [x] Bioma desértico desbloqueado no terceiro ciclo.
 - [x] Bioma Jungle desbloqueado depois do Deserto.
 - [x] Trem armado atravessando pontes ferroviárias.
@@ -184,6 +184,8 @@ Status: estrutura procedural e primeira escolha de rota concluídas. As bifurca�
 
 ## 13. Ranking online
 
+Status: primeira versão concluída na `v1.11.0`. A API mantém um Top 20 global separado por jogo e a interface mostra os cinco melhores pilotos. Game Over permite registrar nome, pontuação, rodada, pontes, evasões e distância; se o serviço estiver indisponível, o placar continua localmente. Moderação de termos e validação antifraude baseada em eventos da partida continuam como expansões futuras.
+
 - Ao terminar a partida, o jogador pode informar um nome curto para registrar a pontuação.
 - Mostrar ranking global, melhor pontuação pessoal e posição aproximada do jogador.
 - Registrar também rodada alcançada, pontes destruídas, evasões perfeitas e data da partida.
@@ -264,4 +266,4 @@ Status: primeira versão concluída. A Jungle começa na rodada 4 com cinco mome
 8. Concluído: implementar o trem armado como evento lateral temporário.
 9. Concluído: implementar o caça perseguidor como evento de ciclo avançado.
 10. Integrar bifurcações, biomas, clima e defesas de pontes.
-11. Adicionar o ranking online após estabilizar pontuação, combos e progressão.
+11. Concluído: adicionar a primeira versão do ranking online com fallback local.
