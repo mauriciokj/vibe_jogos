@@ -49,6 +49,7 @@
 
       #game canvas {
         image-rendering: auto;
+        touch-action: none;
       }
 
       .scanlines {
@@ -440,6 +441,207 @@
         box-shadow: 2px 2px 0 #6f1829;
       }
 
+      #mobile-controls {
+        display: none;
+      }
+
+      #mobile-controls[hidden] {
+        display: none !important;
+      }
+
+      .mobile-control-button {
+        appearance: none;
+        border: 1px solid rgba(102, 245, 255, 0.62);
+        border-radius: 0;
+        background: rgba(5, 20, 33, 0.86);
+        color: var(--cyan);
+        font: 900 12px/1 "Courier New", monospace;
+        letter-spacing: 0.05em;
+        text-shadow: 0 0 8px currentColor;
+        box-shadow: 3px 3px 0 rgba(17, 74, 94, 0.82);
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .mobile-control-button:active,
+      .mobile-control-button.pressed {
+        transform: translate(2px, 2px);
+        border-color: white;
+        background: rgba(30, 102, 124, 0.94);
+        color: white;
+        box-shadow: 1px 1px 0 rgba(17, 74, 94, 0.82), 0 0 16px rgba(102, 245, 255, 0.42);
+      }
+
+      .mobile-control-button:disabled {
+        border-color: rgba(120, 148, 155, 0.28);
+        color: #607b82;
+        text-shadow: none;
+        box-shadow: none;
+      }
+
+      .mobile-command-row,
+      .mobile-flight-row,
+      .mobile-flight-buttons {
+        display: grid;
+        gap: 7px;
+      }
+
+      .mobile-command-row {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+      }
+
+      .mobile-command-row .mobile-control-button {
+        min-height: 34px;
+        font-size: 9px;
+      }
+
+      .mobile-flight-row {
+        grid-template-columns: minmax(0, 1fr) 88px;
+      }
+
+      .mobile-flight-buttons {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .mobile-flight-buttons .mobile-control-button,
+      #touch-fire {
+        min-height: 62px;
+        font-size: 24px;
+      }
+
+      #touch-fire {
+        border-color: rgba(255, 216, 77, 0.9);
+        background: rgba(164, 45, 55, 0.9);
+        color: #fff2aa;
+        font-size: 13px;
+        letter-spacing: 0.1em;
+        box-shadow: 4px 4px 0 rgba(101, 24, 37, 0.9), 0 0 18px rgba(255, 77, 95, 0.22);
+      }
+
+      .mobile-layout-1,
+      #mobile-controls[data-layout="1"] .mobile-layout-1 {
+        display: grid;
+      }
+
+      .mobile-layout-2 {
+        display: none;
+        grid-template-columns: 124px 58px minmax(0, 1fr);
+        align-items: end;
+        gap: 7px;
+        min-height: 132px;
+      }
+
+      #mobile-controls[data-layout="2"] .mobile-layout-1 {
+        display: none;
+      }
+
+      #mobile-controls[data-layout="2"] .mobile-layout-2 {
+        display: grid;
+      }
+
+      #mobile-controls[data-layout="2"] .mobile-command-row {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      #mobile-controls[data-layout="2"] #touch-camera,
+      #mobile-controls[data-layout="2"] #touch-barrel-roll {
+        display: none;
+      }
+
+      .mobile-dpad {
+        position: relative;
+        width: 124px;
+        height: 124px;
+        border: 2px solid rgba(209, 244, 255, 0.28);
+        border-radius: 50%;
+        background:
+          radial-gradient(circle, rgba(190, 228, 238, 0.2) 0 24%, transparent 25%),
+          conic-gradient(
+            from 45deg,
+            rgba(197, 235, 244, 0.12),
+            rgba(26, 90, 111, 0.26),
+            rgba(197, 235, 244, 0.12),
+            rgba(26, 90, 111, 0.26),
+            rgba(197, 235, 244, 0.12)
+          );
+        box-shadow: inset 0 0 28px rgba(192, 239, 250, 0.12), 0 0 18px rgba(4, 12, 20, 0.28);
+        pointer-events: auto;
+      }
+
+      .mobile-dpad::after {
+        content: "";
+        position: absolute;
+        inset: 39px;
+        border: 6px solid rgba(221, 245, 248, 0.22);
+        border-radius: 50%;
+        pointer-events: none;
+      }
+
+      .mobile-dpad-button {
+        position: absolute;
+        width: 46px;
+        height: 46px;
+        border: 0;
+        background: transparent;
+        color: rgba(240, 251, 247, 0.9);
+        font-size: 22px;
+        box-shadow: none;
+      }
+
+      .mobile-dpad-button:active,
+      .mobile-dpad-button.pressed {
+        border-radius: 50%;
+        background: rgba(102, 245, 255, 0.25);
+        box-shadow: 0 0 16px rgba(102, 245, 255, 0.4);
+        transform: none;
+      }
+
+      .mobile-dpad-up { top: 2px; left: 39px; }
+      .mobile-dpad-right { top: 39px; right: 2px; }
+      .mobile-dpad-down { bottom: 2px; left: 39px; }
+      .mobile-dpad-left { top: 39px; left: 2px; }
+
+      #touch-camera-alt {
+        min-height: 66px;
+        padding: 7px 2px;
+        color: #e7f8ef;
+        font-size: 8px;
+      }
+
+      .mobile-action-cluster {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 7px;
+        height: 132px;
+      }
+
+      .mobile-action-cluster .mobile-control-button {
+        min-width: 0;
+        min-height: 0;
+        padding: 5px 2px;
+        border-color: rgba(255, 230, 183, 0.48);
+        background: rgba(82, 58, 69, 0.78);
+        color: #fff1c3;
+        font-size: 8px;
+        line-height: 1.05;
+        box-shadow: 3px 3px 0 rgba(62, 31, 42, 0.75);
+      }
+
+      .mobile-action-cluster .mobile-control-button[data-input="shoot"],
+      #touch-barrel-roll-alt {
+        border-color: rgba(255, 135, 137, 0.64);
+        background: rgba(143, 48, 65, 0.8);
+      }
+
+      .mobile-action-icon {
+        display: block;
+        margin-bottom: 3px;
+        font-size: 22px;
+        line-height: 0.9;
+      }
+
       @keyframes missile-pulse {
         50% {
           filter: brightness(1.65);
@@ -814,9 +1016,19 @@
         display: none;
       }
 
-      @media (max-width: 620px) {
+      @media (max-width: 620px), (hover: none) and (pointer: coarse) {
+        #hud {
+          padding: 9px;
+        }
+
         .hud-top {
           grid-template-columns: 1fr 1.2fr;
+          gap: 6px;
+        }
+
+        .hud-cell {
+          min-height: 49px;
+          padding: 7px 8px;
         }
 
         .hud-cell:last-child {
@@ -825,6 +1037,38 @@
 
         .help-chip {
           display: none;
+        }
+
+        .hud-bottom {
+          position: fixed;
+          right: 8px;
+          bottom: calc(122px + env(safe-area-inset-bottom));
+          left: 8px;
+          display: block;
+        }
+
+        body[data-mobile-control-layout="2"] .hud-bottom {
+          bottom: calc(190px + env(safe-area-inset-bottom));
+        }
+
+        #hud.mobile-info-collapsed .hud-bottom {
+          display: none;
+        }
+
+        .hud-status {
+          gap: 4px;
+        }
+
+        .camera-chip,
+        .moment-chip,
+        #bank-skim,
+        #high-speed-score,
+        #fork-route,
+        #fighter-pursuit,
+        #barrel-roll {
+          padding: 5px 7px;
+          font-size: 8px;
+          background: rgba(5, 17, 30, 0.88);
         }
 
         .controls {
@@ -853,13 +1097,65 @@
 
         #flare-button {
           right: 50%;
-          bottom: 112px;
+          bottom: calc(128px + env(safe-area-inset-bottom));
           transform: translateX(50%);
           white-space: nowrap;
         }
 
         #flare-button:active {
           transform: translate(50%, 3px);
+        }
+
+        body[data-mobile-control-layout="2"] #flare-button {
+          bottom: calc(196px + env(safe-area-inset-bottom));
+        }
+
+        #game-version {
+          top: 3px;
+          right: 3px;
+          bottom: auto;
+          opacity: 0.66;
+        }
+
+        #mobile-controls {
+          position: fixed;
+          right: max(8px, env(safe-area-inset-right));
+          bottom: max(8px, env(safe-area-inset-bottom));
+          left: max(8px, env(safe-area-inset-left));
+          z-index: 31;
+          display: grid;
+          gap: 7px;
+          pointer-events: none;
+        }
+
+        #mobile-controls .mobile-control-button {
+          pointer-events: auto;
+        }
+      }
+
+      @media (min-width: 621px) and (hover: none) and (pointer: coarse) {
+        .mobile-layout-2 {
+          grid-template-columns: 124px 68px 210px;
+          justify-content: space-between;
+          min-height: 124px;
+        }
+
+        .mobile-dpad {
+          width: 124px;
+          height: 124px;
+        }
+
+        .mobile-dpad::after {
+          inset: 39px;
+        }
+
+        .mobile-dpad-up { left: 39px; }
+        .mobile-dpad-right { top: 39px; }
+        .mobile-dpad-down { left: 39px; }
+        .mobile-dpad-left { top: 39px; }
+
+        .mobile-action-cluster {
+          height: 124px;
         }
       }
     </style>
@@ -915,6 +1211,49 @@
       <span id="missile-alert-label">RASTREANDO</span>
     </div>
     <button id="flare-button" type="button">[E] LANÇAR FLARE</button>
+    <div id="mobile-controls" data-layout="1" aria-label="Controles de toque" hidden>
+      <div class="mobile-command-row">
+        <button id="touch-camera" class="mobile-control-button" type="button" data-mobile-action="camera">CÂMERA</button>
+        <button id="touch-barrel-roll" class="mobile-control-button" type="button" data-mobile-action="barrel">ROLL</button>
+        <button id="touch-pause" class="mobile-control-button" type="button">PAUSA</button>
+        <button id="touch-info" class="mobile-control-button" type="button" aria-expanded="false">INFO +</button>
+        <button id="touch-layout" class="mobile-control-button" type="button">LAYOUT 1</button>
+      </div>
+      <div class="mobile-layout-1 mobile-flight-row">
+        <div class="mobile-flight-buttons">
+          <button id="touch-left" class="mobile-control-button" type="button" data-input="left" aria-label="Mover para a esquerda">◀</button>
+          <button id="touch-speed-up" class="mobile-control-button" type="button" data-input="up" aria-label="Acelerar">▲</button>
+          <button id="touch-speed-down" class="mobile-control-button" type="button" data-input="down" aria-label="Frear">▼</button>
+          <button id="touch-right" class="mobile-control-button" type="button" data-input="right" aria-label="Mover para a direita">▶</button>
+        </div>
+        <button id="touch-fire" class="mobile-control-button" type="button" data-input="shoot">TIRO</button>
+      </div>
+      <div class="mobile-layout-2" aria-label="Layout alternativo de controles">
+        <div class="mobile-dpad" aria-label="Direcional circular">
+          <button class="mobile-control-button mobile-dpad-button mobile-dpad-up" type="button" data-input="up" aria-label="Acelerar">▲</button>
+          <button class="mobile-control-button mobile-dpad-button mobile-dpad-right" type="button" data-input="right" aria-label="Mover para a direita">▶</button>
+          <button class="mobile-control-button mobile-dpad-button mobile-dpad-down" type="button" data-input="down" aria-label="Frear">▼</button>
+          <button class="mobile-control-button mobile-dpad-button mobile-dpad-left" type="button" data-input="left" aria-label="Mover para a esquerda">◀</button>
+        </div>
+        <button id="touch-camera-alt" class="mobile-control-button" type="button" data-mobile-action="camera">
+          <span class="mobile-action-icon">●</span>CÂMERA
+        </button>
+        <div class="mobile-action-cluster">
+          <button class="mobile-control-button" type="button" data-input="shoot">
+            <span class="mobile-action-icon">◎</span>ATIRAR
+          </button>
+          <button class="mobile-control-button" type="button" data-input="up">
+            <span class="mobile-action-icon">⇈</span>ACELERAR
+          </button>
+          <button class="mobile-control-button" type="button" data-input="down">
+            <span class="mobile-action-icon">↘</span>FREAR
+          </button>
+          <button id="touch-barrel-roll-alt" class="mobile-control-button" type="button" data-mobile-action="barrel">
+            <span class="mobile-action-icon">⟳</span>MANOBRA
+          </button>
+        </div>
+      </div>
+    </div>
     <div id="toast"></div>
 
     <div id="overlay" data-mode="menu">
@@ -924,9 +1263,9 @@
         <div id="menu-subtitle" class="subtitle">Ataque retro low-poly em 3D</div>
         <div id="final-score"></div>
         <div class="controls">
-          <div class="control"><b>← A · D →</b>MOVER AVIÃO</div>
-          <div class="control"><b>↑ W · S ↓</b>ACELERAR / FREAR</div>
-          <div class="control"><b>ESPAÇO</b>DISPARAR</div>
+          <div class="control"><b>◀ · ▶ / A · D</b>MOVER AVIÃO</div>
+          <div class="control"><b>▲ · ▼ / W · S</b>ACELERAR / FREAR</div>
+          <div class="control"><b>TIRO / ESPAÇO</b>DISPARAR</div>
         </div>
         <label id="simulation-round" class="simulation-round" for="start-round" hidden>
           <span>Rodada inicial</span>
@@ -972,11 +1311,27 @@
       </section>
     </div>
 
-    <script type="module">
-      import * as THREE from 'https://unpkg.com/three@0.168.0/build/three.module.js';
-
-      const GAME_VERSION = '1.12.0';
-      const LEADERBOARD_API_URL = '/api/leaderboard';
+    <script src="./vendor/three.min.js"></script>
+    <script>
+      const GAME_VERSION = '1.14.0';
+      const platformOverrides =
+        window.RIO_DE_ACO_CONFIG && typeof window.RIO_DE_ACO_CONFIG === 'object'
+          ? window.RIO_DE_ACO_CONFIG
+          : {};
+      const platformQuery = new URLSearchParams(window.location.search).get('platform');
+      const usesBundledApi =
+        window.location.protocol !== 'file:' && window.location.hostname.endsWith('.vercel.app');
+      const defaultLeaderboardApiUrl = usesBundledApi
+        ? '/api/leaderboard'
+        : 'https://vibe-jogos.vercel.app/api/leaderboard/';
+      const PLATFORM_CONFIG = Object.freeze({
+        id: String(platformOverrides.platform || platformQuery || 'web').trim().toLowerCase() || 'web',
+        leaderboardApiUrl:
+          platformOverrides.leaderboardApiUrl === false
+            ? null
+            : String(platformOverrides.leaderboardApiUrl || defaultLeaderboardApiUrl),
+      });
+      const LEADERBOARD_API_URL = PLATFORM_CONFIG.leaderboardApiUrl;
       const LEADERBOARD_GAME = 'river-raid-3d';
       const LEADERBOARD_STORAGE_KEY = 'rio-de-aco-leaderboard';
       const PLAYER_NAME_STORAGE_KEY = 'rio-de-aco-player-name';
@@ -1454,6 +1809,7 @@
 
       const dom = {
         mount: document.querySelector('#game'),
+        hud: document.querySelector('#hud'),
         version: document.querySelector('#game-version'),
         overlay: document.querySelector('#overlay'),
         title: document.querySelector('#menu-title'),
@@ -1485,6 +1841,13 @@
         fighterPursuit: document.querySelector('#fighter-pursuit'),
         barrelRoll: document.querySelector('#barrel-roll'),
         flareButton: document.querySelector('#flare-button'),
+        mobileControls: document.querySelector('#mobile-controls'),
+        touchInputButtons: [...document.querySelectorAll('#mobile-controls [data-input]')],
+        touchCameraButtons: [...document.querySelectorAll('[data-mobile-action="camera"]')],
+        touchBarrelRollButtons: [...document.querySelectorAll('[data-mobile-action="barrel"]')],
+        touchPause: document.querySelector('#touch-pause'),
+        touchInfo: document.querySelector('#touch-info'),
+        touchLayout: document.querySelector('#touch-layout'),
         fuelFill: document.querySelector('#fuel-fill'),
         fuelNumber: document.querySelector('#fuel-number'),
         lives: document.querySelector('#lives'),
@@ -1855,7 +2218,13 @@
           this.environmentCyclesCompleted = 0;
           this.currentBiomeKey = 'valley';
           this.environmentTransition = null;
+          this.mobileLayout = false;
+          this.mobileLandscape = false;
           this.input = { left: false, right: false, up: false, down: false, shoot: false };
+          this.touchPointers = new Map();
+          this.mobileInfoExpanded = localStorage.getItem('rio-de-aco-mobile-info') === 'expanded';
+          this.mobileControlLayout =
+            localStorage.getItem('rio-de-aco-mobile-control-layout') === '2' ? '2' : '1';
           this.entities = [];
           this.bullets = [];
           this.missiles = [];
@@ -1892,6 +2261,8 @@
           this.seedOpeningRun();
           this.updateRoundSelector();
           this.bindEvents();
+          this.updateMobileInfoVisibility();
+          this.updateMobileControlLayout();
           this.onResize();
           this.updateHUD();
           this.renderLeaderboard();
@@ -1902,6 +2273,7 @@
           window.render_game_to_text = () => this.renderGameToText();
           window.advanceTime = (ms) => this.advanceTime(ms);
           window.__riverRaidGame = this;
+          window.RIO_DE_ACO_RUNTIME = PLATFORM_CONFIG;
 
           this.animate = this.animate.bind(this);
           requestAnimationFrame(this.animate);
@@ -4366,6 +4738,7 @@
           this.leaderboardLoading = true;
           this.renderLeaderboard();
           try {
+            if (!LEADERBOARD_API_URL) throw new Error('Ranking online desativado nesta plataforma');
             const params = new URLSearchParams({ game: LEADERBOARD_GAME, board: requestedBoard });
             if (requestedBoard === 'daily') params.set('challenge', this.dailyChallengeDate);
             const response = await fetch(
@@ -4458,6 +4831,7 @@
           dom.scoreSaveStatus.textContent = 'CONTATANDO A TORRE DE CONTROLE...';
 
           try {
+            if (!LEADERBOARD_API_URL) throw new Error('Ranking online desativado nesta plataforma');
             const response = await fetch(LEADERBOARD_API_URL, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
@@ -4549,6 +4923,80 @@
           });
         }
 
+        updateMobileInfoVisibility() {
+          dom.hud.classList.toggle('mobile-info-collapsed', !this.mobileInfoExpanded);
+          dom.touchInfo.textContent = this.mobileInfoExpanded ? 'INFO −' : 'INFO +';
+          dom.touchInfo.setAttribute('aria-expanded', String(this.mobileInfoExpanded));
+        }
+
+        toggleMobileInfo() {
+          this.mobileInfoExpanded = !this.mobileInfoExpanded;
+          localStorage.setItem(
+            'rio-de-aco-mobile-info',
+            this.mobileInfoExpanded ? 'expanded' : 'collapsed'
+          );
+          this.updateMobileInfoVisibility();
+        }
+
+        updateMobileControlLayout() {
+          dom.mobileControls.dataset.layout = this.mobileControlLayout;
+          document.body.dataset.mobileControlLayout = this.mobileControlLayout;
+          dom.touchLayout.textContent = `LAYOUT ${this.mobileControlLayout}`;
+          dom.touchLayout.setAttribute(
+            'aria-label',
+            `Layout de controles ${this.mobileControlLayout}; toque para alternar`
+          );
+        }
+
+        toggleMobileControlLayout() {
+          this.releaseTouchInputs();
+          this.mobileControlLayout = this.mobileControlLayout === '1' ? '2' : '1';
+          localStorage.setItem('rio-de-aco-mobile-control-layout', this.mobileControlLayout);
+          this.updateMobileControlLayout();
+          this.onResize();
+          this.updateCamera(1);
+          this.showToast(`CONTROLES · LAYOUT ${this.mobileControlLayout}`, 1.1);
+        }
+
+        releaseTouchInputs() {
+          this.touchPointers.clear();
+          for (const button of dom.touchInputButtons) button.classList.remove('pressed');
+          this.input.left = false;
+          this.input.right = false;
+          this.input.up = false;
+          this.input.down = false;
+          this.input.shoot = false;
+        }
+
+        bindTouchInput(button) {
+          const inputName = button.dataset.input;
+          const releasePointer = (event) => {
+            if (this.touchPointers.get(event.pointerId) !== inputName) return;
+            this.touchPointers.delete(event.pointerId);
+            const stillPressed = [...this.touchPointers.values()].includes(inputName);
+            this.input[inputName] = stillPressed;
+            button.classList.toggle('pressed', stillPressed);
+          };
+
+          button.addEventListener('pointerdown', (event) => {
+            event.preventDefault();
+            if (this.mode !== 'PLAYING') return;
+            this.audio.enable();
+            this.touchPointers.set(event.pointerId, inputName);
+            this.input[inputName] = true;
+            button.classList.add('pressed');
+            try {
+              button.setPointerCapture(event.pointerId);
+            } catch {
+              // O controle continua funcionando em navegadores sem captura de ponteiro.
+            }
+          });
+          button.addEventListener('pointerup', releasePointer);
+          button.addEventListener('pointercancel', releasePointer);
+          button.addEventListener('lostpointercapture', releasePointer);
+          button.addEventListener('contextmenu', (event) => event.preventDefault());
+        }
+
         bindEvents() {
           dom.start.addEventListener('click', () => this.startOrRestart(this.mode === 'GAMEOVER' ? this.runMode : 'classic'));
           dom.dailyStart.addEventListener('click', () => this.startOrRestart('daily'));
@@ -4559,6 +5007,22 @@
             event.preventDefault();
             this.submitLeaderboardScore();
           });
+          for (const button of dom.touchInputButtons) this.bindTouchInput(button);
+          for (const button of dom.touchCameraButtons) {
+            button.addEventListener('click', () => {
+              this.audio.enable();
+              this.switchCamera();
+            });
+          }
+          for (const button of dom.touchBarrelRollButtons) {
+            button.addEventListener('click', () => {
+              this.audio.enable();
+              this.startBarrelRoll();
+            });
+          }
+          dom.touchPause.addEventListener('click', () => this.togglePause());
+          dom.touchInfo.addEventListener('click', () => this.toggleMobileInfo());
+          dom.touchLayout.addEventListener('click', () => this.toggleMobileControlLayout());
           dom.flareButton.addEventListener('click', () => this.deployFlare());
           dom.title.addEventListener('click', () => this.handleSecretTitleClick());
           dom.startRound.addEventListener('change', (event) => this.setStartingRound(event.target.value));
@@ -4616,11 +5080,7 @@
           });
 
           addEventListener('blur', () => {
-            this.input.left = false;
-            this.input.right = false;
-            this.input.up = false;
-            this.input.down = false;
-            this.input.shoot = false;
+            this.releaseTouchInputs();
           });
         }
 
@@ -4772,6 +5232,7 @@
 
         togglePause() {
           if (this.mode === 'PLAYING') {
+            this.releaseTouchInputs();
             this.mode = 'PAUSED';
             this.showToast('PAUSA', 999);
           } else if (this.mode === 'PAUSED') {
@@ -5969,6 +6430,11 @@
 
         updateCamera(dt) {
           const speedRatio = this.getSpeedRatio();
+          const mobileFraming = this.mobileLayout ? 1 : 0;
+          const landscapeFraming = this.mobileLandscape ? 1 : 0;
+          const layoutTwoFraming =
+            this.mobileLayout && this.mobileControlLayout === '2' ? 1 : 0;
+          const layoutTwoLandscapeFraming = layoutTwoFraming * landscapeFraming;
           const pursuitFramingActive = Boolean(
             this.pursuitFighter && (this.mode === 'PLAYING' || this.mode === 'PAUSED')
           );
@@ -6003,23 +6469,57 @@
             this.cameraChase.position.x = damp(this.cameraChase.position.x, this.cameraTargetX * 0.78, 4, dt);
             this.cameraChase.position.y = damp(
               this.cameraChase.position.y,
-              lerp(9.4, 11.2, speedRatio) + this.pursuitCameraBlend * 1.2,
+              lerp(9.4, 11.2, speedRatio) +
+                this.pursuitCameraBlend * 1.2 +
+                mobileFraming * 1.6 +
+                landscapeFraming * 1.4 +
+                layoutTwoFraming * 1.2,
               4,
               dt
             );
             this.cameraChase.position.z = damp(
               this.cameraChase.position.z,
-              lerp(20.5, 25, speedRatio) + this.pursuitCameraBlend * 4.5,
+              lerp(20.5, 25, speedRatio) +
+                this.pursuitCameraBlend * 4.5 +
+                mobileFraming * 4.5 +
+                landscapeFraming * 4 +
+                layoutTwoFraming * 3.5,
               4,
               dt
+            );
+            const desktopLookZ = lerp(lerp(-24, -32, speedRatio), -38, this.pursuitCameraBlend);
+            const mobileLookZ = lerp(lerp(-14, -21, speedRatio), -27, this.pursuitCameraBlend);
+            const landscapeLookZ = lerp(lerp(-8, -14, speedRatio), -20, this.pursuitCameraBlend);
+            const layoutTwoLookZ = lerp(lerp(-6, -12, speedRatio), -18, this.pursuitCameraBlend);
+            const layoutTwoLandscapeLookZ = lerp(3, -4, this.pursuitCameraBlend);
+            const responsiveLookZ = lerp(
+              lerp(desktopLookZ, mobileLookZ, mobileFraming),
+              landscapeLookZ,
+              landscapeFraming
             );
             this.cameraChase.lookAt(
               this.cameraTargetX * 0.42,
               lerp(1, -8.5, this.pursuitCameraBlend),
-              lerp(lerp(-24, -32, speedRatio), -38, this.pursuitCameraBlend)
+              lerp(
+                lerp(responsiveLookZ, layoutTwoLookZ, layoutTwoFraming),
+                layoutTwoLandscapeLookZ,
+                layoutTwoLandscapeFraming
+              )
             );
           } else if (this.cameraMode === 'top') {
-            const topCenterZ = lerp(-25, -10, this.pursuitCameraBlend);
+            const desktopCenterZ = lerp(-25, -10, this.pursuitCameraBlend);
+            const mobileCenterZ = lerp(-12, 0, this.pursuitCameraBlend);
+            const layoutTwoCenterZ = lerp(-4, 5, this.pursuitCameraBlend);
+            const layoutTwoLandscapeCenterZ = lerp(10, 14, this.pursuitCameraBlend);
+            const topCenterZ = lerp(
+              lerp(
+                lerp(desktopCenterZ, mobileCenterZ, mobileFraming),
+                layoutTwoCenterZ,
+                layoutTwoFraming
+              ),
+              layoutTwoLandscapeCenterZ,
+              layoutTwoLandscapeFraming
+            );
             this.cameraTop.position.set(this.cameraTargetX, 82, topCenterZ);
             this.cameraTop.up.set(0, 0, -1);
             this.cameraTop.lookAt(this.cameraTargetX, 0, topCenterZ);
@@ -6095,6 +6595,14 @@
             : barrelRollState === 'used'
               ? 'BARREL ROLL · USADO'
               : '[Q] BARREL ROLL · PRONTO';
+          dom.mobileControls.hidden = !barrelRollVisible;
+          for (const button of dom.touchCameraButtons) button.disabled = !barrelRollVisible;
+          for (const button of dom.touchBarrelRollButtons) {
+            button.disabled =
+              this.mode !== 'PLAYING' || this.isBarrelRolling() || this.barrelRollUsedThisEnvironment;
+          }
+          dom.touchPause.disabled = !barrelRollVisible;
+          dom.touchPause.textContent = this.mode === 'PAUSED' ? 'CONTINUAR' : 'PAUSA';
           dom.fuelFill.style.transform = `scaleX(${clamp(this.fuel / 100, 0, 1)})`;
           dom.fuelNumber.textContent = `${Math.ceil(this.fuel)}%`;
           dom.fuelNumber.style.color = this.fuel < 22 ? '#ff4d5f' : '#f5f0d0';
@@ -6108,6 +6616,9 @@
         onResize() {
           const width = innerWidth;
           const height = innerHeight;
+          this.mobileLayout =
+            width <= 620 || matchMedia('(hover: none) and (pointer: coarse)').matches;
+          this.mobileLandscape = this.mobileLayout && width > height;
           const aspect = width / height;
           this.cameraChase.aspect = aspect;
           this.cameraChase.updateProjectionMatrix();
@@ -6287,6 +6798,18 @@
             .sort((a, b) => b.z - a.z);
           return JSON.stringify({
             version: GAME_VERSION,
+            platform: {
+              id: PLATFORM_CONFIG.id,
+              leaderboard: LEADERBOARD_API_URL ? 'online' : 'local',
+              leaderboardApi: LEADERBOARD_API_URL,
+            },
+            mobileControls: {
+              visible: !dom.mobileControls.hidden && this.mobileLayout,
+              coarsePointer: matchMedia('(hover: none) and (pointer: coarse)').matches,
+              layout: Number(this.mobileControlLayout),
+              infoExpanded: this.mobileInfoExpanded,
+              activeInputs: [...new Set(this.touchPointers.values())],
+            },
             coordinateSystem: 'x: esquerda(-)/direita(+); z: à frente é negativo; avião permanece em z=8',
             mode: this.mode,
             challenge: {

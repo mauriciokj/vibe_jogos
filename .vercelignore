@@ -1,0 +1,8 @@
+.git
+.agents
+.vercel
+node_modules
+output
+skills-lock.json
+.env*
+*.log

@@ -324,3 +324,30 @@ Original prompt: Criar um novo jogo retro inspirado em River Raid, em Three.js, 
 - Envio diário de 4.321 pontos retornou posição #1 somente no ranking de 04/08/2026, com rodada, pontes e evasões preservadas. Cinco testes da API passaram, incluindo isolamento, expiração, data inválida e bloqueio do modo diário no Snake.
 - Cliente oficial validou menu, início do desafio, movimento e disparo sem erros de console usando a API local. Capturas desktop e viewport móvel de 390×844 foram inspecionadas sem rolagem horizontal.
 - TODO: aguardar teste do usuário antes de commit e deploy da `v1.12.0`.
+- `v1.12.0` aprovada, registrada no commit `344640b` e publicada em produção com o Desafio do Dia e seu ranking separado.
+- `v1.12.1` inicia a build portátil: Three.js `0.168.0` e sua licença passaram a acompanhar o jogo em `vendor/`, removendo a dependência do unpkg.
+- A configuração de plataforma aceita `window.RIO_DE_ACO_CONFIG` e `?platform=`. A Vercel usa `/api/leaderboard`; arquivos, servidores locais e portais externos usam a API pública de produção, com opção de substituir a URL ou forçar ranking somente local.
+- Estado textual passou a expor a plataforma e a configuração efetiva do ranking.
+- Primeiro teste estático revelou que a URL pública sem barra final recebe redirecionamento `308` sem cabeçalho CORS. O endereço externo padrão passou a usar `/api/leaderboard/`, evitando o redirecionamento e liberando o ranking em origens externas.
+- O teste direto por `file://` detectou o bloqueio de módulos locais imposto pelo navegador. Three.js foi reempacotado como script clássico local, mantendo o jogo totalmente independente do CDN sem quebrar a forma atual de abri-lo pelo Finder/navegador.
+- Validação final passou tanto por `file://` quanto por servidor HTTP: jogo iniciou, movimento e disparo responderam, o Three.js veio do pacote local e o ranking global foi carregado pela API pública sem erros de console.
+- Capturas Chase dos dois modos foram inspecionadas; cenário, avião, HUD e versão `v1.12.1` permaneceram corretos.
+- `v1.12.1` publicada em produção em `https://vibe-jogos.vercel.app/games/river-raid-3d/`; página, pacote local do Three.js e ranking global foram verificados no domínio público.
+- TODO seguinte: implementar pausa segura ao ocultar a aba e retomar sem salto de tempo; controles de toque entram na etapa posterior.
+- `v1.13.0` local adiciona controles móveis completos para direção, potência e tiro contínuo, com suporte a combinações simultâneas por dois dedos.
+- Ações móveis de câmera, barrel roll e pausa ficam em uma faixa compacta; o flare contextual existente continua disponível no momento correto da perseguição.
+- Informações inferiores começam recolhidas no celular. `INFO +`/`INFO −` alterna missão, câmera, ambiente e bônus, preservando a preferência no armazenamento local.
+- Chase e Top-Down receberam enquadramentos específicos para celular em pé e deitado, mantendo o avião fora da área ocupada pelos controles.
+- Teste de toque em 390×844 confirmou movimento `x=1,2→-1,7`, tiro simultâneo, aceleração da meta `36,2→41,9`, câmera Top-Down, barrel roll à esquerda, pausa/retomada e abertura/fechamento das informações.
+- Capturas com informações recolhidas, abertas e durante a manobra foram inspecionadas. Landscape 844×390 também manteve avião e controles separados; nenhum erro de console foi encontrado.
+- Cliente oficial revalidou teclado, movimento e disparo no desktop sem regressões.
+- TODO: aguardar teste do usuário antes de commit e deploy da `v1.13.0`; pausa automática ao ocultar a aba permanece como próxima etapa portátil.
+- `v1.13.0` publicada em produção para teste móvel em `https://vibe-jogos.vercel.app/games/river-raid-3d/`; HTML público confirmou controles, botão `INFO +` e versão correta.
+- `v1.14.0` local preserva a barra atual como Layout 1 e adiciona um Layout 2 baseado na referência enviada: direcional circular à esquerda, câmera isolada e grade de tiro, aceleração, freio e manobra à direita.
+- `LAYOUT 1`/`LAYOUT 2` alterna a disposição durante a partida e salva a escolha em `localStorage`, mantendo-a após fechar ou recarregar o jogo.
+- Layout 2 reutiliza os mesmos estados de entrada do teclado e do Layout 1, inclusive combinações simultâneas. Teste em 390×844 confirmou esquerda + tiro, aceleração `36,2→41,2`, câmera Top-Down e barrel roll à esquerda.
+- Persistência validada após recarregar a página: Layout 2 voltou selecionado. Layout 1 permaneceu visual e funcionalmente preservado.
+- Capturas 390×844 e 844×390 foram inspecionadas; câmeras móveis mantiveram o avião acima das áreas interativas nos dois layouts e nenhuma mensagem de erro apareceu no console.
+- Cliente oficial confirmou que teclado, tiro, movimento e apresentação desktop continuam sem regressões.
+- `v1.14.0` aprovada pelo usuário após teste dos dois layouts móveis; pronta para registro no histórico do projeto.
+- `v1.14.0` publicada em produção para teste móvel em `https://vibe-jogos.vercel.app/games/river-raid-3d/`; o HTML público confirmou a versão, o seletor persistente e os dois layouts de controles.

@@ -8,6 +8,41 @@ O jogo usa versionamento semântico:
 
 Cada publicação deve atualizar `GAME_VERSION` no `index.html` e registrar as mudanças neste arquivo.
 
+## 1.14.0 — 2026-08-04
+
+- Jogadores podem alternar entre dois layouts móveis durante a partida; a escolha fica salva no aparelho.
+- Layout 1 preserva a barra horizontal introduzida na versão anterior.
+- Layout 2, inspirado na referência visual, usa direcional circular à esquerda, câmera separada e ações de tiro, aceleração, freio e manobra agrupadas à direita.
+- Ambos os layouts aceitam múltiplos toques simultâneos e compartilham exatamente os mesmos comandos do jogo.
+- Pausa, informações e seletor de layout permanecem disponíveis numa faixa utilitária compacta.
+- Câmeras móveis ajustam o enquadramento conforme layout, orientação e perseguição para manter o avião fora das áreas interativas.
+- Estado textual informa o layout ativo para testes e diagnóstico.
+
+## 1.13.0 — 2026-08-04
+
+- Controles de toque permitem virar, acelerar, frear e manter o tiro pressionado, incluindo combinações com dois dedos.
+- Barra móvel adiciona acesso direto a câmera, barrel roll e pausa; o flare continua aparecendo somente durante a perseguição do caça.
+- Informações inferiores de missão, câmera, ambiente e bônus começam recolhidas no celular e podem ser abertas ou fechadas por `INFO +`/`INFO −`.
+- Preferência da faixa informativa é preservada no aparelho sem alterar o HUD do desktop.
+- Câmeras Chase e Top-Down receberam enquadramentos próprios para celular em pé e deitado, mantendo o avião acima dos controles.
+- Estado textual expõe disponibilidade, informações abertas e comandos de toque ativos para validação automatizada.
+
+## 1.12.1 — 2026-08-04
+
+- Three.js `0.168.0` passou a ser servido junto com o jogo em um pacote clássico, eliminando a dependência do CDN e preservando a abertura direta por `file://`.
+- Configuração de plataforma pode ser definida por `window.RIO_DE_ACO_CONFIG` ou pelo parâmetro `?platform=`, sem criar versões diferentes do jogo.
+- Ranking usa a API relativa na Vercel; em arquivos, servidores locais e portais externos, usa por padrão a API pública de produção.
+- Uma plataforma pode substituir a URL do ranking ou desativar o serviço online, preservando automaticamente o placar local.
+- Estado textual informa plataforma, disponibilidade do ranking e endereço de API ativo.
+
+## 1.12.0 — 2026-08-04
+
+- `DESAFIO DO DIA` oferece o mesmo percurso e sequência inicial de inimigos para todos os jogadores na data corrente de São Paulo.
+- Sorteios de geração e combate usam estados determinísticos separados, impedindo que ações do jogador mudem os próximos encontros.
+- O desafio sempre começa na rodada 1 e não utiliza o seletor secreto de simulação.
+- Rankings `GERAL` e `DIÁRIO` aparecem em abas separadas; placares diários expiram após 45 dias sem novos envios.
+- API mantém os resultados diários isolados por data sem alterar o ranking global ou a compatibilidade com os demais jogos.
+
 ## 1.11.1 — 2026-08-04
 
 - Trechos do rio agora atualizam as mesmas geometrias em vez de destruir e recriar oito malhas a cada reciclagem.
