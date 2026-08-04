@@ -5,3 +5,5 @@ games/**/output/
 
 # local tooling
 *.log
+.vercel
+.env*
