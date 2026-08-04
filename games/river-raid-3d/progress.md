@@ -316,3 +316,11 @@ Original prompt: Criar um novo jogo retro inspirado em River Raid, em Three.js, 
 - Medição anterior crescia de 254 para 273 geometrias durante uma sessão curta e de 273 para 310 após uma explosão. Na versão otimizada, seis reinícios estabilizaram em 155 geometrias e explosões repetidas reutilizaram os mesmos recursos.
 - Cliente oficial validou movimento, tiro e reciclagem contínua sem erros. Testes adicionais passaram nas três câmeras, pausa congelada, aceleração, barrel roll nos dois sentidos, Jungle noturna e seis reinícios consecutivos.
 - Capturas Chase, Top-Down, Cockpit e Jungle foram inspecionadas; visual low-poly, HUD, iluminação e enquadramentos permaneceram corretos. Alterações ainda locais, sem commit/deploy.
+- `v1.11.1` aprovada, registrada no commit `8471364` e publicada em produção com as melhorias de estabilidade.
+- `v1.12.0` local adiciona o `DESAFIO DO DIA` como alternativa ao modo clássico. A data oficial usa o fuso de São Paulo; a missão diária sempre começa na rodada 1 e ignora o seletor secreto de simulação.
+- O gerador diário controla ordem, posição, lado e velocidade dos inimigos. Sorteios visuais permanecem livres e a sequência de combate usa um estado separado, impedindo que ações durante a partida alterem os próximos encontros do percurso.
+- Ranking recebeu abas `GERAL` e `DIÁRIO`. A API mantém chaves diárias isoladas no Redis, valida datas e renova uma expiração de 45 dias, sem alterar o placar global do Rio de Aço nem a compatibilidade com o Snake.
+- Teste com duas páginas novas confirmou a mesma semente `1244038663`, o mesmo estado final do gerador e entidades idênticas no desafio de 04/08/2026; duas partidas clássicas continuaram diferentes.
+- Envio diário de 4.321 pontos retornou posição #1 somente no ranking de 04/08/2026, com rodada, pontes e evasões preservadas. Cinco testes da API passaram, incluindo isolamento, expiração, data inválida e bloqueio do modo diário no Snake.
+- Cliente oficial validou menu, início do desafio, movimento e disparo sem erros de console usando a API local. Capturas desktop e viewport móvel de 390×844 foram inspecionadas sem rolagem horizontal.
+- TODO: aguardar teste do usuário antes de commit e deploy da `v1.12.0`.

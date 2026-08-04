@@ -254,6 +254,16 @@ Status: primeira versão concluída. A Jungle começa na rodada 4 com cinco mome
 - Depósitos de combustível camuflados e ruínas bônus recompensam a exploração de canais mais perigosos.
 - Variação futura: tempestade tropical com relâmpagos que iluminam brevemente o cenário inteiro.
 
+## 19. Desafio do Dia
+
+Status: primeira versão concluída na `v1.12.0`. O menu oferece uma missão diária que usa a data de São Paulo como semente, começa sempre na rodada 1 e preserva a mesma ordem, posição e velocidade inicial dos inimigos para todos. O ranking diário é separado do ranking geral e cada placar diário expira após 45 dias sem novos envios.
+
+- O modo clássico continua infinito e aleatório, sem perder o seletor secreto de rodada.
+- Efeitos puramente visuais continuam variados e não alteram a sequência da missão.
+- Sorteios de combate usam uma sequência independente, evitando que um tiro inimigo mude os próximos encontros do percurso.
+- A tela inicial permite alternar entre os cinco melhores do ranking geral e do ranking diário.
+- Expansões futuras: objetivos diários especiais, sequência semanal, medalhas e validação antifraude no servidor.
+
 ## Ordem sugerida para a próxima grande atualização
 
 1. Reestruturar aceleração, frenagem e sensação de velocidade.
@@ -267,3 +277,4 @@ Status: primeira versão concluída. A Jungle começa na rodada 4 com cinco mome
 9. Concluído: implementar o caça perseguidor como evento de ciclo avançado.
 10. Integrar bifurcações, biomas, clima e defesas de pontes.
 11. Concluído: adicionar a primeira versão do ranking online com fallback local.
+12. Concluído: adicionar o Desafio do Dia determinístico com ranking diário separado.

@@ -21,10 +21,41 @@ const GAME_CONFIGS = Object.freeze({
   snake: Object.freeze({ key: 'snake:leaderboard', maxEntries: 10, metadata: false }),
   'river-raid-3d': Object.freeze({ key: 'river-raid-3d:leaderboard:v1', maxEntries: 20, metadata: true }),
 });
+const DAILY_BOARD_TTL_SECONDS = 60 * 60 * 24 * 45;
 
 function normalizeGame(raw) {
   const game = String(raw || DEFAULT_GAME).trim().toLowerCase();
   return Object.prototype.hasOwnProperty.call(GAME_CONFIGS, game) ? game : null;
+}
+
+function normalizeBoard(raw, game) {
+  const board = String(raw || 'global').trim().toLowerCase();
+  if (board === 'global') return board;
+  if (board === 'daily' && game === 'river-raid-3d') return board;
+  return null;
+}
+
+function normalizeChallenge(raw) {
+  const challenge = String(raw || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(challenge)) return null;
+  const [year, month, day] = challenge.split('-').map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  if (
+    parsed.getUTCFullYear() !== year ||
+    parsed.getUTCMonth() !== month - 1 ||
+    parsed.getUTCDate() !== day
+  ) return null;
+  return challenge;
+}
+
+function resolveBoardConfig(baseConfig, board, challenge) {
+  if (board !== 'daily') return baseConfig;
+  return {
+    ...baseConfig,
+    key: `river-raid-3d:daily:${challenge}`,
+    ttlSeconds: DAILY_BOARD_TTL_SECONDS,
+    challenge,
+  };
 }
 
 function normalizeName(raw) {
@@ -60,6 +91,7 @@ function normalizeEntry(raw, config, { submitted = false } = {}) {
     entry.evasions = normalizeInteger(raw.evasions ?? 0, 0, 99_999, 'evasões');
     entry.distance = normalizeInteger(raw.distance ?? 0, 0, 999_999_999, 'distância');
     entry.version = String(raw.version || '').trim().slice(0, 16);
+    if (config.challenge) entry.challenge = config.challenge;
   }
 
   return entry;
@@ -134,12 +166,24 @@ function createHandler(store = kv) {
       sendJson(res, 400, { error: 'Jogo não suportado' });
       return;
     }
-    const config = GAME_CONFIGS[game];
+    const board = normalizeBoard(req.query?.board || body?.board, game);
+    if (!board) {
+      sendJson(res, 400, { error: 'Ranking não suportado' });
+      return;
+    }
+    const challenge = board === 'daily'
+      ? normalizeChallenge(req.query?.challenge || body?.challenge)
+      : null;
+    if (board === 'daily' && !challenge) {
+      sendJson(res, 400, { error: 'Data do desafio inválida' });
+      return;
+    }
+    const config = resolveBoardConfig(GAME_CONFIGS[game], board, challenge);
 
     if (req.method === 'GET') {
       try {
         const entries = sortEntries(await readEntries(config)).slice(0, config.maxEntries);
-        sendJson(res, 200, { game, entries });
+        sendJson(res, 200, { game, board, challenge, entries });
       } catch (error) {
         sendJson(res, 500, {
           error: 'KV error',
@@ -155,10 +199,16 @@ function createHandler(store = kv) {
         const submittedEntry = normalizeEntry(body, config, { submitted: true });
         const entries = await readEntries(config);
         const next = sortEntries([...entries, submittedEntry]).slice(0, config.maxEntries);
-        await store.set(config.key, next);
+        if (config.ttlSeconds) {
+          await store.set(config.key, next, { ex: config.ttlSeconds });
+        } else {
+          await store.set(config.key, next);
+        }
         const position = next.findIndex((entry) => entry.id === submittedEntry.id);
         sendJson(res, 200, {
           game,
+          board,
+          challenge,
           entries: next,
           position: position >= 0 ? position + 1 : null,
         });
@@ -185,6 +235,16 @@ const handler = async (req, res) => {
   return defaultHandler(req, res);
 };
 handler.createHandler = createHandler;
-handler.testables = { GAME_CONFIGS, normalizeEntry, normalizeGame, normalizeName, sortEntries };
+handler.testables = {
+  DAILY_BOARD_TTL_SECONDS,
+  GAME_CONFIGS,
+  normalizeBoard,
+  normalizeChallenge,
+  normalizeEntry,
+  normalizeGame,
+  normalizeName,
+  resolveBoardConfig,
+  sortEntries,
+};
 
 module.exports = handler;

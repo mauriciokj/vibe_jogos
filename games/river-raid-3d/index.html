@@ -570,7 +570,15 @@
         letter-spacing: 0.12em;
       }
 
-      #start-button {
+      .mission-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 12px;
+      }
+
+      #start-button,
+      #daily-button {
         appearance: none;
         min-width: 230px;
         padding: 15px 26px;
@@ -584,17 +592,35 @@
         transition: transform 100ms ease, box-shadow 100ms ease;
       }
 
+      #daily-button {
+        border: 1px solid var(--cyan);
+        background: rgba(7, 35, 49, 0.94);
+        color: var(--cyan);
+        box-shadow: 6px 6px 0 #16536a;
+      }
+
       #start-button:hover,
-      #start-button:focus-visible {
+      #start-button:focus-visible,
+      #daily-button:hover,
+      #daily-button:focus-visible {
         transform: translate(2px, 2px);
         box-shadow: 4px 4px 0 #bb2f45;
         outline: 2px solid white;
         outline-offset: 5px;
       }
 
-      #start-button:active {
+      #start-button:active,
+      #daily-button:active {
         transform: translate(5px, 5px);
         box-shadow: 1px 1px 0 #bb2f45;
+      }
+
+      #daily-button small {
+        display: block;
+        margin-top: 5px;
+        color: #8baeb8;
+        font-size: 8px;
+        letter-spacing: 0.08em;
       }
 
       .menu-foot {
@@ -641,6 +667,27 @@
         letter-spacing: 0.18em;
       }
 
+      .leaderboard-tabs {
+        display: flex;
+        gap: 5px;
+      }
+
+      .leaderboard-tab {
+        padding: 5px 8px;
+        border: 1px solid rgba(102, 245, 255, 0.22);
+        background: transparent;
+        color: #638996;
+        font: 900 8px/1 "Courier New", monospace;
+        letter-spacing: 0.1em;
+        cursor: pointer;
+      }
+
+      .leaderboard-tab.active {
+        border-color: var(--cyan);
+        background: rgba(102, 245, 255, 0.12);
+        color: var(--cyan);
+      }
+
       #leaderboard-meta {
         color: #638996;
         font-size: 8px;
@@ -667,6 +714,12 @@
 
       #leaderboard-list li.current-score {
         color: var(--yellow);
+      }
+
+      #leaderboard-list li.leaderboard-empty {
+        display: block;
+        color: #638996;
+        letter-spacing: 0.08em;
       }
 
       .leaderboard-position {
@@ -756,7 +809,8 @@
       }
 
       #overlay[data-mode="gameover"] .controls,
-      #overlay[data-mode="gameover"] .simulation-round {
+      #overlay[data-mode="gameover"] .simulation-round,
+      #overlay[data-mode="gameover"] #daily-button {
         display: none;
       }
 
@@ -843,6 +897,7 @@
       <div></div>
       <div class="hud-bottom">
         <div class="hud-status">
+          <div id="mission-mode" class="camera-chip">MISSÃO: CLÁSSICA</div>
           <div class="camera-chip">CÂMERA: <span id="camera-name">PERSEGUIÇÃO</span></div>
           <div class="moment-chip">AMBIENTE: <span id="moment-name">DIA CLARO</span></div>
           <div id="bank-skim" data-complete="false">RASANTE <span id="bank-skim-progress">0%</span></div>
@@ -891,7 +946,10 @@
         </label>
         <section id="leaderboard-panel" class="leaderboard-panel" aria-label="Ranking global">
           <div class="leaderboard-head">
-            <span>TOP 5 PILOTOS</span>
+            <div class="leaderboard-tabs" aria-label="Escolher ranking">
+              <button class="leaderboard-tab active" type="button" data-board="global">GERAL</button>
+              <button class="leaderboard-tab" type="button" data-board="daily">DIÁRIO</button>
+            </div>
             <span id="leaderboard-meta">CARREGANDO...</span>
           </div>
           <form id="score-form" hidden>
@@ -906,7 +964,10 @@
             <li>SEM RECORDES AINDA</li>
           </ol>
         </section>
-        <button id="start-button" type="button">DECOLAR</button>
+        <div class="mission-buttons">
+          <button id="start-button" type="button">DECOLAR</button>
+          <button id="daily-button" type="button">DESAFIO DO DIA<small id="daily-label"></small></button>
+        </div>
         <div class="menu-foot">DESTRUA AS PONTES · REABASTEÇA NOS DEPÓSITOS FUEL</div>
       </section>
     </div>
@@ -914,11 +975,12 @@
     <script type="module">
       import * as THREE from 'https://unpkg.com/three@0.168.0/build/three.module.js';
 
-      const GAME_VERSION = '1.11.1';
+      const GAME_VERSION = '1.12.0';
       const LEADERBOARD_API_URL = '/api/leaderboard';
       const LEADERBOARD_GAME = 'river-raid-3d';
       const LEADERBOARD_STORAGE_KEY = 'rio-de-aco-leaderboard';
       const PLAYER_NAME_STORAGE_KEY = 'rio-de-aco-player-name';
+      const DAILY_TIME_ZONE = 'America/Sao_Paulo';
 
       const CONFIG = {
         segmentLength: 32,
@@ -1397,6 +1459,9 @@
         title: document.querySelector('#menu-title'),
         subtitle: document.querySelector('#menu-subtitle'),
         start: document.querySelector('#start-button'),
+        dailyStart: document.querySelector('#daily-button'),
+        dailyLabel: document.querySelector('#daily-label'),
+        missionMode: document.querySelector('#mission-mode'),
         simulationRound: document.querySelector('#simulation-round'),
         startRound: document.querySelector('#start-round'),
         roundDescription: document.querySelector('#round-description'),
@@ -1407,6 +1472,7 @@
         playerName: document.querySelector('#player-name'),
         saveScore: document.querySelector('#save-score-button'),
         scoreSaveStatus: document.querySelector('#score-save-status'),
+        leaderboardTabs: [...document.querySelectorAll('.leaderboard-tab')],
         score: document.querySelector('#score'),
         combo: document.querySelector('#combo'),
         comboLabel: document.querySelector('#combo-label'),
@@ -1434,6 +1500,31 @@
       const clamp = THREE.MathUtils.clamp;
       const lerp = THREE.MathUtils.lerp;
       const damp = THREE.MathUtils.damp;
+
+      function getDailyDateKey(date = new Date()) {
+        const parts = new Intl.DateTimeFormat('en-US', {
+          timeZone: DAILY_TIME_ZONE,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        }).formatToParts(date);
+        const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+        return `${values.year}-${values.month}-${values.day}`;
+      }
+
+      function hashStringToUint32(value) {
+        let hash = 2166136261;
+        for (let index = 0; index < value.length; index += 1) {
+          hash ^= value.charCodeAt(index);
+          hash = Math.imul(hash, 16777619);
+        }
+        return hash >>> 0;
+      }
+
+      function formatDailyDate(dateKey) {
+        const [year, month, day] = dateKey.split('-');
+        return `${day}/${month}/${year}`;
+      }
 
       function normalizePilotName(raw) {
         const cleaned = String(raw ?? '')
@@ -1468,9 +1559,17 @@
           .slice(0, 20);
       }
 
-      function loadLocalLeaderboard() {
+      function getLeaderboardStorageKey(board, challengeDate = '') {
+        return board === 'daily'
+          ? `${LEADERBOARD_STORAGE_KEY}:daily:${challengeDate}`
+          : LEADERBOARD_STORAGE_KEY;
+      }
+
+      function loadLocalLeaderboard(board = 'global', challengeDate = '') {
         try {
-          return normalizeLeaderboardEntries(JSON.parse(localStorage.getItem(LEADERBOARD_STORAGE_KEY) || '[]'));
+          return normalizeLeaderboardEntries(JSON.parse(
+            localStorage.getItem(getLeaderboardStorageKey(board, challengeDate)) || '[]'
+          ));
         } catch {
           return [];
         }
@@ -1730,7 +1829,14 @@
           this.barrelRollUsedThisEnvironment = false;
           this.barrelRolls = 0;
           this.barrelRollEvades = 0;
-          this.leaderboard = loadLocalLeaderboard();
+          this.runMode = 'classic';
+          this.dailyChallengeDate = getDailyDateKey();
+          this.dailyChallengeSeed = hashStringToUint32(`rio-de-aco:${this.dailyChallengeDate}`);
+          this.dailyCombatSeed = hashStringToUint32(`rio-de-aco:combat:${this.dailyChallengeDate}`);
+          this.gameplayRandomState = this.dailyChallengeSeed;
+          this.combatRandomState = this.dailyCombatSeed;
+          this.leaderboardBoard = 'global';
+          this.leaderboard = loadLocalLeaderboard('global');
           this.leaderboardSource = 'local';
           this.leaderboardLoading = true;
           this.pendingLeaderboardScore = null;
@@ -1778,6 +1884,7 @@
           this.createSpeedLines();
           this.createSnow();
           dom.version.textContent = `v${GAME_VERSION}`;
+          dom.dailyLabel.textContent = `${formatDailyDate(this.dailyChallengeDate)} · MESMO PERCURSO PARA TODOS`;
           document.title = `Rio de Aço 3D · v${GAME_VERSION}`;
           this.setEnvironmentPhase(0, true);
           this.player = this.createPlayer();
@@ -1798,6 +1905,22 @@
 
           this.animate = this.animate.bind(this);
           requestAnimationFrame(this.animate);
+        }
+
+        resetGameplayRandom() {
+          this.gameplayRandomState = this.dailyChallengeSeed || 0x6d2b79f5;
+          this.combatRandomState = this.dailyCombatSeed || 0x9e3779b9;
+        }
+
+        gameplayRandom(stream = 'spawn') {
+          if (this.runMode !== 'daily') return Math.random();
+          const stateKey = stream === 'combat' ? 'combatRandomState' : 'gameplayRandomState';
+          let state = this[stateKey] >>> 0;
+          state ^= state << 13;
+          state ^= state >>> 17;
+          state ^= state << 5;
+          this[stateKey] = state >>> 0;
+          return this[stateKey] / 4294967296;
         }
 
         createMaterials() {
@@ -2837,7 +2960,7 @@
             noseZ: -3.85,
             blinking: true,
           });
-          const pursuitSide = Math.random() < 0.5 ? -1 : 1;
+          const pursuitSide = this.gameplayRandom() < 0.5 ? -1 : 1;
           group.scale.setScalar(0.28);
           group.position.set(this.player.position.x + pursuitSide * 2.6, 7.4, CONFIG.playerZ + 17);
           this.scene.add(group);
@@ -3014,8 +3137,8 @@
             phase: Math.random() * Math.PI,
           });
           group.position.set(x, 0.72, z);
-          const lateralSpeed = lerp(CONFIG.shipMinSpeed, CONFIG.shipMaxSpeed, Math.random()) *
-            (Math.random() > 0.5 ? 1 : -1);
+          const lateralSpeed = lerp(CONFIG.shipMinSpeed, CONFIG.shipMaxSpeed, this.gameplayRandom()) *
+            (this.gameplayRandom() > 0.5 ? 1 : -1);
           group.rotation.y = -Math.sign(lateralSpeed) * Math.PI / 2;
           this.scene.add(group);
           return {
@@ -3068,8 +3191,8 @@
             phase: Math.random() * Math.PI * 2,
           });
           group.position.set(x, 4.6, z);
-          const lateralSpeed = lerp(CONFIG.helicopterMinSpeed, CONFIG.helicopterMaxSpeed, Math.random()) *
-            (Math.random() > 0.5 ? 1 : -1);
+          const lateralSpeed = lerp(CONFIG.helicopterMinSpeed, CONFIG.helicopterMaxSpeed, this.gameplayRandom()) *
+            (this.gameplayRandom() > 0.5 ? 1 : -1);
           group.rotation.y = -Math.sign(lateralSpeed) * Math.PI / 2;
           this.scene.add(group);
           return {
@@ -3359,7 +3482,7 @@
         }
 
         spawnTank(z, placement = 'bank') {
-          const side = placement === 'island' ? 0 : Math.random() < 0.5 ? -1 : 1;
+          const side = placement === 'island' ? 0 : this.gameplayRandom() < 0.5 ? -1 : 1;
           const tank = this.createTank(side, z, placement);
           this.entities.push(tank);
           return tank;
@@ -3887,7 +4010,7 @@
           group.rotation.y = Math.atan2(velocityX, velocityZ);
           this.scene.add(group);
           this.enemyShells.push({ group, velocityX, velocityZ, age: 0, trail, sourceType: 'navio' });
-          ship.cannonCooldown = 1.55 + Math.random() * 0.75;
+          ship.cannonCooldown = 1.55 + this.gameplayRandom('combat') * 0.75;
           ship.cannonShotsFired += 1;
           this.cannonShotsFired += 1;
           this.spawnSparks(origin, 8);
@@ -4103,9 +4226,9 @@
         }
 
         spawnRandomEntity() {
-          const z = -190 - Math.random() * 35;
+          const z = -190 - this.gameplayRandom() * 35;
           const river = this.getRiverAtZ(z);
-          const roll = Math.random();
+          const roll = this.gameplayRandom();
           const biome = this.getBiomeKey();
           const supplyFuelChance = biome === 'desert'
             ? CONFIG.desertSupplyFuelChance
@@ -4117,11 +4240,11 @@
           if (river.forkActive) {
             const routes = this.getForkRouteSides(river.forkIndex);
             if (roll < supplyFuelChance) {
-              const spawnX = this.pickRiverChannelX(river, routes.supplySide, Math.random(), 0.68);
+              const spawnX = this.pickRiverChannelX(river, routes.supplySide, this.gameplayRandom(), 0.68);
               entity = this.createFuel(spawnX, z);
               entity.forkRoute = 'supply';
             } else {
-              const spawnX = this.pickRiverChannelX(river, routes.combatSide, Math.random(), 0.68);
+              const spawnX = this.pickRiverChannelX(river, routes.combatSide, this.gameplayRandom(), 0.68);
               const combatRoll = (roll - supplyFuelChance) / (1 - supplyFuelChance);
               entity = combatRoll < 0.58
                 ? this.createShip(spawnX, z)
@@ -4131,7 +4254,7 @@
             }
             entity.forkIndex = river.forkIndex;
           } else {
-            const spawnX = this.pickNavigableRiverX(river, Math.random(), 0.68);
+            const spawnX = this.pickNavigableRiverX(river, this.gameplayRandom(), 0.68);
             if (roll < openRiverFuelChance) {
               entity = this.createFuel(spawnX, z);
             } else if (roll < openRiverFuelChance + 0.39) {
@@ -4143,7 +4266,7 @@
           this.entities.push(entity);
           if (
             this.environmentCyclesCompleted >= CONFIG.tankUnlockCycle &&
-            Math.random() < (
+            this.gameplayRandom() < (
               biome === 'desert'
                 ? CONFIG.desertTankSpawnChance
                 : biome === 'jungle' ? CONFIG.jungleTankSpawnChance : CONFIG.tankSpawnChance
@@ -4155,7 +4278,7 @@
               this.environmentCyclesCompleted >= CONFIG.tankIslandUnlockCycle &&
               tankRiver.forkActive &&
               tankRiver.islandHalfWidth >= CONFIG.tankIslandMinHalfWidth &&
-              Math.random() < CONFIG.tankIslandPlacementChance
+              this.gameplayRandom() < CONFIG.tankIslandPlacementChance
             );
             this.spawnTank(tankZ, islandPlacementUnlocked ? 'island' : 'bank');
           }
@@ -4218,30 +4341,51 @@
 
         persistLeaderboard() {
           try {
-            localStorage.setItem(LEADERBOARD_STORAGE_KEY, JSON.stringify(this.leaderboard));
+            localStorage.setItem(
+              getLeaderboardStorageKey(this.leaderboardBoard, this.dailyChallengeDate),
+              JSON.stringify(this.leaderboard)
+            );
           } catch {
             // O ranking continua disponível em memória quando o armazenamento local é bloqueado.
           }
         }
 
-        async hydrateLeaderboard() {
+        async selectLeaderboardBoard(board, { hydrate = true } = {}) {
+          const nextBoard = board === 'daily' ? 'daily' : 'global';
+          this.leaderboardBoard = nextBoard;
+          this.leaderboard = loadLocalLeaderboard(nextBoard, this.dailyChallengeDate);
+          this.leaderboardSource = 'local';
+          this.lastSubmittedLeaderboardEntry = null;
+          this.leaderboardLoading = hydrate;
+          this.renderLeaderboard();
+          if (hydrate) await this.hydrateLeaderboard(nextBoard);
+        }
+
+        async hydrateLeaderboard(board = this.leaderboardBoard) {
+          const requestedBoard = board === 'daily' ? 'daily' : 'global';
           this.leaderboardLoading = true;
           this.renderLeaderboard();
           try {
+            const params = new URLSearchParams({ game: LEADERBOARD_GAME, board: requestedBoard });
+            if (requestedBoard === 'daily') params.set('challenge', this.dailyChallengeDate);
             const response = await fetch(
-              `${LEADERBOARD_API_URL}?game=${encodeURIComponent(LEADERBOARD_GAME)}`,
+              `${LEADERBOARD_API_URL}?${params.toString()}`,
               { headers: { Accept: 'application/json' } }
             );
             if (!response.ok) throw new Error(`Ranking indisponível: ${response.status}`);
             const payload = await response.json();
+            if (this.leaderboardBoard !== requestedBoard) return;
             this.leaderboard = normalizeLeaderboardEntries(payload.entries);
             this.leaderboardSource = 'global';
             this.persistLeaderboard();
           } catch {
+            if (this.leaderboardBoard !== requestedBoard) return;
             this.leaderboardSource = 'local';
           } finally {
-            this.leaderboardLoading = false;
-            this.renderLeaderboard();
+            if (this.leaderboardBoard === requestedBoard) {
+              this.leaderboardLoading = false;
+              this.renderLeaderboard();
+            }
           }
         }
 
@@ -4259,6 +4403,10 @@
         }
 
         prepareLeaderboardSubmission() {
+          const submissionBoard = this.runMode === 'daily' ? 'daily' : 'global';
+          if (this.leaderboardBoard !== submissionBoard) {
+            this.selectLeaderboardBoard(submissionBoard);
+          }
           this.pendingLeaderboardScore = {
             score: Math.max(0, Math.floor(this.score)),
             round: this.environmentCyclesCompleted + 1,
@@ -4290,9 +4438,20 @@
             this.hasSubmittedLeaderboardScore
           ) return;
 
-          const name = normalizePilotName(dom.playerName.value);
-          const submission = { game: LEADERBOARD_GAME, name, ...this.pendingLeaderboardScore };
+          const submissionBoard = this.runMode === 'daily' ? 'daily' : 'global';
           this.isSavingLeaderboardScore = true;
+          for (const tab of dom.leaderboardTabs) tab.disabled = true;
+          if (this.leaderboardBoard !== submissionBoard) {
+            await this.selectLeaderboardBoard(submissionBoard);
+          }
+          const name = normalizePilotName(dom.playerName.value);
+          const submission = {
+            game: LEADERBOARD_GAME,
+            board: submissionBoard,
+            ...(this.runMode === 'daily' ? { challenge: this.dailyChallengeDate } : {}),
+            name,
+            ...this.pendingLeaderboardScore,
+          };
           dom.playerName.disabled = true;
           dom.saveScore.disabled = true;
           dom.saveScore.textContent = 'ENVIANDO';
@@ -4331,6 +4490,7 @@
           localStorage.setItem(PLAYER_NAME_STORAGE_KEY, name);
           this.persistLeaderboard();
           this.isSavingLeaderboardScore = false;
+          for (const tab of dom.leaderboardTabs) tab.disabled = false;
           this.hasSubmittedLeaderboardScore = true;
           this.pendingLeaderboardScore = null;
           dom.playerName.disabled = false;
@@ -4345,12 +4505,20 @@
 
         renderLeaderboard() {
           dom.leaderboardList.innerHTML = '';
+          for (const tab of dom.leaderboardTabs) {
+            const active = tab.dataset.board === this.leaderboardBoard;
+            tab.classList.toggle('active', active);
+            tab.setAttribute('aria-pressed', String(active));
+          }
           dom.leaderboardMeta.textContent = this.leaderboardLoading
             ? 'CARREGANDO...'
-            : this.leaderboardSource === 'global' ? 'GLOBAL' : 'LOCAL · OFFLINE';
+            : this.leaderboardBoard === 'daily'
+              ? `${formatDailyDate(this.dailyChallengeDate)} · ${this.leaderboardSource === 'global' ? 'ONLINE' : 'OFFLINE'}`
+              : this.leaderboardSource === 'global' ? 'GLOBAL' : 'LOCAL · OFFLINE';
           const visibleEntries = this.leaderboard.slice(0, 5);
           if (visibleEntries.length === 0) {
             const empty = document.createElement('li');
+            empty.className = 'leaderboard-empty';
             empty.textContent = 'SEM RECORDES AINDA';
             dom.leaderboardList.appendChild(empty);
             return;
@@ -4382,7 +4550,11 @@
         }
 
         bindEvents() {
-          dom.start.addEventListener('click', () => this.startOrRestart());
+          dom.start.addEventListener('click', () => this.startOrRestart(this.mode === 'GAMEOVER' ? this.runMode : 'classic'));
+          dom.dailyStart.addEventListener('click', () => this.startOrRestart('daily'));
+          for (const tab of dom.leaderboardTabs) {
+            tab.addEventListener('click', () => this.selectLeaderboardBoard(tab.dataset.board));
+          }
           dom.scoreForm.addEventListener('submit', (event) => {
             event.preventDefault();
             this.submitLeaderboardScore();
@@ -4424,7 +4596,7 @@
             }
 
             if ((this.mode === 'MENU' || this.mode === 'GAMEOVER') && ['Enter', 'Space', 'KeyR'].includes(event.code)) {
-              if (!event.repeat) this.startOrRestart();
+              if (!event.repeat) this.startOrRestart(this.mode === 'GAMEOVER' ? this.runMode : 'classic');
               return;
             }
 
@@ -4452,14 +4624,27 @@
           });
         }
 
-        startOrRestart() {
+        startOrRestart(requestedMode = 'classic') {
           this.audio.enable();
+          this.runMode = requestedMode === 'daily' ? 'daily' : 'classic';
+          if (this.runMode === 'daily') {
+            const currentDailyDate = getDailyDateKey();
+            if (currentDailyDate !== this.dailyChallengeDate) {
+              this.dailyChallengeDate = currentDailyDate;
+              this.dailyChallengeSeed = hashStringToUint32(`rio-de-aco:${this.dailyChallengeDate}`);
+              this.dailyCombatSeed = hashStringToUint32(`rio-de-aco:combat:${this.dailyChallengeDate}`);
+              dom.dailyLabel.textContent = `${formatDailyDate(this.dailyChallengeDate)} · MESMO PERCURSO PARA TODOS`;
+            }
+          }
+          this.resetGameplayRandom();
+          const targetBoard = this.runMode === 'daily' ? 'daily' : 'global';
+          if (this.leaderboardBoard !== targetBoard) this.selectLeaderboardBoard(targetBoard);
           this.resetLeaderboardSubmission();
           if (this.pursuitFighter) {
             this.removeObject3D(this.pursuitFighter.group);
             this.pursuitFighter = null;
           }
-          const completedCycles = this.selectedStartingRound - 1;
+          const completedCycles = this.runMode === 'daily' ? 0 : this.selectedStartingRound - 1;
           this.elapsed = 0;
           this.score = 0;
           this.comboCount = 0;
@@ -4548,7 +4733,9 @@
           dom.start.textContent = 'DECOLAR';
           dom.overlay.classList.add('hidden');
           this.showToast(
-            this.selectedStartingRound > 1
+            this.runMode === 'daily'
+              ? `DESAFIO DO DIA · ${formatDailyDate(this.dailyChallengeDate)}`
+              : this.selectedStartingRound > 1
               ? `SIMULAÇÃO · RODADA ${String(this.selectedStartingRound).padStart(2, '0')}`
               : 'MISSÃO INICIADA',
             1.4
@@ -4798,7 +4985,7 @@
             this.spawnDistance -= speed * dt;
             if (this.spawnDistance <= 0) {
               this.spawnRandomEntity();
-              this.spawnDistance = 68 + Math.random() * 72;
+              this.spawnDistance = 68 + this.gameplayRandom() * 72;
             }
             if (this.distance >= this.nextBridgeDistance) {
               const bridgeRiver = this.getRiverAtZ(-215);
@@ -5770,7 +5957,9 @@
           localStorage.setItem('rio-de-aco-best', String(best));
           dom.overlay.dataset.mode = 'gameover';
           dom.title.textContent = 'FIM DE MISSÃO';
-          dom.subtitle.textContent = `RECORDE ${String(best).padStart(6, '0')}`;
+          dom.subtitle.textContent = this.runMode === 'daily'
+            ? `DESAFIO ${formatDailyDate(this.dailyChallengeDate)} · RECORDE ${String(best).padStart(6, '0')}`
+            : `RECORDE ${String(best).padStart(6, '0')}`;
           dom.finalScore.textContent = `PONTUAÇÃO ${String(this.score).padStart(6, '0')}`;
           dom.start.textContent = 'VOAR NOVAMENTE';
           this.prepareLeaderboardSubmission();
@@ -5853,6 +6042,9 @@
           const minInterval = 1 / CONFIG.hudRefreshRate;
           if (!force && this.elapsed - this.lastHudUpdateAt < minInterval) return;
           this.lastHudUpdateAt = this.elapsed;
+          dom.missionMode.textContent = this.runMode === 'daily'
+            ? `MISSÃO: DESAFIO ${formatDailyDate(this.dailyChallengeDate)}`
+            : 'MISSÃO: CLÁSSICA';
           dom.score.textContent = String(this.score).padStart(6, '0');
           const comboActive = this.comboTimer > 0 && this.comboCount > 0;
           dom.combo.classList.toggle('active', comboActive);
@@ -6097,6 +6289,13 @@
             version: GAME_VERSION,
             coordinateSystem: 'x: esquerda(-)/direita(+); z: à frente é negativo; avião permanece em z=8',
             mode: this.mode,
+            challenge: {
+              mode: this.runMode,
+              date: this.runMode === 'daily' ? this.dailyChallengeDate : null,
+              seed: this.runMode === 'daily' ? this.dailyChallengeSeed : null,
+              randomState: this.runMode === 'daily' ? this.gameplayRandomState : null,
+              combatRandomState: this.runMode === 'daily' ? this.combatRandomState : null,
+            },
             camera: {
               chase: 'perseguição',
               top: 'topo clássica',
@@ -6118,6 +6317,8 @@
             lives: this.lives,
             fuel: Number(this.fuel.toFixed(1)),
             leaderboard: {
+              board: this.leaderboardBoard,
+              challengeDate: this.leaderboardBoard === 'daily' ? this.dailyChallengeDate : null,
               source: this.leaderboardSource,
               loading: this.leaderboardLoading,
               pendingSubmission: Boolean(this.pendingLeaderboardScore),
@@ -6132,9 +6333,9 @@
                 evasions: entry.evasions,
               })),
             },
-            startingRound: this.selectedStartingRound,
+            startingRound: this.runMode === 'daily' ? 1 : this.selectedStartingRound,
             currentRound: this.environmentCyclesCompleted + 1,
-            simulationMode: this.selectedStartingRound > 1,
+            simulationMode: this.runMode === 'classic' && this.selectedStartingRound > 1,
             simulationSelectorUnlocked: this.simulationUnlocked,
             rules: {
               lifePerCompletedCycle: 1,
