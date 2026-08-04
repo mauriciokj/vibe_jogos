@@ -69,6 +69,8 @@ Original prompt: Build a classic Snake game in this repo.
 - River Raid 3D: Trem Armado da `v1.8.0` redesenhado para atravessar pontes ferroviárias alternadas da direita para a esquerda, substituindo o percurso paralelo à margem.
 - River Raid 3D: projéteis dos tanques corrigidos na `v1.8.0` para avançar em relação ao terreno mesmo na velocidade máxima; câmera Top-Down, três velocidades e esquiva com mira fixa foram validadas sem erros.
 - River Raid 3D: `v1.8.0` registrada no commit `7650019`, enviada para `origin/main` e verificada em produção na Vercel.
+- River Raid 3D: `v1.9.0` adiciona o Caça Perseguidor na rodada 5, com perseguição de 5 segundos, enquadramento de fuga, míssil perto do fim, flare contextual por `E`/toque e bônus de 1.000 pontos.
+- River Raid 3D: `v1.10.0` adiciona barrel roll defensivo por `Q`, proteção de 0,9 segundo contra projéteis e um uso recarregado a cada fase ambiental.
 - Sinuca iniciada em `games/sinuca/index.html` como arquivo único: canvas responsivo, bolas numeradas com volume 3D, física elástica com correção posicional, substeps adaptativos, atrito, tabelas, seis caçapas, turnos contra CPU, menu, placar e reinício.
 - Sinuca: primeira inspeção Playwright confirmou menu e mesa; margens do canvas e ordem visual do HUD foram ajustadas, e o triângulo passou a usar distância de dois raios com epsilon microscópico anti-sobreposição.
 - Sinuca: sem TODOs funcionais pendentes após a validação final.

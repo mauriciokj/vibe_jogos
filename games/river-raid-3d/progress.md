@@ -269,3 +269,38 @@ Original prompt: Criar um novo jogo retro inspirado em River Raid, em Three.js, 
 - Teste controlado nas velocidades 16, 36,16 e 58 confirmou que o projétil sempre ganhou distância sobre o próprio tanque. Na velocidade máxima, o tanque avançou 14,5 unidades na tela e o tiro avançou 22,22, abrindo 7,72 unidades de vantagem.
 - O projétil preservou velocidade própria de 40 unidades/s nos três cenários. Após travar em `x=0` e o avião desviar para `x=7,4`, o vetor permaneceu inalterado, confirmando que o tiro continua reto e não teleguiado.
 - Captura Top-Down inspecionada com tanque e projétil em trajetória correta; fluxo comum, movimento, tiro e troca de câmera passaram sem erros de console. `v1.8.0` registrada no commit `7650019`, enviada para `origin/main` e verificada em produção.
+- `v1.9.0` em implementação com Caça Perseguidor desbloqueado somente na rodada 5; rodada 4 permaneceu sem evento e a simulação da rodada 5 programou corretamente o primeiro encontro após 320 unidades.
+- O caça low-poly entra pela cauda, mantém deslocamento lateral próprio e acompanha o avião durante uma janela fixa de aproximadamente 10 segundos.
+- A câmera Chase muda suavemente o enquadramento durante o evento: o avião do jogador avançou de `y=535,7` para `y=457,5` na tela de teste, enquanto o caça permaneceu visível atrás em `y=480,8`.
+- O caça inicia o travamento perto de 7 segundos e lança o míssil em 7,8 segundos. Antes do disparo, o flare permanece indisponível; com o míssil no ar, a tecla `E` e o botão contextual são liberados.
+- O flare removeu o míssil, encerrou a perseguição, registrou um uso e concedeu 1.000 pontos. Ignorar o ataque causou impacto após cerca de 0,48 segundo de voo.
+- Validação de combate: permanecer parado causou impacto e removeu uma vida; atravessar lateralmente o rio fez o míssil passar a 4,08 unidades e concedeu `EVASÃO PERFEITA` sem colisão.
+- Sobreviver aos 10 segundos sem disparos de teste concedeu 1.000 pontos, incrementou o contador e agendou o próximo evento 1.850 unidades depois. Pausar congelou exatamente o progresso da perseguição.
+- Chase, Top-Down e Cockpit foram inspecionadas com HUD, caça e alerta. O caça fica visível e deslocado na cauda nas câmeras externas; Cockpit usa o alerta sem mostrar o inimigo atrás do avião.
+- Corrigido reinício durante o evento: o grupo anterior é removido antes da reconstrução da partida, eliminando caças fantasmas. Fluxo comum passou sem erros de console. Etapa local e ainda sem commit/deploy.
+- Transição natural da rodada 4 para a 5 preservou o bioma Jungle, concedeu uma vida, sinalizou o desbloqueio e agendou a perseguição 320 unidades depois.
+- Viewport móvel de 390×844 manteve o caça, o avião, o chip e o botão de flare dentro da tela; o clique contextual encerrou o evento corretamente. Cliente oficial de testes revalidou movimento, tiro, pausa e partida comum sem erros.
+- Ajuste solicitado na `v1.9.0`: perseguição reduzida pela metade, de 10 para 5 segundos; travamento e disparo foram reposicionados proporcionalmente para 3,9 segundos.
+- O caça passou a manter distância de 10,5–12,5 unidades na cauda. Na captura Chase, o jogador ficou em `y=457,5` e o perseguidor em `y=561,3`, completamente visível e claramente mais atrás.
+- Flare por `E` continuou encerrando o evento por 1.000 pontos; sobrevivência sem disparos terminou em 5,02 segundos. Cliente oficial e teste controlado passaram sem erros de console.
+- Novo ajuste de leitura da perseguição: a câmera Chase leva o jogador de `y=535,7` para `y=436,5`; o caça mantém 12,5–14,5 unidades de distância e aparece em `y=552,2`, menor e completamente visível atrás.
+- Ao iniciar o lock em 3,12 segundos, o centro da tela mostra `INIMIGO TRAVADO NA MIRA` e o alerta superior orienta `TRAVAMENTO CONFIRMADO · PREPARE O FLARE`.
+- O míssil continua sendo lançado em 3,9 segundos, agora com cerca de 0,67 segundo até o impacto no teste sem reação. Flare por teclado e botão funcionou em desktop e 390×844, sem erros de console.
+- Correção da Top-Down: durante a perseguição, o centro longitudinal passa de `z=-25` para `z=-10` e o zoom chega a `0,82`, trazendo o caça de volta para dentro da área jogável.
+- O caça usa escala `0,72` apenas na Top-Down e mantém `0,28` na Chase. Na validação superior, jogador ficou em `y=475,6`, caça em `y=562,1` e ambos permaneceram visíveis acima do HUD inferior.
+- Travamento, lançamento do míssil, botão de flare e recompensa de 1.000 pontos foram revalidados na câmera superior sem erros de console.
+- `v1.10.0` local adiciona barrel roll pela tecla `Q`: rotação completa em 0,9 segundo, HUD próprio e invulnerabilidade restrita a mísseis e projéteis inimigos durante a animação.
+- Regra de uso validada: primeira ativação marcou o ambiente como usado; segunda tentativa foi recusada; `advanceEnvironment()` recarregou a habilidade e permitiu um novo uso.
+- Um míssil do caça foi evitado em 0,85 segundo sem perda de vida e um projétil de tanque colocado na rota de impacto também foi removido. Sem barrel roll, os controles idênticos causaram `ATINGIDO POR MÍSSIL` e `ATINGIDO POR CANHÃO`.
+- Colisão com margem durante a manobra continuou removendo vida, confirmando que a proteção se limita a tiros. Pausa congelou o tempo restante em `0,60 s`.
+- Chase, Top-Down e Cockpit foram inspecionadas durante a rotação; Cockpit acompanhou os 360° e voltou exatamente a zero ao terminar. Viewport 390×844 manteve o novo chip dentro da tela, sem rolagem horizontal e sem erros de console.
+- Barrel roll refinado após teste do usuário: além dos 360°, a trajetória sobe até 2,1 unidades, desloca 3,2 unidades lateralmente e retorna exatamente ao `x`, `y` e rotações iniciais.
+- A direção usa esquerda/direita quando pressionadas junto de `Q`; sem direção, escolhe o lado voltado para o centro do rio para reduzir colisões acidentais.
+- As duas superfícies de asa planas foram substituídas por prismas triangulares low-poly com espessura de 0,16/0,12 e material `DoubleSide`, eliminando o desaparecimento quando o avião fica invertido ou de perfil.
+- Quatro capturas Chase confirmaram subida, posição invertida, descida lateral e nivelamento. Top-Down e Cockpit também foram inspecionadas; a manobra terminou em `x` inicial, `y=2,7` e rotações zeradas, sem erros de console.
+- O míssil real do caça foi evitado durante a nova trajetória, registrando `EVASÃO PERFEITA`; proteção contra impacto direto de projétil e limite de um uso por ambiente permaneceram funcionais.
+- O sentido do barrel roll passou a acompanhar o movimento lateral: direita desloca para `+x` e gira no sentido horário; esquerda desloca para `-x` e gira no sentido anti-horário.
+- A última direção lateral fica memorizada, permitindo soltar `A`/`D` ou a seta imediatamente antes de `Q` sem inverter a manobra. Testes automatizados dos dois lados e do movimento memorizado passaram sem erros, e as imagens Chase ficaram corretamente espelhadas.
+- Corrigido `VOAR NOVAMENTE`: a partida zerava distância e placar, mas reutilizava posições e índices dos trechos de terreno já percorridos, produzindo largura e conteúdo diferentes no reinício.
+- O reinício agora reconstrói o rio desde o primeiro segmento da rodada selecionada e limpa relógio visual, câmera suavizada, controles pressionados, alerta, colisão, partículas, projéteis e habilidades temporárias.
+- Teste após Game Over comparou abertura e reinício em rodada 1: centro do rio, largura segura, posição do jogador, FUEL e inimigos voltaram aos mesmos valores iniciais. Rodada 5 também foi preservada como Jungle, com 7 vidas, combustível cheio, terreno reindexado e ameaças limpas. Cliente oficial, capturas visuais e console passaram sem erros.

@@ -8,6 +8,32 @@ O jogo usa versionamento semântico:
 
 Cada publicação deve atualizar `GAME_VERSION` no `index.html` e registrar as mudanças neste arquivo.
 
+## 1.10.0 — 2026-08-03
+
+- Tecla `Q` executa um barrel roll completo de 0,9 segundo nas câmeras Chase, Top-Down e Cockpit.
+- A trajetória agora combina giro, subida de 2,1 unidades, deslocamento lateral de 3,2 unidades e retorno suave ao ponto inicial.
+- O sentido acompanha o movimento atual ou mais recente: direita faz giro horário para a direita; esquerda faz giro anti-horário para a esquerda.
+- As asas receberam espessura low-poly e material visível pelos dois lados, permanecendo desenhadas durante toda a rotação.
+- Durante a manobra, mísseis e projéteis de navios, tanques e trens são evitados sem remover vida; colisões com margens, ilhas e inimigos continuam perigosas.
+- Barrel roll pode ser usado uma vez por fase ambiental e recarrega quando uma ponte muda o ambiente.
+- HUD informa `PRONTO`, `INVULNERÁVEL` ou `USADO`; tentar repetir antes da recarga exibe um aviso próprio.
+- Estado textual de testes registra disponibilidade, tempo restante, usos e projéteis evitados.
+- `VOAR NOVAMENTE` agora reinicia também o traçado e a largura do rio, relógio visual, câmera, controles, alertas e efeitos temporários, reconstruindo o começo real da rodada selecionada.
+
+## 1.9.0 — 2026-08-03
+
+- Caça perseguidor desbloqueado na rodada 5, com primeiro evento após 320 unidades e novas perseguições espaçadas ao longo da missão.
+- O caça surge atrás e deslocado para um dos lados; na câmera Chase, o novo enquadramento empurra o avião do jogador para a frente da tela e mantém o perseguidor visível na cauda.
+- A perseguição dura aproximadamente 5 segundos. Perto do fim, o caça trava a mira e lança um míssil rápido com curva limitada.
+- O caça mantém uma distância maior atrás do jogador para reforçar a leitura visual da perseguição.
+- O enquadramento Chase leva o jogador mais à frente e reduz visualmente o caça, ampliando o espaço para ler e evitar o míssil.
+- O início do travamento agora exibe `INIMIGO TRAVADO NA MIRA` antes de liberar o flare.
+- Durante a perseguição, a câmera Top-Down recua e amplia o campo para manter jogador, caça e míssil simultaneamente visíveis.
+- O flare fica disponível somente enquanto o míssil do caça está no ar: pressione `E` ou use o botão contextual para desviá-lo e forçar a retirada imediata do perseguidor.
+- Usar o flare ou sobreviver até o fim concede 1.000 pontos, remove os mísseis restantes e agenda um novo encontro. Ser atingido encerra o evento sem recompensa.
+- HUD mostra tempo e distância do caça; travamento, míssil e flare aparecem nas três câmeras sem ativar o modo de segurança.
+- Reiniciar durante o evento remove corretamente o caça anterior, sem deixar modelos fantasmas.
+
 ## 1.8.0 — 2026-08-03
 
 - Evento do Trem Armado desbloqueado a partir da rodada 4 em pontes ferroviárias alternadas.

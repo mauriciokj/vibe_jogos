@@ -231,7 +231,9 @@
       .help-chip,
       #bank-skim,
       #high-speed-score,
-      #fork-route {
+      #fork-route,
+      #fighter-pursuit,
+      #barrel-roll {
         padding: 8px 12px;
         border: 1px solid var(--line);
         background: var(--panel);
@@ -288,6 +290,43 @@
       #fork-route[data-role="combat"] {
         border-color: rgba(255, 114, 76, 0.78);
         color: #ff9b58;
+      }
+
+      #fighter-pursuit {
+        display: none;
+        border-color: rgba(255, 77, 95, 0.82);
+        color: var(--red);
+        font-weight: 900;
+        text-shadow: 0 0 11px currentColor;
+        animation: missile-pulse 620ms steps(2, end) infinite;
+      }
+
+      #fighter-pursuit.active {
+        display: block;
+      }
+
+      #barrel-roll {
+        display: none;
+        border-color: rgba(102, 245, 255, 0.72);
+        color: var(--cyan);
+        font-weight: 900;
+        text-shadow: 0 0 10px currentColor;
+      }
+
+      #barrel-roll.active {
+        display: block;
+      }
+
+      #barrel-roll[data-state="rolling"] {
+        color: var(--yellow);
+        border-color: rgba(255, 216, 77, 0.88);
+        animation: missile-pulse 300ms steps(2, end) infinite;
+      }
+
+      #barrel-roll[data-state="used"] {
+        color: #78949b;
+        border-color: rgba(120, 148, 155, 0.42);
+        text-shadow: none;
       }
 
       @keyframes turbo-score-pulse {
@@ -372,6 +411,33 @@
         min-width: 24px;
         font-size: 1.35em;
         text-align: center;
+      }
+
+      #flare-button {
+        position: fixed;
+        right: clamp(14px, 3vw, 38px);
+        bottom: clamp(82px, 12vh, 118px);
+        z-index: 32;
+        display: none;
+        padding: 13px 18px;
+        border: 2px solid #fff1a8;
+        background: rgba(199, 46, 52, 0.94);
+        color: white;
+        font: 900 clamp(13px, 1.6vw, 18px) "Courier New", monospace;
+        letter-spacing: 0.1em;
+        text-shadow: 0 0 10px white;
+        box-shadow: 5px 5px 0 #6f1829, 0 0 22px rgba(255, 77, 95, 0.5);
+        cursor: pointer;
+        animation: missile-pulse 360ms steps(2, end) infinite;
+      }
+
+      #flare-button.active {
+        display: block;
+      }
+
+      #flare-button:active {
+        transform: translate(3px, 3px);
+        box-shadow: 2px 2px 0 #6f1829;
       }
 
       @keyframes missile-pulse {
@@ -574,6 +640,17 @@
         .control:last-child {
           grid-column: 1 / -1;
         }
+
+        #flare-button {
+          right: 50%;
+          bottom: 112px;
+          transform: translateX(50%);
+          white-space: nowrap;
+        }
+
+        #flare-button:active {
+          transform: translate(50%, 3px);
+        }
       }
     </style>
   </head>
@@ -615,8 +692,10 @@
           <div id="bank-skim" data-complete="false">RASANTE <span id="bank-skim-progress">0%</span></div>
           <div id="high-speed-score">TURBO SCORE ×1,5</div>
           <div id="fork-route" data-role="supply">ROTA FUEL</div>
+          <div id="fighter-pursuit">CAÇA NA CAUDA</div>
+          <div id="barrel-roll" data-state="ready">[Q] BARREL ROLL · PRONTO</div>
         </div>
-        <div class="help-chip">[C] TROCAR CÂMERA (3 MODOS) · [P] PAUSA · [F] TELA CHEIA</div>
+        <div class="help-chip">[Q] BARREL ROLL · [C] CÂMERA · [P] PAUSA · [F] TELA CHEIA</div>
       </div>
     </div>
 
@@ -624,6 +703,7 @@
       <span id="missile-direction">↑</span>
       <span id="missile-alert-label">RASTREANDO</span>
     </div>
+    <button id="flare-button" type="button">[E] LANÇAR FLARE</button>
     <div id="toast"></div>
 
     <div id="overlay" data-mode="menu">
@@ -661,7 +741,7 @@
     <script type="module">
       import * as THREE from 'https://unpkg.com/three@0.168.0/build/three.module.js';
 
-      const GAME_VERSION = '1.8.0';
+      const GAME_VERSION = '1.10.0';
 
       const CONFIG = {
         segmentLength: 32,
@@ -749,6 +829,21 @@
         trainAimCommitTime: 0.5,
         trainShellSpeed: 46,
         trainFireCooldown: 1.9,
+        fighterUnlockCycle: 4,
+        fighterFirstDistance: 320,
+        fighterInterval: 1850,
+        fighterDuration: 5,
+        fighterFirstFireDelay: 3.9,
+        fighterMissileSpeed: 20,
+        fighterMissileTurnRate: 1.35,
+        fighterMissileLifetime: 3.6,
+        fighterLockTime: 0.8,
+        fighterFireInterval: 3.2,
+        fighterMaxMissiles: 3,
+        fighterEscapeScore: 1000,
+        barrelRollDuration: 0.9,
+        barrelRollLift: 2.1,
+        barrelRollLateralDistance: 3.2,
       };
 
       const COLORS = {
@@ -1134,6 +1229,9 @@
         bankSkimProgress: document.querySelector('#bank-skim-progress'),
         highSpeedScore: document.querySelector('#high-speed-score'),
         forkRoute: document.querySelector('#fork-route'),
+        fighterPursuit: document.querySelector('#fighter-pursuit'),
+        barrelRoll: document.querySelector('#barrel-roll'),
+        flareButton: document.querySelector('#flare-button'),
         fuelFill: document.querySelector('#fuel-fill'),
         fuelNumber: document.querySelector('#fuel-number'),
         lives: document.querySelector('#lives'),
@@ -1377,6 +1475,22 @@
           this.tankShotsFired = 0;
           this.trainEventsStarted = 0;
           this.trainShotsFired = 0;
+          this.pursuitFighter = null;
+          this.fighterEventsStarted = 0;
+          this.fighterEscapes = 0;
+          this.flaresUsed = 0;
+          this.pursuitCameraBlend = 0;
+          this.nextFighterDistance = null;
+          this.barrelRollTimer = 0;
+          this.barrelRollElapsed = 0;
+          this.barrelRollStartZ = 0;
+          this.barrelRollStartX = 0;
+          this.barrelRollDirection = 1;
+          this.barrelRollLateralDirection = 1;
+          this.lastLateralDirection = 0;
+          this.barrelRollUsedThisEnvironment = false;
+          this.barrelRolls = 0;
+          this.barrelRollEvades = 0;
           this.simulationUnlocked = localStorage.getItem('rio-de-aco-simulation-unlocked') === '1';
           this.secretTitleClicks = 0;
           this.secretTitleClickStartedAt = 0;
@@ -1761,6 +1875,7 @@
           let lifeAwarded = false;
           let navalCombatUnlocked = false;
           let trainCombatUnlocked = false;
+          let fighterPursuitUnlocked = false;
           if (this.environmentIndex === ENVIRONMENT_PHASES.length - 1) {
             this.environmentCyclesCompleted += 1;
             if (
@@ -1773,16 +1888,24 @@
             }
             navalCombatUnlocked = this.environmentCyclesCompleted === CONFIG.shipCombatCycle;
             trainCombatUnlocked = this.environmentCyclesCompleted === CONFIG.trainUnlockCycle;
+            fighterPursuitUnlocked = this.environmentCyclesCompleted === CONFIG.fighterUnlockCycle;
+            if (fighterPursuitUnlocked) {
+              this.nextFighterDistance = this.distance + CONFIG.fighterFirstDistance;
+            }
             this.lives += 1;
             lifeAwarded = true;
             this.audio.extraLife();
             this.updateHUD();
           }
+          const nextEnvironment = this.setEnvironmentPhase(this.environmentIndex + 1, false);
+          this.barrelRollUsedThisEnvironment = false;
+          this.updateHUD();
           return {
-            ...this.setEnvironmentPhase(this.environmentIndex + 1, false),
+            ...nextEnvironment,
             lifeAwarded,
             navalCombatUnlocked,
             trainCombatUnlocked,
+            fighterPursuitUnlocked,
           };
         }
 
@@ -1908,6 +2031,15 @@
         refreshTerrainShapes() {
           for (const segment of this.terrain) {
             this.rebuildTerrainSegment(segment, segment.worldIndex);
+          }
+        }
+
+        resetTerrainRun() {
+          for (let index = 0; index < this.terrain.length; index += 1) {
+            const segment = this.terrain[index];
+            const worldIndex = index - 1;
+            segment.group.position.z = CONFIG.playerZ - worldIndex * CONFIG.segmentLength;
+            this.rebuildTerrainSegment(segment, worldIndex);
           }
         }
 
@@ -2266,18 +2398,36 @@
           rear.position.z = 2.1;
           plane.add(rear);
 
-          const wingsGeometry = new THREE.BufferGeometry();
-          wingsGeometry.setAttribute(
-            'position',
-            new THREE.Float32BufferAttribute([
-              -5.1, 0, 1.7, 5.1, 0, 1.7, 0, 0, -1.35,
-              -2.15, 0.08, 2.75, 2.15, 0.08, 2.75, 0, 0.08, 1.2,
-            ], 3)
-          );
-          wingsGeometry.setIndex([0, 1, 2, 3, 4, 5]);
-          wingsGeometry.computeVertexNormals();
-          const wings = new THREE.Mesh(wingsGeometry, this.materials.red);
-          plane.add(wings);
+          const wingMaterial = this.materials.red.clone();
+          wingMaterial.side = THREE.DoubleSide;
+          const createWingPrism = (points, centerY, thickness) => {
+            const halfThickness = thickness * 0.5;
+            const vertices = [];
+            for (const y of [centerY + halfThickness, centerY - halfThickness]) {
+              for (const [x, z] of points) vertices.push(x, y, z);
+            }
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+            geometry.setIndex([
+              0, 1, 2,
+              5, 4, 3,
+              0, 3, 4, 0, 4, 1,
+              1, 4, 5, 1, 5, 2,
+              2, 5, 3, 2, 3, 0,
+            ]);
+            geometry.computeVertexNormals();
+            return new THREE.Mesh(geometry, wingMaterial);
+          };
+          plane.add(createWingPrism([
+            [-5.1, 1.7],
+            [5.1, 1.7],
+            [0, -1.35],
+          ], 0, 0.16));
+          plane.add(createWingPrism([
+            [-2.15, 2.75],
+            [2.15, 2.75],
+            [0, 1.2],
+          ], 0.08, 0.12));
 
           const cockpit = new THREE.Mesh(new THREE.OctahedronGeometry(0.57, 0), this.materials.glass);
           cockpit.scale.set(0.85, 0.7, 1.65);
@@ -2299,6 +2449,92 @@
           plane.add(exhaust);
           plane.userData.exhaust = exhaust;
           return plane;
+        }
+
+        createPursuitFighter() {
+          const group = new THREE.Group();
+          const fuselage = new THREE.Mesh(
+            new THREE.ConeGeometry(0.82, 6.6, 6),
+            this.materials.navy
+          );
+          fuselage.rotation.x = -Math.PI / 2;
+          fuselage.position.z = -0.55;
+          group.add(fuselage);
+
+          const rear = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.52, 0.72, 2.4, 6),
+            this.materials.black
+          );
+          rear.rotation.x = Math.PI / 2;
+          rear.position.z = 2.35;
+          group.add(rear);
+
+          const wingGeometry = new THREE.BufferGeometry();
+          wingGeometry.setAttribute(
+            'position',
+            new THREE.Float32BufferAttribute([
+              -4.45, 0, 1.15, 4.45, 0, 1.15, 0, 0, -1.8,
+              -2.1, 0.12, 2.9, 2.1, 0.12, 2.9, 0, 0.12, 1.15,
+            ], 3)
+          );
+          wingGeometry.setIndex([0, 1, 2, 3, 4, 5]);
+          wingGeometry.computeVertexNormals();
+          group.add(new THREE.Mesh(wingGeometry, this.materials.red));
+
+          const cockpit = new THREE.Mesh(
+            new THREE.OctahedronGeometry(0.58, 0),
+            this.materials.glass
+          );
+          cockpit.scale.set(0.82, 0.58, 1.55);
+          cockpit.position.set(0, 0.62, -0.72);
+          group.add(cockpit);
+
+          for (const side of [-1, 1]) {
+            const tail = new THREE.Mesh(
+              new THREE.ConeGeometry(0.5, 1.8, 3),
+              this.materials.red
+            );
+            tail.rotation.x = Math.PI / 2;
+            tail.scale.x = 0.3;
+            tail.position.set(side * 0.58, 0.68, 2.45);
+            group.add(tail);
+
+            const exhaust = new THREE.Mesh(
+              new THREE.ConeGeometry(0.25, 1.55, 5),
+              new THREE.MeshBasicMaterial({
+                color: 0xff784f,
+                transparent: true,
+                opacity: 0.88,
+              })
+            );
+            exhaust.rotation.x = -Math.PI / 2;
+            exhaust.position.set(side * 0.4, 0, 4.05);
+            group.add(exhaust);
+            if (!group.userData.exhausts) group.userData.exhausts = [];
+            group.userData.exhausts.push(exhaust);
+          }
+
+          this.addVehicleNavigationLights(group, {
+            height: 0.18,
+            spread: 4.15,
+            noseZ: -3.85,
+            blinking: true,
+          });
+          const pursuitSide = Math.random() < 0.5 ? -1 : 1;
+          group.scale.setScalar(0.28);
+          group.position.set(this.player.position.x + pursuitSide * 2.6, 7.4, CONFIG.playerZ + 17);
+          this.scene.add(group);
+          return {
+            group,
+            side: pursuitSide,
+            phase: Math.random() * Math.PI * 2,
+            escapeProgress: 0,
+            fireCooldown: CONFIG.fighterFirstFireDelay,
+            lockTimer: 0,
+            locking: false,
+            missilesFired: 0,
+            gap: 17,
+          };
         }
 
         addVehicleNavigationLights(group, { height, spread, noseZ, blinking = false }) {
@@ -3067,6 +3303,220 @@
           this.audio.missileLaunch();
         }
 
+        startFighterPursuit() {
+          if (this.pursuitFighter) return;
+          this.pursuitFighter = this.createPursuitFighter();
+          this.fighterEventsStarted += 1;
+          this.nextFighterDistance = null;
+          this.showToast('CAÇA INIMIGO NA CAUDA · FUJA POR 5 SEGUNDOS', 2.4);
+          this.audio.missileAlert(true);
+        }
+
+        launchFighterMissile() {
+          const fighter = this.pursuitFighter;
+          if (!fighter) return;
+          const group = new THREE.Group();
+          const body = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.16, 0.22, 1.65, 7),
+            this.materials.white
+          );
+          body.rotation.x = Math.PI / 2;
+          group.add(body);
+          const nose = new THREE.Mesh(new THREE.ConeGeometry(0.23, 0.6, 7), this.materials.red);
+          nose.rotation.x = Math.PI / 2;
+          nose.position.z = 1.12;
+          group.add(nose);
+          const exhaust = new THREE.Mesh(
+            new THREE.ConeGeometry(0.22, 0.95, 6),
+            new THREE.MeshBasicMaterial({ color: 0xff8a4c, transparent: true, opacity: 0.9 })
+          );
+          exhaust.rotation.x = -Math.PI / 2;
+          exhaust.position.z = -1.24;
+          group.add(exhaust);
+          const trail = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.07, 0.4, 2.5, 7),
+            new THREE.MeshBasicMaterial({
+              color: 0xff5d4f,
+              transparent: true,
+              opacity: 0.5,
+              depthWrite: false,
+              blending: THREE.AdditiveBlending,
+            })
+          );
+          trail.rotation.x = Math.PI / 2;
+          trail.position.z = -2.15;
+          group.add(trail);
+          const flare = new THREE.Mesh(
+            new THREE.OctahedronGeometry(0.34, 0),
+            new THREE.MeshBasicMaterial({ color: 0xffef72 })
+          );
+          flare.position.z = -1.25;
+          group.add(flare);
+          const light = new THREE.PointLight(0xff4d5f, 3.2, 10, 2);
+          light.position.z = -1.05;
+          group.add(light);
+
+          group.position.copy(fighter.group.position);
+          group.position.y -= 0.55;
+          group.position.z += 1;
+          const dx = this.player.position.x - group.position.x;
+          const dz = CONFIG.playerZ - group.position.z;
+          const angle = Math.atan2(dx, dz);
+          group.rotation.y = angle;
+          this.scene.add(group);
+          this.missiles.push({
+            group,
+            angle,
+            age: 0,
+            currentSpeed: CONFIG.fighterMissileSpeed,
+            closureSpeed: Math.cos(angle) * CONFIG.fighterMissileSpeed,
+            sourceSide: group.position.x < this.player.position.x ? -1 : 1,
+            sourceType: 'caça',
+            inheritsWorldScroll: false,
+            passDirection: -1,
+            exhaust,
+            trail,
+            closestDistance: Infinity,
+            passedPlayer: false,
+            perfectEvasion: false,
+          });
+          fighter.missilesFired += 1;
+          fighter.fireCooldown = CONFIG.fighterFireInterval;
+          fighter.lockTimer = 0;
+          fighter.locking = false;
+          this.audio.missileLaunch();
+        }
+
+        getActiveFighterMissile() {
+          return this.missiles.find(
+            (missile) => missile.sourceType === 'caça' && !missile.passedPlayer
+          ) || null;
+        }
+
+        canDeployFlare() {
+          return Boolean(
+            this.mode === 'PLAYING' &&
+            this.pursuitFighter &&
+            this.getActiveFighterMissile()
+          );
+        }
+
+        spawnFlareBurst() {
+          const origin = this.player.position.clone();
+          origin.y += 0.2;
+          origin.z += 2.2;
+          for (let index = 0; index < 22; index += 1) {
+            const material = new THREE.MeshBasicMaterial({
+              color: index % 3 === 0 ? 0xffffff : index % 2 ? 0xffd84d : 0xff5a45,
+              transparent: true,
+              opacity: 0.96,
+            });
+            const mesh = new THREE.Mesh(
+              new THREE.OctahedronGeometry(0.16 + Math.random() * 0.2, 0),
+              material
+            );
+            mesh.position.copy(origin);
+            this.scene.add(mesh);
+            this.particles.push({
+              mesh,
+              velocity: new THREE.Vector3(
+                (Math.random() - 0.5) * 12,
+                2 + Math.random() * 8,
+                4 + Math.random() * 11
+              ),
+              life: 0.7 + Math.random() * 0.65,
+            });
+          }
+        }
+
+        deployFlare() {
+          if (!this.canDeployFlare()) return false;
+          const missile = this.getActiveFighterMissile();
+          const missileIndex = this.missiles.indexOf(missile);
+          this.spawnFlareBurst();
+          this.spawnSparks(missile.group.position.clone(), 12);
+          this.scene.remove(missile.group);
+          if (missileIndex >= 0) this.missiles.splice(missileIndex, 1);
+          this.flaresUsed += 1;
+          this.audio.missileDestroyed();
+          this.endFighterPursuit(true, false, 'flare');
+          this.updateMissileAlert(0, this.mode === 'PLAYING');
+          this.updateHUD();
+          return true;
+        }
+
+        endFighterPursuit(escaped, interrupted = false, reason = 'survival') {
+          if (!this.pursuitFighter) return;
+          this.scene.remove(this.pursuitFighter.group);
+          this.pursuitFighter = null;
+          for (let index = this.missiles.length - 1; index >= 0; index -= 1) {
+            if (this.missiles[index].sourceType !== 'caça') continue;
+            this.scene.remove(this.missiles[index].group);
+            this.missiles.splice(index, 1);
+          }
+          this.nextFighterDistance = this.distance + CONFIG.fighterInterval;
+          if (escaped) {
+            this.score += CONFIG.fighterEscapeScore;
+            this.fighterEscapes += 1;
+            this.audio.perfectEvasion();
+            this.showToast(
+              reason === 'flare'
+                ? `FLARE PERFEITO · CAÇA RECUOU · +${CONFIG.fighterEscapeScore}`
+                : `CAÇA DESPISTADO · +${CONFIG.fighterEscapeScore}`,
+              2
+            );
+          } else if (!interrupted) {
+            this.showToast('PERSEGUIÇÃO ENCERRADA', 1.4);
+          }
+        }
+
+        updateFighterPursuit(dt, canInteract) {
+          if (!canInteract || !this.pursuitFighter) return;
+          const fighter = this.pursuitFighter;
+          const speedRatio = this.getSpeedRatio();
+          fighter.escapeProgress += dt;
+          const fighterScaleTarget = this.cameraMode === 'top' ? 0.72 : 0.28;
+          const fighterScale = damp(fighter.group.scale.x, fighterScaleTarget, 6, dt);
+          fighter.group.scale.setScalar(fighterScale);
+          const targetGap = lerp(12.5, 14.5, speedRatio);
+          const targetX =
+            this.player.position.x + fighter.side * 2.6 +
+            Math.sin(this.elapsed * 2.5 + fighter.phase) * 0.55;
+          const previousX = fighter.group.position.x;
+          fighter.group.position.x = damp(fighter.group.position.x, targetX, 3.1, dt);
+          fighter.group.position.z = damp(
+            fighter.group.position.z,
+            CONFIG.playerZ + targetGap,
+            2.1,
+            dt
+          );
+          fighter.group.position.y = 7.4 + Math.sin(this.elapsed * 4.2 + fighter.phase) * 0.24;
+          fighter.group.rotation.z = clamp((previousX - fighter.group.position.x) * 0.18, -0.38, 0.38);
+          fighter.gap = fighter.group.position.z - CONFIG.playerZ;
+          for (const exhaust of fighter.group.userData.exhausts || []) {
+            exhaust.scale.y = 0.8 + speedRatio * 0.9 + Math.sin(this.elapsed * 31) * 0.12;
+          }
+          this.updateVehicleNavigationLights(fighter.group, true);
+
+          fighter.fireCooldown -= dt;
+          const wasLocking = fighter.locking;
+          fighter.locking = Boolean(
+            fighter.missilesFired < CONFIG.fighterMaxMissiles &&
+            fighter.fireCooldown <= CONFIG.fighterLockTime
+          );
+          if (fighter.locking && !wasLocking) {
+            this.showToast('INIMIGO TRAVADO NA MIRA', 0.9);
+          }
+          fighter.lockTimer = fighter.locking ? fighter.lockTimer + dt : 0;
+          if (fighter.locking && fighter.lockTimer >= CONFIG.fighterLockTime) {
+            this.launchFighterMissile();
+          }
+
+          if (fighter.escapeProgress >= CONFIG.fighterDuration) {
+            this.endFighterPursuit(true);
+          }
+        }
+
         launchCannonShell(ship) {
           const group = new THREE.Group();
           const shell = new THREE.Mesh(
@@ -3276,6 +3726,10 @@
               shell.group.position.z - CONFIG.playerZ
             );
             if (distanceToPlayer < 1.35) {
+              if (this.isBarrelRolling()) {
+                this.evadeProjectileWithBarrelRoll(this.enemyShells, index, shell);
+                continue;
+              }
               this.scene.remove(shell.group);
               this.enemyShells.splice(index, 1);
               this.crash('ATINGIDO POR CANHÃO');
@@ -3310,11 +3764,13 @@
           for (const missile of this.missiles) this.scene.remove(missile.group);
           for (const shell of this.enemyShells) this.scene.remove(shell.group);
           for (const particle of this.particles) this.scene.remove(particle.mesh);
+          if (this.pursuitFighter) this.scene.remove(this.pursuitFighter.group);
           this.entities.length = 0;
           this.bullets.length = 0;
           this.missiles.length = 0;
           this.enemyShells.length = 0;
           this.particles.length = 0;
+          this.pursuitFighter = null;
         }
 
         spawnRandomEntity() {
@@ -3393,9 +3849,12 @@
           } else if (this.selectedStartingRound === 4) {
             dom.roundDescription.textContent =
               `JUNGLE · TREM ARMADO · NAVIOS · TANQUES · HELICÓPTEROS +${Math.round(helicopterBonus * 100)}%`;
+          } else if (this.selectedStartingRound === 5) {
+            dom.roundDescription.textContent =
+              `JUNGLE · CAÇA PERSEGUIDOR · TRENS · TANQUES NAS ILHAS`;
           } else {
             dom.roundDescription.textContent =
-              `JUNGLE · TREM ARMADO · NAVIOS · TANQUES NAS ILHAS · HELICÓPTEROS +${Math.round(helicopterBonus * 100)}%`;
+              `JUNGLE · CAÇA PERSEGUIDOR · TRENS · NAVIOS · TANQUES NAS ILHAS`;
           }
         }
 
@@ -3430,6 +3889,7 @@
 
         bindEvents() {
           dom.start.addEventListener('click', () => this.startOrRestart());
+          dom.flareButton.addEventListener('click', () => this.deployFlare());
           dom.title.addEventListener('click', () => this.handleSecretTitleClick());
           dom.startRound.addEventListener('change', (event) => this.setStartingRound(event.target.value));
           addEventListener('resize', () => this.onResize());
@@ -3451,6 +3911,14 @@
             }
             if (event.code === 'KeyP' && !event.repeat) {
               this.togglePause();
+              return;
+            }
+            if (event.code === 'KeyE' && !event.repeat) {
+              this.deployFlare();
+              return;
+            }
+            if (event.code === 'KeyQ' && !event.repeat) {
+              this.startBarrelRoll();
               return;
             }
 
@@ -3485,7 +3953,12 @@
 
         startOrRestart() {
           this.audio.enable();
+          if (this.pursuitFighter) {
+            this.scene.remove(this.pursuitFighter.group);
+            this.pursuitFighter = null;
+          }
           const completedCycles = this.selectedStartingRound - 1;
+          this.elapsed = 0;
           this.score = 0;
           this.comboCount = 0;
           this.comboMultiplier = 1;
@@ -3514,26 +3987,63 @@
           this.distance = 0;
           this.level = 1;
           this.fireCooldown = 0;
+          this.crashTimer = 0;
           this.spawnDistance = 80;
           this.nextBridgeDistance = 620;
+          this.toastTimer = 0;
+          this.refuelToneTimer = 0;
           this.environmentCyclesCompleted = completedCycles;
           this.missilesDestroyed = 0;
           this.perfectEvasions = 0;
           this.missileAlertTimer = 0;
+          this.currentMissileAlert = { state: 'none', direction: 'center', distance: null };
           this.safetyModeActive = false;
           this.bridgesDestroyed = completedCycles * ENVIRONMENT_PHASES.length;
           this.cannonShotsFired = 0;
           this.tankShotsFired = 0;
           this.trainEventsStarted = 0;
           this.trainShotsFired = 0;
+          this.fighterEventsStarted = 0;
+          this.fighterEscapes = 0;
+          this.flaresUsed = 0;
+          this.pursuitCameraBlend = 0;
+          this.barrelRollTimer = 0;
+          this.barrelRollElapsed = 0;
+          this.barrelRollStartZ = 0;
+          this.barrelRollStartX = 0;
+          this.barrelRollDirection = 1;
+          this.barrelRollLateralDirection = 1;
+          this.lastLateralDirection = 0;
+          this.barrelRollUsedThisEnvironment = false;
+          this.barrelRolls = 0;
+          this.barrelRollEvades = 0;
+          this.nextFighterDistance = completedCycles >= CONFIG.fighterUnlockCycle
+            ? CONFIG.fighterFirstDistance
+            : null;
+          this.pursuitFighter = null;
+          this.input.left = false;
+          this.input.right = false;
+          this.input.up = false;
+          this.input.down = false;
+          this.input.shoot = false;
+          this.speedLineMaterial.opacity = 0;
+          this.speedLineGroup.visible = false;
           this.setEnvironmentPhase(0, true);
-          this.refreshTerrainShapes();
+          this.resetTerrainRun();
           this.player.position.x = this.getRiverAtZ(CONFIG.playerZ).center;
+          this.player.position.y = 2.7;
           this.player.rotation.set(0, 0, 0);
+          this.cameraTargetX = this.player.position.x;
           this.mode = 'PLAYING';
           this.syncCameraVisuals();
           this.seedOpeningRun();
           this.updateMissileAlert(0, false);
+          this.updateCamera(1);
+          dom.overlay.dataset.mode = 'menu';
+          dom.title.textContent = 'RIO DE AÇO';
+          dom.subtitle.textContent = 'Ataque retro low-poly em 3D';
+          dom.finalScore.textContent = '';
+          dom.start.textContent = 'DECOLAR';
           dom.overlay.classList.add('hidden');
           this.showToast(
             this.selectedStartingRound > 1
@@ -3636,6 +4146,88 @@
           this.currentSpeed += Math.sign(difference) * change;
         }
 
+        isBarrelRolling() {
+          return this.barrelRollTimer > 0;
+        }
+
+        startBarrelRoll() {
+          if (this.mode !== 'PLAYING' || this.isBarrelRolling()) return false;
+          if (this.barrelRollUsedThisEnvironment) {
+            this.showToast('BARREL ROLL JÁ USADO · AGUARDE O PRÓXIMO AMBIENTE', 1.35);
+            return false;
+          }
+          this.barrelRollUsedThisEnvironment = true;
+          this.barrelRollTimer = CONFIG.barrelRollDuration;
+          this.barrelRollElapsed = 0;
+          this.barrelRollStartZ = this.player.rotation.z;
+          this.barrelRollStartX = this.player.position.x;
+          const river = this.getRiverAtZ(CONFIG.playerZ);
+          const heldDirection = this.input.left && !this.input.right
+            ? -1
+            : this.input.right && !this.input.left
+              ? 1
+              : 0;
+          const fallbackDirection = this.lastLateralDirection
+            || (this.player.position.x > river.center ? -1 : 1);
+          this.barrelRollLateralDirection = heldDirection || fallbackDirection;
+          this.lastLateralDirection = this.barrelRollLateralDirection;
+          // No enquadramento atrás do avião, girar à direita é uma rotação horária.
+          this.barrelRollDirection = -this.barrelRollLateralDirection;
+          this.barrelRolls += 1;
+          this.audio.riskBonus();
+          const directionLabel = this.barrelRollLateralDirection > 0 ? 'DIREITA' : 'ESQUERDA';
+          this.showToast(`BARREL ROLL À ${directionLabel} · INVULNERÁVEL A TIROS`, 0.9);
+          this.updateHUD();
+          return true;
+        }
+
+        updateBarrelRoll(dt, baseFlightY = 2.7 + Math.sin(this.elapsed * 5.5) * 0.08) {
+          if (!this.isBarrelRolling()) return false;
+          this.barrelRollElapsed = Math.min(
+            CONFIG.barrelRollDuration,
+            this.barrelRollElapsed + dt
+          );
+          this.barrelRollTimer = Math.max(
+            0,
+            CONFIG.barrelRollDuration - this.barrelRollElapsed
+          );
+          const progress = clamp(
+            this.barrelRollElapsed / CONFIG.barrelRollDuration,
+            0,
+            1
+          );
+          const maneuverArc = Math.sin(Math.PI * progress);
+          const climbArc = Math.sin(Math.PI * 2 * progress);
+          this.player.position.x =
+            this.barrelRollStartX +
+            this.barrelRollLateralDirection * CONFIG.barrelRollLateralDistance * maneuverArc;
+          this.player.position.y = baseFlightY + CONFIG.barrelRollLift * maneuverArc;
+          this.player.rotation.z =
+            this.barrelRollStartZ + this.barrelRollDirection * Math.PI * 2 * progress;
+          this.player.rotation.x = -0.24 * climbArc;
+          this.player.rotation.y = -this.barrelRollLateralDirection * 0.14 * climbArc;
+          if (progress >= 1) {
+            this.player.position.x = this.barrelRollStartX;
+            this.player.position.y = baseFlightY;
+            this.player.rotation.x = 0;
+            this.player.rotation.y = 0;
+            this.player.rotation.z = 0;
+            this.updateHUD();
+            return false;
+          }
+          return true;
+        }
+
+        evadeProjectileWithBarrelRoll(collection, index, projectile) {
+          const impactPosition = projectile.group.position.clone();
+          this.scene.remove(projectile.group);
+          collection.splice(index, 1);
+          this.barrelRollEvades += 1;
+          this.spawnSparks(impactPosition, 14);
+          this.audio.perfectEvasion();
+          this.showToast('BARREL ROLL · TIRO EVITADO', 0.85);
+        }
+
         shoot() {
           if (this.fireCooldown > 0 || this.mode !== 'PLAYING') return;
           const mesh = new THREE.Mesh(
@@ -3684,6 +4276,7 @@
           this.updateEnvironment(dt, speed);
           this.updateTerrain(dt, speed);
           this.updateEntities(dt, speed, isPlaying);
+          this.updateFighterPursuit(dt, isPlaying);
           this.updateMissiles(dt, isPlaying);
           this.updateEnemyShells(dt, isPlaying);
           this.updateBullets(dt, isPlaying);
@@ -3693,6 +4286,15 @@
             this.distance += speed * dt;
             this.updateRiverForkProgress();
             this.level = 1 + Math.floor(this.distance / 1150);
+            if (
+              this.nextFighterDistance != null &&
+              this.distance >= this.nextFighterDistance &&
+              !this.pursuitFighter &&
+              this.missiles.length === 0 &&
+              !this.entities.some((entity) => entity.type === 'trem')
+            ) {
+              this.startFighterPursuit();
+            }
             this.fireCooldown = Math.max(0, this.fireCooldown - dt);
             this.spawnDistance -= speed * dt;
             if (this.spawnDistance <= 0) {
@@ -3711,10 +4313,18 @@
             }
 
             const axis = (this.input.right ? 1 : 0) - (this.input.left ? 1 : 0);
+            if (axis !== 0 && !this.isBarrelRolling()) {
+              this.lastLateralDirection = axis;
+            }
             this.player.position.x += axis * CONFIG.lateralSpeed * dt;
-            this.player.rotation.z = damp(this.player.rotation.z, -axis * 0.46, 8, dt);
-            this.player.rotation.y = damp(this.player.rotation.y, -axis * 0.12, 7, dt);
-            this.player.position.y = 2.7 + Math.sin(this.elapsed * 5.5) * 0.08;
+            const baseFlightY = 2.7 + Math.sin(this.elapsed * 5.5) * 0.08;
+            const barrelRolling = this.updateBarrelRoll(dt, baseFlightY);
+            if (!barrelRolling) {
+              this.player.rotation.z = damp(this.player.rotation.z, -axis * 0.46, 8, dt);
+              this.player.rotation.x = damp(this.player.rotation.x, 0, 8, dt);
+              this.player.rotation.y = damp(this.player.rotation.y, -axis * 0.12, 7, dt);
+              this.player.position.y = baseFlightY;
+            }
             const speedRatio = this.getSpeedRatio();
             this.player.userData.exhaust.scale.y =
               0.62 + this.throttle * 0.5 + speedRatio * 1.35 + Math.sin(this.elapsed * 28) * 0.1;
@@ -4079,10 +4689,16 @@
 
         updateMissiles(dt, canInteract) {
           if (!canInteract) return;
-          const worldScrollSpeed = this.getSpeed();
-          const missileSpeed = CONFIG.missilePropulsionSpeed;
           for (let index = this.missiles.length - 1; index >= 0; index -= 1) {
             const missile = this.missiles[index];
+            const fighterMissile = missile.sourceType === 'caça';
+            const worldScrollSpeed = missile.inheritsWorldScroll === false ? 0 : this.getSpeed();
+            const missileSpeed = fighterMissile
+              ? CONFIG.fighterMissileSpeed
+              : CONFIG.missilePropulsionSpeed;
+            const turnRate = fighterMissile
+              ? CONFIG.fighterMissileTurnRate
+              : CONFIG.missileTurnRate;
             missile.age += dt;
             missile.currentSpeed = missileSpeed;
             const dx = this.player.position.x - missile.group.position.x;
@@ -4095,8 +4711,8 @@
               );
               missile.angle += clamp(
                 angleDifference,
-                -CONFIG.missileTurnRate * dt,
-                CONFIG.missileTurnRate * dt
+                -turnRate * dt,
+                turnRate * dt
               );
             }
             missile.group.rotation.y = missile.angle;
@@ -4113,16 +4729,20 @@
             );
             missile.closestDistance = Math.min(missile.closestDistance, distanceToPlayer);
             if (distanceToPlayer < 1.45) {
+              if (this.isBarrelRolling()) {
+                this.evadeProjectileWithBarrelRoll(this.missiles, index, missile);
+                continue;
+              }
               this.scene.remove(missile.group);
               this.missiles.splice(index, 1);
               this.crash('ATINGIDO POR MÍSSIL');
               return;
             }
 
-            if (
-              !missile.passedPlayer &&
-              missile.group.position.z > CONFIG.playerZ + CONFIG.perfectEvasionPassDistance
-            ) {
+            const passedPlayer = missile.passDirection === -1
+              ? missile.group.position.z < CONFIG.playerZ - CONFIG.perfectEvasionPassDistance
+              : missile.group.position.z > CONFIG.playerZ + CONFIG.perfectEvasionPassDistance;
+            if (!missile.passedPlayer && passedPlayer) {
               missile.passedPlayer = true;
               if (missile.closestDistance <= CONFIG.perfectEvasionRadius) {
                 missile.perfectEvasion = true;
@@ -4134,7 +4754,7 @@
             }
 
             if (
-              missile.age > CONFIG.missileLifetime ||
+              missile.age > (fighterMissile ? CONFIG.fighterMissileLifetime : CONFIG.missileLifetime) ||
               missile.group.position.z < -190 ||
               missile.group.position.z > 84 ||
               Math.abs(missile.group.position.x) > 95
@@ -4155,7 +4775,9 @@
         getMissileThreat() {
           const activeMissiles = this.missiles.filter((missile) => !missile.passedPlayer);
           if (activeMissiles.length > 0) {
-            const missile = activeMissiles.reduce((closest, candidate) => {
+            const safetyMissiles = activeMissiles.filter((missile) => missile.sourceType !== 'caça');
+            const threatPool = safetyMissiles.length > 0 ? safetyMissiles : activeMissiles;
+            const missile = threatPool.reduce((closest, candidate) => {
               const candidateDistance = Math.hypot(
                 candidate.group.position.x - this.player.position.x,
                 candidate.group.position.z - CONFIG.playerZ
@@ -4170,6 +4792,19 @@
               state: 'missile',
               direction: offset < -1.5 ? 'left' : offset > 1.5 ? 'right' : 'center',
               distance: missile.distance,
+              source: missile.missile.sourceType || 'lançador',
+              safetyMode: missile.missile.sourceType !== 'caça',
+            };
+          }
+
+          if (this.pursuitFighter?.locking) {
+            const offset = this.pursuitFighter.group.position.x - this.player.position.x;
+            return {
+              state: 'lock',
+              direction: offset < -1.5 ? 'left' : offset > 1.5 ? 'right' : 'center',
+              distance: this.pursuitFighter.gap,
+              source: 'caça',
+              safetyMode: false,
             };
           }
 
@@ -4199,7 +4834,7 @@
           const threat = active ? this.getMissileThreat() : { state: 'none', direction: 'center', distance: null };
           this.currentMissileAlert = threat;
           const safetyWasActive = this.safetyModeActive;
-          this.safetyModeActive = threat.state !== 'none';
+          this.safetyModeActive = threat.state !== 'none' && threat.safetyMode !== false;
           const warningLamp = this.cockpitRig.userData.warningLamp;
 
           if (threat.state === 'none') {
@@ -4213,15 +4848,15 @@
             return;
           }
 
-          if (!safetyWasActive) {
+          if (!safetyWasActive && this.safetyModeActive) {
             this.showToast('MODO DE SEGURANÇA · VELOCIDADE REDUZIDA', 1.45);
           }
 
           const arrows = { left: '◀', center: '↑', right: '▶' };
           dom.missileAlert.dataset.state = threat.state;
-          dom.missileAlertLabel.textContent = threat.state === 'missile'
-            ? 'MÍSSIL ATIVO · SEGURANÇA'
-            : 'TRAVAMENTO · SEGURANÇA';
+          dom.missileAlertLabel.textContent = threat.source === 'caça'
+            ? threat.state === 'missile' ? 'MÍSSIL DO CAÇA · [E] FLARE' : 'TRAVAMENTO CONFIRMADO · PREPARE O FLARE'
+            : threat.state === 'missile' ? 'MÍSSIL ATIVO · SEGURANÇA' : 'TRAVAMENTO · SEGURANÇA';
           dom.missileDirection.textContent = arrows[threat.direction];
           dom.missileAlert.classList.add('active');
 
@@ -4348,6 +4983,7 @@
             const lifeMessage = nextEnvironment.lifeAwarded ? ' · VIDA EXTRA' : '';
             const navalMessage = nextEnvironment.navalCombatUnlocked ? ' · NAVIOS ARMADOS' : '';
             const trainMessage = nextEnvironment.trainCombatUnlocked ? ' · TREM ARMADO' : '';
+            const fighterMessage = nextEnvironment.fighterPursuitUnlocked ? ' · CAÇA PERSEGUIDOR' : '';
             const turboMessage = scoreAward.speedMultiplier > 1
               ? ` · TURBO ×${this.formatScoreMultiplier(scoreAward.speedMultiplier)}`
               : '';
@@ -4357,16 +4993,16 @@
                 ? scoreAward.points + CONFIG.lastMomentBridgeScore
                 : CONFIG.lastMomentBridgeScore;
               this.showToast(
-                `PONTE NO LIMITE${turboMessage} · +${pointsMessage} · ${nextEnvironment.label}${lifeMessage}${navalMessage}${trainMessage}`,
+                `PONTE NO LIMITE${turboMessage} · +${pointsMessage} · ${nextEnvironment.label}${lifeMessage}${navalMessage}${trainMessage}${fighterMessage}`,
                 2.4
               );
             } else if (scoreAward.speedMultiplier > 1) {
               this.showToast(
-                `PONTE DESTRUÍDA${turboMessage} · +${scoreAward.points} · ${nextEnvironment.label}${lifeMessage}${navalMessage}${trainMessage}`,
+                `PONTE DESTRUÍDA${turboMessage} · +${scoreAward.points} · ${nextEnvironment.label}${lifeMessage}${navalMessage}${trainMessage}${fighterMessage}`,
                 2.4
               );
             } else {
-              this.showToast(`PONTE DESTRUÍDA · ${nextEnvironment.label}${lifeMessage}${navalMessage}${trainMessage}`, 2.4);
+              this.showToast(`PONTE DESTRUÍDA · ${nextEnvironment.label}${lifeMessage}${navalMessage}${trainMessage}${fighterMessage}`, 2.4);
             }
           } else if (entity.type === 'fuel') {
             this.showToast(`FUEL DESTRUÍDO · -${CONFIG.fuelPenalty} PONTOS`, 1.8);
@@ -4573,6 +5209,10 @@
 
         crash(reason) {
           if (this.mode !== 'PLAYING') return;
+          if (this.pursuitFighter) this.endFighterPursuit(false, true);
+          this.barrelRollTimer = 0;
+          this.barrelRollElapsed = 0;
+          this.player.rotation.z = 0;
           this.mode = 'CRASH';
           this.lives -= 1;
           this.resetCombo();
@@ -4594,6 +5234,7 @@
 
           const river = this.getRiverAtZ(CONFIG.playerZ);
           this.player.position.x = this.getSafeRiverRespawnX(river, this.player.position.x);
+          this.player.position.y = 2.7;
           this.player.rotation.set(0, 0, 0);
           this.fuel = Math.max(this.fuel, 38);
           for (let index = this.entities.length - 1; index >= 0; index -= 1) {
@@ -4624,11 +5265,22 @@
 
         updateCamera(dt) {
           const speedRatio = this.getSpeedRatio();
+          const pursuitFramingActive = Boolean(
+            this.pursuitFighter && (this.mode === 'PLAYING' || this.mode === 'PAUSED')
+          );
+          this.pursuitCameraBlend = damp(
+            this.pursuitCameraBlend,
+            pursuitFramingActive ? 1 : 0,
+            3.2,
+            dt
+          );
           const chaseFov = lerp(56, 72, speedRatio);
           const cockpitFov = lerp(66, 82, speedRatio);
           this.cameraChase.fov = damp(this.cameraChase.fov, chaseFov, 5.5, dt);
           this.cameraCockpit.fov = damp(this.cameraCockpit.fov, cockpitFov, 5.5, dt);
-          this.cameraTop.zoom = damp(this.cameraTop.zoom, lerp(1, 0.86, speedRatio), 5.5, dt);
+          const topZoom =
+            lerp(1, 0.86, speedRatio) * lerp(1, 0.88, this.pursuitCameraBlend);
+          this.cameraTop.zoom = damp(this.cameraTop.zoom, topZoom, 5.5, dt);
           this.cameraChase.updateProjectionMatrix();
           this.cameraCockpit.updateProjectionMatrix();
           this.cameraTop.updateProjectionMatrix();
@@ -4636,13 +5288,28 @@
           this.cameraTargetX = damp(this.cameraTargetX, this.player.position.x, 4.8, dt);
           if (this.cameraMode === 'chase') {
             this.cameraChase.position.x = damp(this.cameraChase.position.x, this.cameraTargetX * 0.78, 4, dt);
-            this.cameraChase.position.y = damp(this.cameraChase.position.y, lerp(9.4, 11.2, speedRatio), 4, dt);
-            this.cameraChase.position.z = damp(this.cameraChase.position.z, lerp(20.5, 25, speedRatio), 4, dt);
-            this.cameraChase.lookAt(this.cameraTargetX * 0.42, 1.0, lerp(-24, -32, speedRatio));
+            this.cameraChase.position.y = damp(
+              this.cameraChase.position.y,
+              lerp(9.4, 11.2, speedRatio) + this.pursuitCameraBlend * 1.2,
+              4,
+              dt
+            );
+            this.cameraChase.position.z = damp(
+              this.cameraChase.position.z,
+              lerp(20.5, 25, speedRatio) + this.pursuitCameraBlend * 4.5,
+              4,
+              dt
+            );
+            this.cameraChase.lookAt(
+              this.cameraTargetX * 0.42,
+              lerp(1, -8.5, this.pursuitCameraBlend),
+              lerp(lerp(-24, -32, speedRatio), -38, this.pursuitCameraBlend)
+            );
           } else if (this.cameraMode === 'top') {
-            this.cameraTop.position.set(this.cameraTargetX, 82, -25);
+            const topCenterZ = lerp(-25, -10, this.pursuitCameraBlend);
+            this.cameraTop.position.set(this.cameraTargetX, 82, topCenterZ);
             this.cameraTop.up.set(0, 0, -1);
-            this.cameraTop.lookAt(this.cameraTargetX, 0, -25);
+            this.cameraTop.lookAt(this.cameraTargetX, 0, topCenterZ);
           } else {
             const shake = Math.max(0, speedRatio - 0.62) / 0.38;
             this.cameraCockpit.position.set(
@@ -4652,7 +5319,9 @@
             );
             this.cameraCockpit.up.set(0, 1, 0);
             this.cameraCockpit.lookAt(this.player.position.x, 1.4, -52);
-            this.cameraCockpit.rotation.z = this.player.rotation.z * 0.55;
+            this.cameraCockpit.rotation.z = this.isBarrelRolling()
+              ? this.player.rotation.z
+              : this.player.rotation.z * 0.55;
           }
         }
 
@@ -4681,6 +5350,32 @@
           dom.forkRoute.textContent = routeRole === 'combat'
             ? 'ROTA COMBATE ×1,35'
             : 'ROTA FUEL';
+          const fighterActive = this.mode === 'PLAYING' && Boolean(this.pursuitFighter);
+          dom.fighterPursuit.classList.toggle('active', fighterActive);
+          if (this.pursuitFighter) {
+            const remaining = Math.max(
+              0,
+              CONFIG.fighterDuration - this.pursuitFighter.escapeProgress
+            );
+            dom.fighterPursuit.textContent =
+              `CAÇA NA CAUDA · ${remaining.toFixed(1).replace('.', ',')}s · ${this.pursuitFighter.gap.toFixed(0)}m`;
+          } else {
+            dom.fighterPursuit.textContent = 'CAÇA NA CAUDA';
+          }
+          const flareAvailable = this.canDeployFlare();
+          dom.flareButton.classList.toggle('active', flareAvailable);
+          dom.flareButton.disabled = !flareAvailable;
+          const barrelRollVisible = this.mode === 'PLAYING' || this.mode === 'PAUSED';
+          const barrelRollState = this.isBarrelRolling()
+            ? 'rolling'
+            : this.barrelRollUsedThisEnvironment ? 'used' : 'ready';
+          dom.barrelRoll.classList.toggle('active', barrelRollVisible);
+          dom.barrelRoll.dataset.state = barrelRollState;
+          dom.barrelRoll.textContent = barrelRollState === 'rolling'
+            ? 'BARREL ROLL · INVULNERÁVEL'
+            : barrelRollState === 'used'
+              ? 'BARREL ROLL · USADO'
+              : '[Q] BARREL ROLL · PRONTO';
           dom.fuelFill.style.transform = `scaleX(${clamp(this.fuel / 100, 0, 1)})`;
           dom.fuelNumber.textContent = `${Math.ceil(this.fuel)}%`;
           dom.fuelNumber.style.color = this.fuel < 22 ? '#ff4d5f' : '#f5f0d0';
@@ -4956,6 +5651,17 @@
               trainTargetLockTime: CONFIG.trainTargetLockTime,
               trainAimCommitTime: CONFIG.trainAimCommitTime,
               trainShellSpeed: CONFIG.trainShellSpeed,
+              fighterUnlockCycle: CONFIG.fighterUnlockCycle,
+              fighterFirstDistance: CONFIG.fighterFirstDistance,
+              fighterDuration: CONFIG.fighterDuration,
+              fighterFirstFireDelay: CONFIG.fighterFirstFireDelay,
+              fighterFlareKey: 'E',
+              fighterMissileSpeed: CONFIG.fighterMissileSpeed,
+              fighterMaxMissiles: CONFIG.fighterMaxMissiles,
+              fighterEscapeScore: CONFIG.fighterEscapeScore,
+              barrelRollDuration: CONFIG.barrelRollDuration,
+              barrelRollLift: CONFIG.barrelRollLift,
+              barrelRollLateralDistance: CONFIG.barrelRollLateralDistance,
             },
             speed: Number(this.getSpeed().toFixed(1)),
             targetSpeed: Number(this.getTargetSpeed().toFixed(1)),
@@ -5016,6 +5722,58 @@
               crossingDirection: 'direita para esquerda',
               bridgeInterval: CONFIG.trainBridgeInterval,
             },
+            fighterPursuit: {
+              unlocked: this.environmentCyclesCompleted >= CONFIG.fighterUnlockCycle,
+              unlockRound: CONFIG.fighterUnlockCycle + 1,
+              active: Boolean(this.pursuitFighter),
+              eventsStarted: this.fighterEventsStarted,
+              escapes: this.fighterEscapes,
+              nextIn: this.nextFighterDistance == null
+                ? null
+                : Number(Math.max(0, this.nextFighterDistance - this.distance).toFixed(1)),
+              escapeProgress: this.pursuitFighter
+                ? Number(
+                    clamp(
+                      this.pursuitFighter.escapeProgress / CONFIG.fighterDuration,
+                      0,
+                      1
+                    ).toFixed(2)
+                  )
+                : 0,
+              gap: this.pursuitFighter
+                ? Number(this.pursuitFighter.gap.toFixed(1))
+                : null,
+              locking: Boolean(this.pursuitFighter?.locking),
+              missilesFired: this.pursuitFighter?.missilesFired || 0,
+              flareAvailable: this.canDeployFlare(),
+              flaresUsed: this.flaresUsed,
+              cameraBlend: Number(this.pursuitCameraBlend.toFixed(2)),
+              x: this.pursuitFighter
+                ? Number(this.pursuitFighter.group.position.x.toFixed(1))
+                : null,
+              z: this.pursuitFighter
+                ? Number(this.pursuitFighter.group.position.z.toFixed(1))
+                : null,
+            },
+            barrelRoll: {
+              active: this.isBarrelRolling(),
+              available: !this.barrelRollUsedThisEnvironment,
+              usedThisEnvironment: this.barrelRollUsedThisEnvironment,
+              timeRemaining: Number(this.barrelRollTimer.toFixed(2)),
+              lateralOffset: Number(
+                (this.isBarrelRolling() ? this.player.position.x - this.barrelRollStartX : 0)
+                  .toFixed(2)
+              ),
+              lift: Number(Math.max(0, this.player.position.y - 2.7).toFixed(2)),
+              rotation: Number(this.player.rotation.z.toFixed(2)),
+              direction: this.barrelRollLateralDirection > 0 ? 'direita' : 'esquerda',
+              rotationDirection: this.barrelRollDirection < 0 ? 'horário' : 'anti-horário',
+              lastMovement: this.lastLateralDirection > 0
+                ? 'direita'
+                : this.lastLateralDirection < 0 ? 'esquerda' : 'nenhum',
+              rolls: this.barrelRolls,
+              projectilesEvaded: this.barrelRollEvades,
+            },
             combo: {
               count: this.comboCount,
               multiplier: this.comboMultiplier,
@@ -5036,6 +5794,7 @@
             },
             missileAlert: {
               state: this.currentMissileAlert.state,
+              source: this.currentMissileAlert.source || null,
               direction: this.currentMissileAlert.direction,
               distance: this.currentMissileAlert.distance == null
                 ? null
@@ -5056,11 +5815,13 @@
             level: this.level,
             player: {
               x: Number(this.player.position.x.toFixed(1)),
+              y: Number(this.player.position.y.toFixed(1)),
               z: CONFIG.playerZ,
               riverCenter: Number(river.center.toFixed(1)),
               safeHalfWidth: Number((river.halfWidth - CONFIG.riverBankClearance).toFixed(1)),
               channel: riverNavigation.channel,
               canShoot: this.fireCooldown <= 0,
+              projectileInvulnerable: this.isBarrelRolling(),
             },
             visibleEntities,
             bullets: this.bullets.slice(0, 8).map((bullet) => ({
@@ -5078,6 +5839,8 @@
               ),
               passedPlayer: missile.passedPlayer,
               perfectEvasion: missile.perfectEvasion,
+              source: missile.sourceType || 'lançador',
+              travelDirection: missile.passDirection === -1 ? 'frente' : 'trás',
               sourceSide: missile.sourceSide < 0 ? 'esquerda' : 'direita',
             })),
             enemyShells: this.enemyShells.map((shell) => ({

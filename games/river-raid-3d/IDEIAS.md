@@ -19,7 +19,7 @@ Documento de referência para futuras atualizações do jogo.
 - [x] Bioma desértico desbloqueado no terceiro ciclo.
 - [x] Bioma Jungle desbloqueado depois do Deserto.
 - [x] Trem armado atravessando pontes ferroviárias.
-- [ ] Caça perseguidor como evento de ciclo avançado.
+- [x] Caça perseguidor como evento de ciclo avançado.
 
 ## 1. Lançadores de mísseis
 
@@ -62,9 +62,12 @@ Status: travamento telegrafado, aviso direcional, alarme progressivo, luz no Coc
 
 ## 4. Manobras evasivas
 
+Status: barrel roll defensivo concluído na `v1.10.0`; esquiva rápida por duplo toque e bônus de último instante continuam como expansões futuras.
+
 - Duplo toque em esquerda ou direita executa uma esquiva rápida.
 - Freada brusca pode enganar mísseis.
-- Alta velocidade permite executar uma manobra de tonel.
+- [x] `Q` executa uma manobra de tonel completa com 0,9 segundo de proteção contra projéteis.
+- [x] A manobra pode ser usada uma vez por fase ambiental e recarrega na próxima mudança de ambiente.
 - Manobras especiais gastam combustível e possuem recarga.
 - Uma evasão feita no último instante concede pontuação extra.
 
@@ -203,10 +206,12 @@ Status: primeira versão concluída. O Deserto começa na rodada 3 com cinco mom
 
 ## 15. Caça perseguidor
 
+Status: primeira versão concluída. O evento começa na rodada 5, dura cerca de 5 segundos e usa um enquadramento próprio de perseguição. Perto do fim, o caça trava e lança um míssil; somente nesse momento o flare (`E` ou botão contextual) fica disponível para desviar o ataque e expulsar o inimigo. Escapar concede 1.000 pontos. Abater o caça e música própria continuam como expansões futuras.
+
 - Em um ciclo avançado, um caça inimigo surge atrás do jogador e inicia uma perseguição temporária.
 - Ele acompanha mudanças laterais, tenta manter distância e dispara rajadas ou mísseis telegrafados.
 - O objetivo principal é sobreviver até o caça perder combustível, abandonar a perseguição ou chegar a uma zona segura.
-- Acelerar aumenta a distância, enquanto desacelerar ajuda a executar curvas e fazer os mísseis ultrapassarem.
+- Acelerar aumenta a distância, enquanto desacelerar ajuda a executar curvas durante a fuga.
 - O jogador pode abater o caça com uma sequência difícil de disparos, recebendo um bônus maior.
 - O evento deve ter aviso próprio no HUD, música de perseguição e duração limitada.
 
@@ -257,6 +262,6 @@ Status: primeira versão concluída. A Jungle começa na rodada 4 com cinco mome
 6. Concluído: criar o ciclo 3 no Deserto e integrar tanques e tempestades de areia.
 7. Concluído: criar o ciclo 4 na Jungle com canais estreitos, chuva e floresta densa.
 8. Concluído: implementar o trem armado como evento lateral temporário.
-9. Implementar o caça perseguidor como evento de ciclo avançado.
+9. Concluído: implementar o caça perseguidor como evento de ciclo avançado.
 10. Integrar bifurcações, biomas, clima e defesas de pontes.
 11. Adicionar o ranking online após estabilizar pontuação, combos e progressão.
