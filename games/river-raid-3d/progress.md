@@ -373,3 +373,12 @@ Original prompt: Criar um novo jogo retro inspirado em River Raid, em Three.js, 
 - Tamanhos pequenos compensam a escala durante o arraste: um gesto de 50×-40 px produziu deslocamento visual de 50,02×-40,02 px. Trocar de pequeno para grande após posicionar na borda corrigiu automaticamente o grupo para dentro da viewport.
 - Capturas de Layouts 1 e 2 em edição e paisagem com limite superior foram inspecionadas. Cliente oficial revalidou teclado, pausa, movimento e disparo no desktop; nenhum erro de console foi encontrado.
 - `v1.16.0` aprovada pelo usuário; pronta para commit e deploy.
+- `v1.16.0` registrada no commit `890a00a` e publicada em produção; o domínio principal confirmou a nova personalização de posições.
+- `v1.17.0` local adiciona quatro níveis gráficos no painel móvel: automático, econômico, equilibrado e alto. A escolha fica salva no aparelho e pode ser trocada sem reiniciar a partida.
+- O modo automático parte das capacidades declaradas pelo navegador e mede janelas reais de quatro segundos. Abaixo de 45 FPS reduz um nível; acima de 56 FPS por três janelas aumenta um nível; trocas têm intervalo de doze segundos para evitar oscilação.
+- Resolução máxima passa a 0,85×/1,05×/1,4×, clima usa 100/220/360 partículas, velocidade usa 8/14/22 rastros e explosões/flares são escalados para 42%/72%/100%. O HUD acompanha 12/16/20 atualizações por segundo.
+- Teste móvel 390×844 confirmou perfil automático inicial equilibrado, troca e seleção visual dos quatro perfis, persistência do modo alto após recarregar e painel totalmente contido entre `x=8–382`, `y=544–726`.
+- Desempenho simulado confirmou redução automática de equilibrado para econômico a 30 FPS e aumento de equilibrado para alto após três janelas a 60 FPS. Movimento por toque foi preservado (`x=1,16→-7,34`) e liberou corretamente o comando.
+- Cliente oficial e teste dedicado não encontraram erros de console. Capturas desktop e móvel foram inspecionadas; cenário, HUD e controles permaneceram legíveis.
+- TODO: aguardar teste do usuário antes de commit e deploy da `v1.17.0`. Próxima etapa móvel sugerida: suporte explícito a recortes/safe areas e matriz de testes em diferentes proporções e densidades.
+- `v1.17.0` aprovada pelo usuário após teste dos perfis gráficos; autorizados commit e publicação antes da próxima fase.

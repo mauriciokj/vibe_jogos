@@ -8,6 +8,15 @@ O jogo usa versionamento semântico:
 
 Cada publicação deve atualizar `GAME_VERSION` no `index.html` e registrar as mudanças neste arquivo.
 
+## 1.17.0 — 2026-08-05
+
+- O painel `AJUSTE` ganhou perfis gráficos `AUTO`, `ECON.`, `MÉDIO` e `ALTO`, com escolha persistente por aparelho.
+- O modo automático escolhe um ponto de partida usando memória, processadores e tipo de dispositivo, depois acompanha o FPS real durante a partida.
+- Quedas sustentadas reduzem a qualidade; estabilidade prolongada permite aumentá-la novamente, com intervalo de segurança para evitar oscilações frequentes.
+- Os perfis ajustam resolução interna, quantidade de clima, rastros de velocidade, partículas de explosões/flares e frequência do HUD sem remover luzes ou alertas importantes para o gameplay.
+- O perfil econômico remove scanlines e reduz a vinheta, diminuindo o custo de efeitos que cobrem a tela inteira.
+- Estado textual expõe preferência, perfil efetivo, motivo da troca, FPS medido e limites ativos para diagnóstico.
+
 ## 1.16.0 — 2026-08-04
 
 - `MOVER CONTROLES` ativa um modo seguro de edição com a partida pausada.

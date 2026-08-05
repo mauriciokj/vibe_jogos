@@ -68,6 +68,18 @@
         mix-blend-mode: overlay;
       }
 
+      body[data-graphics-quality="balanced"] .scanlines {
+        opacity: 0.07;
+      }
+
+      body[data-graphics-quality="low"] .scanlines {
+        display: none;
+      }
+
+      body[data-graphics-quality="low"] .vignette {
+        box-shadow: inset 0 0 90px rgba(0, 0, 0, 0.34);
+      }
+
       .vignette {
         position: fixed;
         inset: 0;
@@ -561,6 +573,15 @@
 
       .mobile-setting-options.two-options {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .mobile-setting-options.four-options {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .mobile-setting-options.four-options .mobile-setting-option {
+        padding-inline: 2px;
+        font-size: 8px;
       }
 
       .mobile-setting-option {
@@ -1346,6 +1367,15 @@
           </div>
         </div>
         <div class="mobile-setting-row">
+          <span class="mobile-setting-label">GRÁFICOS</span>
+          <div class="mobile-setting-options four-options">
+            <button class="mobile-control-button mobile-setting-option" type="button" data-graphics-quality="auto" aria-label="Qualidade gráfica automática">AUTO</button>
+            <button class="mobile-control-button mobile-setting-option" type="button" data-graphics-quality="low" aria-label="Qualidade gráfica econômica">ECON.</button>
+            <button class="mobile-control-button mobile-setting-option" type="button" data-graphics-quality="balanced" aria-label="Qualidade gráfica equilibrada">MÉDIO</button>
+            <button class="mobile-control-button mobile-setting-option" type="button" data-graphics-quality="high" aria-label="Qualidade gráfica alta">ALTO</button>
+          </div>
+        </div>
+        <div class="mobile-setting-row">
           <span class="mobile-setting-label">POSIÇÃO</span>
           <div class="mobile-setting-options two-options">
             <button id="touch-position-controls" class="mobile-control-button mobile-setting-option" type="button">MOVER CONTROLES</button>
@@ -1455,7 +1485,7 @@
 
     <script src="./vendor/three.min.js"></script>
     <script>
-      const GAME_VERSION = '1.16.0';
+      const GAME_VERSION = '1.17.0';
       const platformOverrides =
         window.RIO_DE_ACO_CONFIG && typeof window.RIO_DE_ACO_CONFIG === 'object'
           ? window.RIO_DE_ACO_CONFIG
@@ -1478,6 +1508,7 @@
       const LEADERBOARD_STORAGE_KEY = 'rio-de-aco-leaderboard';
       const PLAYER_NAME_STORAGE_KEY = 'rio-de-aco-player-name';
       const DAILY_TIME_ZONE = 'America/Sao_Paulo';
+      const GRAPHICS_QUALITY_STORAGE_KEY = 'rio-de-aco-graphics-quality';
 
       const CONFIG = {
         segmentLength: 32,
@@ -1585,6 +1616,33 @@
         maxBulletPool: 48,
         maxParticlePool: 180,
       };
+
+      const GRAPHICS_PROFILES = Object.freeze({
+        low: Object.freeze({
+          label: 'ECONÔMICO',
+          maxPixelRatio: 0.85,
+          weatherParticles: 100,
+          speedLines: 8,
+          effectScale: 0.42,
+          hudRefreshRate: 12,
+        }),
+        balanced: Object.freeze({
+          label: 'EQUILIBRADO',
+          maxPixelRatio: 1.05,
+          weatherParticles: 220,
+          speedLines: 14,
+          effectScale: 0.72,
+          hudRefreshRate: 16,
+        }),
+        high: Object.freeze({
+          label: 'ALTO',
+          maxPixelRatio: CONFIG.maxPixelRatio,
+          weatherParticles: 360,
+          speedLines: 22,
+          effectScale: 1,
+          hudRefreshRate: CONFIG.hudRefreshRate,
+        }),
+      });
 
       const COLORS = {
         water: 0x1674a6,
@@ -1995,6 +2053,7 @@
         mobileSettings: document.querySelector('#mobile-settings'),
         mobileControlSizeButtons: [...document.querySelectorAll('[data-control-size]')],
         mobileControlOpacityButtons: [...document.querySelectorAll('[data-control-opacity]')],
+        graphicsQualityButtons: [...document.querySelectorAll('[data-graphics-quality]')],
         touchPositionControls: document.querySelector('#touch-position-controls'),
         touchResetPositions: document.querySelector('#touch-reset-positions'),
         mobileControlZones: [...document.querySelectorAll('[data-control-zone]')],
@@ -2259,8 +2318,24 @@
 
       class RiverRaidGame {
         constructor() {
+          const storedGraphicsPreference = localStorage.getItem(GRAPHICS_QUALITY_STORAGE_KEY);
+          this.graphicsPreference = ['auto', 'low', 'balanced', 'high'].includes(storedGraphicsPreference)
+            ? storedGraphicsPreference
+            : 'auto';
+          this.graphicsHardwareProfile = this.detectGraphicsHardwareProfile();
+          this.graphicsProfile = this.graphicsPreference === 'auto'
+            ? this.graphicsHardwareProfile
+            : this.graphicsPreference;
+          this.graphicsProfileReason = this.graphicsPreference === 'auto' ? 'hardware' : 'manual';
+          this.graphicsSampleTime = 0;
+          this.graphicsSampleFrames = 0;
+          this.graphicsMeasuredFps = null;
+          this.graphicsStableWindows = 0;
+          this.graphicsAutoCooldownUntil = 0;
           this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-          this.renderer.setPixelRatio(Math.min(devicePixelRatio, CONFIG.maxPixelRatio));
+          this.renderer.setPixelRatio(
+            Math.min(devicePixelRatio, GRAPHICS_PROFILES[this.graphicsProfile].maxPixelRatio)
+          );
           this.renderer.setSize(innerWidth, innerHeight);
           this.renderer.outputColorSpace = THREE.SRGBColorSpace;
           this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -2437,6 +2512,7 @@
           this.createTerrain();
           this.createSpeedLines();
           this.createSnow();
+          this.applyGraphicsProfile(this.graphicsProfile, this.graphicsProfileReason);
           dom.version.textContent = `v${GAME_VERSION}`;
           dom.dailyLabel.textContent = `${formatDailyDate(this.dailyChallengeDate)} · MESMO PERCURSO PARA TODOS`;
           document.title = `Rio de Aço 3D · v${GAME_VERSION}`;
@@ -2463,6 +2539,122 @@
 
           this.animate = this.animate.bind(this);
           requestAnimationFrame(this.animate);
+        }
+
+        detectGraphicsHardwareProfile() {
+          const memory = Number(navigator.deviceMemory) || 0;
+          const cores = Number(navigator.hardwareConcurrency) || 0;
+          const coarsePointer = matchMedia('(hover: none) and (pointer: coarse)').matches;
+          if ((memory > 0 && memory <= 2) || (cores > 0 && cores <= 2)) return 'low';
+          if (
+            coarsePointer ||
+            (memory > 0 && memory <= 6) ||
+            (cores > 0 && cores <= 6)
+          ) return 'balanced';
+          return 'high';
+        }
+
+        getGraphicsProfile() {
+          return GRAPHICS_PROFILES[this.graphicsProfile] || GRAPHICS_PROFILES.balanced;
+        }
+
+        getGraphicsEffectCount(baseCount) {
+          return Math.max(1, Math.round(baseCount * this.getGraphicsProfile().effectScale));
+        }
+
+        applyGraphicsProfile(profile, reason = 'manual') {
+          if (!GRAPHICS_PROFILES[profile]) return false;
+          this.graphicsProfile = profile;
+          this.graphicsProfileReason = reason;
+          const settings = this.getGraphicsProfile();
+          document.body.dataset.graphicsQuality = profile;
+          if (this.renderer) {
+            this.renderer.setPixelRatio(Math.min(devicePixelRatio, settings.maxPixelRatio));
+          }
+          if (this.snow) {
+            this.snow.geometry.setDrawRange(0, settings.weatherParticles);
+          }
+          if (this.speedLineGroup) {
+            this.speedLineGroup.children.forEach((line, index) => {
+              line.userData.qualityEnabled = index < settings.speedLines;
+              if (!line.userData.qualityEnabled) line.visible = false;
+            });
+          }
+          this.updateMobileControlPreferences?.();
+          return true;
+        }
+
+        setGraphicsPreference(preference) {
+          if (!['auto', 'low', 'balanced', 'high'].includes(preference)) return false;
+          this.graphicsPreference = preference;
+          localStorage.setItem(GRAPHICS_QUALITY_STORAGE_KEY, preference);
+          this.resetGraphicsPerformanceMonitor();
+          this.graphicsAutoCooldownUntil = 0;
+          const profile = preference === 'auto'
+            ? this.detectGraphicsHardwareProfile()
+            : preference;
+          this.graphicsHardwareProfile = this.detectGraphicsHardwareProfile();
+          this.applyGraphicsProfile(profile, preference === 'auto' ? 'hardware' : 'manual');
+          const label = preference === 'auto'
+            ? `AUTO (${this.getGraphicsProfile().label})`
+            : this.getGraphicsProfile().label;
+          this.showToast(`GRÁFICOS · ${label}`, 1.35);
+          return true;
+        }
+
+        resetGraphicsPerformanceMonitor() {
+          this.graphicsSampleTime = 0;
+          this.graphicsSampleFrames = 0;
+          this.graphicsStableWindows = 0;
+        }
+
+        monitorGraphicsPerformance(frameTime) {
+          if (
+            this.graphicsPreference !== 'auto' ||
+            this.mode !== 'PLAYING' ||
+            document.hidden ||
+            !Number.isFinite(frameTime) ||
+            frameTime <= 0 ||
+            frameTime > 0.25
+          ) {
+            this.graphicsSampleTime = 0;
+            this.graphicsSampleFrames = 0;
+            return;
+          }
+          this.graphicsSampleTime += frameTime;
+          this.graphicsSampleFrames += 1;
+          if (this.graphicsSampleTime < 4) return;
+
+          const fps = this.graphicsSampleFrames / this.graphicsSampleTime;
+          this.graphicsMeasuredFps = Math.round(fps * 10) / 10;
+          this.graphicsSampleTime = 0;
+          this.graphicsSampleFrames = 0;
+          const now = performance.now();
+          if (now < this.graphicsAutoCooldownUntil) return;
+
+          const profiles = ['low', 'balanced', 'high'];
+          const currentIndex = profiles.indexOf(this.graphicsProfile);
+          if (fps < 45 && currentIndex > 0) {
+            const nextProfile = profiles[currentIndex - 1];
+            this.applyGraphicsProfile(nextProfile, `auto:${this.graphicsMeasuredFps}fps`);
+            this.graphicsStableWindows = 0;
+            this.graphicsAutoCooldownUntil = now + 12000;
+            this.showToast(`DESEMPENHO · ${this.getGraphicsProfile().label}`, 1.45);
+            return;
+          }
+
+          if (fps > 56 && currentIndex < profiles.length - 1) {
+            this.graphicsStableWindows += 1;
+            if (this.graphicsStableWindows >= 3) {
+              const nextProfile = profiles[currentIndex + 1];
+              this.applyGraphicsProfile(nextProfile, `auto:${this.graphicsMeasuredFps}fps`);
+              this.graphicsStableWindows = 0;
+              this.graphicsAutoCooldownUntil = now + 12000;
+              this.showToast(`DESEMPENHO · ${this.getGraphicsProfile().label}`, 1.45);
+            }
+          } else {
+            this.graphicsStableWindows = 0;
+          }
         }
 
         resetGameplayRandom() {
@@ -2780,6 +2972,11 @@
           this.speedLineGroup.visible = this.speedLineMaterial.opacity > 0.008;
 
           for (const line of this.speedLineGroup.children) {
+            if (line.userData.qualityEnabled === false) {
+              line.visible = false;
+              continue;
+            }
+            line.visible = true;
             line.scale.z = 0.55 + ratio * 2.4;
             line.position.z += speed * dt * line.userData.drift * (0.45 + ratio);
             if (line.position.z > 17) {
@@ -2935,7 +3132,11 @@
           if (!this.snow.visible) return;
           const positions = this.snow.geometry.attributes.position;
           const particleMode = this.snow.userData.mode;
-          for (let i = 0; i < positions.count; i += 1) {
+          const activeParticleCount = Math.min(
+            positions.count,
+            this.getGraphicsProfile().weatherParticles
+          );
+          for (let i = 0; i < activeParticleCount; i += 1) {
             let x = positions.getX(i);
             let y = positions.getY(i);
             let z = positions.getZ(i);
@@ -4416,7 +4617,8 @@
           const origin = this.player.position.clone();
           origin.y += 0.2;
           origin.z += 2.2;
-          for (let index = 0; index < 22; index += 1) {
+          const flareCount = this.getGraphicsEffectCount(22);
+          for (let index = 0; index < flareCount; index += 1) {
             const material = index % 3 === 0
               ? this.materials.flareWhite
               : index % 2 ? this.materials.flareYellow : this.materials.flareRed;
@@ -5162,6 +5364,12 @@
               String(Number.parseFloat(button.dataset.controlOpacity) === this.mobileControlOpacity)
             );
           }
+          for (const button of dom.graphicsQualityButtons) {
+            button.setAttribute(
+              'aria-pressed',
+              String(button.dataset.graphicsQuality === this.graphicsPreference)
+            );
+          }
         }
 
         setMobileControlSize(size) {
@@ -5443,6 +5651,11 @@
               this.setMobileControlOpacity(button.dataset.controlOpacity)
             );
           }
+          for (const button of dom.graphicsQualityButtons) {
+            button.addEventListener('click', () =>
+              this.setGraphicsPreference(button.dataset.graphicsQuality)
+            );
+          }
           dom.touchPositionControls.addEventListener('click', () => this.startMobileControlPositioning());
           dom.touchResetPositions.addEventListener('click', () => this.resetMobileControlPositions());
           for (const zone of dom.mobileControlZones) this.bindMobileControlZone(zone);
@@ -5537,6 +5750,7 @@
 
         prepareForegroundReturn() {
           if (!this.manualStepping) this.clock.start();
+          this.resetGraphicsPerformanceMonitor();
           if (!this.autoPaused || this.mode !== 'PAUSED') return;
           this.showToast(this.getPauseResumeMessage(), 999);
           this.updateHUD();
@@ -6756,7 +6970,8 @@
         }
 
         spawnSparks(position, count) {
-          for (let i = 0; i < count; i += 1) {
+          const effectCount = this.getGraphicsEffectCount(count);
+          for (let i = 0; i < effectCount; i += 1) {
             const mesh = this.acquireParticle(
               this.shared.particle,
               Math.random() > 0.5 ? this.materials.yellow : this.materials.red
@@ -6777,7 +6992,8 @@
 
         spawnExplosion(position, count = 24) {
           position.y += 1.2;
-          for (let i = 0; i < count; i += 1) {
+          const effectCount = this.getGraphicsEffectCount(count);
+          for (let i = 0; i < effectCount; i += 1) {
             const mesh = this.acquireParticle(
               this.shared.particle,
               i % 3 === 0 ? this.materials.black : i % 2 ? this.materials.yellow : this.materials.red
@@ -7010,7 +7226,7 @@
         }
 
         updateHUD(force = true) {
-          const minInterval = 1 / CONFIG.hudRefreshRate;
+          const minInterval = 1 / this.getGraphicsProfile().hudRefreshRate;
           if (!force && this.elapsed - this.lastHudUpdateAt < minInterval) return;
           this.lastHudUpdateAt = this.elapsed;
           dom.missionMode.textContent = this.runMode === 'daily'
@@ -7108,7 +7324,9 @@
           this.cameraTop.bottom = -vertical;
           this.cameraTop.updateProjectionMatrix();
           this.renderer.setSize(width, height);
-          this.renderer.setPixelRatio(Math.min(devicePixelRatio, CONFIG.maxPixelRatio));
+          this.renderer.setPixelRatio(
+            Math.min(devicePixelRatio, this.getGraphicsProfile().maxPixelRatio)
+          );
           this.updateMobileControlPositions();
         }
 
@@ -7280,6 +7498,21 @@
               id: PLATFORM_CONFIG.id,
               leaderboard: LEADERBOARD_API_URL ? 'online' : 'local',
               leaderboardApi: LEADERBOARD_API_URL,
+            },
+            graphics: {
+              preference: this.graphicsPreference,
+              profile: this.graphicsProfile,
+              label: this.getGraphicsProfile().label,
+              automatic: this.graphicsPreference === 'auto',
+              reason: this.graphicsProfileReason,
+              measuredFps: this.graphicsMeasuredFps,
+              hardwareProfile: this.graphicsHardwareProfile,
+              deviceMemory: Number(navigator.deviceMemory) || null,
+              hardwareConcurrency: Number(navigator.hardwareConcurrency) || null,
+              maxPixelRatio: this.getGraphicsProfile().maxPixelRatio,
+              weatherParticles: this.getGraphicsProfile().weatherParticles,
+              speedLines: this.getGraphicsProfile().speedLines,
+              effectScale: this.getGraphicsProfile().effectScale,
             },
             mobileControls: {
               visible: !dom.mobileControls.hidden && this.mobileLayout,
@@ -7573,6 +7806,9 @@
               triangles: this.renderer.info.render.triangles,
               bulletPool: this.bulletPool.length,
               particlePool: this.particlePool.length,
+              activeParticles: this.particles.length,
+              weatherParticles: this.getGraphicsProfile().weatherParticles,
+              speedLines: this.getGraphicsProfile().speedLines,
               terrainRefreshPending: this.terrainRefreshQueue.length,
               pixelRatio: Number(this.renderer.getPixelRatio().toFixed(2)),
             },
@@ -7641,7 +7877,9 @@
 
         animate() {
           if (!this.manualStepping) {
-            const dt = Math.min(this.clock.getDelta(), 1 / 30);
+            const frameTime = this.clock.getDelta();
+            this.monitorGraphicsPerformance(frameTime);
+            const dt = Math.min(frameTime, 1 / 30);
             this.update(dt);
           }
           this.render();
