@@ -1,6 +1,6 @@
 # Estudo de plataformas e monetização — Rio de Aço 3D
 
-Última revisão: 4 de agosto de 2026.
+Última revisão: 5 de agosto de 2026.
 
 Este documento organiza as opções para publicar e monetizar o jogo, incluindo portais de jogos web, site próprio, Steam, Android e iPhone. Custos, regras e comissões mudam com frequência; os valores abaixo devem ser confirmados antes de cada lançamento.
 
@@ -35,11 +35,10 @@ O jogo deve continuar com uma base única em HTML/Three.js. Criamos adaptações
 
 ### Pendências antes de distribuir em outras plataformas
 
-- O Three.js ainda é carregado de um CDN externo; versões empacotadas devem incluir essa dependência localmente.
-- O ranking usa o endereço `/api/leaderboard`, que só funciona automaticamente no domínio atual. Precisamos de uma configuração de API por plataforma.
-- A jogabilidade principal ainda depende de teclado. Celulares precisam de controles de toque completos para direção, velocidade, tiro, câmera, flare e barrel roll.
-- É necessário pausar corretamente quando a aba ou o aplicativo vai para segundo plano.
-- Precisamos de uma política de privacidade antes de anúncios, telemetria ou publicação em lojas.
+- O pacote portátil, os controles móveis, a pausa segura, a configuração do ranking e as páginas legais já estão prontos.
+- A interface de anúncios e eventos está pronta, mas nenhum SDK ou anúncio real foi ativado.
+- Precisamos decidir o primeiro canal de teste e preparar sua página, imagens, descrição e pacote de submissão.
+- Antes de telemetria ou publicidade personalizada, será necessário definir métricas, consentimento e regras específicas do parceiro escolhido.
 - Convém realizar uma revisão de propriedade intelectual: nome, artes, sons, textos e divulgação devem ser originais e não sugerir associação oficial com marcas de terceiros.
 
 ## Comparativo das plataformas
@@ -193,9 +192,9 @@ As notas abaixo são uma estimativa nossa, não uma promessa das plataformas. Fo
 
 - [x] Baixar e servir Three.js junto com o jogo (`v1.12.1`).
 - [x] Criar uma configuração central para URL da API e identificação da plataforma (`v1.12.1`).
-- [ ] Manter o ranking da Vercel no site oficial e definir fallback quando um portal bloquear chamadas externas.
-- [ ] Criar uma interface única para anúncios, eventos de partida e pausa.
-- [ ] Adicionar política de privacidade e página de suporte.
+- [x] Manter o ranking da Vercel no site oficial e definir fallback local quando um portal bloquear chamadas externas (`v1.11.0`–`v1.12.1`).
+- [x] Criar uma interface única para anúncios, eventos de partida e pausa (`v1.19.0`).
+- [x] Adicionar política de privacidade e página de suporte (`v1.19.0`).
 - [ ] Fazer auditoria de nomes, marcas, imagens, músicas e sons.
 
 ### Etapa 2 — tornar o jogo realmente móvel
@@ -228,17 +227,23 @@ Indicadores internos para avançar — servem como referência, não como regras
 - Se houver intenção de compra e demanda por conteúdo: preparar o escopo da edição **Steam**.
 - Se o Android provar a economia do produto: adaptar e publicar no **iPhone/iPad**.
 
+## Política inicial de anúncios aprovada
+
+- Intersticial somente entre partidas, após o Game Over e antes de reiniciar, com limite de frequência.
+- Anúncio recompensado opcional para receber uma vida extra, concedida apenas após confirmação do provedor.
+- Nenhum banner sobre a área de jogo e nenhuma interrupção durante voo, combate, perseguição ou travessia de ponte.
+- Começar somente com esses dois formatos e avaliar retenção antes de criar qualquer novo ponto de publicidade.
+
 ## Decisão proposta para a próxima implementação
 
-O próximo pacote deve ser chamado de **“build portátil”** e conter:
+A **build portátil** está concluída. O próximo bloco deve preparar o primeiro teste de mercado:
 
-1. Three.js local;
-2. configuração da URL do ranking;
-3. adaptador de plataforma sem anúncios reais ainda;
-4. pausa segura ao perder o foco;
-5. primeira versão dos controles de toque.
+1. revisar propriedade intelectual e posicionamento da marca;
+2. montar página, imagens, descrição curta, instruções e pacote para itch.io;
+3. preparar em paralelo os requisitos do Basic Launch do CrazyGames, ainda sem ativar anúncios reais;
+4. definir as métricas mínimas para comparar retenção, desempenho e interesse dos jogadores.
 
-Depois desse pacote, publicamos no itch.io e submetemos ao CrazyGames. Isso também prepara aproximadamente a mesma base necessária para Android e iPhone, sem obrigar uma decisão nativa prematura.
+Esse teste informa se o próximo investimento deve priorizar portais web, Android ou uma edição premium mais ampla.
 
 ## Fontes oficiais
 

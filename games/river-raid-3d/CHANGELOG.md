@@ -8,6 +8,16 @@ O jogo usa versionamento semântico:
 
 Cada publicação deve atualizar `GAME_VERSION` no `index.html` e registrar as mudanças neste arquivo.
 
+## 1.19.0 — 2026-08-05
+
+- Nova ponte única de integração permite conectar portais, aplicativos, métricas e SDKs sem criar versões diferentes do jogo.
+- Eventos padronizados registram carregamento, início, pausa, retomada, fim, colisões, mudanças de ambiente, preferências, destruições e envio de pontuação.
+- API pública `RIO_DE_ACO_PLATFORM` oferece anúncios intersticiais e recompensados somente quando um provedor externo é configurado.
+- Anúncios ativos pausam a simulação, liberam comandos pressionados, silenciam o motor e retomam a partida somente depois que o provedor termina.
+- Sem provedor, solicitações de anúncio retornam como indisponíveis sem pausar nem interromper o jogador; nenhum anúncio real foi ativado nesta versão.
+- Menu ganhou links permanentes para páginas responsivas de privacidade e suporte.
+- Nova documentação explica como configurar plataforma, ranking, eventos e adaptadores de anúncios.
+
 ## 1.18.0 — 2026-08-05
 
 - Celulares com notch, ilha dinâmica ou barras laterais passam a usar `viewport-fit=cover` e as quatro áreas seguras do sistema.

@@ -992,6 +992,27 @@
         letter-spacing: 0.2em;
       }
 
+      .menu-links {
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+        margin-top: 9px;
+      }
+
+      .menu-links a {
+        color: #7eb4c1;
+        font-size: 8px;
+        letter-spacing: 0.12em;
+        text-decoration: none;
+      }
+
+      .menu-links a:hover,
+      .menu-links a:focus-visible {
+        color: var(--cyan);
+        outline: 1px solid var(--cyan);
+        outline-offset: 3px;
+      }
+
       #overlay[data-mode="gameover"] h1 {
         font-size: clamp(40px, 8vw, 72px);
       }
@@ -1537,13 +1558,19 @@
           <button id="start-button" type="button">DECOLAR</button>
           <button id="daily-button" type="button">DESAFIO DO DIA<small id="daily-label"></small></button>
         </div>
-        <div class="menu-foot">DESTRUA AS PONTES · REABASTEÇA NOS DEPÓSITOS FUEL</div>
+        <div class="menu-foot">
+          <div>DESTRUA AS PONTES · REABASTEÇA NOS DEPÓSITOS FUEL</div>
+          <nav class="menu-links" aria-label="Informações do jogo">
+            <a href="./privacidade.html" target="_blank" rel="noopener">PRIVACIDADE</a>
+            <a href="./suporte.html" target="_blank" rel="noopener">SUPORTE</a>
+          </nav>
+        </div>
       </section>
     </div>
 
     <script src="./vendor/three.min.js"></script>
     <script>
-      const GAME_VERSION = '1.18.0';
+      const GAME_VERSION = '1.19.0';
       const platformOverrides =
         window.RIO_DE_ACO_CONFIG && typeof window.RIO_DE_ACO_CONFIG === 'object'
           ? window.RIO_DE_ACO_CONFIG
@@ -2255,6 +2282,118 @@
         return sprite;
       }
 
+      class PlatformBridge {
+        constructor({ platformId, onEvent, ads } = {}) {
+          this.platformId = platformId || 'web';
+          this.eventHandler = typeof onEvent === 'function' ? onEvent : null;
+          this.ads = ads && typeof ads === 'object' ? ads : null;
+          this.game = null;
+          this.recentEvents = [];
+          this.adState = 'idle';
+          this.activeAd = null;
+        }
+
+        attachGame(game) {
+          this.game = game;
+        }
+
+        emit(type, payload = {}) {
+          const event = Object.freeze({
+            type,
+            at: new Date().toISOString(),
+            game: LEADERBOARD_GAME,
+            version: GAME_VERSION,
+            platform: this.platformId,
+            payload,
+          });
+          this.recentEvents.push(event);
+          if (this.recentEvents.length > 24) this.recentEvents.shift();
+          try {
+            this.eventHandler?.(event);
+          } catch (error) {
+            console.warn('Falha no adaptador de eventos da plataforma:', error);
+          }
+          try {
+            window.dispatchEvent(new CustomEvent('rio-de-aco:event', { detail: event }));
+          } catch {
+            // O histórico interno continua disponível em ambientes sem CustomEvent.
+          }
+          return event;
+        }
+
+        getAdMethod(kind) {
+          if (!this.ads) return null;
+          const method = kind === 'rewarded' ? this.ads.showRewarded : this.ads.showInterstitial;
+          return typeof method === 'function' ? method : null;
+        }
+
+        hasAd(kind) {
+          return Boolean(this.getAdMethod(kind));
+        }
+
+        async requestAd(kind, placement = 'unspecified') {
+          const normalizedKind = kind === 'rewarded' ? 'rewarded' : 'interstitial';
+          const method = this.getAdMethod(normalizedKind);
+          if (!method) {
+            const result = { shown: false, rewarded: false, reason: 'unavailable' };
+            this.emit('ad_unavailable', { kind: normalizedKind, placement });
+            return result;
+          }
+          if (this.adState !== 'idle') {
+            return { shown: false, rewarded: false, reason: 'busy' };
+          }
+
+          const pausedByAd = this.game?.pauseForPlatformAd(normalizedKind, placement) || false;
+          this.adState = 'showing';
+          this.activeAd = { kind: normalizedKind, placement, pausedByAd };
+          this.emit('ad_started', { kind: normalizedKind, placement });
+          try {
+            const providerResult = await method.call(this.ads, {
+              kind: normalizedKind,
+              placement,
+              game: LEADERBOARD_GAME,
+              version: GAME_VERSION,
+              platform: this.platformId,
+            });
+            const result = {
+              shown: providerResult === true || providerResult?.shown === true,
+              rewarded: Boolean(
+                normalizedKind === 'rewarded' &&
+                (providerResult?.rewarded === true || providerResult?.rewardGranted === true)
+              ),
+              reason: providerResult?.reason || null,
+            };
+            this.emit('ad_finished', { kind: normalizedKind, placement, ...result });
+            return result;
+          } catch (error) {
+            const message = error instanceof Error ? error.message : 'provider-error';
+            this.emit('ad_error', { kind: normalizedKind, placement, message });
+            return { shown: false, rewarded: false, reason: 'provider-error' };
+          } finally {
+            this.adState = 'idle';
+            this.activeAd = null;
+            if (pausedByAd) this.game?.resumeAfterPlatformAd();
+          }
+        }
+
+        getSnapshot() {
+          return {
+            eventsEnabled: Boolean(this.eventHandler),
+            recentEvents: this.recentEvents.slice(-8).map((event) => ({
+              type: event.type,
+              at: event.at,
+              payload: event.payload,
+            })),
+            ads: {
+              interstitial: this.hasAd('interstitial'),
+              rewarded: this.hasAd('rewarded'),
+              state: this.adState,
+              active: this.activeAd,
+            },
+          };
+        }
+      }
+
       class AudioEngine {
         constructor(muted = false) {
           this.context = null;
@@ -2428,6 +2567,13 @@
 
           this.soundEnabled = localStorage.getItem(SOUND_ENABLED_STORAGE_KEY) !== 'false';
           this.audio = new AudioEngine(!this.soundEnabled);
+          this.platform = new PlatformBridge({
+            platformId: PLATFORM_CONFIG.id,
+            onEvent: platformOverrides.onEvent,
+            ads: platformOverrides.ads,
+          });
+          this.platform.attachGame(this);
+          this.platformAdPaused = false;
           this.clock = new THREE.Clock();
           this.manualStepping = false;
           this.mode = 'MENU';
@@ -2609,7 +2755,20 @@
           window.render_game_to_text = () => this.renderGameToText();
           window.advanceTime = (ms) => this.advanceTime(ms);
           window.__riverRaidGame = this;
-          window.RIO_DE_ACO_RUNTIME = PLATFORM_CONFIG;
+          const platformApi = Object.freeze({
+            emit: (type, payload) => this.platform.emit(type, payload),
+            requestInterstitial: (placement) =>
+              this.platform.requestAd('interstitial', placement),
+            requestRewarded: (placement) => this.platform.requestAd('rewarded', placement),
+            getState: () => this.platform.getSnapshot(),
+          });
+          window.RIO_DE_ACO_PLATFORM = platformApi;
+          window.RIO_DE_ACO_RUNTIME = Object.freeze({ ...PLATFORM_CONFIG, integration: platformApi });
+          this.platform.emit('game_loaded', {
+            leaderboard: LEADERBOARD_API_URL ? 'online' : 'local',
+            graphics: this.graphicsProfile,
+            sound: this.soundEnabled,
+          });
 
           this.animate = this.animate.bind(this);
           requestAnimationFrame(this.animate);
@@ -2673,6 +2832,11 @@
             ? `AUTO (${this.getGraphicsProfile().label})`
             : this.getGraphicsProfile().label;
           this.showToast(`GRÁFICOS · ${label}`, 1.35);
+          this.platform.emit('preference_changed', {
+            preference: 'graphics',
+            value: preference,
+            effectiveValue: this.graphicsProfile,
+          });
           return true;
         }
 
@@ -2685,6 +2849,10 @@
           if (showMessage) {
             this.showToast(this.soundEnabled ? 'SOM LIGADO' : 'SOM DESLIGADO', 1.15);
           }
+          this.platform.emit('preference_changed', {
+            preference: 'sound',
+            value: this.soundEnabled,
+          });
           return this.soundEnabled;
         }
 
@@ -3203,6 +3371,13 @@
           const nextEnvironment = this.setEnvironmentPhase(this.environmentIndex + 1, false);
           this.barrelRollUsedThisEnvironment = false;
           this.updateHUD();
+          this.platform.emit('environment_changed', {
+            key: nextEnvironment.key,
+            label: nextEnvironment.label,
+            biome: nextEnvironment.biome,
+            completedCycles: this.environmentCyclesCompleted,
+            lifeAwarded,
+          });
           return {
             ...nextEnvironment,
             lifeAwarded,
@@ -5353,6 +5528,12 @@
             ? `PONTUAÇÃO REGISTRADA · POSIÇÃO #${this.submittedLeaderboardPosition}`
             : 'PONTUAÇÃO REGISTRADA · FORA DO TOP 20';
           this.renderLeaderboard();
+          this.platform.emit('score_submitted', {
+            board: submissionBoard,
+            score: submission.score,
+            position: this.submittedLeaderboardPosition,
+            source: this.leaderboardSource,
+          });
         }
 
         renderLeaderboard() {
@@ -5865,6 +6046,34 @@
           });
         }
 
+        pauseForPlatformAd(kind, placement) {
+          this.releaseTouchInputs();
+          if (this.mode !== 'PLAYING') return false;
+          this.mode = 'PAUSED';
+          this.platformAdPaused = true;
+          this.autoPaused = false;
+          this.backgroundPauseSource = 'anúncio';
+          this.audio.setEngine(this.getSpeedRatio(), false);
+          this.showToast('INTERVALO', 999);
+          this.platform.emit('run_paused', { source: 'ad', kind, placement });
+          this.updateHUD();
+          return true;
+        }
+
+        resumeAfterPlatformAd() {
+          if (!this.platformAdPaused || this.mode !== 'PAUSED') return false;
+          this.platformAdPaused = false;
+          this.mode = 'PLAYING';
+          this.autoPaused = false;
+          this.backgroundPauseSource = null;
+          if (!this.manualStepping) this.clock.start();
+          this.toastTimer = 0;
+          dom.toast.classList.remove('show');
+          this.platform.emit('run_resumed', { source: 'ad' });
+          this.updateHUD();
+          return true;
+        }
+
         pauseForBackground(source = 'segundo plano') {
           this.releaseTouchInputs();
           if (this.mode !== 'PLAYING') return;
@@ -5873,6 +6082,7 @@
           this.backgroundPauseSource = source;
           this.showToast(this.getPauseResumeMessage(), 999);
           this.audio.setEngine(this.getSpeedRatio(), false);
+          this.platform.emit('run_paused', { source: 'background', detail: source });
           this.updateHUD();
         }
 
@@ -5988,6 +6198,7 @@
           this.player.rotation.set(0, 0, 0);
           this.cameraTargetX = this.player.position.x;
           this.mode = 'PLAYING';
+          this.platformAdPaused = false;
           this.finishMobileControlPositioning(false);
           this.setMobileSettingsExpanded(false, false);
           this.autoPaused = false;
@@ -6012,6 +6223,11 @@
             1.4
           );
           this.updateHUD();
+          this.platform.emit('run_started', {
+            mode: this.runMode,
+            round: completedCycles + 1,
+            challenge: this.runMode === 'daily' ? this.dailyChallengeDate : null,
+          });
         }
 
         switchCamera() {
@@ -6042,13 +6258,16 @@
         }
 
         togglePause() {
+          if (this.platformAdPaused) return;
           if (this.mode === 'PLAYING') {
             this.releaseTouchInputs();
             this.mode = 'PAUSED';
             this.autoPaused = false;
             this.backgroundPauseSource = null;
             this.showToast('PAUSA', 999);
+            this.platform.emit('run_paused', { source: 'player' });
           } else if (this.mode === 'PAUSED') {
+            const resumeSource = this.autoPaused ? 'background' : 'player';
             if (this.mobilePositioningActive) this.finishMobileControlPositioning(false);
             if (this.mobileSettingsExpanded) this.setMobileSettingsExpanded(false, false);
             this.mode = 'PLAYING';
@@ -6057,6 +6276,7 @@
             if (!this.manualStepping) this.clock.start();
             this.toastTimer = 0;
             dom.toast.classList.remove('show');
+            this.platform.emit('run_resumed', { source: resumeSource });
           }
           this.updateHUD();
         }
@@ -6950,6 +7170,12 @@
           }
           this.removeObject3D(entity.group);
           this.entities.splice(index, 1);
+          this.platform.emit('entity_destroyed', {
+            entity: entity.type,
+            points: scoreAward?.points || entity.score || 0,
+            score: this.score,
+            bridges: this.bridgesDestroyed,
+          });
           if (entity.type === 'ponte') {
             const lifeMessage = nextEnvironment.lifeAwarded ? ' · VIDA EXTRA' : '';
             const navalMessage = nextEnvironment.navalCombatUnlocked ? ' · NAVIOS ARMADOS' : '';
@@ -7206,6 +7432,12 @@
           this.spawnExplosion(this.player.position.clone(), 32);
           this.audio.explosion();
           this.showToast(reason, 1.1);
+          this.platform.emit('player_crashed', {
+            reason,
+            livesRemaining: this.lives,
+            score: this.score,
+            distance: Math.round(this.distance),
+          });
           this.updateHUD();
         }
 
@@ -7230,6 +7462,7 @@
           this.mode = 'PLAYING';
           this.syncCameraVisuals();
           this.showToast('AVIÃO RESERVA', 1.1);
+          this.platform.emit('player_respawned', { livesRemaining: this.lives });
         }
 
         gameOver() {
@@ -7247,6 +7480,14 @@
           this.prepareLeaderboardSubmission();
           dom.overlay.classList.remove('hidden');
           dom.toast.classList.remove('show');
+          this.platform.emit('run_ended', {
+            mode: this.runMode,
+            score: this.score,
+            round: this.environmentCyclesCompleted + 1,
+            bridges: this.bridgesDestroyed,
+            evasions: this.perfectEvasions,
+            distance: Math.round(this.distance),
+          });
         }
 
         updateCamera(dt) {
@@ -7632,6 +7873,7 @@
               id: PLATFORM_CONFIG.id,
               leaderboard: LEADERBOARD_API_URL ? 'online' : 'local',
               leaderboardApi: LEADERBOARD_API_URL,
+              integration: this.platform.getSnapshot(),
             },
             graphics: {
               preference: this.graphicsPreference,

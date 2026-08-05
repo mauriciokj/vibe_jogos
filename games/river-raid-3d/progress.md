@@ -392,3 +392,11 @@ Original prompt: Criar um novo jogo retro inspirado em River Raid, em Three.js, 
 - Cliente oficial revalidou início, movimento, tiro e motor com áudio ativo; o teste do botão desktop confirmou mudo antes da partida.
 - TODO: aguardar teste do usuário antes de commit e deploy da `v1.18.0`. Próxima etapa portátil: interface única de eventos/anúncios e páginas de privacidade/suporte.
 - `v1.18.0` aprovada pelo usuário; autorizados commit, publicação e avanço para a camada de integração de plataformas.
+- `v1.18.0` registrada no commit `2a928c6` e publicada em produção. O domínio principal e a URL imutável `vibe-jogos-589kyojv2-mauriciokjs-projects.vercel.app` confirmaram versão, safe areas e controles de som.
+- `v1.19.0` local conclui a build portátil com uma ponte única para eventos e provedores de anúncios. A mesma base pode ser configurada por portal sem duplicar o jogo.
+- Eventos padronizados cobrem carregamento, início/fim de partida, pausa, retomada, colisões, destruições, mudanças de ambiente, preferências e placar. O estado textual expõe o histórico recente e a disponibilidade de anúncios para diagnóstico.
+- Anúncios intersticiais e recompensados ficam desativados por padrão. Com um provedor fictício, a partida pausou, soltou todos os comandos, congelou distância, retomou após o fechamento e validou corretamente a recompensa; sem provedor, a solicitação não interrompeu o voo.
+- O menu ganhou links para `privacidade.html` e `suporte.html`. As duas páginas passaram em viewport móvel 390×844 sem rolagem horizontal e mantêm retorno direto ao jogo.
+- Cliente oficial revalidou início, movimento e tiro na v1.19.0 sem erros. Teste dedicado passou nos fluxos com e sem provedor, eventos, pausa automática de anúncio e páginas auxiliares.
+- TODO: aguardar teste do usuário antes de commit e deploy da `v1.19.0`. Próxima etapa sugerida: auditoria de propriedade intelectual e preparação da página/pacote para itch.io e Basic Launch do CrazyGames.
+- `v1.19.0` aprovada pelo usuário. Política inicial definida: intersticial entre Game Over e reinício com limite de frequência, mais vida extra opcional por anúncio recompensado; nenhum anúncio durante a missão ou banner sobre o jogo.
