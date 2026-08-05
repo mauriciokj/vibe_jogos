@@ -8,6 +8,15 @@ O jogo usa versionamento semântico:
 
 Cada publicação deve atualizar `GAME_VERSION` no `index.html` e registrar as mudanças neste arquivo.
 
+## 1.20.0 — 2026-08-05
+
+- Interface completa ganhou localização em português e inglês, incluindo menu, HUD, alertas, câmeras, ambientes, ranking, configurações móveis e Game Over.
+- Idioma pode ser definido por `RIO_DE_ACO_CONFIG.locale` ou `?locale=`; o site usa o idioma do navegador e plataformas externas usam inglês como fallback.
+- Páginas próprias `privacy.html` e `support.html` acompanham a experiência em inglês, preservando as versões em português.
+- Configuração de plataforma ganhou `externalFullscreen`; no CrazyGames, o atalho e a instrução de tela cheia interna são removidos para não disputar com o portal.
+- Menu desktop recebeu uma versão compacta para telas baixas, mantendo início, ranking e instruções dentro de 821×462.
+- Matriz do CrazyGames passou em dez resoluções desktop, mobile e tablet, de 800×450 a 1920×1080, sem rolagem horizontal ou erros de console.
+
 ## 1.19.0 — 2026-08-05
 
 - Nova ponte única de integração permite conectar portais, aplicativos, métricas e SDKs sem criar versões diferentes do jogo.

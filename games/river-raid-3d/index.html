@@ -1197,6 +1197,105 @@
         display: none;
       }
 
+      @media (min-width: 621px) and (max-height: 600px) {
+        #overlay {
+          overflow-y: auto;
+          padding: 8px;
+        }
+
+        .menu-card {
+          width: min(780px, 97vw);
+          padding: 10px 18px 12px;
+        }
+
+        .eyebrow {
+          font-size: 8px;
+        }
+
+        h1,
+        #overlay[data-mode="gameover"] h1 {
+          margin-top: 5px;
+          font-size: 42px;
+        }
+
+        .subtitle {
+          margin: 5px 0 7px;
+          font-size: 9px;
+        }
+
+        .controls {
+          gap: 6px;
+          margin: 6px 0;
+        }
+
+        .control {
+          min-height: 36px;
+          padding: 4px;
+          font-size: 8px;
+          line-height: 1.15;
+        }
+
+        .control b {
+          margin-bottom: 2px;
+          font-size: 10px;
+        }
+
+        .leaderboard-panel {
+          margin: 6px auto 8px;
+          padding: 6px 9px;
+        }
+
+        .leaderboard-head {
+          margin-bottom: 4px;
+        }
+
+        #leaderboard-list {
+          gap: 1px;
+        }
+
+        #leaderboard-list li {
+          min-height: 15px;
+          font-size: 8px;
+        }
+
+        #start-button,
+        #daily-button {
+          min-width: 210px;
+          padding: 10px 18px;
+          font-size: 13px;
+        }
+
+        #daily-button small {
+          margin-top: 2px;
+          font-size: 7px;
+        }
+
+        .menu-foot {
+          margin-top: 7px;
+          font-size: 7px;
+        }
+
+        .menu-links {
+          margin-top: 4px;
+        }
+
+        #final-score {
+          margin: 6px 0 3px;
+          font-size: 18px;
+        }
+
+        #score-form {
+          gap: 4px;
+          margin-bottom: 5px;
+          padding-bottom: 5px;
+        }
+
+        #player-name,
+        #save-score-button {
+          padding: 6px 8px;
+        }
+      }
+
       @media (max-width: 620px), (hover: none) and (pointer: coarse) {
         #sound-toggle {
           display: none;
@@ -1411,7 +1510,7 @@
           <div id="fighter-pursuit">CAÇA NA CAUDA</div>
           <div id="barrel-roll" data-state="ready">[Q] BARREL ROLL · PRONTO</div>
         </div>
-        <div class="help-chip">[Q] BARREL ROLL · [C] CÂMERA · [P] PAUSA · [M] SOM · [F] TELA CHEIA</div>
+        <div id="help-chip" class="help-chip">[Q] BARREL ROLL · [C] CÂMERA · [P] PAUSA · [M] SOM · [F] TELA CHEIA</div>
       </div>
     </div>
 
@@ -1561,8 +1660,8 @@
         <div class="menu-foot">
           <div>DESTRUA AS PONTES · REABASTEÇA NOS DEPÓSITOS FUEL</div>
           <nav class="menu-links" aria-label="Informações do jogo">
-            <a href="./privacidade.html" target="_blank" rel="noopener">PRIVACIDADE</a>
-            <a href="./suporte.html" target="_blank" rel="noopener">SUPORTE</a>
+            <a id="privacy-link" href="./privacidade.html" target="_blank" rel="noopener">PRIVACIDADE</a>
+            <a id="support-link" href="./suporte.html" target="_blank" rel="noopener">SUPORTE</a>
           </nav>
         </div>
       </section>
@@ -1570,19 +1669,33 @@
 
     <script src="./vendor/three.min.js"></script>
     <script>
-      const GAME_VERSION = '1.19.0';
+      const GAME_VERSION = '1.20.0';
       const platformOverrides =
         window.RIO_DE_ACO_CONFIG && typeof window.RIO_DE_ACO_CONFIG === 'object'
           ? window.RIO_DE_ACO_CONFIG
           : {};
-      const platformQuery = new URLSearchParams(window.location.search).get('platform');
+      const queryParams = new URLSearchParams(window.location.search);
+      const platformQuery = queryParams.get('platform');
+      const platformId = String(platformOverrides.platform || platformQuery || 'web').trim().toLowerCase() || 'web';
+      const requestedLocale = String(
+        platformOverrides.locale ||
+        queryParams.get('locale') ||
+        (platformId === 'web' ? navigator.language : 'en') ||
+        'en'
+      ).toLowerCase();
+      const GAME_LANGUAGE = requestedLocale.startsWith('pt') ? 'pt' : 'en';
+      const PLATFORM_USES_EXTERNAL_FULLSCREEN = Boolean(
+        platformOverrides.externalFullscreen === true || platformId === 'crazygames'
+      );
       const usesBundledApi =
         window.location.protocol !== 'file:' && window.location.hostname.endsWith('.vercel.app');
       const defaultLeaderboardApiUrl = usesBundledApi
         ? '/api/leaderboard'
         : 'https://vibe-jogos.vercel.app/api/leaderboard/';
       const PLATFORM_CONFIG = Object.freeze({
-        id: String(platformOverrides.platform || platformQuery || 'web').trim().toLowerCase() || 'web',
+        id: platformId,
+        locale: GAME_LANGUAGE,
+        externalFullscreen: PLATFORM_USES_EXTERNAL_FULLSCREEN,
         leaderboardApiUrl:
           platformOverrides.leaderboardApiUrl === false
             ? null
@@ -1595,6 +1708,267 @@
       const DAILY_TIME_ZONE = 'America/Sao_Paulo';
       const GRAPHICS_QUALITY_STORAGE_KEY = 'rio-de-aco-graphics-quality';
       const SOUND_ENABLED_STORAGE_KEY = 'rio-de-aco-sound-enabled';
+
+      const ENGLISH_TEXT = Object.freeze({
+        'CAÇA INIMIGO NA CAUDA · FUJA POR 5 SEGUNDOS': 'ENEMY FIGHTER ON YOUR TAIL · EVADE FOR 5 SECONDS',
+        'BARREL ROLL JÁ USADO · AGUARDE O PRÓXIMO AMBIENTE': 'BARREL ROLL USED · WAIT FOR THE NEXT ENVIRONMENT',
+        'TRAVAMENTO CONFIRMADO · PREPARE O FLARE': 'LOCK CONFIRMED · PREPARE FLARE',
+        'MODO DE SEGURANÇA · VELOCIDADE REDUZIDA': 'SAFETY MODE · SPEED REDUCED',
+        'ARRASTE OS GRUPOS · TOQUE PRONTO': 'DRAG THE GROUPS · TAP DONE',
+        'POSIÇÕES SALVAS · CONTINUE QUANDO PRONTO': 'POSITIONS SAVED · CONTINUE WHEN READY',
+        'AJUSTES SALVOS · CONTINUE QUANDO PRONTO': 'SETTINGS SAVED · CONTINUE WHEN READY',
+        'JOGO PAUSADO · TOQUE EM CONTINUAR': 'GAME PAUSED · TAP CONTINUE',
+        'JOGO PAUSADO · PRESSIONE [P] PARA CONTINUAR': 'GAME PAUSED · PRESS [P] TO CONTINUE',
+        'FLARE PERFEITO · CAÇA RECUOU': 'PERFECT FLARE · FIGHTER RETREATED',
+        'CAÇA DESPISTADO': 'FIGHTER EVADED',
+        'ATINGIDO POR CANHÃO': 'HIT BY CANNON',
+        'ATINGIDO POR MÍSSIL': 'HIT BY MISSILE',
+        'SEM COMBUSTÍVEL': 'OUT OF FUEL',
+        'COLISÃO COM A MARGEM': 'BANK COLLISION',
+        'COLISÃO COM A ILHA CENTRAL': 'CENTRAL ISLAND COLLISION',
+        'PONTE NÃO DESTRUÍDA': 'BRIDGE NOT DESTROYED',
+        'AJUSTE OS CONTROLES': 'ADJUST THE CONTROLS',
+        'CAÇA PERSEGUIDOR': 'PURSUIT FIGHTER',
+        'TREM ARMADO DESTRUÍDO': 'ARMORED TRAIN DESTROYED',
+        'HELICÓPTERO DESTRUÍDO': 'HELICOPTER DESTROYED',
+        'LANÇADOR DESTRUÍDO': 'LAUNCHER DESTROYED',
+        'TRAVAMENTO · SEGURANÇA': 'MISSILE LOCK · SAFETY',
+        'MÍSSIL ATIVO · SEGURANÇA': 'MISSILE ACTIVE · SAFETY',
+        'MÍSSIL DO CAÇA · [E] FLARE': 'FIGHTER MISSILE · [E] FLARE',
+        'BARREL ROLL · INVULNERÁVEL': 'BARREL ROLL · INVULNERABLE',
+        'BARREL ROLL · TIRO EVITADO': 'BARREL ROLL · SHOT EVADED',
+        'BARREL ROLL À DIREITA · INVULNERÁVEL A TIROS': 'BARREL ROLL RIGHT · SHOT INVULNERABILITY',
+        'BARREL ROLL À ESQUERDA · INVULNERÁVEL A TIROS': 'BARREL ROLL LEFT · SHOT INVULNERABILITY',
+        'CONTATANDO A TORRE DE CONTROLE...': 'CONTACTING CONTROL TOWER...',
+        'PONTUAÇÃO REGISTRADA · FORA DO TOP 20': 'SCORE SAVED · OUTSIDE TOP 20',
+        'FAÇA PONTOS PARA ENTRAR NO RANKING': 'SCORE POINTS TO ENTER THE LEADERBOARD',
+        'DESTRUA AS PONTES · REABASTEÇA NOS DEPÓSITOS FUEL': 'DESTROY BRIDGES · REFUEL AT FUEL DEPOTS',
+        'Ataque retro low-poly em 3D': 'Low-poly 3D retro strike',
+        'Esquadrão Fluvial · Missão 01': 'River Squadron · Mission 01',
+        'MESMO PERCURSO PARA TODOS': 'SAME ROUTE FOR EVERYONE',
+        'DESAFIO DO DIA': 'DAILY CHALLENGE',
+        'REGISTRE SUA PONTUAÇÃO': 'SUBMIT YOUR SCORE',
+        'SEM RECORDES AINDA': 'NO SCORES YET',
+        'RODADA INICIAL': 'STARTING ROUND',
+        'BASE · SEM MÍSSEIS': 'BASE · NO MISSILES',
+        'TANQUES NAS ILHAS': 'ISLAND TANKS',
+        'MÍSSEIS': 'MISSILES',
+        'TRENS': 'TRAINS',
+        'TREM NA PONTE · DIREITA → ESQUERDA': 'TRAIN ON BRIDGE · RIGHT → LEFT',
+        'TREM ARMADO': 'ARMORED TRAIN',
+        'NAVIOS ARMADOS': 'ARMED SHIPS',
+        'NAVIO DESTRUÍDO': 'SHIP DESTROYED',
+        'TANQUE DESTRUÍDO': 'TANK DESTROYED',
+        'PONTE DESTRUÍDA': 'BRIDGE DESTROYED',
+        'PONTE NO LIMITE': 'LAST-MOMENT BRIDGE',
+        'PONTE À FRENTE': 'BRIDGE AHEAD',
+        'FUEL DESTRUÍDO': 'FUEL DESTROYED',
+        'MÍSSIL ABATIDO': 'MISSILE DESTROYED',
+        'EVASÃO PERFEITA': 'PERFECT EVASION',
+        'RASANTE PERFEITO': 'PERFECT BANK SKIM',
+        'PERSEGUIÇÃO ENCERRADA': 'PURSUIT OVER',
+        'INIMIGO TRAVADO NA MIRA': 'ENEMY LOCKED ON',
+        'AVIÃO RESERVA': 'RESERVE PLANE',
+        'FIM DE MISSÃO': 'MISSION OVER',
+        'VOAR NOVAMENTE': 'FLY AGAIN',
+        'MISSÃO INICIADA': 'MISSION STARTED',
+        'SIMULAÇÃO LIBERADA': 'SIMULATION UNLOCKED',
+        'POSIÇÕES RESTAURADAS': 'POSITIONS RESET',
+        'MOVER CONTROLES': 'MOVE CONTROLS',
+        'RESTAURAR PADRÃO': 'RESET DEFAULT',
+        'Qualidade gráfica automática': 'Automatic graphics quality',
+        'Qualidade gráfica econômica': 'Low graphics quality',
+        'Qualidade gráfica equilibrada': 'Balanced graphics quality',
+        'Qualidade gráfica alta': 'High graphics quality',
+        'Ajustes dos controles': 'Control settings',
+        'Layout alternativo de controles': 'Alternative control layout',
+        'Direcional circular': 'Circular directional pad',
+        'Controles de toque': 'Touch controls',
+        'Mover para a esquerda': 'Move left',
+        'Mover para a direita': 'Move right',
+        'Desativar o som': 'Turn sound off',
+        'Ativar o som': 'Turn sound on',
+        'Informações do jogo': 'Game information',
+        'Escolher ranking': 'Choose leaderboard',
+        'Ranking global': 'Global leaderboard',
+        'Versão do jogo': 'Game version',
+        'Jogo Rio de Aço 3D': 'Rio de Aço 3D Game',
+        'MOVER AVIÃO': 'MOVE PLANE',
+        'ACELERAR / FREAR': 'ACCELERATE / BRAKE',
+        'DISPARAR': 'SHOOT',
+        'ESPAÇO': 'SPACE',
+        'SEU NOME': 'YOUR NAME',
+        'SALVAR': 'SAVE',
+        'ENVIANDO': 'SENDING',
+        'DECOLAR': 'TAKE OFF',
+        'PRIVACIDADE': 'PRIVACY',
+        'SUPORTE': 'SUPPORT',
+        'PONTUAÇÃO': 'SCORE',
+        'COMBUSTÍVEL': 'FUEL',
+        'VIDAS · VELOCIDADE': 'LIVES · SPEED',
+        'MISSÃO: CLÁSSICA': 'MISSION: CLASSIC',
+        'MISSÃO: DESAFIO': 'MISSION: CHALLENGE',
+        'CÂMERA': 'CAMERA',
+        'AMBIENTE': 'ENVIRONMENT',
+        'PERSEGUIÇÃO': 'CHASE',
+        'TOPO CLÁSSICA': 'CLASSIC TOP',
+        'DIA CLARO': 'CLEAR DAY',
+        'DESERTO · SOL FORTE': 'DESERT · BRIGHT SUN',
+        'DESERTO · ENTARDECER': 'DESERT · SUNSET',
+        'DESERTO · NOITE': 'DESERT · NIGHT',
+        'DESERTO · TEMPESTADE': 'DESERT · STORM',
+        'DESERTO · AMANHECER': 'DESERT · DAWN',
+        'JUNGLE · DIA ÚMIDO': 'JUNGLE · HUMID DAY',
+        'JUNGLE · ENTARDECER': 'JUNGLE · SUNSET',
+        'JUNGLE · NOITE': 'JUNGLE · NIGHT',
+        'JUNGLE · CHUVA TROPICAL': 'JUNGLE · TROPICAL RAIN',
+        'JUNGLE · NÉVOA VERDE': 'JUNGLE · GREEN MIST',
+        'ENTARDECER': 'SUNSET',
+        'NOITE': 'NIGHT',
+        'NEBLINA': 'FOG',
+        'INVERNO': 'WINTER',
+        'RASANTE': 'BANK SKIM',
+        'ROTA COMBATE': 'COMBAT ROUTE',
+        'ROTA FUEL': 'FUEL ROUTE',
+        'CAÇA NA CAUDA': 'FIGHTER ON TAIL',
+        'PRONTO': 'READY',
+        'USADO': 'USED',
+        'RASTREANDO': 'TRACKING',
+        'LANÇAR FLARE': 'DEPLOY FLARE',
+        'TAMANHO': 'SIZE',
+        'PEQUENO': 'SMALL',
+        'MÉDIO': 'MEDIUM',
+        'GRANDE': 'LARGE',
+        'VISIBILIDADE': 'VISIBILITY',
+        'GRÁFICOS': 'GRAPHICS',
+        'ECONÔMICO': 'LOW',
+        'EQUILIBRADO': 'BALANCED',
+        'ALTO': 'HIGH',
+        'ÁUDIO': 'AUDIO',
+        'SOM LIGADO': 'SOUND ON',
+        'SOM DESLIGADO': 'SOUND OFF',
+        'MUDO': 'MUTED',
+        'POSIÇÃO': 'POSITION',
+        'DIREÇÃO': 'DIRECTION',
+        'TIRO': 'FIRE',
+        'AÇÕES': 'ACTIONS',
+        'ATIRAR': 'SHOOT',
+        'ACELERAR': 'ACCELERATE',
+        'FREAR': 'BRAKE',
+        'MANOBRA': 'MANEUVER',
+        'PAUSA': 'PAUSE',
+        'CONTINUAR': 'CONTINUE',
+        'AJUSTE': 'SETTINGS',
+        'FECHAR': 'CLOSE',
+        'GERAL': 'GLOBAL',
+        'DIÁRIO': 'DAILY',
+        'CARREGANDO...': 'LOADING...',
+        'GLOBAL': 'GLOBAL',
+        'LOCAL · OFFLINE': 'LOCAL · OFFLINE',
+        'PONTES': 'BRIDGES',
+        'EVASÕES': 'EVASIONS',
+        'PONTOS': 'POINTS',
+        'RECORDE': 'HIGH SCORE',
+        'RODADA': 'ROUND',
+        'SIMULAÇÃO': 'SIMULATION',
+        'INTERVALO': 'BREAK',
+        'DESEMPENHO': 'PERFORMANCE',
+        'CONTROLES': 'CONTROLS',
+        'COMBATE': 'COMBAT',
+        'ROTAS · ESQ': 'ROUTES · LEFT',
+        ' · DIR ': ' · RIGHT ',
+        'COLISÃO': 'COLLISION',
+        'PONTE': 'BRIDGE',
+        'NAVIO': 'SHIP',
+        'HELICÓPTERO': 'HELICOPTER',
+        'LANÇADOR': 'LAUNCHER',
+        'TANQUE': 'TANK',
+        'VISIBILIDADE': 'VISIBILITY',
+        'DIREITA': 'RIGHT',
+        'ESQUERDA': 'LEFT',
+        'VIDA EXTRA': 'EXTRA LIFE',
+        'PONTOS': 'POINTS',
+        'TREM': 'TRAIN',
+        'NAVIOS': 'SHIPS',
+        'TANQUES': 'TANKS',
+        'HELICÓPTEROS': 'HELICOPTERS',
+        'JÁ USADO': 'USED',
+        'TELA CHEIA': 'FULLSCREEN',
+        'ECON.': 'LOW',
+        '×1,35': '×1.35',
+        '×1,5': '×1.5',
+        'SOM': 'SOUND',
+      });
+
+      const ENGLISH_REPLACEMENTS = Object.entries(ENGLISH_TEXT)
+        .sort(([left], [right]) => right.length - left.length);
+
+      function translateGameText(value) {
+        if (GAME_LANGUAGE !== 'en' || typeof value !== 'string' || value.length === 0) return value;
+        let translated = value;
+        for (const [portuguese, english] of ENGLISH_REPLACEMENTS) {
+          translated = translated.replaceAll(portuguese, english);
+        }
+        return translated;
+      }
+
+      function setLocalizedText(element, value) {
+        element.textContent = translateGameText(String(value));
+      }
+
+      function localizeElement(element) {
+        if (GAME_LANGUAGE !== 'en' || !(element instanceof Element)) return;
+        if (element.closest('.leaderboard-name')) return;
+        for (const attribute of ['aria-label', 'placeholder', 'data-zone-label']) {
+          if (!element.hasAttribute(attribute)) continue;
+          const value = element.getAttribute(attribute);
+          const translated = translateGameText(value);
+          if (translated !== value) element.setAttribute(attribute, translated);
+        }
+        for (const node of element.childNodes) {
+          if (node.nodeType === Node.TEXT_NODE) {
+            const translated = translateGameText(node.nodeValue);
+            if (translated !== node.nodeValue) node.nodeValue = translated;
+          } else if (node.nodeType === Node.ELEMENT_NODE) {
+            localizeElement(node);
+          }
+        }
+      }
+
+      function startLocalization() {
+        document.documentElement.lang = GAME_LANGUAGE === 'pt' ? 'pt-BR' : 'en';
+        document.body.dataset.language = GAME_LANGUAGE;
+        document.body.dataset.externalFullscreen = String(PLATFORM_USES_EXTERNAL_FULLSCREEN);
+        if (GAME_LANGUAGE === 'en') localizeElement(document.body);
+        if (GAME_LANGUAGE !== 'en') return;
+        const observer = new MutationObserver((mutations) => {
+          for (const mutation of mutations) {
+            if (mutation.type === 'characterData') {
+              if (mutation.target.parentElement?.closest('.leaderboard-name')) continue;
+              const translated = translateGameText(mutation.target.nodeValue);
+              if (translated !== mutation.target.nodeValue) mutation.target.nodeValue = translated;
+            } else if (mutation.type === 'attributes') {
+              localizeElement(mutation.target);
+            } else {
+              for (const node of mutation.addedNodes) {
+                if (node.nodeType === Node.TEXT_NODE) {
+                  const translated = translateGameText(node.nodeValue);
+                  if (translated !== node.nodeValue) node.nodeValue = translated;
+                } else if (node.nodeType === Node.ELEMENT_NODE) {
+                  localizeElement(node);
+                }
+              }
+            }
+          }
+        });
+        observer.observe(document.body, {
+          subtree: true,
+          childList: true,
+          characterData: true,
+          attributes: true,
+          attributeFilter: ['aria-label', 'placeholder', 'data-zone-label'],
+        });
+      }
 
       const CONFIG = {
         segmentLength: 32,
@@ -2099,6 +2473,9 @@
         hudTop: document.querySelector('.hud-top'),
         version: document.querySelector('#game-version'),
         soundToggle: document.querySelector('#sound-toggle'),
+        helpChip: document.querySelector('#help-chip'),
+        privacyLink: document.querySelector('#privacy-link'),
+        supportLink: document.querySelector('#support-link'),
         overlay: document.querySelector('#overlay'),
         title: document.querySelector('#menu-title'),
         subtitle: document.querySelector('#menu-subtitle'),
@@ -2157,6 +2534,15 @@
         toast: document.querySelector('#toast'),
       };
 
+      if (PLATFORM_USES_EXTERNAL_FULLSCREEN) {
+        dom.helpChip.textContent = '[Q] BARREL ROLL · [C] CÂMERA · [P] PAUSA · [M] SOM';
+      }
+      if (GAME_LANGUAGE === 'en') {
+        dom.privacyLink.href = './privacy.html';
+        dom.supportLink.href = './support.html';
+      }
+      startLocalization();
+
       const clamp = THREE.MathUtils.clamp;
       const lerp = THREE.MathUtils.lerp;
       const damp = THREE.MathUtils.damp;
@@ -2183,7 +2569,7 @@
 
       function formatDailyDate(dateKey) {
         const [year, month, day] = dateKey.split('-');
-        return `${day}/${month}/${year}`;
+        return GAME_LANGUAGE === 'en' ? `${month}/${day}/${year}` : `${day}/${month}/${year}`;
       }
 
       function normalizePilotName(raw) {
@@ -2192,7 +2578,7 @@
           .replace(/[^\p{L}\p{N} ._-]/gu, '')
           .trim()
           .replace(/\s+/g, ' ');
-        return (cleaned || 'Jogador').slice(0, 14);
+        return (cleaned || (GAME_LANGUAGE === 'en' ? 'Player' : 'Jogador')).slice(0, 14);
       }
 
       function normalizeLeaderboardEntries(rawEntries) {
@@ -3310,7 +3696,7 @@
           const target = this.getEnvironmentPhase();
           const biomeChanged = target.biome !== this.currentBiomeKey;
           this.currentBiomeKey = target.biome;
-          dom.moment.textContent = target.label;
+          setLocalizedText(dom.moment, target.label);
           const sandIntensity = target.sandIntensity || 0;
           const rainIntensity = target.rainIntensity || 0;
           this.snow.visible = Boolean(target.snow || sandIntensity > 0 || rainIntensity > 0);
@@ -5333,6 +5719,7 @@
             dom.roundDescription.textContent =
               `JUNGLE · CAÇA PERSEGUIDOR · TRENS · NAVIOS · TANQUES NAS ILHAS`;
           }
+          setLocalizedText(dom.roundDescription, dom.roundDescription.textContent);
         }
 
         setStartingRound(value) {
@@ -5573,7 +5960,7 @@
             name.textContent = entry.name.toUpperCase();
             const details = document.createElement('span');
             details.className = 'leaderboard-details';
-            details.textContent = `R${String(entry.round).padStart(2, '0')} · ${entry.bridges}P`;
+            details.textContent = `R${String(entry.round).padStart(2, '0')} · ${entry.bridges}${GAME_LANGUAGE === 'en' ? 'B' : 'P'}`;
             const score = document.createElement('span');
             score.className = 'leaderboard-score';
             score.textContent = String(entry.score).padStart(6, '0');
@@ -5989,7 +6376,7 @@
               this.switchCamera();
               return;
             }
-            if (event.code === 'KeyF' && !event.repeat) {
+            if (event.code === 'KeyF' && !event.repeat && !PLATFORM_USES_EXTERNAL_FULLSCREEN) {
               this.toggleFullscreen();
               return;
             }
@@ -6209,10 +6596,10 @@
           this.updateMissileAlert(0, false);
           this.updateCamera(1);
           dom.overlay.dataset.mode = 'menu';
-          dom.title.textContent = 'RIO DE AÇO';
-          dom.subtitle.textContent = 'Ataque retro low-poly em 3D';
+          setLocalizedText(dom.title, 'RIO DE AÇO');
+          setLocalizedText(dom.subtitle, 'Ataque retro low-poly em 3D');
           dom.finalScore.textContent = '';
-          dom.start.textContent = 'DECOLAR';
+          setLocalizedText(dom.start, 'DECOLAR');
           dom.overlay.classList.add('hidden');
           this.showToast(
             this.runMode === 'daily'
@@ -6245,7 +6632,7 @@
             cockpit: 'COCKPIT',
           };
           this.activeCamera = cameras[this.cameraMode];
-          dom.camera.textContent = labels[this.cameraMode];
+          setLocalizedText(dom.camera, labels[this.cameraMode]);
           this.showToast(`CÂMERA: ${labels[this.cameraMode]}`, 1.15);
           this.syncCameraVisuals();
           this.updateCamera(1);
@@ -6282,15 +6669,17 @@
         }
 
         toggleFullscreen() {
+          if (PLATFORM_USES_EXTERNAL_FULLSCREEN) return false;
           if (!document.fullscreenElement) {
             document.documentElement.requestFullscreen?.();
           } else {
             document.exitFullscreen?.();
           }
+          return true;
         }
 
         showToast(message, duration = 1.2) {
-          dom.toast.textContent = message;
+          dom.toast.textContent = translateGameText(message);
           dom.toast.classList.add('show');
           this.toastTimer = duration;
         }
@@ -7045,9 +7434,9 @@
 
           const arrows = { left: '◀', center: '↑', right: '▶' };
           dom.missileAlert.dataset.state = threat.state;
-          dom.missileAlertLabel.textContent = threat.source === 'caça'
+          setLocalizedText(dom.missileAlertLabel, threat.source === 'caça'
             ? threat.state === 'missile' ? 'MÍSSIL DO CAÇA · [E] FLARE' : 'TRAVAMENTO CONFIRMADO · PREPARE O FLARE'
-            : threat.state === 'missile' ? 'MÍSSIL ATIVO · SEGURANÇA' : 'TRAVAMENTO · SEGURANÇA';
+            : threat.state === 'missile' ? 'MÍSSIL ATIVO · SEGURANÇA' : 'TRAVAMENTO · SEGURANÇA');
           dom.missileDirection.textContent = arrows[threat.direction];
           dom.missileAlert.classList.add('active');
 
@@ -7257,7 +7646,8 @@
         }
 
         formatScoreMultiplier(multiplier, digits = 1) {
-          return multiplier.toFixed(digits).replace('.', ',');
+          const formatted = multiplier.toFixed(digits);
+          return GAME_LANGUAGE === 'en' ? formatted : formatted.replace('.', ',');
         }
 
         updateCombo(dt) {
@@ -7471,12 +7861,12 @@
           const best = Math.max(this.score, Number(localStorage.getItem('rio-de-aco-best') || 0));
           localStorage.setItem('rio-de-aco-best', String(best));
           dom.overlay.dataset.mode = 'gameover';
-          dom.title.textContent = 'FIM DE MISSÃO';
-          dom.subtitle.textContent = this.runMode === 'daily'
+          setLocalizedText(dom.title, 'FIM DE MISSÃO');
+          setLocalizedText(dom.subtitle, this.runMode === 'daily'
             ? `DESAFIO ${formatDailyDate(this.dailyChallengeDate)} · RECORDE ${String(best).padStart(6, '0')}`
-            : `RECORDE ${String(best).padStart(6, '0')}`;
-          dom.finalScore.textContent = `PONTUAÇÃO ${String(this.score).padStart(6, '0')}`;
-          dom.start.textContent = 'VOAR NOVAMENTE';
+            : `RECORDE ${String(best).padStart(6, '0')}`);
+          setLocalizedText(dom.finalScore, `PONTUAÇÃO ${String(this.score).padStart(6, '0')}`);
+          setLocalizedText(dom.start, 'VOAR NOVAMENTE');
           this.prepareLeaderboardSubmission();
           dom.overlay.classList.remove('hidden');
           dom.toast.classList.remove('show');
@@ -7604,14 +7994,14 @@
           const minInterval = 1 / this.getGraphicsProfile().hudRefreshRate;
           if (!force && this.elapsed - this.lastHudUpdateAt < minInterval) return;
           this.lastHudUpdateAt = this.elapsed;
-          dom.missionMode.textContent = this.runMode === 'daily'
+          setLocalizedText(dom.missionMode, this.runMode === 'daily'
             ? `MISSÃO: DESAFIO ${formatDailyDate(this.dailyChallengeDate)}`
-            : 'MISSÃO: CLÁSSICA';
+            : 'MISSÃO: CLÁSSICA');
           dom.score.textContent = String(this.score).padStart(6, '0');
           const comboActive = this.comboTimer > 0 && this.comboCount > 0;
           dom.combo.classList.toggle('active', comboActive);
           dom.comboLabel.textContent = `COMBO ×${this.comboMultiplier}`;
-          dom.comboTime.textContent = `${this.comboTimer.toFixed(1).replace('.', ',')}s`;
+          dom.comboTime.textContent = `${this.formatScoreMultiplier(this.comboTimer)}s`;
           dom.comboFill.style.transform = `scaleX(${clamp(this.comboTimer / CONFIG.comboWindow, 0, 1)})`;
           const bankSkimVisible = this.bankSkimEligible || this.bankSkimAwarded;
           dom.bankSkim.classList.toggle('active', bankSkimVisible);
@@ -7628,9 +8018,9 @@
           const routeActive = this.mode === 'PLAYING' && routeRole !== 'single';
           dom.forkRoute.classList.toggle('active', routeActive);
           dom.forkRoute.dataset.role = routeRole === 'combat' ? 'combat' : 'supply';
-          dom.forkRoute.textContent = routeRole === 'combat'
+          setLocalizedText(dom.forkRoute, routeRole === 'combat'
             ? 'ROTA COMBATE ×1,35'
-            : 'ROTA FUEL';
+            : 'ROTA FUEL');
           const fighterActive = this.mode === 'PLAYING' && Boolean(this.pursuitFighter);
           dom.fighterPursuit.classList.toggle('active', fighterActive);
           if (this.pursuitFighter) {
@@ -7638,10 +8028,12 @@
               0,
               CONFIG.fighterDuration - this.pursuitFighter.escapeProgress
             );
-            dom.fighterPursuit.textContent =
-              `CAÇA NA CAUDA · ${remaining.toFixed(1).replace('.', ',')}s · ${this.pursuitFighter.gap.toFixed(0)}m`;
+            setLocalizedText(
+              dom.fighterPursuit,
+              `CAÇA NA CAUDA · ${this.formatScoreMultiplier(remaining)}s · ${this.pursuitFighter.gap.toFixed(0)}m`
+            );
           } else {
-            dom.fighterPursuit.textContent = 'CAÇA NA CAUDA';
+            setLocalizedText(dom.fighterPursuit, 'CAÇA NA CAUDA');
           }
           const flareAvailable = this.canDeployFlare();
           dom.flareButton.classList.toggle('active', flareAvailable);
@@ -7653,11 +8045,11 @@
             : this.barrelRollUsedThisEnvironment ? 'used' : 'ready';
           dom.barrelRoll.classList.toggle('active', barrelRollVisible);
           dom.barrelRoll.dataset.state = barrelRollState;
-          dom.barrelRoll.textContent = barrelRollState === 'rolling'
+          setLocalizedText(dom.barrelRoll, barrelRollState === 'rolling'
             ? 'BARREL ROLL · INVULNERÁVEL'
             : barrelRollState === 'used'
               ? 'BARREL ROLL · USADO'
-              : '[Q] BARREL ROLL · PRONTO';
+              : '[Q] BARREL ROLL · PRONTO');
           dom.mobileControls.hidden = !barrelRollVisible;
           for (const button of dom.touchCameraButtons) {
             button.disabled = !barrelRollVisible || personalizationOpen;
@@ -7670,7 +8062,7 @@
           dom.touchInfo.disabled = !barrelRollVisible || personalizationOpen;
           dom.touchLayout.disabled = !barrelRollVisible || personalizationOpen;
           dom.touchSettings.disabled = !barrelRollVisible;
-          dom.touchPause.textContent = this.mode === 'PAUSED' ? 'CONTINUAR' : 'PAUSA';
+          setLocalizedText(dom.touchPause, this.mode === 'PAUSED' ? 'CONTINUAR' : 'PAUSA');
           dom.fuelFill.style.transform = `scaleX(${clamp(this.fuel / 100, 0, 1)})`;
           dom.fuelNumber.textContent = `${Math.ceil(this.fuel)}%`;
           dom.fuelNumber.style.color = this.fuel < 22 ? '#ff4d5f' : '#f5f0d0';
@@ -7871,6 +8263,8 @@
             version: GAME_VERSION,
             platform: {
               id: PLATFORM_CONFIG.id,
+              locale: PLATFORM_CONFIG.locale,
+              externalFullscreen: PLATFORM_CONFIG.externalFullscreen,
               leaderboard: LEADERBOARD_API_URL ? 'online' : 'local',
               leaderboardApi: LEADERBOARD_API_URL,
               integration: this.platform.getSnapshot(),

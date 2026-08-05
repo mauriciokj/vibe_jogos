@@ -10,6 +10,8 @@ Defina `window.RIO_DE_ACO_CONFIG` antes do script principal:
 <script>
   window.RIO_DE_ACO_CONFIG = {
     platform: 'portal-exemplo',
+    locale: 'en',
+    externalFullscreen: true,
     leaderboardApiUrl: 'https://vibe-jogos.vercel.app/api/leaderboard/',
     onEvent(event) {
       console.log(event.type, event.payload);
@@ -27,6 +29,8 @@ Defina `window.RIO_DE_ACO_CONFIG` antes do script principal:
   };
 </script>
 ```
+
+`locale` aceita português (`pt`/`pt-BR`) ou inglês (`en`). Sem valor explícito, o site acompanha o idioma do navegador e plataformas externas usam inglês como fallback. Use `externalFullscreen: true` quando o portal oferecer sua própria tela cheia; o atalho e a instrução internos serão desativados.
 
 ## Eventos padronizados
 
@@ -73,6 +77,8 @@ Quando o primeiro provedor for conectado, serão usados somente dois pontos:
 2. **Vida extra opcional:** anúncio recompensado oferecido por um botão explícito. A vida só será concedida quando o provedor confirmar `rewarded: true`.
 
 Não serão usados banners permanentes, anúncios durante combate, anúncios a cada ponte ou interrupções automáticas no meio de uma missão.
+
+Quando uma vida extra recompensada for oferecida no Game Over, o mesmo encerramento não solicitará também um intersticial antes do reinício. No Basic Launch, o botão de recompensa permanece oculto enquanto o portal mantiver anúncios desativados.
 
 ## Regras para integrações futuras
 

@@ -195,7 +195,7 @@ As notas abaixo são uma estimativa nossa, não uma promessa das plataformas. Fo
 - [x] Manter o ranking da Vercel no site oficial e definir fallback local quando um portal bloquear chamadas externas (`v1.11.0`–`v1.12.1`).
 - [x] Criar uma interface única para anúncios, eventos de partida e pausa (`v1.19.0`).
 - [x] Adicionar política de privacidade e página de suporte (`v1.19.0`).
-- [ ] Fazer auditoria de nomes, marcas, imagens, músicas e sons.
+- [x] Fazer inventário interno de nomes, marcas, imagens, músicas e sons; busca formal de marca continua pendente (`AUDITORIA_PUBLICACAO.md`).
 
 ### Etapa 2 — tornar o jogo realmente móvel
 
@@ -231,6 +231,7 @@ Indicadores internos para avançar — servem como referência, não como regras
 
 - Intersticial somente entre partidas, após o Game Over e antes de reiniciar, com limite de frequência.
 - Anúncio recompensado opcional para receber uma vida extra, concedida apenas após confirmação do provedor.
+- Em cada Game Over será usado no máximo um dos formatos: oferecer a vida extra exclui o intersticial daquele encerramento.
 - Nenhum banner sobre a área de jogo e nenhuma interrupção durante voo, combate, perseguição ou travessia de ponte.
 - Começar somente com esses dois formatos e avaliar retenção antes de criar qualquer novo ponto de publicidade.
 

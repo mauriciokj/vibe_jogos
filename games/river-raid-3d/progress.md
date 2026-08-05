@@ -400,3 +400,17 @@ Original prompt: Criar um novo jogo retro inspirado em River Raid, em Three.js, 
 - Cliente oficial revalidou início, movimento e tiro na v1.19.0 sem erros. Teste dedicado passou nos fluxos com e sem provedor, eventos, pausa automática de anúncio e páginas auxiliares.
 - TODO: aguardar teste do usuário antes de commit e deploy da `v1.19.0`. Próxima etapa sugerida: auditoria de propriedade intelectual e preparação da página/pacote para itch.io e Basic Launch do CrazyGames.
 - `v1.19.0` aprovada pelo usuário. Política inicial definida: intersticial entre Game Over e reinício com limite de frequência, mais vida extra opcional por anúncio recompensado; nenhum anúncio durante a missão ou banner sobre o jogo.
+- `v1.19.0` registrada no commit `226ea4c` e publicada em produção na URL imutável `vibe-jogos-uc6h0rguk-mauriciokjs-projects.vercel.app`, com alias principal confirmado e páginas auxiliares respondendo corretamente.
+- Auditoria interna de publicação confirmou pacote de aproximadamente 1,1 MB, sem arquivos externos de arte, música, modelos ou fontes. Visuais são gerados em código, áudio é procedural e a licença MIT do Three.js acompanha o pacote.
+- Requisitos oficiais atuais indicam itch.io pronto para empacotamento; CrazyGames ainda exige inglês, remoção do fullscreen interno naquela plataforma e teste em sua matriz de iframes.
+- Política de anúncios refinada para o CrazyGames: vida extra recompensada e intersticial não aparecem no mesmo Game Over; anúncios e botão de recompensa permanecem ausentes durante o Basic Launch.
+- Próxima implementação sugerida: localização português/inglês e comportamento de tela cheia específico por plataforma.
+- `v1.20.0` local adiciona português/inglês à mesma build. `locale` pode vir da configuração ou URL; o site acompanha o navegador e portais externos usam inglês como fallback.
+- Menu, HUD, ranking, alertas, câmeras, ambientes, mensagens de combate, controles móveis, pausa e Game Over foram validados em inglês. Português permaneceu como antes quando `locale=pt`.
+- `privacy.html` e `support.html` oferecem as páginas auxiliares em inglês; os links do menu escolhem automaticamente o par correto.
+- CrazyGames ativa `externalFullscreen`, remove `[F] FULLSCREEN` das instruções e ignora o atalho interno. Teste direto confirmou retorno falso e nenhum elemento fullscreen após `F`.
+- A primeira captura 821×462 revelou o botão de início fora da viewport. O menu ganhou composição compacta para alturas até 600 px e passou a caber entre `y=65–397`, com ranking, dois modos e links visíveis.
+- Matriz completa passou em 821×462, 907×510, 1077×606, 1216×684, 1280×720, 1366×768, 1536×864, 1920×1080, mobile 800×450 e tablet 1080×607. Canvas ocupou a viewport, controles permaneceram dentro da tela e não houve rolagem horizontal.
+- Cliente oficial confirmou movimento, tiro, inglês e modo CrazyGames sem erros. Testes dedicados cobriram PT/EN, mensagens dinâmicas, pausa, câmera, Game Over, páginas auxiliares e configurações móveis.
+- `v1.20.0` aprovada pelo usuário; autorizados commit, publicação e avanço para o pacote limpo dos portais.
+- Próximo passo: gerar e validar o ZIP limpo para itch.io/CrazyGames e começar os materiais de página.
