@@ -8,6 +8,16 @@ O jogo usa versionamento semântico:
 
 Cada publicação deve atualizar `GAME_VERSION` no `index.html` e registrar as mudanças neste arquivo.
 
+## 1.18.0 — 2026-08-05
+
+- Celulares com notch, ilha dinâmica ou barras laterais passam a usar `viewport-fit=cover` e as quatro áreas seguras do sistema.
+- HUD, menu, alertas, flare, versão e controles respeitam recortes em retrato e paisagem.
+- O reposicionamento personalizado impede que grupos sejam arrastados para dentro das áreas não utilizáveis da tela.
+- Durante ajustes em telas baixas, o HUD superior é ocultado temporariamente para não disputar espaço com o painel.
+- O painel `AJUSTE` ganhou as opções persistentes `SOM LIGADO` e `MUDO`.
+- No computador, um botão `SOM: ON/OFF` fica disponível desde o menu e o atalho `M` alterna o áudio durante a partida.
+- O desligamento silencia imediatamente o canal principal e evita criar novos sons enquanto o modo mudo estiver ativo.
+
 ## 1.17.0 — 2026-08-05
 
 - O painel `AJUSTE` ganhou perfis gráficos `AUTO`, `ECON.`, `MÉDIO` e `ALTO`, com escolha persistente por aparelho.

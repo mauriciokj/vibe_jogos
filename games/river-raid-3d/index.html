@@ -2,7 +2,7 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#081a2c" />
     <script>
       window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
@@ -22,6 +22,10 @@
         --red: #ff4d5f;
         --panel: rgba(5, 17, 30, 0.82);
         --line: rgba(151, 236, 255, 0.3);
+        --safe-top: env(safe-area-inset-top, 0px);
+        --safe-right: env(safe-area-inset-right, 0px);
+        --safe-bottom: env(safe-area-inset-bottom, 0px);
+        --safe-left: env(safe-area-inset-left, 0px);
       }
 
       * {
@@ -103,6 +107,27 @@
         line-height: 1;
         text-shadow: 0 0 8px rgba(102, 245, 255, 0.25);
         pointer-events: none;
+      }
+
+      #sound-toggle {
+        position: fixed;
+        top: clamp(82px, 12vh, 102px);
+        right: clamp(12px, 2.2vw, 28px);
+        z-index: 25;
+        min-width: 92px;
+        padding: 8px 10px;
+        border: 1px solid rgba(102, 245, 255, 0.48);
+        background: rgba(5, 20, 33, 0.82);
+        color: var(--cyan);
+        font: 900 9px/1 "Courier New", monospace;
+        letter-spacing: 0.08em;
+        text-shadow: 0 0 8px currentColor;
+        cursor: pointer;
+      }
+
+      #sound-toggle[aria-pressed="false"] {
+        border-color: rgba(255, 77, 95, 0.52);
+        color: #ff8c98;
       }
 
       #hud {
@@ -1152,8 +1177,15 @@
       }
 
       @media (max-width: 620px), (hover: none) and (pointer: coarse) {
+        #sound-toggle {
+          display: none;
+        }
+
         #hud {
-          padding: 9px;
+          padding-top: max(9px, var(--safe-top));
+          padding-right: max(9px, var(--safe-right));
+          padding-bottom: max(9px, var(--safe-bottom));
+          padding-left: max(9px, var(--safe-left));
         }
 
         .hud-top {
@@ -1170,20 +1202,34 @@
           display: none;
         }
 
+        body.mobile-settings-open .hud-top {
+          visibility: hidden;
+        }
+
+        #toast {
+          top: max(22%, calc(var(--safe-top) + 62px));
+          max-width: calc(100% - var(--safe-left) - var(--safe-right) - 18px);
+        }
+
+        #missile-alert {
+          top: max(13%, calc(var(--safe-top) + 58px));
+          max-width: calc(100% - var(--safe-left) - var(--safe-right) - 18px);
+        }
+
         .help-chip {
           display: none;
         }
 
         .hud-bottom {
           position: fixed;
-          right: 8px;
-          bottom: calc(122px + env(safe-area-inset-bottom));
-          left: 8px;
+          right: max(8px, var(--safe-right));
+          bottom: calc(122px + var(--safe-bottom));
+          left: max(8px, var(--safe-left));
           display: block;
         }
 
         body[data-mobile-control-layout="2"] .hud-bottom {
-          bottom: calc(190px + env(safe-area-inset-bottom));
+          bottom: calc(190px + var(--safe-bottom));
         }
 
         #hud.mobile-info-collapsed .hud-bottom {
@@ -1216,6 +1262,10 @@
 
         #overlay {
           overflow-y: auto;
+          padding-top: max(22px, var(--safe-top));
+          padding-right: max(22px, var(--safe-right));
+          padding-bottom: max(22px, var(--safe-bottom));
+          padding-left: max(22px, var(--safe-left));
         }
 
         .menu-card {
@@ -1232,7 +1282,7 @@
 
         #flare-button {
           right: 50%;
-          bottom: calc(128px + env(safe-area-inset-bottom));
+          bottom: calc(128px + var(--safe-bottom));
           transform: translateX(50%);
           white-space: nowrap;
         }
@@ -1242,21 +1292,21 @@
         }
 
         body[data-mobile-control-layout="2"] #flare-button {
-          bottom: calc(196px + env(safe-area-inset-bottom));
+          bottom: calc(196px + var(--safe-bottom));
         }
 
         #game-version {
-          top: 3px;
-          right: 3px;
+          top: max(3px, var(--safe-top));
+          right: max(3px, var(--safe-right));
           bottom: auto;
           opacity: 0.66;
         }
 
         #mobile-controls {
           position: fixed;
-          right: max(8px, env(safe-area-inset-right));
-          bottom: max(8px, env(safe-area-inset-bottom));
-          left: max(8px, env(safe-area-inset-left));
+          right: max(8px, var(--safe-right));
+          bottom: max(8px, var(--safe-bottom));
+          left: max(8px, var(--safe-left));
           z-index: 31;
           display: grid;
           gap: 7px;
@@ -1302,6 +1352,7 @@
     <div class="vignette"></div>
     <div class="scanlines"></div>
     <div id="game-version" aria-label="Versão do jogo"></div>
+    <button id="sound-toggle" type="button" aria-pressed="true" aria-label="Desativar o som">SOM: ON</button>
 
     <div id="hud" aria-live="polite">
       <div class="hud-top">
@@ -1339,7 +1390,7 @@
           <div id="fighter-pursuit">CAÇA NA CAUDA</div>
           <div id="barrel-roll" data-state="ready">[Q] BARREL ROLL · PRONTO</div>
         </div>
-        <div class="help-chip">[Q] BARREL ROLL · [C] CÂMERA · [P] PAUSA · [F] TELA CHEIA</div>
+        <div class="help-chip">[Q] BARREL ROLL · [C] CÂMERA · [P] PAUSA · [M] SOM · [F] TELA CHEIA</div>
       </div>
     </div>
 
@@ -1373,6 +1424,13 @@
             <button class="mobile-control-button mobile-setting-option" type="button" data-graphics-quality="low" aria-label="Qualidade gráfica econômica">ECON.</button>
             <button class="mobile-control-button mobile-setting-option" type="button" data-graphics-quality="balanced" aria-label="Qualidade gráfica equilibrada">MÉDIO</button>
             <button class="mobile-control-button mobile-setting-option" type="button" data-graphics-quality="high" aria-label="Qualidade gráfica alta">ALTO</button>
+          </div>
+        </div>
+        <div class="mobile-setting-row">
+          <span class="mobile-setting-label">ÁUDIO</span>
+          <div class="mobile-setting-options two-options">
+            <button class="mobile-control-button mobile-setting-option" type="button" data-sound-enabled="true" aria-label="Ativar o som">SOM LIGADO</button>
+            <button class="mobile-control-button mobile-setting-option" type="button" data-sound-enabled="false" aria-label="Desativar o som">MUDO</button>
           </div>
         </div>
         <div class="mobile-setting-row">
@@ -1485,7 +1543,7 @@
 
     <script src="./vendor/three.min.js"></script>
     <script>
-      const GAME_VERSION = '1.17.0';
+      const GAME_VERSION = '1.18.0';
       const platformOverrides =
         window.RIO_DE_ACO_CONFIG && typeof window.RIO_DE_ACO_CONFIG === 'object'
           ? window.RIO_DE_ACO_CONFIG
@@ -1509,6 +1567,7 @@
       const PLAYER_NAME_STORAGE_KEY = 'rio-de-aco-player-name';
       const DAILY_TIME_ZONE = 'America/Sao_Paulo';
       const GRAPHICS_QUALITY_STORAGE_KEY = 'rio-de-aco-graphics-quality';
+      const SOUND_ENABLED_STORAGE_KEY = 'rio-de-aco-sound-enabled';
 
       const CONFIG = {
         segmentLength: 32,
@@ -2012,6 +2071,7 @@
         hud: document.querySelector('#hud'),
         hudTop: document.querySelector('.hud-top'),
         version: document.querySelector('#game-version'),
+        soundToggle: document.querySelector('#sound-toggle'),
         overlay: document.querySelector('#overlay'),
         title: document.querySelector('#menu-title'),
         subtitle: document.querySelector('#menu-subtitle'),
@@ -2054,6 +2114,7 @@
         mobileControlSizeButtons: [...document.querySelectorAll('[data-control-size]')],
         mobileControlOpacityButtons: [...document.querySelectorAll('[data-control-opacity]')],
         graphicsQualityButtons: [...document.querySelectorAll('[data-graphics-quality]')],
+        soundPreferenceButtons: [...document.querySelectorAll('[data-sound-enabled]')],
         touchPositionControls: document.querySelector('#touch-position-controls'),
         touchResetPositions: document.querySelector('#touch-reset-positions'),
         mobileControlZones: [...document.querySelectorAll('[data-control-zone]')],
@@ -2195,9 +2256,11 @@
       }
 
       class AudioEngine {
-        constructor() {
+        constructor(muted = false) {
           this.context = null;
           this.master = null;
+          this.masterLevel = 0.16;
+          this.muted = Boolean(muted);
           this.engineOscillator = null;
           this.engineFilter = null;
           this.engineGain = null;
@@ -2206,6 +2269,7 @@
         }
 
         enable() {
+          if (this.muted) return;
           if (this.context) {
             this.context.resume();
             return;
@@ -2214,7 +2278,7 @@
           if (!AudioContext) return;
           this.context = new AudioContext();
           this.master = this.context.createGain();
-          this.master.gain.value = 0.16;
+          this.master.gain.value = this.masterLevel;
           this.master.connect(this.context.destination);
 
           this.engineOscillator = this.context.createOscillator();
@@ -2232,6 +2296,15 @@
           this.engineOscillator.start();
         }
 
+        setMuted(muted) {
+          this.muted = Boolean(muted);
+          if (!this.context || !this.master) return;
+          const now = this.context.currentTime;
+          this.master.gain.cancelScheduledValues(now);
+          this.master.gain.setTargetAtTime(this.muted ? 0 : this.masterLevel, now, 0.025);
+          if (!this.muted) this.context.resume();
+        }
+
         setEngine(speedRatio, active) {
           const ratio = clamp(speedRatio, 0, 1);
           this.enginePitch = 72 + ratio * 148;
@@ -2244,7 +2317,7 @@
         }
 
         tone(frequency, duration, type = 'square', volume = 0.35, slide = 0) {
-          if (!this.context || !this.master) return;
+          if (this.muted || !this.context || !this.master) return;
           const now = this.context.currentTime;
           const oscillator = this.context.createOscillator();
           const gain = this.context.createGain();
@@ -2353,7 +2426,8 @@
           this.activeCamera = this.cameraChase;
           this.cameraTargetX = 0;
 
-          this.audio = new AudioEngine();
+          this.soundEnabled = localStorage.getItem(SOUND_ENABLED_STORAGE_KEY) !== 'false';
+          this.audio = new AudioEngine(!this.soundEnabled);
           this.clock = new THREE.Clock();
           this.manualStepping = false;
           this.mode = 'MENU';
@@ -2600,6 +2674,22 @@
             : this.getGraphicsProfile().label;
           this.showToast(`GRÁFICOS · ${label}`, 1.35);
           return true;
+        }
+
+        setSoundEnabled(enabled, showMessage = true) {
+          this.soundEnabled = Boolean(enabled);
+          localStorage.setItem(SOUND_ENABLED_STORAGE_KEY, String(this.soundEnabled));
+          this.audio.setMuted(!this.soundEnabled);
+          if (this.soundEnabled) this.audio.enable();
+          this.updateMobileControlPreferences();
+          if (showMessage) {
+            this.showToast(this.soundEnabled ? 'SOM LIGADO' : 'SOM DESLIGADO', 1.15);
+          }
+          return this.soundEnabled;
+        }
+
+        toggleSound() {
+          return this.setSoundEnabled(!this.soundEnabled);
         }
 
         resetGraphicsPerformanceMonitor() {
@@ -5370,6 +5460,18 @@
               String(button.dataset.graphicsQuality === this.graphicsPreference)
             );
           }
+          for (const button of dom.soundPreferenceButtons) {
+            button.setAttribute(
+              'aria-pressed',
+              String((button.dataset.soundEnabled === 'true') === this.soundEnabled)
+            );
+          }
+          dom.soundToggle.textContent = this.soundEnabled ? 'SOM: ON' : 'SOM: OFF';
+          dom.soundToggle.setAttribute('aria-pressed', String(this.soundEnabled));
+          dom.soundToggle.setAttribute(
+            'aria-label',
+            this.soundEnabled ? 'Desativar o som' : 'Ativar o som'
+          );
         }
 
         setMobileControlSize(size) {
@@ -5398,6 +5500,17 @@
           return this.mobileLandscape ? 'landscape' : 'portrait';
         }
 
+        getSafeAreaInsets() {
+          const styles = getComputedStyle(document.documentElement);
+          const readInset = (name) => Number.parseFloat(styles.getPropertyValue(name)) || 0;
+          return {
+            top: readInset('--safe-top'),
+            right: readInset('--safe-right'),
+            bottom: readInset('--safe-bottom'),
+            left: readInset('--safe-left'),
+          };
+        }
+
         getMobileControlScale() {
           return { small: 0.82, medium: 0.91, large: 1 }[this.mobileControlSize] || 1;
         }
@@ -5418,8 +5531,11 @@
           }
           if (!this.mobileLayout) return;
 
-          const margin = 8;
-          const topMargin = Math.max(margin, dom.hudTop.getBoundingClientRect().bottom + 6);
+          const safeArea = this.getSafeAreaInsets();
+          const leftMargin = Math.max(8, safeArea.left);
+          const rightMargin = Math.max(8, safeArea.right);
+          const bottomMargin = Math.max(8, safeArea.bottom);
+          const topMargin = Math.max(8, safeArea.top, dom.hudTop.getBoundingClientRect().bottom + 6);
           const controlScale = this.getMobileControlScale();
           let corrected = false;
           for (const zone of dom.mobileControlZones) {
@@ -5427,10 +5543,14 @@
             if (rect.width <= 0 || rect.height <= 0) continue;
             let correctionX = 0;
             let correctionY = 0;
-            if (rect.left < margin) correctionX = margin - rect.left;
-            else if (rect.right > innerWidth - margin) correctionX = innerWidth - margin - rect.right;
+            if (rect.left < leftMargin) correctionX = leftMargin - rect.left;
+            else if (rect.right > innerWidth - rightMargin) {
+              correctionX = innerWidth - rightMargin - rect.right;
+            }
             if (rect.top < topMargin) correctionY = topMargin - rect.top;
-            else if (rect.bottom > innerHeight - margin) correctionY = innerHeight - margin - rect.bottom;
+            else if (rect.bottom > innerHeight - bottomMargin) {
+              correctionY = innerHeight - bottomMargin - rect.bottom;
+            }
             if (Math.abs(correctionX) < 0.1 && Math.abs(correctionY) < 0.1) continue;
             const current = this.getMobileControlPosition(zone.dataset.controlZone, orientation);
             const position = {
@@ -5522,20 +5642,23 @@
             if (!drag || drag.zone !== zone || drag.pointerId !== event.pointerId) return;
             event.preventDefault();
             event.stopImmediatePropagation();
-            const margin = 8;
-            const topMargin = Math.max(margin, dom.hudTop.getBoundingClientRect().bottom + 6);
+            const safeArea = this.getSafeAreaInsets();
+            const leftMargin = Math.max(8, safeArea.left);
+            const rightMargin = Math.max(8, safeArea.right);
+            const bottomMargin = Math.max(8, safeArea.bottom);
+            const topMargin = Math.max(8, safeArea.top, dom.hudTop.getBoundingClientRect().bottom + 6);
             const controlScale = this.getMobileControlScale();
             const rawX = event.clientX - drag.startX;
             const rawY = event.clientY - drag.startY;
             const visualDeltaX = clamp(
               rawX,
-              margin - drag.startRect.left,
-              innerWidth - margin - drag.startRect.right
+              leftMargin - drag.startRect.left,
+              innerWidth - rightMargin - drag.startRect.right
             );
             const visualDeltaY = clamp(
               rawY,
               topMargin - drag.startRect.top,
-              innerHeight - margin - drag.startRect.bottom
+              innerHeight - bottomMargin - drag.startRect.bottom
             );
             const position = {
               x: Math.round((drag.current.x + visualDeltaX / controlScale) * 10) / 10,
@@ -5553,6 +5676,7 @@
         setMobileSettingsExpanded(expanded, showMessage = true) {
           this.mobileSettingsExpanded = Boolean(expanded);
           dom.mobileSettings.hidden = !this.mobileSettingsExpanded;
+          document.body.classList.toggle('mobile-settings-open', this.mobileSettingsExpanded);
           dom.touchSettings.textContent = this.mobileSettingsExpanded ? 'FECHAR' : 'AJUSTE';
           dom.touchSettings.setAttribute('aria-expanded', String(this.mobileSettingsExpanded));
           dom.mobileControls.classList.toggle('settings-open', this.mobileSettingsExpanded);
@@ -5643,6 +5767,7 @@
           dom.touchInfo.addEventListener('click', () => this.toggleMobileInfo());
           dom.touchLayout.addEventListener('click', () => this.toggleMobileControlLayout());
           dom.touchSettings.addEventListener('click', () => this.toggleMobileSettings());
+          dom.soundToggle.addEventListener('click', () => this.toggleSound());
           for (const button of dom.mobileControlSizeButtons) {
             button.addEventListener('click', () => this.setMobileControlSize(button.dataset.controlSize));
           }
@@ -5654,6 +5779,11 @@
           for (const button of dom.graphicsQualityButtons) {
             button.addEventListener('click', () =>
               this.setGraphicsPreference(button.dataset.graphicsQuality)
+            );
+          }
+          for (const button of dom.soundPreferenceButtons) {
+            button.addEventListener('click', () =>
+              this.setSoundEnabled(button.dataset.soundEnabled === 'true')
             );
           }
           dom.touchPositionControls.addEventListener('click', () => this.startMobileControlPositioning());
@@ -5684,6 +5814,10 @@
             }
             if (event.code === 'KeyP' && !event.repeat) {
               this.togglePause();
+              return;
+            }
+            if (event.code === 'KeyM' && !event.repeat) {
+              this.toggleSound();
               return;
             }
             if (event.code === 'KeyE' && !event.repeat) {
@@ -7514,6 +7648,12 @@
               speedLines: this.getGraphicsProfile().speedLines,
               effectScale: this.getGraphicsProfile().effectScale,
             },
+            audio: {
+              enabled: this.soundEnabled,
+              muted: this.audio.muted,
+              contextState: this.audio.context?.state || 'not-created',
+              masterLevel: this.audio.masterLevel,
+            },
             mobileControls: {
               visible: !dom.mobileControls.hidden && this.mobileLayout,
               coarsePointer: matchMedia('(hover: none) and (pointer: coarse)').matches,
@@ -7526,6 +7666,7 @@
               positions: this.mobileControlPositions[this.getMobileControlOrientation()],
               infoExpanded: this.mobileInfoExpanded,
               activeInputs: [...new Set(this.touchPointers.values())],
+              safeArea: this.getSafeAreaInsets(),
             },
             coordinateSystem: 'x: esquerda(-)/direita(+); z: à frente é negativo; avião permanece em z=8',
             mode: this.mode,

@@ -382,3 +382,13 @@ Original prompt: Criar um novo jogo retro inspirado em River Raid, em Three.js, 
 - Cliente oficial e teste dedicado não encontraram erros de console. Capturas desktop e móvel foram inspecionadas; cenário, HUD e controles permaneceram legíveis.
 - TODO: aguardar teste do usuário antes de commit e deploy da `v1.17.0`. Próxima etapa móvel sugerida: suporte explícito a recortes/safe areas e matriz de testes em diferentes proporções e densidades.
 - `v1.17.0` aprovada pelo usuário após teste dos perfis gráficos; autorizados commit e publicação antes da próxima fase.
+- `v1.17.0` registrada no commit `0d195d3` e publicada em produção. O domínio principal e a URL imutável `vibe-jogos-pv71e7j0m-mauriciokjs-projects.vercel.app` confirmaram versão e seletor gráfico.
+- `v1.18.0` local inicia a etapa de compatibilidade de telas: `viewport-fit=cover` e variáveis de safe area protegem HUD, menu, versão, alertas, flare e controles nos quatro lados.
+- O reposicionamento manual também usa esses limites. Em paisagem simulada com recorte de 47 px à esquerda, o grupo empurrado para `x/y=-1000` foi corrigido para `left=47/top=66` e salvo dentro da área útil.
+- O painel recebeu `SOM LIGADO`/`MUDO`, persistentes no aparelho. Mudo reduziu o ganho principal para `0,00077`, reapareceu após recarregar sem criar AudioContext e `M` reativou o canal em estado `running`.
+- Desktop ganhou botão visível `SOM: ON/OFF`, clicável inclusive no menu. Estado textual informa áudio, contexto, nível principal e safe areas efetivas.
+- Matriz móvel passou em 390×844 com topo 47/base 34, 844×390 com esquerda 47/direita 20/base 21 e 320×568 com topo 24/base 20. Painel e controles permaneceram dentro das três viewports.
+- O HUD superior é ocultado somente enquanto o painel móvel está aberto, eliminando a sobreposição encontrada na primeira captura paisagem. Capturas finais foram inspecionadas e nenhum erro de console apareceu.
+- Cliente oficial revalidou início, movimento, tiro e motor com áudio ativo; o teste do botão desktop confirmou mudo antes da partida.
+- TODO: aguardar teste do usuário antes de commit e deploy da `v1.18.0`. Próxima etapa portátil: interface única de eventos/anúncios e páginas de privacidade/suporte.
+- `v1.18.0` aprovada pelo usuário; autorizados commit, publicação e avanço para a camada de integração de plataformas.

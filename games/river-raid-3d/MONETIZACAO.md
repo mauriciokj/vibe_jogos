@@ -202,7 +202,7 @@ As notas abaixo são uma estimativa nossa, não uma promessa das plataformas. Fo
 
 - [x] Criar controles de toque para direção, velocidade, tiro, câmera, pausa, barrel roll e flare, com dois layouts persistentes (`v1.13.0`–`v1.14.0`).
 - [x] Permitir ajustar posição, tamanho e visibilidade dos controles, com preferências por orientação (`v1.15.0`–`v1.16.0`).
-- [ ] Testar em telas pequenas, grandes, com recorte e em diferentes densidades.
+- [x] Testar em telas pequenas, grandes, com recorte e em diferentes densidades (`v1.18.0`).
 - [x] Criar níveis gráficos automáticos para aparelhos mais lentos (`v1.17.0`).
 - [x] Pausar ao perder foco e retomar sem saltos de tempo (`v1.14.1`).
 
