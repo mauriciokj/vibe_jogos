@@ -2,6 +2,7 @@
 node_modules/
 output/
 games/**/output/
+games/river-raid-3d/packages/*.zip
 
 # local tooling
 *.log

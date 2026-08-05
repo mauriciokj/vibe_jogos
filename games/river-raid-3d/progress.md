@@ -413,4 +413,7 @@ Original prompt: Criar um novo jogo retro inspirado em River Raid, em Three.js, 
 - Matriz completa passou em 821×462, 907×510, 1077×606, 1216×684, 1280×720, 1366×768, 1536×864, 1920×1080, mobile 800×450 e tablet 1080×607. Canvas ocupou a viewport, controles permaneceram dentro da tela e não houve rolagem horizontal.
 - Cliente oficial confirmou movimento, tiro, inglês e modo CrazyGames sem erros. Testes dedicados cobriram PT/EN, mensagens dinâmicas, pausa, câmera, Game Over, páginas auxiliares e configurações móveis.
 - `v1.20.0` aprovada pelo usuário; autorizados commit, publicação e avanço para o pacote limpo dos portais.
-- Próximo passo: gerar e validar o ZIP limpo para itch.io/CrazyGames e começar os materiais de página.
+- `v1.20.0` registrada no commit `13b5ef7` e publicada em produção na URL imutável `vibe-jogos-6u7gmxz68-mauriciokjs-projects.vercel.app`, com alias principal e páginas auxiliares confirmados.
+- Pacote `packages/rio-de-aco-3d-v1.20.0-html5.zip` gerado com `index.html` na raiz, quatro páginas auxiliares, Three.js e licença; ZIP íntegro, 251 KB compactado e aproximadamente 1,1 MB descompactado.
+- O pacote foi extraído e servido isoladamente. Cliente oficial iniciou a missão em inglês, validou movimento, tiro e estado `v1.20.0`; a captura final foi inspecionada e nenhum erro de console apareceu.
+- Próximo passo: produzir os materiais da página (capas, capturas e vídeo curto) usando este pacote aprovado, começando pelo itch.io.

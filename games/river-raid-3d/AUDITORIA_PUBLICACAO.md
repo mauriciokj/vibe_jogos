@@ -8,7 +8,7 @@ Este documento é um inventário técnico e de produto para reduzir riscos antes
 
 O jogo está tecnicamente pronto para gerar um pacote de teste no itch.io e concluiu os bloqueadores técnicos identificados para o Basic Launch do CrazyGames. O próximo trabalho concentra-se no pacote e nos materiais da página.
 
-O pacote completo ocupa aproximadamente **1,1 MB**, muito abaixo dos limites atuais dos dois portais. A base não contém arquivos externos de arte, música, modelos, fontes ou efeitos sonoros.
+O conteúdo descompactado ocupa aproximadamente **1,1 MB** e o ZIP final cerca de **251 KB**, muito abaixo dos limites atuais dos dois portais. A base não contém arquivos externos de arte, música, modelos, fontes ou efeitos sonoros.
 
 ## Inventário de autoria e dependências
 
@@ -47,7 +47,7 @@ Status: **pronto para empacotamento de teste**.
 - [x] Pacote muito abaixo de 500 MB e de 1.000 arquivos.
 - [x] Ranking externo usa HTTPS e possui fallback local.
 - [x] Política de privacidade e suporte incluídos.
-- [ ] Criar ZIP limpo contendo somente jogo, páginas auxiliares, Three.js e licença.
+- [x] Criar ZIP limpo contendo somente jogo, páginas auxiliares, Three.js e licença (`rio-de-aco-3d-v1.20.0-html5.zip`).
 - [ ] Criar capa, capturas, GIF/vídeo curto, descrição e instruções.
 - [ ] Configurar como jogo HTML gratuito com doações opcionais.
 - [ ] Testar o ZIP no modo de visualização do itch.io antes de publicar.
@@ -91,3 +91,9 @@ O portal controla a frequência dos intersticiais e exige jogo pausado, interfac
 3. Publicar primeiro uma página de teste no itch.io.
 4. Submeter ao Basic Launch do CrazyGames sem anúncios reais.
 5. Integrar SDK e os dois formatos de publicidade somente se o jogo avançar para Full Launch.
+
+## Pacote validado
+
+O arquivo `packages/rio-de-aco-3d-v1.20.0-html5.zip` mantém `index.html` na raiz e inclui somente as quatro páginas auxiliares, Three.js e sua licença. A integridade do ZIP foi verificada e o conteúdo foi servido a partir de uma pasta isolada.
+
+O teste automatizado iniciou uma missão em inglês, moveu o avião, disparou, atualizou pontuação/estado e não registrou erros de console. As páginas `privacy.html` e `support.html` também responderam corretamente fora do repositório.
