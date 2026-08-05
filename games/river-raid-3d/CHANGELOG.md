@@ -8,6 +8,16 @@ O jogo usa versionamento semântico:
 
 Cada publicação deve atualizar `GAME_VERSION` no `index.html` e registrar as mudanças neste arquivo.
 
+## 1.16.0 — 2026-08-04
+
+- `MOVER CONTROLES` ativa um modo seguro de edição com a partida pausada.
+- Grupos de direção, tiro, câmera e ações podem ser arrastados livremente dentro da área visível.
+- Layout 1 permite mover direção e tiro separadamente; Layout 2 permite mover direcional, câmera e ações.
+- As posições ficam salvas separadamente para orientação vertical e horizontal, preservando os dois layouts.
+- `RESTAURAR PADRÃO` limpa todas as posições personalizadas sem alterar tamanho, visibilidade ou layout.
+- Durante a edição, contornos e rótulos identificam cada grupo e `PRONTO` encerra o modo antes de continuar a partida.
+- Estado textual expõe orientação, modo de posicionamento e deslocamentos atuais.
+
 ## 1.15.0 — 2026-08-04
 
 - O botão `AJUSTE` abre uma área segura de personalização e pausa a partida durante a configuração.

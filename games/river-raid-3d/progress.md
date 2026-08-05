@@ -365,3 +365,11 @@ Original prompt: Criar um novo jogo retro inspirado em River Raid, em Three.js, 
 - As escalas reais foram confirmadas em 0,82/0,91/1 e as visibilidades em 0,6/0,8/1. Capturas de painel grande, painel pequeno a 60% e Layout 2 pequeno a 60% foram inspecionadas.
 - Landscape 844×390 manteve painel e controles inteiros dentro da viewport, sem rolagem ou corte. Cliente oficial revalidou teclado, pausa, movimento e tiro no desktop; nenhum erro de console foi encontrado.
 - `v1.15.0` aprovada pelo usuário; pronta para commit e deploy. Reposicionamento livre continua como próxima expansão da personalização.
+- `v1.15.0` registrada no commit `f859147` e publicada em produção; o HTML público confirmou versão, painel `AJUSTE`, tamanhos e visibilidades.
+- `v1.16.0` local adiciona `MOVER CONTROLES`: a partida permanece pausada enquanto grupos do layout ativo são arrastados, delimitados à viewport e identificados por contornos/rótulos.
+- Layout 1 separa direção e tiro; Layout 2 separa direcional, câmera e ações. Posições são salvas por orientação vertical/horizontal e `RESTAURAR PADRÃO` limpa apenas os deslocamentos.
+- Teste do Layout 1 moveu a direção em `x=34/y=-70`, confirmou persistência após recarregar, disparo normal depois de `PRONTO` e restauração completa. A faixa de comandos foi elevada acima dos grupos para `PRONTO`/`CONTINUAR` nunca ficarem bloqueados.
+- Layout 2 validou arraste independente dos três grupos, retorno das posições retrato após alternar para paisagem e limite de borda em arraste extremo. O topo seguro começa 6 px abaixo do HUD para preservar pontuação e combustível.
+- Tamanhos pequenos compensam a escala durante o arraste: um gesto de 50×-40 px produziu deslocamento visual de 50,02×-40,02 px. Trocar de pequeno para grande após posicionar na borda corrigiu automaticamente o grupo para dentro da viewport.
+- Capturas de Layouts 1 e 2 em edição e paisagem com limite superior foram inspecionadas. Cliente oficial revalidou teclado, pausa, movimento e disparo no desktop; nenhum erro de console foi encontrado.
+- `v1.16.0` aprovada pelo usuário; pronta para commit e deploy.

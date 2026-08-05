@@ -491,6 +491,8 @@
       }
 
       .mobile-command-row {
+        position: relative;
+        z-index: 10;
         grid-template-columns: repeat(6, minmax(0, 1fr));
       }
 
@@ -557,6 +559,10 @@
         gap: 6px;
       }
 
+      .mobile-setting-options.two-options {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
       .mobile-setting-option {
         min-height: 34px;
         font-size: 9px;
@@ -567,6 +573,56 @@
         background: rgba(122, 86, 24, 0.88);
         color: #fff4b8;
         box-shadow: 2px 2px 0 rgba(101, 65, 12, 0.9), 0 0 12px rgba(255, 216, 77, 0.25);
+      }
+
+      .mobile-control-zone {
+        position: relative;
+        will-change: transform;
+      }
+
+      #mobile-controls.positioning-open .mobile-flight-row,
+      #mobile-controls.positioning-open .mobile-layout-2 {
+        opacity: 1;
+      }
+
+      #mobile-controls.positioning-open .mobile-control-zone {
+        z-index: 4;
+        outline: 2px dashed rgba(255, 216, 77, 0.95);
+        outline-offset: 3px;
+        filter: drop-shadow(0 0 9px rgba(255, 216, 77, 0.4));
+        cursor: move;
+        pointer-events: auto;
+        touch-action: none;
+      }
+
+      #mobile-controls.positioning-open .mobile-control-zone::before {
+        content: attr(data-zone-label);
+        position: absolute;
+        right: 2px;
+        bottom: calc(100% + 6px);
+        z-index: 6;
+        padding: 3px 5px;
+        background: rgba(5, 20, 33, 0.95);
+        color: var(--yellow);
+        font: 900 7px/1 "Courier New", monospace;
+        letter-spacing: 0.06em;
+        white-space: nowrap;
+        pointer-events: none;
+      }
+
+      #mobile-controls.positioning-open .mobile-control-zone.dragging {
+        outline-style: solid;
+        filter: brightness(1.2) drop-shadow(0 0 14px rgba(255, 216, 77, 0.65));
+      }
+
+      #mobile-controls.positioning-open .mobile-control-zone .mobile-control-button {
+        pointer-events: none;
+      }
+
+      #mobile-controls.positioning-open .mobile-command-row {
+        position: relative;
+        z-index: 10;
+        pointer-events: auto;
       }
 
       #touch-fire {
@@ -1289,6 +1345,13 @@
             <button class="mobile-control-button mobile-setting-option" type="button" data-control-opacity="1">100%</button>
           </div>
         </div>
+        <div class="mobile-setting-row">
+          <span class="mobile-setting-label">POSIÇÃO</span>
+          <div class="mobile-setting-options two-options">
+            <button id="touch-position-controls" class="mobile-control-button mobile-setting-option" type="button">MOVER CONTROLES</button>
+            <button id="touch-reset-positions" class="mobile-control-button mobile-setting-option" type="button">RESTAURAR PADRÃO</button>
+          </div>
+        </div>
       </section>
       <div class="mobile-command-row">
         <button id="touch-camera" class="mobile-control-button" type="button" data-mobile-action="camera">CÂMERA</button>
@@ -1299,25 +1362,25 @@
         <button id="touch-settings" class="mobile-control-button" type="button" aria-expanded="false">AJUSTE</button>
       </div>
       <div class="mobile-layout-1 mobile-flight-row">
-        <div class="mobile-flight-buttons">
+        <div class="mobile-flight-buttons mobile-control-zone" data-control-zone="layout1-direction" data-zone-label="DIREÇÃO">
           <button id="touch-left" class="mobile-control-button" type="button" data-input="left" aria-label="Mover para a esquerda">◀</button>
           <button id="touch-speed-up" class="mobile-control-button" type="button" data-input="up" aria-label="Acelerar">▲</button>
           <button id="touch-speed-down" class="mobile-control-button" type="button" data-input="down" aria-label="Frear">▼</button>
           <button id="touch-right" class="mobile-control-button" type="button" data-input="right" aria-label="Mover para a direita">▶</button>
         </div>
-        <button id="touch-fire" class="mobile-control-button" type="button" data-input="shoot">TIRO</button>
+        <button id="touch-fire" class="mobile-control-button mobile-control-zone" type="button" data-input="shoot" data-control-zone="layout1-fire" data-zone-label="TIRO">TIRO</button>
       </div>
       <div class="mobile-layout-2" aria-label="Layout alternativo de controles">
-        <div class="mobile-dpad" aria-label="Direcional circular">
+        <div class="mobile-dpad mobile-control-zone" aria-label="Direcional circular" data-control-zone="layout2-direction" data-zone-label="DIREÇÃO">
           <button class="mobile-control-button mobile-dpad-button mobile-dpad-up" type="button" data-input="up" aria-label="Acelerar">▲</button>
           <button class="mobile-control-button mobile-dpad-button mobile-dpad-right" type="button" data-input="right" aria-label="Mover para a direita">▶</button>
           <button class="mobile-control-button mobile-dpad-button mobile-dpad-down" type="button" data-input="down" aria-label="Frear">▼</button>
           <button class="mobile-control-button mobile-dpad-button mobile-dpad-left" type="button" data-input="left" aria-label="Mover para a esquerda">◀</button>
         </div>
-        <button id="touch-camera-alt" class="mobile-control-button" type="button" data-mobile-action="camera">
+        <button id="touch-camera-alt" class="mobile-control-button mobile-control-zone" type="button" data-mobile-action="camera" data-control-zone="layout2-camera" data-zone-label="CÂMERA">
           <span class="mobile-action-icon">●</span>CÂMERA
         </button>
-        <div class="mobile-action-cluster">
+        <div class="mobile-action-cluster mobile-control-zone" data-control-zone="layout2-actions" data-zone-label="AÇÕES">
           <button class="mobile-control-button" type="button" data-input="shoot">
             <span class="mobile-action-icon">◎</span>ATIRAR
           </button>
@@ -1392,7 +1455,7 @@
 
     <script src="./vendor/three.min.js"></script>
     <script>
-      const GAME_VERSION = '1.15.0';
+      const GAME_VERSION = '1.16.0';
       const platformOverrides =
         window.RIO_DE_ACO_CONFIG && typeof window.RIO_DE_ACO_CONFIG === 'object'
           ? window.RIO_DE_ACO_CONFIG
@@ -1889,6 +1952,7 @@
       const dom = {
         mount: document.querySelector('#game'),
         hud: document.querySelector('#hud'),
+        hudTop: document.querySelector('.hud-top'),
         version: document.querySelector('#game-version'),
         overlay: document.querySelector('#overlay'),
         title: document.querySelector('#menu-title'),
@@ -1931,6 +1995,9 @@
         mobileSettings: document.querySelector('#mobile-settings'),
         mobileControlSizeButtons: [...document.querySelectorAll('[data-control-size]')],
         mobileControlOpacityButtons: [...document.querySelectorAll('[data-control-opacity]')],
+        touchPositionControls: document.querySelector('#touch-position-controls'),
+        touchResetPositions: document.querySelector('#touch-reset-positions'),
+        mobileControlZones: [...document.querySelectorAll('[data-control-zone]')],
         fuelFill: document.querySelector('#fuel-fill'),
         fuelNumber: document.querySelector('#fuel-number'),
         lives: document.querySelector('#lives'),
@@ -2321,6 +2388,28 @@
             ? storedControlOpacity
             : 1;
           this.mobileSettingsExpanded = false;
+          this.mobilePositioningActive = false;
+          this.mobileControlDrag = null;
+          this.mobileControlPositions = { portrait: {}, landscape: {} };
+          try {
+            const storedPositions = JSON.parse(
+              localStorage.getItem('rio-de-aco-mobile-control-positions') || '{}'
+            );
+            for (const orientation of ['portrait', 'landscape']) {
+              if (!storedPositions[orientation] || typeof storedPositions[orientation] !== 'object') continue;
+              for (const [zoneId, position] of Object.entries(storedPositions[orientation])) {
+                const x = Number(position?.x);
+                const y = Number(position?.y);
+                if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+                this.mobileControlPositions[orientation][zoneId] = {
+                  x: clamp(x, -1000, 1000),
+                  y: clamp(y, -1000, 1000),
+                };
+              }
+            }
+          } catch {
+            // Posições inválidas voltam ao layout padrão sem impedir o início do jogo.
+          }
           this.entities = [];
           this.bullets = [];
           this.missiles = [];
@@ -5097,6 +5186,162 @@
           this.showToast(`VISIBILIDADE · ${Math.round(value * 100)}%`, 1);
         }
 
+        getMobileControlOrientation() {
+          return this.mobileLandscape ? 'landscape' : 'portrait';
+        }
+
+        getMobileControlScale() {
+          return { small: 0.82, medium: 0.91, large: 1 }[this.mobileControlSize] || 1;
+        }
+
+        getMobileControlPosition(zoneId, orientation = this.getMobileControlOrientation()) {
+          const position = this.mobileControlPositions[orientation]?.[zoneId];
+          return {
+            x: Number.isFinite(position?.x) ? position.x : 0,
+            y: Number.isFinite(position?.y) ? position.y : 0,
+          };
+        }
+
+        updateMobileControlPositions() {
+          const orientation = this.getMobileControlOrientation();
+          for (const zone of dom.mobileControlZones) {
+            const position = this.getMobileControlPosition(zone.dataset.controlZone, orientation);
+            zone.style.transform = `translate3d(${position.x}px, ${position.y}px, 0)`;
+          }
+          if (!this.mobileLayout) return;
+
+          const margin = 8;
+          const topMargin = Math.max(margin, dom.hudTop.getBoundingClientRect().bottom + 6);
+          const controlScale = this.getMobileControlScale();
+          let corrected = false;
+          for (const zone of dom.mobileControlZones) {
+            const rect = zone.getBoundingClientRect();
+            if (rect.width <= 0 || rect.height <= 0) continue;
+            let correctionX = 0;
+            let correctionY = 0;
+            if (rect.left < margin) correctionX = margin - rect.left;
+            else if (rect.right > innerWidth - margin) correctionX = innerWidth - margin - rect.right;
+            if (rect.top < topMargin) correctionY = topMargin - rect.top;
+            else if (rect.bottom > innerHeight - margin) correctionY = innerHeight - margin - rect.bottom;
+            if (Math.abs(correctionX) < 0.1 && Math.abs(correctionY) < 0.1) continue;
+            const current = this.getMobileControlPosition(zone.dataset.controlZone, orientation);
+            const position = {
+              x: Math.round((current.x + correctionX / controlScale) * 10) / 10,
+              y: Math.round((current.y + correctionY / controlScale) * 10) / 10,
+            };
+            this.mobileControlPositions[orientation][zone.dataset.controlZone] = position;
+            zone.style.transform = `translate3d(${position.x}px, ${position.y}px, 0)`;
+            corrected = true;
+          }
+          if (corrected) this.persistMobileControlPositions();
+        }
+
+        persistMobileControlPositions() {
+          localStorage.setItem(
+            'rio-de-aco-mobile-control-positions',
+            JSON.stringify(this.mobileControlPositions)
+          );
+        }
+
+        resetMobileControlPositions() {
+          this.mobileControlPositions = { portrait: {}, landscape: {} };
+          this.persistMobileControlPositions();
+          this.updateMobileControlPositions();
+          this.showToast('POSIÇÕES RESTAURADAS', 1.2);
+        }
+
+        startMobileControlPositioning() {
+          this.releaseTouchInputs();
+          if (this.mode === 'PLAYING') this.togglePause();
+          this.setMobileSettingsExpanded(false, false);
+          this.mobilePositioningActive = true;
+          dom.mobileControls.classList.add('positioning-open');
+          dom.touchSettings.textContent = 'PRONTO';
+          dom.touchSettings.setAttribute('aria-expanded', 'true');
+          this.showToast('ARRASTE OS GRUPOS · TOQUE PRONTO', 2.2);
+          this.updateHUD();
+        }
+
+        finishMobileControlPositioning(showMessage = true) {
+          if (!this.mobilePositioningActive) return;
+          this.mobilePositioningActive = false;
+          this.mobileControlDrag = null;
+          for (const zone of dom.mobileControlZones) zone.classList.remove('dragging');
+          dom.mobileControls.classList.remove('positioning-open');
+          dom.touchSettings.textContent = 'AJUSTE';
+          dom.touchSettings.setAttribute('aria-expanded', 'false');
+          this.persistMobileControlPositions();
+          if (showMessage) this.showToast('POSIÇÕES SALVAS · CONTINUE QUANDO PRONTO', 1.6);
+          this.updateHUD();
+        }
+
+        bindMobileControlZone(zone) {
+          const finishDrag = (event) => {
+            if (!this.mobileControlDrag || this.mobileControlDrag.zone !== zone) return;
+            if (event?.pointerId != null && event.pointerId !== this.mobileControlDrag.pointerId) return;
+            event?.preventDefault();
+            event?.stopImmediatePropagation();
+            zone.classList.remove('dragging');
+            this.mobileControlDrag = null;
+            this.persistMobileControlPositions();
+          };
+
+          zone.addEventListener('pointerdown', (event) => {
+            if (!this.mobilePositioningActive) return;
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            const orientation = this.getMobileControlOrientation();
+            const current = this.getMobileControlPosition(zone.dataset.controlZone, orientation);
+            this.mobileControlDrag = {
+              zone,
+              pointerId: event.pointerId,
+              orientation,
+              startX: event.clientX,
+              startY: event.clientY,
+              startRect: zone.getBoundingClientRect(),
+              current,
+            };
+            zone.classList.add('dragging');
+            try {
+              zone.setPointerCapture(event.pointerId);
+            } catch {
+              // O arraste continua pelos eventos normais quando a captura não está disponível.
+            }
+          }, true);
+
+          zone.addEventListener('pointermove', (event) => {
+            const drag = this.mobileControlDrag;
+            if (!drag || drag.zone !== zone || drag.pointerId !== event.pointerId) return;
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            const margin = 8;
+            const topMargin = Math.max(margin, dom.hudTop.getBoundingClientRect().bottom + 6);
+            const controlScale = this.getMobileControlScale();
+            const rawX = event.clientX - drag.startX;
+            const rawY = event.clientY - drag.startY;
+            const visualDeltaX = clamp(
+              rawX,
+              margin - drag.startRect.left,
+              innerWidth - margin - drag.startRect.right
+            );
+            const visualDeltaY = clamp(
+              rawY,
+              topMargin - drag.startRect.top,
+              innerHeight - margin - drag.startRect.bottom
+            );
+            const position = {
+              x: Math.round((drag.current.x + visualDeltaX / controlScale) * 10) / 10,
+              y: Math.round((drag.current.y + visualDeltaY / controlScale) * 10) / 10,
+            };
+            this.mobileControlPositions[drag.orientation][zone.dataset.controlZone] = position;
+            zone.style.transform = `translate3d(${position.x}px, ${position.y}px, 0)`;
+          }, true);
+
+          zone.addEventListener('pointerup', finishDrag, true);
+          zone.addEventListener('pointercancel', finishDrag, true);
+          zone.addEventListener('lostpointercapture', finishDrag, true);
+        }
+
         setMobileSettingsExpanded(expanded, showMessage = true) {
           this.mobileSettingsExpanded = Boolean(expanded);
           dom.mobileSettings.hidden = !this.mobileSettingsExpanded;
@@ -5116,6 +5361,10 @@
 
         toggleMobileSettings() {
           this.releaseTouchInputs();
+          if (this.mobilePositioningActive) {
+            this.finishMobileControlPositioning();
+            return;
+          }
           if (!this.mobileSettingsExpanded && this.mode === 'PLAYING') this.togglePause();
           this.setMobileSettingsExpanded(!this.mobileSettingsExpanded);
         }
@@ -5194,6 +5443,9 @@
               this.setMobileControlOpacity(button.dataset.controlOpacity)
             );
           }
+          dom.touchPositionControls.addEventListener('click', () => this.startMobileControlPositioning());
+          dom.touchResetPositions.addEventListener('click', () => this.resetMobileControlPositions());
+          for (const zone of dom.mobileControlZones) this.bindMobileControlZone(zone);
           dom.flareButton.addEventListener('click', () => this.deployFlare());
           dom.title.addEventListener('click', () => this.handleSecretTitleClick());
           dom.startRound.addEventListener('change', (event) => this.setStartingRound(event.target.value));
@@ -5388,6 +5640,7 @@
           this.player.rotation.set(0, 0, 0);
           this.cameraTargetX = this.player.position.x;
           this.mode = 'PLAYING';
+          this.finishMobileControlPositioning(false);
           this.setMobileSettingsExpanded(false, false);
           this.autoPaused = false;
           this.backgroundPauseSource = null;
@@ -5448,6 +5701,7 @@
             this.backgroundPauseSource = null;
             this.showToast('PAUSA', 999);
           } else if (this.mode === 'PAUSED') {
+            if (this.mobilePositioningActive) this.finishMobileControlPositioning(false);
             if (this.mobileSettingsExpanded) this.setMobileSettingsExpanded(false, false);
             this.mode = 'PLAYING';
             this.autoPaused = false;
@@ -6802,6 +7056,7 @@
           dom.flareButton.classList.toggle('active', flareAvailable);
           dom.flareButton.disabled = !flareAvailable;
           const barrelRollVisible = this.mode === 'PLAYING' || this.mode === 'PAUSED';
+          const personalizationOpen = this.mobileSettingsExpanded || this.mobilePositioningActive;
           const barrelRollState = this.isBarrelRolling()
             ? 'rolling'
             : this.barrelRollUsedThisEnvironment ? 'used' : 'ready';
@@ -6813,12 +7068,16 @@
               ? 'BARREL ROLL · USADO'
               : '[Q] BARREL ROLL · PRONTO';
           dom.mobileControls.hidden = !barrelRollVisible;
-          for (const button of dom.touchCameraButtons) button.disabled = !barrelRollVisible;
+          for (const button of dom.touchCameraButtons) {
+            button.disabled = !barrelRollVisible || personalizationOpen;
+          }
           for (const button of dom.touchBarrelRollButtons) {
             button.disabled =
-              this.mode !== 'PLAYING' || this.isBarrelRolling() || this.barrelRollUsedThisEnvironment;
+              this.mode !== 'PLAYING' || personalizationOpen || this.isBarrelRolling() || this.barrelRollUsedThisEnvironment;
           }
-          dom.touchPause.disabled = !barrelRollVisible || this.mobileSettingsExpanded;
+          dom.touchPause.disabled = !barrelRollVisible || personalizationOpen;
+          dom.touchInfo.disabled = !barrelRollVisible || personalizationOpen;
+          dom.touchLayout.disabled = !barrelRollVisible || personalizationOpen;
           dom.touchSettings.disabled = !barrelRollVisible;
           dom.touchPause.textContent = this.mode === 'PAUSED' ? 'CONTINUAR' : 'PAUSA';
           dom.fuelFill.style.transform = `scaleX(${clamp(this.fuel / 100, 0, 1)})`;
@@ -6850,6 +7109,7 @@
           this.cameraTop.updateProjectionMatrix();
           this.renderer.setSize(width, height);
           this.renderer.setPixelRatio(Math.min(devicePixelRatio, CONFIG.maxPixelRatio));
+          this.updateMobileControlPositions();
         }
 
         renderGameToText() {
@@ -7028,6 +7288,9 @@
               size: this.mobileControlSize,
               opacity: this.mobileControlOpacity,
               settingsOpen: this.mobileSettingsExpanded,
+              positioning: this.mobilePositioningActive,
+              orientation: this.getMobileControlOrientation(),
+              positions: this.mobileControlPositions[this.getMobileControlOrientation()],
               infoExpanded: this.mobileInfoExpanded,
               activeInputs: [...new Set(this.touchPointers.values())],
             },

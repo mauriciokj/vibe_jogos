@@ -201,7 +201,7 @@ As notas abaixo são uma estimativa nossa, não uma promessa das plataformas. Fo
 ### Etapa 2 — tornar o jogo realmente móvel
 
 - [x] Criar controles de toque para direção, velocidade, tiro, câmera, pausa, barrel roll e flare, com dois layouts persistentes (`v1.13.0`–`v1.14.0`).
-- [ ] Permitir ajustar posição e tamanho dos botões (tamanho e visibilidade concluídos na `v1.15.0`; reposicionamento ainda pendente).
+- [x] Permitir ajustar posição, tamanho e visibilidade dos controles, com preferências por orientação (`v1.15.0`–`v1.16.0`).
 - [ ] Testar em telas pequenas, grandes, com recorte e em diferentes densidades.
 - [ ] Criar níveis gráficos automáticos para aparelhos mais lentos.
 - [x] Pausar ao perder foco e retomar sem saltos de tempo (`v1.14.1`).
