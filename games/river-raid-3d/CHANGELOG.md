@@ -8,6 +8,49 @@ O jogo usa versionamento semântico:
 
 Cada publicação deve atualizar `GAME_VERSION` no `index.html` e registrar as mudanças neste arquivo.
 
+## 2.0.0-alpha.1 — 2026-08-07
+
+- Menu principal reduzido a uma proposta clara, um objetivo curto e o botão `DECOLAR`; ranking, desafio e instruções completas ficam em uma área secundária expansível.
+- O HUD de voo deixa de aparecer atrás do menu e o primeiro voo ganhou orientação progressiva para movimento, velocidade, tiro, combustível e ponte.
+- A abertura da primeira rodada recebeu um percurso pedagógico próprio, com FUEL centralizado, destacado e protegido contra tiros até o jogador aprender a reabastecer.
+- Durante o onboarding, a velocidade máxima e a resposta lateral ficam mais suaves e colisões precoces com a margem recebem uma tolerância temporária.
+- Câmera, barrel roll, ajuda e ajustes móveis avançados ficam ocultos durante o primeiro voo e retornam após a ponte tutorial ou ao escolher `PULAR`.
+- A conclusão do primeiro voo fica salva no aparelho; as partidas seguintes começam diretamente com a interface e as regras completas.
+- Fluxos de desktop e celular foram validados com teclado e multitoque reais, incluindo tutorial completo, proteção do FUEL, persistência, pulo, Game Over, reinício e tradução inglesa.
+
+## 1.22.0 — 2026-08-06
+
+- Novo equipamento temporário `RADAR`, desbloqueado a partir da rodada 3 e oferecido uma vez por rodada na entrada do primeiro ambiente de baixa visibilidade.
+- A caixa verde `RADAR` é coletada ao sobrevoar e mantém a detecção ativa por 75 segundos; pausa congela o tempo e colisão remove o equipamento.
+- Navios, helicópteros, pontes, lançadores, tanques, trens, caça perseguidor, mísseis e projéteis dentro de 145 unidades recebem miras verdes pulsantes.
+- Todos os marcadores usam um único lote gráfico de até 32 alvos, mantendo a correção de desempenho da `v1.21.1`.
+- HUD desktop mostra tempo e número de alvos; no celular, o contador compacto permanece acima dos controles mesmo com `INFO` recolhido.
+- Aparecimento, coleta, expiração, alvos e regras do radar foram adicionados aos eventos da plataforma e ao estado textual de testes.
+
+## 1.21.1 — 2026-08-06
+
+- Luzes móveis de navios, helicópteros, faróis, tanques, trem, mísseis e projéteis foram substituídas por lâmpadas emissivas e feixes visuais leves, preservando a aparência noturna.
+- Cenas carregadas deixam de alterar a quantidade de luzes do renderizador quando inimigos aparecem, evitando recompilações gráficas e travamentos perceptíveis.
+- No teste de estresse, o primeiro quadro da cena carregada caiu de 111 ms para 2,4 ms; o pior quadro da sequência caiu de 154,6 ms para 7,1 ms.
+- Mísseis, tiros de navio, tanque e trem, holofotes, luzes de navegação e canhões rotativos foram revalidados sem erros.
+
+## 1.21.0 — 2026-08-06
+
+- Nova caixa de equipamento `ESCUDO` estreia no começo da rodada 3, junto com os tanques; ela não aparece mais na abertura das rodadas iniciais.
+- A cada sequência de 15 inimigos destruídos sem perder uma vida, há 50% de chance de surgir outra caixa à frente; caixas e proteções não se acumulam.
+- Passar sobre a caixa ativa um campo low-poly ao redor do avião e um indicador de uma carga no HUD.
+- A proteção dura no máximo 90 segundos, com contagem regressiva no HUD, e o cronômetro fica congelado durante a pausa.
+- O escudo absorve um impacto de míssil ou projétil de navio, tanque ou trem sem consumir vida; a carga desaparece imediatamente depois do bloqueio.
+- Colisões com margens, ilha central, pontes e veículos continuam destruindo o avião e removem qualquer escudo ativo.
+- O indicador permanece visível acima dos controles no celular mesmo quando as informações secundárias estão recolhidas.
+- Coleta, consumo e contadores do equipamento foram adicionados aos eventos da plataforma e ao estado textual de testes.
+
+## 1.20.2 — 2026-08-06
+
+- Tiros do jogador agora terminam ao sair pelo topo da câmera superior, em vez de continuar atravessando áreas distantes e invisíveis.
+- O alcance máximo também vale nas câmeras de perseguição e cockpit, impedindo que inimigos fora do campo de visão sejam destruídos antecipadamente.
+- O estado textual informa o alcance restante de cada tiro para facilitar testes de combate e visibilidade.
+
 ## 1.20.0 — 2026-08-05
 
 - Interface completa ganhou localização em português e inglês, incluindo menu, HUD, alertas, câmeras, ambientes, ranking, configurações móveis e Game Over.

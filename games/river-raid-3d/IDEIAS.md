@@ -2,6 +2,8 @@
 
 Documento de referência para futuras atualizações do jogo.
 
+> A partir de 07/08/2026, novas mecânicas ficam temporariamente congeladas. O trabalho ativo segue o [Plano de qualidade da v2](PLANO_V2.md), começando pelos primeiros três minutos, fluidez e acabamento audiovisual.
+
 ## Prioridade recomendada
 
 - [x] Aceleração e frenagem com inércia real.
@@ -116,13 +118,15 @@ Status: `EVASÃO PERFEITA`, combo por destruições, bônus de rasante, `PONTE N
 
 ## 8. Armas e equipamentos temporários
 
+Status: sistema base, escudo de um impacto e radar temporário concluídos até a `v1.22.0`. Os demais equipamentos continuam planejados.
+
 - Tiro duplo.
 - Míssil ar-terra.
-- Escudo para um impacto.
+- Escudo para um impacto. Implementado: estreia na rodada 3, dura 90 segundos e pode voltar com 50% de chance a cada sequência de 15 inimigos sem perder vida. A caixa fornece uma carga contra mísseis e projéteis, campo visual no avião e indicador regressivo no HUD; colisões físicas ignoram a proteção.
 - Tanque extra de combustível.
 - Chaff para confundir mísseis.
 - Turbo com alto consumo de combustível.
-- Radar temporário para neblina e noite.
+- Radar temporário para neblina e noite. Implementado: disponível a partir da rodada 3, uma vez por rodada no primeiro ambiente de baixa visibilidade; dura 75 segundos e marca até 32 ameaças dentro de 145 unidades com um único lote gráfico.
 - Canhão de disparo rápido com duração limitada.
 
 ## 9. Pontes especiais

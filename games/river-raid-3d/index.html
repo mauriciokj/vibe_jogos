@@ -138,6 +138,12 @@
         padding: clamp(12px, 2.2vw, 28px);
         display: grid;
         grid-template-rows: auto 1fr auto;
+        transition: opacity 180ms ease, visibility 180ms ease;
+      }
+
+      body.menu-open #hud {
+        opacity: 0;
+        visibility: hidden;
       }
 
       .hud-top {
@@ -271,7 +277,9 @@
       #high-speed-score,
       #fork-route,
       #fighter-pursuit,
-      #barrel-roll {
+      #barrel-roll,
+      #equipment-shield,
+      #equipment-radar {
         padding: 8px 12px;
         border: 1px solid var(--line);
         background: var(--panel);
@@ -367,9 +375,46 @@
         text-shadow: none;
       }
 
+      #equipment-shield {
+        display: none;
+        border-color: rgba(102, 245, 255, 0.88);
+        color: #d7fbff;
+        font-weight: 900;
+        text-shadow: 0 0 10px var(--cyan);
+        box-shadow: inset 0 0 14px rgba(102, 245, 255, 0.12);
+      }
+
+      #equipment-shield.active {
+        display: block;
+        animation: shield-hud-pulse 0.8s ease-in-out infinite alternate;
+      }
+
+      #equipment-radar {
+        display: none;
+        border-color: rgba(113, 245, 161, 0.88);
+        color: #d9ffe5;
+        font-weight: 900;
+        text-shadow: 0 0 10px #71f5a1;
+        box-shadow: inset 0 0 14px rgba(113, 245, 161, 0.12);
+      }
+
+      #equipment-radar.active {
+        display: block;
+        animation: radar-hud-pulse 0.72s steps(2, end) infinite;
+      }
+
       @keyframes turbo-score-pulse {
         from { box-shadow: inset 0 0 0 rgba(255, 114, 76, 0); }
         to { box-shadow: inset 0 0 13px rgba(255, 114, 76, 0.18); }
+      }
+
+      @keyframes shield-hud-pulse {
+        from { box-shadow: inset 0 0 7px rgba(102, 245, 255, 0.08), 0 0 0 rgba(102, 245, 255, 0); }
+        to { box-shadow: inset 0 0 16px rgba(102, 245, 255, 0.22), 0 0 10px rgba(102, 245, 255, 0.24); }
+      }
+
+      @keyframes radar-hud-pulse {
+        50% { box-shadow: inset 0 0 16px rgba(113, 245, 161, 0.24), 0 0 8px rgba(113, 245, 161, 0.2); }
       }
 
       #camera-name {
@@ -411,6 +456,105 @@
       #toast.show {
         opacity: 1;
         transform: translate(-50%, 0);
+      }
+
+      #onboarding-guide {
+        position: fixed;
+        top: clamp(112px, 17vh, 154px);
+        left: 50%;
+        z-index: 29;
+        display: none;
+        grid-template-columns: 1fr auto;
+        gap: 3px 18px;
+        width: min(470px, calc(100vw - 34px));
+        padding: 12px 14px;
+        transform: translateX(-50%);
+        border: 1px solid rgba(102, 245, 255, 0.64);
+        background: rgba(4, 18, 30, 0.9);
+        box-shadow: 0 12px 35px rgba(0, 0, 0, 0.28), inset 0 0 18px rgba(102, 245, 255, 0.06);
+        pointer-events: none;
+      }
+
+      #onboarding-guide.active {
+        display: grid;
+        animation: onboarding-enter 240ms ease 220ms both;
+      }
+
+      @keyframes onboarding-enter {
+        from { opacity: 0; transform: translate(-50%, -8px); }
+        to { opacity: 1; transform: translate(-50%, 0); }
+      }
+
+      #onboarding-progress {
+        grid-column: 1 / -1;
+        color: var(--cyan);
+        font-size: 8px;
+        font-weight: 900;
+        letter-spacing: 0.2em;
+      }
+
+      #onboarding-title {
+        align-self: end;
+        color: var(--yellow);
+        font-size: 14px;
+        font-weight: 900;
+        letter-spacing: 0.12em;
+        text-shadow: 0 0 10px rgba(255, 216, 77, 0.45);
+      }
+
+      #onboarding-detail {
+        color: #c4e0e6;
+        font-size: 10px;
+        line-height: 1.45;
+        letter-spacing: 0.08em;
+      }
+
+      #onboarding-skip {
+        grid-column: 2;
+        grid-row: 2 / 4;
+        align-self: center;
+        padding: 8px 9px;
+        border: 1px solid rgba(102, 245, 255, 0.25);
+        background: transparent;
+        color: #7699a3;
+        font: 900 8px/1 "Courier New", monospace;
+        letter-spacing: 0.1em;
+        cursor: pointer;
+        pointer-events: auto;
+      }
+
+      #onboarding-skip:hover,
+      #onboarding-skip:focus-visible {
+        border-color: var(--cyan);
+        color: var(--cyan);
+        outline: 1px solid var(--cyan);
+        outline-offset: 2px;
+      }
+
+      body.onboarding-active #mission-mode,
+      body.onboarding-active .hud-status > .camera-chip,
+      body.onboarding-active .hud-status > .moment-chip,
+      body.onboarding-active #barrel-roll,
+      body.onboarding-active #help-chip {
+        display: none !important;
+      }
+
+      body.onboarding-active #touch-camera,
+      body.onboarding-active #touch-camera-alt,
+      body.onboarding-active #touch-barrel-roll,
+      body.onboarding-active #touch-barrel-roll-alt,
+      body.onboarding-active #touch-info,
+      body.onboarding-active #touch-layout,
+      body.onboarding-active #touch-settings {
+        display: none !important;
+      }
+
+      body.onboarding-active .mobile-command-row {
+        justify-content: center;
+      }
+
+      body.onboarding-active #toast {
+        top: 30%;
       }
 
       #missile-alert {
@@ -863,6 +1007,68 @@
         text-transform: uppercase;
       }
 
+      .menu-objective {
+        width: min(470px, 100%);
+        margin: 20px auto 22px;
+        padding: 13px 16px;
+        border: 1px solid rgba(102, 245, 255, 0.28);
+        background: rgba(4, 18, 30, 0.66);
+        color: #a8cbd4;
+        font-size: 11px;
+        line-height: 1.55;
+        letter-spacing: 0.1em;
+      }
+
+      .menu-objective strong {
+        display: block;
+        margin-bottom: 4px;
+        color: var(--yellow);
+        font-size: 13px;
+        letter-spacing: 0.14em;
+      }
+
+      #menu-extras {
+        width: min(550px, 100%);
+        margin: 22px auto 0;
+        border-top: 1px solid rgba(102, 245, 255, 0.18);
+      }
+
+      #menu-extras > summary {
+        width: max-content;
+        margin: 0 auto;
+        padding: 12px 16px 3px;
+        color: #7198a3;
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: 0.16em;
+        cursor: pointer;
+        list-style: none;
+      }
+
+      #menu-extras > summary::-webkit-details-marker {
+        display: none;
+      }
+
+      #menu-extras > summary::before {
+        content: '+ ';
+        color: var(--cyan);
+      }
+
+      #menu-extras[open] > summary::before {
+        content: '− ';
+      }
+
+      #menu-extras > summary:hover,
+      #menu-extras > summary:focus-visible {
+        color: var(--cyan);
+        outline: 1px solid rgba(102, 245, 255, 0.38);
+        outline-offset: 3px;
+      }
+
+      #menu-extras .controls {
+        margin-bottom: 12px;
+      }
+
       .controls {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
@@ -1193,8 +1399,15 @@
 
       #overlay[data-mode="gameover"] .controls,
       #overlay[data-mode="gameover"] .simulation-round,
-      #overlay[data-mode="gameover"] #daily-button {
+      #overlay[data-mode="gameover"] #daily-button,
+      #overlay[data-mode="gameover"] .menu-objective,
+      #overlay[data-mode="gameover"] #menu-extras > summary {
         display: none;
+      }
+
+      #overlay[data-mode="gameover"] #menu-extras {
+        margin-top: 10px;
+        border-top: 0;
       }
 
       @media (min-width: 621px) and (max-height: 600px) {
@@ -1331,6 +1544,25 @@
           max-width: calc(100% - var(--safe-left) - var(--safe-right) - 18px);
         }
 
+        #onboarding-guide {
+          top: max(82px, calc(var(--safe-top) + 62px));
+          width: calc(100% - var(--safe-left) - var(--safe-right) - 18px);
+          padding: 9px 10px;
+        }
+
+        #onboarding-title {
+          font-size: 11px;
+        }
+
+        #onboarding-detail {
+          font-size: 8px;
+        }
+
+        #onboarding-skip {
+          padding: 7px;
+          font-size: 7px;
+        }
+
         #missile-alert {
           top: max(13%, calc(var(--safe-top) + 58px));
           max-width: calc(100% - var(--safe-left) - var(--safe-right) - 18px);
@@ -1353,7 +1585,22 @@
         }
 
         #hud.mobile-info-collapsed .hud-bottom {
-          display: none;
+          display: block;
+          pointer-events: none;
+        }
+
+        #hud.mobile-info-collapsed .hud-status > * {
+          display: none !important;
+        }
+
+        #hud.mobile-info-collapsed #equipment-shield.active {
+          display: block !important;
+          width: max-content;
+        }
+
+        #hud.mobile-info-collapsed #equipment-radar.active {
+          display: block !important;
+          width: max-content;
         }
 
         .hud-status {
@@ -1366,7 +1613,9 @@
         #high-speed-score,
         #fork-route,
         #fighter-pursuit,
-        #barrel-roll {
+        #barrel-roll,
+        #equipment-shield,
+        #equipment-radar {
           padding: 5px 7px;
           font-size: 8px;
           background: rgba(5, 17, 30, 0.88);
@@ -1390,6 +1639,16 @@
 
         .menu-card {
           padding: 22px 18px;
+        }
+
+        .menu-objective {
+          margin: 16px auto 18px;
+          padding: 11px 12px;
+          font-size: 10px;
+        }
+
+        #menu-extras {
+          margin-top: 18px;
         }
 
         .leaderboard-details {
@@ -1467,7 +1726,7 @@
       }
     </style>
   </head>
-  <body>
+  <body class="menu-open">
     <div id="game" aria-label="Jogo Rio de Aço 3D"></div>
     <div class="vignette"></div>
     <div class="scanlines"></div>
@@ -1509,6 +1768,8 @@
           <div id="fork-route" data-role="supply">ROTA FUEL</div>
           <div id="fighter-pursuit">CAÇA NA CAUDA</div>
           <div id="barrel-roll" data-state="ready">[Q] BARREL ROLL · PRONTO</div>
+          <div id="equipment-shield">◆ ESCUDO · 1 IMPACTO</div>
+          <div id="equipment-radar">◉ RADAR · 75s</div>
         </div>
         <div id="help-chip" class="help-chip">[Q] BARREL ROLL · [C] CÂMERA · [P] PAUSA · [M] SOM · [F] TELA CHEIA</div>
       </div>
@@ -1518,6 +1779,12 @@
       <span id="missile-direction">↑</span>
       <span id="missile-alert-label">RASTREANDO</span>
     </div>
+    <section id="onboarding-guide" aria-live="polite" aria-label="Orientação do primeiro voo">
+      <div id="onboarding-progress">PRIMEIRO VOO · 1/5</div>
+      <div id="onboarding-title">MOVA O AVIÃO</div>
+      <div id="onboarding-detail">USE ← → OU A D</div>
+      <button id="onboarding-skip" type="button">PULAR</button>
+    </section>
     <button id="flare-button" type="button">[E] LANÇAR FLARE</button>
     <div id="mobile-controls" data-layout="1" data-size="large" aria-label="Controles de toque" hidden>
       <section id="mobile-settings" aria-label="Ajustes dos controles" hidden>
@@ -1612,53 +1879,59 @@
         <h1 id="menu-title">RIO DE AÇO</h1>
         <div id="menu-subtitle" class="subtitle">Ataque retro low-poly em 3D</div>
         <div id="final-score"></div>
-        <div class="controls">
-          <div class="control"><b>◀ · ▶ / A · D</b>MOVER AVIÃO</div>
-          <div class="control"><b>▲ · ▼ / W · S</b>ACELERAR / FREAR</div>
-          <div class="control"><b>TIRO / ESPAÇO</b>DISPARAR</div>
+        <div class="menu-objective">
+          <strong>SUA PRIMEIRA MISSÃO</strong>
+          VOE PELO RIO · REABASTEÇA NO FUEL · DESTRUA A PONTE
         </div>
-        <label id="simulation-round" class="simulation-round" for="start-round" hidden>
-          <span>Rodada inicial</span>
-          <select id="start-round" aria-describedby="round-description">
-            <option value="1">01</option>
-            <option value="2">02</option>
-            <option value="3">03</option>
-            <option value="4">04</option>
-            <option value="5">05</option>
-            <option value="6">06</option>
-            <option value="7">07</option>
-            <option value="8">08</option>
-            <option value="9">09</option>
-            <option value="10">10</option>
-          </select>
-          <span id="round-description">BASE · SEM MÍSSEIS</span>
-        </label>
-        <section id="leaderboard-panel" class="leaderboard-panel" aria-label="Ranking global">
-          <div class="leaderboard-head">
-            <div class="leaderboard-tabs" aria-label="Escolher ranking">
-              <button class="leaderboard-tab active" type="button" data-board="global">GERAL</button>
-              <button class="leaderboard-tab" type="button" data-board="daily">DIÁRIO</button>
-            </div>
-            <span id="leaderboard-meta">CARREGANDO...</span>
-          </div>
-          <form id="score-form" hidden>
-            <label for="player-name">REGISTRE SUA PONTUAÇÃO</label>
-            <div class="score-form-row">
-              <input id="player-name" name="playerName" maxlength="14" placeholder="SEU NOME" autocomplete="nickname" required />
-              <button id="save-score-button" type="submit">SALVAR</button>
-            </div>
-          </form>
-          <div id="score-save-status" aria-live="polite"></div>
-          <ol id="leaderboard-list" aria-live="polite">
-            <li>SEM RECORDES AINDA</li>
-          </ol>
-        </section>
         <div class="mission-buttons">
           <button id="start-button" type="button">DECOLAR</button>
-          <button id="daily-button" type="button">DESAFIO DO DIA<small id="daily-label"></small></button>
         </div>
+        <details id="menu-extras">
+          <summary>CONTROLES · RANKING · DESAFIO</summary>
+          <div class="controls">
+            <div class="control"><b>◀ · ▶ / A · D</b>MOVER AVIÃO</div>
+            <div class="control"><b>▲ · ▼ / W · S</b>ACELERAR / FREAR</div>
+            <div class="control"><b>TIRO / ESPAÇO</b>DISPARAR</div>
+          </div>
+          <label id="simulation-round" class="simulation-round" for="start-round" hidden>
+            <span>Rodada inicial</span>
+            <select id="start-round" aria-describedby="round-description">
+              <option value="1">01</option>
+              <option value="2">02</option>
+              <option value="3">03</option>
+              <option value="4">04</option>
+              <option value="5">05</option>
+              <option value="6">06</option>
+              <option value="7">07</option>
+              <option value="8">08</option>
+              <option value="9">09</option>
+              <option value="10">10</option>
+            </select>
+            <span id="round-description">BASE · SEM MÍSSEIS</span>
+          </label>
+          <section id="leaderboard-panel" class="leaderboard-panel" aria-label="Ranking global">
+            <div class="leaderboard-head">
+              <div class="leaderboard-tabs" aria-label="Escolher ranking">
+                <button class="leaderboard-tab active" type="button" data-board="global">GERAL</button>
+                <button class="leaderboard-tab" type="button" data-board="daily">DIÁRIO</button>
+              </div>
+              <span id="leaderboard-meta">CARREGANDO...</span>
+            </div>
+            <form id="score-form" hidden>
+              <label for="player-name">REGISTRE SUA PONTUAÇÃO</label>
+              <div class="score-form-row">
+                <input id="player-name" name="playerName" maxlength="14" placeholder="SEU NOME" autocomplete="nickname" required />
+                <button id="save-score-button" type="submit">SALVAR</button>
+              </div>
+            </form>
+            <div id="score-save-status" aria-live="polite"></div>
+            <ol id="leaderboard-list" aria-live="polite">
+              <li>SEM RECORDES AINDA</li>
+            </ol>
+          </section>
+          <button id="daily-button" type="button">DESAFIO DO DIA<small id="daily-label"></small></button>
+        </details>
         <div class="menu-foot">
-          <div>DESTRUA AS PONTES · REABASTEÇA NOS DEPÓSITOS FUEL</div>
           <nav class="menu-links" aria-label="Informações do jogo">
             <a id="privacy-link" href="./privacidade.html" target="_blank" rel="noopener">PRIVACIDADE</a>
             <a id="support-link" href="./suporte.html" target="_blank" rel="noopener">SUPORTE</a>
@@ -1667,9 +1940,10 @@
       </section>
     </div>
 
+    <script src="./crazygames.js"></script>
     <script src="./vendor/three.min.js"></script>
     <script>
-      const GAME_VERSION = '1.20.0';
+      const GAME_VERSION = '2.0.0-alpha.1';
       const platformOverrides =
         window.RIO_DE_ACO_CONFIG && typeof window.RIO_DE_ACO_CONFIG === 'object'
           ? window.RIO_DE_ACO_CONFIG
@@ -1708,6 +1982,8 @@
       const DAILY_TIME_ZONE = 'America/Sao_Paulo';
       const GRAPHICS_QUALITY_STORAGE_KEY = 'rio-de-aco-graphics-quality';
       const SOUND_ENABLED_STORAGE_KEY = 'rio-de-aco-sound-enabled';
+      const ONBOARDING_STORAGE_KEY = 'rio-de-aco-first-flight-complete';
+      const FORCE_ONBOARDING = queryParams.get('tutorial') === '1';
 
       const ENGLISH_TEXT = Object.freeze({
         'CAÇA INIMIGO NA CAUDA · FUJA POR 5 SEGUNDOS': 'ENEMY FIGHTER ON YOUR TAIL · EVADE FOR 5 SECONDS',
@@ -1723,6 +1999,24 @@
         'CAÇA DESPISTADO': 'FIGHTER EVADED',
         'ATINGIDO POR CANHÃO': 'HIT BY CANNON',
         'ATINGIDO POR MÍSSIL': 'HIT BY MISSILE',
+        'ESCUDO COLETADO · 1 IMPACTO': 'SHIELD COLLECTED · 1 HIT',
+        'ESCUDO ABSORVEU O MÍSSIL': 'SHIELD ABSORBED THE MISSILE',
+        'ESCUDO ABSORVEU O TIRO': 'SHIELD ABSORBED THE SHOT',
+        'ESCUDO EXPIRADO': 'SHIELD EXPIRED',
+        'SUPRIMENTO DE ESCUDO À FRENTE': 'SHIELD SUPPLY AHEAD',
+        'ESCUDO DISPONÍVEL': 'SHIELD AVAILABLE',
+        'ESCUDO COLETADO': 'SHIELD COLLECTED',
+        'ESCUDO · 1 IMPACTO': 'SHIELD · 1 HIT',
+        'ESCUDO': 'SHIELD',
+        'IMPACTO': 'HIT',
+        'RADAR COLETADO · ALVOS MARCADOS': 'RADAR COLLECTED · TARGETS MARKED',
+        'RADAR COLETADO': 'RADAR COLLECTED',
+        'ALVOS MARCADOS': 'TARGETS MARKED',
+        'SUPRIMENTO DE RADAR À FRENTE': 'RADAR SUPPLY AHEAD',
+        'RADAR EXPIRADO': 'RADAR EXPIRED',
+        'RADAR DISPONÍVEL': 'RADAR AVAILABLE',
+        'ALVOS': 'TARGETS',
+        'ALVO': 'TARGET',
         'SEM COMBUSTÍVEL': 'OUT OF FUEL',
         'COLISÃO COM A MARGEM': 'BANK COLLISION',
         'COLISÃO COM A ILHA CENTRAL': 'CENTRAL ISLAND COLLISION',
@@ -1743,6 +2037,29 @@
         'PONTUAÇÃO REGISTRADA · FORA DO TOP 20': 'SCORE SAVED · OUTSIDE TOP 20',
         'FAÇA PONTOS PARA ENTRAR NO RANKING': 'SCORE POINTS TO ENTER THE LEADERBOARD',
         'DESTRUA AS PONTES · REABASTEÇA NOS DEPÓSITOS FUEL': 'DESTROY BRIDGES · REFUEL AT FUEL DEPOTS',
+        'SUA PRIMEIRA MISSÃO': 'YOUR FIRST MISSION',
+        'VOE PELO RIO · REABASTEÇA NO FUEL · DESTRUA A PONTE': 'FLY THE RIVER · REFUEL AT FUEL · DESTROY THE BRIDGE',
+        'CONTROLES · RANKING · DESAFIO': 'CONTROLS · LEADERBOARD · CHALLENGE',
+        'Orientação do primeiro voo': 'First flight guidance',
+        'PRIMEIRO VOO': 'FIRST FLIGHT',
+        'MOVA O AVIÃO': 'MOVE THE PLANE',
+        'USE ← → OU A D': 'USE ← → OR A D',
+        'USE ◀ ▶ PARA MOVER': 'USE ◀ ▶ TO MOVE',
+        'CONTROLE A VELOCIDADE': 'CONTROL YOUR SPEED',
+        'USE ↑ ↓ OU W S': 'USE ↑ ↓ OR W S',
+        'USE ▲ ▼ PARA ACELERAR E FREAR': 'USE ▲ ▼ TO ACCELERATE AND BRAKE',
+        'TESTE AS ARMAS': 'TEST YOUR WEAPONS',
+        'PRESSIONE ESPAÇO PARA ATIRAR': 'PRESS SPACE TO FIRE',
+        'USE O BOTÃO TIRO': 'USE THE FIRE BUTTON',
+        'REABASTEÇA': 'REFUEL',
+        'SOBREVOE O FUEL · NÃO ATIRE': 'FLY OVER FUEL · DO NOT SHOOT',
+        'ABRA O CAMINHO': 'CLEAR THE WAY',
+        'ATIRE NA PONTE PARA AVANÇAR': 'SHOOT THE BRIDGE TO ADVANCE',
+        'PULAR': 'SKIP',
+        'FUEL É SUPRIMENTO · SOBREVÔE': 'FUEL IS A SUPPLY · FLY OVER IT',
+        'FUEL COLETADO · TANQUE CHEIO': 'FUEL COLLECTED · TANK FULL',
+        'LIMITE DO RIO · VOLTE AO CENTRO': 'RIVER LIMIT · RETURN TO CENTER',
+        'PRIMEIRO VOO CONCLUÍDO': 'FIRST FLIGHT COMPLETE',
         'Ataque retro low-poly em 3D': 'Low-poly 3D retro strike',
         'Esquadrão Fluvial · Missão 01': 'River Squadron · Mission 01',
         'MESMO PERCURSO PARA TODOS': 'SAME ROUTE FOR EVERYONE',
@@ -1982,7 +2299,21 @@
         acceleration: 8.5,
         braking: 12.5,
         lateralSpeed: 17,
+        onboardingMaxSpeed: 40,
+        onboardingLateralScale: 0.62,
+        onboardingBoundaryGraceSeconds: 18,
         bulletSpeed: 92,
+        playerBulletRange: 64,
+        playerBulletTopScreenMargin: 1.6,
+        shieldDuration: 90,
+        shieldStreakRequired: 15,
+        shieldStreakDropChance: 0.5,
+        radarDuration: 75,
+        radarUnlockCycle: 2,
+        radarDetectionRange: 145,
+        radarMaxTargets: 32,
+        equipmentPickupDepth: 4.5,
+        equipmentPickupWidth: 3.8,
         missilePropulsionSpeed: 38,
         missileTurnRate: 3.8,
         missileLifetime: 5.5,
@@ -2467,6 +2798,24 @@
         sandIntensity: 0,
       }));
 
+      const RADAR_ENVIRONMENT_KEYS = new Set([
+        'night',
+        'fog',
+        'desert-night',
+        'sandstorm',
+        'jungle-night',
+        'tropical-rain',
+        'jungle-mist',
+      ]);
+      const RADAR_TARGET_TYPES = new Set([
+        'navio',
+        'helicóptero',
+        'ponte',
+        'lançador',
+        'tanque',
+        'trem',
+      ]);
+
       const dom = {
         mount: document.querySelector('#game'),
         hud: document.querySelector('#hud'),
@@ -2477,6 +2826,7 @@
         privacyLink: document.querySelector('#privacy-link'),
         supportLink: document.querySelector('#support-link'),
         overlay: document.querySelector('#overlay'),
+        menuExtras: document.querySelector('#menu-extras'),
         title: document.querySelector('#menu-title'),
         subtitle: document.querySelector('#menu-subtitle'),
         start: document.querySelector('#start-button'),
@@ -2505,6 +2855,8 @@
         forkRoute: document.querySelector('#fork-route'),
         fighterPursuit: document.querySelector('#fighter-pursuit'),
         barrelRoll: document.querySelector('#barrel-roll'),
+        equipmentShield: document.querySelector('#equipment-shield'),
+        equipmentRadar: document.querySelector('#equipment-radar'),
         flareButton: document.querySelector('#flare-button'),
         mobileControls: document.querySelector('#mobile-controls'),
         touchInputButtons: [...document.querySelectorAll('#mobile-controls [data-input]')],
@@ -2531,6 +2883,11 @@
         missileAlert: document.querySelector('#missile-alert'),
         missileDirection: document.querySelector('#missile-direction'),
         missileAlertLabel: document.querySelector('#missile-alert-label'),
+        onboardingGuide: document.querySelector('#onboarding-guide'),
+        onboardingProgress: document.querySelector('#onboarding-progress'),
+        onboardingTitle: document.querySelector('#onboarding-title'),
+        onboardingDetail: document.querySelector('#onboarding-detail'),
+        onboardingSkip: document.querySelector('#onboarding-skip'),
         toast: document.querySelector('#toast'),
       };
 
@@ -2785,7 +3142,9 @@
           this.context = null;
           this.master = null;
           this.masterLevel = 0.16;
-          this.muted = Boolean(muted);
+          this.userMuted = Boolean(muted);
+          this.externalMuted = false;
+          this.muted = this.userMuted;
           this.engineOscillator = null;
           this.engineFilter = null;
           this.engineGain = null;
@@ -2822,7 +3181,17 @@
         }
 
         setMuted(muted) {
-          this.muted = Boolean(muted);
+          this.userMuted = Boolean(muted);
+          this.applyMutedState();
+        }
+
+        setExternalMuted(muted) {
+          this.externalMuted = Boolean(muted);
+          this.applyMutedState();
+        }
+
+        applyMutedState() {
+          this.muted = this.userMuted || this.externalMuted;
           if (!this.context || !this.master) return;
           const now = this.context.currentTime;
           this.master.gain.cancelScheduledValues(now);
@@ -2963,6 +3332,13 @@
           this.clock = new THREE.Clock();
           this.manualStepping = false;
           this.mode = 'MENU';
+          this.onboardingCompleted = !FORCE_ONBOARDING && localStorage.getItem(ONBOARDING_STORAGE_KEY) === '1';
+          this.onboardingActive = false;
+          this.onboardingStep = 'inactive';
+          this.onboardingStepIndex = -1;
+          this.onboardingInputTime = 0;
+          this.onboardingBoundaryToastCooldown = 0;
+          this.onboardingFuelHintShown = false;
           this.autoPaused = false;
           this.backgroundPauseSource = null;
           this.elapsed = 0;
@@ -3025,6 +3401,19 @@
           this.barrelRollUsedThisEnvironment = false;
           this.barrelRolls = 0;
           this.barrelRollEvades = 0;
+          this.shieldActive = false;
+          this.shieldTimeRemaining = 0;
+          this.shieldsCollected = 0;
+          this.shieldImpactsAbsorbed = 0;
+          this.enemyKillStreak = 0;
+          this.bestEnemyKillStreak = 0;
+          this.shieldStreakDrops = 0;
+          this.tankCycleShieldSpawned = false;
+          this.radarActive = false;
+          this.radarTimeRemaining = 0;
+          this.radarsCollected = 0;
+          this.radarTargetCount = 0;
+          this.radarSupplyCycle = -1;
           this.runMode = 'classic';
           this.dailyChallengeDate = getDailyDateKey();
           this.dailyChallengeSeed = hashStringToUint32(`rio-de-aco:${this.dailyChallengeDate}`);
@@ -3118,6 +3507,7 @@
           this.createTerrain();
           this.createSpeedLines();
           this.createSnow();
+          this.createRadarMarkers();
           this.applyGraphicsProfile(this.graphicsProfile, this.graphicsProfileReason);
           dom.version.textContent = `v${GAME_VERSION}`;
           dom.dailyLabel.textContent = `${formatDailyDate(this.dailyChallengeDate)} · MESMO PERCURSO PARA TODOS`;
@@ -3146,6 +3536,11 @@
             requestInterstitial: (placement) =>
               this.platform.requestAd('interstitial', placement),
             requestRewarded: (placement) => this.platform.requestAd('rewarded', placement),
+            setExternalMute: (muted) => {
+              this.audio.setExternalMuted(muted);
+              this.updateHUD();
+              return this.audio.muted;
+            },
             getState: () => this.platform.getSnapshot(),
           });
           window.RIO_DE_ACO_PLATFORM = platformApi;
@@ -3583,6 +3978,55 @@
           this.scene.add(this.snow);
         }
 
+        createRadarMarkers() {
+          const markerCanvas = document.createElement('canvas');
+          markerCanvas.width = 64;
+          markerCanvas.height = 64;
+          const context = markerCanvas.getContext('2d');
+          context.clearRect(0, 0, 64, 64);
+          context.strokeStyle = '#71f5a1';
+          context.lineWidth = 5;
+          context.beginPath();
+          context.arc(32, 32, 19, 0, Math.PI * 2);
+          context.moveTo(32, 4);
+          context.lineTo(32, 17);
+          context.moveTo(32, 47);
+          context.lineTo(32, 60);
+          context.moveTo(4, 32);
+          context.lineTo(17, 32);
+          context.moveTo(47, 32);
+          context.lineTo(60, 32);
+          context.stroke();
+
+          const texture = new THREE.CanvasTexture(markerCanvas);
+          texture.colorSpace = THREE.SRGBColorSpace;
+          const positions = new Float32Array(CONFIG.radarMaxTargets * 3);
+          const geometry = new THREE.BufferGeometry();
+          const attribute = new THREE.BufferAttribute(positions, 3);
+          attribute.setUsage(THREE.DynamicDrawUsage);
+          geometry.setAttribute('position', attribute);
+          geometry.setDrawRange(0, 0);
+          const material = new THREE.PointsMaterial({
+            color: 0x71f5a1,
+            map: texture,
+            size: 17,
+            transparent: true,
+            opacity: 0.92,
+            alphaTest: 0.08,
+            depthTest: false,
+            depthWrite: false,
+            sizeAttenuation: false,
+            fog: false,
+            blending: THREE.AdditiveBlending,
+          });
+          this.radarMarkers = new THREE.Points(geometry, material);
+          this.radarMarkers.visible = false;
+          this.radarMarkers.frustumCulled = false;
+          this.radarMarkers.renderOrder = 25;
+          this.radarMarkerPositions = positions;
+          this.scene.add(this.radarMarkers);
+        }
+
         createSpeedLines() {
           this.speedLineMaterial = new THREE.MeshBasicMaterial({
             color: 0xb8f7ff,
@@ -3669,6 +4113,10 @@
           };
         }
 
+        isRadarEnvironment(environment = this.getEnvironmentPhase()) {
+          return RADAR_ENVIRONMENT_KEYS.has(environment.key);
+        }
+
         blendColor(target, from, to, amount) {
           target.set(from).lerp(new THREE.Color(to), amount);
         }
@@ -3733,6 +4181,7 @@
           let navalCombatUnlocked = false;
           let trainCombatUnlocked = false;
           let fighterPursuitUnlocked = false;
+          let shieldEquipmentUnlocked = false;
           if (this.environmentIndex === ENVIRONMENT_PHASES.length - 1) {
             this.environmentCyclesCompleted += 1;
             if (
@@ -3746,6 +4195,7 @@
             navalCombatUnlocked = this.environmentCyclesCompleted === CONFIG.shipCombatCycle;
             trainCombatUnlocked = this.environmentCyclesCompleted === CONFIG.trainUnlockCycle;
             fighterPursuitUnlocked = this.environmentCyclesCompleted === CONFIG.fighterUnlockCycle;
+            shieldEquipmentUnlocked = this.environmentCyclesCompleted === CONFIG.tankUnlockCycle;
             if (fighterPursuitUnlocked) {
               this.nextFighterDistance = this.distance + CONFIG.fighterFirstDistance;
             }
@@ -3755,6 +4205,11 @@
             this.updateHUD();
           }
           const nextEnvironment = this.setEnvironmentPhase(this.environmentIndex + 1, false);
+          const radarSupplyUnlocked = Boolean(
+            this.environmentCyclesCompleted >= CONFIG.radarUnlockCycle &&
+            this.isRadarEnvironment(nextEnvironment) &&
+            this.radarSupplyCycle !== this.environmentCyclesCompleted
+          );
           this.barrelRollUsedThisEnvironment = false;
           this.updateHUD();
           this.platform.emit('environment_changed', {
@@ -3770,6 +4225,8 @@
             navalCombatUnlocked,
             trainCombatUnlocked,
             fighterPursuitUnlocked,
+            shieldEquipmentUnlocked,
+            radarSupplyUnlocked,
           };
         }
 
@@ -4298,6 +4755,22 @@
           exhaust.position.z = 3.72;
           plane.add(exhaust);
           plane.userData.exhaust = exhaust;
+
+          const shieldVisual = new THREE.Mesh(
+            new THREE.IcosahedronGeometry(1, 0),
+            new THREE.MeshBasicMaterial({
+              color: 0x66f5ff,
+              wireframe: true,
+              transparent: true,
+              opacity: 0.28,
+              depthWrite: false,
+            })
+          );
+          shieldVisual.scale.set(5.9, 2.35, 4.65);
+          shieldVisual.visible = false;
+          shieldVisual.renderOrder = 4;
+          plane.add(shieldVisual);
+          plane.userData.shieldVisual = shieldVisual;
           return plane;
         }
 
@@ -4402,10 +4875,7 @@
             const lens = new THREE.Mesh(new THREE.OctahedronGeometry(index === 2 ? 0.19 : 0.15, 0), lensMaterial);
             lens.position.set(...spec.position);
             group.add(lens);
-            const light = new THREE.PointLight(spec.color, 0, index === 2 ? 18 : 12, 1.8);
-            light.position.copy(lens.position);
-            light.visible = false;
-            group.add(light);
+            const light = { intensity: 0, visible: false };
             return { lens, light, phase: spec.phase, baseIntensity: spec.baseIntensity, blinking };
           });
           group.userData.navigationLights = navigationLights;
@@ -4432,13 +4902,7 @@
           beam.visible = false;
           aim.add(beam);
 
-          const spot = new THREE.SpotLight(color, 0, length * 1.25, Math.atan(radius / length) * 1.45, 0.62, 1.35);
-          spot.position.set(0, 0, 0);
-          spot.visible = false;
-          const target = new THREE.Object3D();
-          target.position.set(0, -length, 0);
-          aim.add(spot, target);
-          spot.target = target;
+          const spot = { intensity: 0, visible: false };
           pivot.add(aim);
           group.add(pivot);
 
@@ -4646,6 +5110,66 @@
           };
         }
 
+        createEquipmentCrate(equipment, x, z, spawnSource = 'world') {
+          const group = new THREE.Group();
+          const isRadar = equipment === 'radar';
+          const equipmentColor = isRadar ? 0x71f5a1 : 0x66f5ff;
+          const glowMaterial = new THREE.MeshBasicMaterial({
+            color: equipmentColor,
+            transparent: true,
+            opacity: 0.58,
+            depthWrite: false,
+          });
+          const base = new THREE.Mesh(
+            new THREE.BoxGeometry(3.8, 0.55, 3.8),
+            this.materials.navy
+          );
+          base.position.y = 0.42;
+          group.add(base);
+
+          const top = new THREE.Mesh(
+            new THREE.OctahedronGeometry(1.05, 0),
+            isRadar
+              ? new THREE.MeshBasicMaterial({ color: equipmentColor, transparent: true, opacity: 0.82 })
+              : this.materials.glass
+          );
+          top.scale.set(isRadar ? 0.82 : 1.25, isRadar ? 1.12 : 0.82, isRadar ? 0.82 : 1.25);
+          top.position.y = 1.55;
+          group.add(top);
+
+          const ring = new THREE.Mesh(
+            new THREE.TorusGeometry(1.75, 0.12, 5, 18),
+            glowMaterial
+          );
+          ring.rotation.x = isRadar ? 0 : Math.PI / 2;
+          ring.rotation.y = isRadar ? Math.PI / 2 : 0;
+          ring.position.y = 1.5;
+          group.add(ring);
+
+          const label = makeLabelSprite(
+            isRadar ? 'RADAR' : GAME_LANGUAGE === 'en' ? 'SHIELD' : 'ESCUDO'
+          );
+          label.position.set(0, 3.8, 0);
+          label.scale.multiplyScalar(0.88);
+          group.add(label);
+
+          group.position.set(x, 0.2, z);
+          group.userData.ring = ring;
+          group.userData.core = top;
+          this.scene.add(group);
+          return {
+            type: 'equipamento',
+            equipment,
+            spawnSource,
+            group,
+            radius: 2.35,
+            health: 1,
+            score: 0,
+            phase: this.gameplayRandom() * Math.PI * 2,
+            vx: 0,
+          };
+        }
+
         createNavigationBeacon(color, phase) {
           const beacon = new THREE.Group();
           const whiteMaterial = new THREE.MeshLambertMaterial({ color: COLORS.cream, flatShading: true });
@@ -4681,10 +5205,7 @@
           roof.position.y = 5.57;
           beacon.add(roof);
 
-          const light = new THREE.PointLight(color, 0, 18, 1.7);
-          light.position.y = 5.0;
-          light.visible = false;
-          beacon.add(light);
+          const light = { intensity: 0, visible: false };
           beacon.userData.lens = lens;
           beacon.userData.light = light;
           beacon.userData.phase = phase;
@@ -4784,9 +5305,7 @@
           const lens = new THREE.Mesh(new THREE.OctahedronGeometry(0.3, 0), lensMaterial);
           lens.position.set(0, 2.25, 0);
           group.add(lens);
-          const warningLight = new THREE.PointLight(0xff3048, 2.2, 11, 2);
-          warningLight.position.copy(lens.position);
-          group.add(warningLight);
+          const warningLight = { intensity: 2.2, visible: true };
 
           group.position.set(x, 0.12, z);
           group.userData.turret = turret;
@@ -4856,9 +5375,7 @@
           );
           targetLens.position.set(0, 0.52, 1.0);
           turret.add(targetLens);
-          const targetLight = new THREE.PointLight(0xff3048, 0, 9, 2);
-          targetLight.position.copy(targetLens.position);
-          turret.add(targetLight);
+          const targetLight = { intensity: 0, visible: true };
           group.add(turret);
 
           const bankOffset = 5.2;
@@ -5000,14 +5517,11 @@
             group.add(car);
           }
 
-          const headlight = new THREE.PointLight(0xffe7a0, 3.2, 19, 2);
-          headlight.position.set(0, 2.1, 13.2);
-          group.add(headlight);
           const headlightLens = new THREE.Mesh(
             new THREE.OctahedronGeometry(0.38, 0),
             new THREE.MeshBasicMaterial({ color: 0xfff0ad })
           );
-          headlightLens.position.copy(headlight.position);
+          headlightLens.position.set(0, 2.1, 13.2);
           group.add(headlightLens);
 
           const startX = bridge.group.position.x + bridge.halfWidth + 12;
@@ -5137,10 +5651,6 @@
             fin.position.set(side * 0.28, 0, -0.62);
             group.add(fin);
           }
-          const light = new THREE.PointLight(0xff624a, 2.5, 9, 2);
-          light.position.z = -1.1;
-          group.add(light);
-
           group.position.copy(launcher.group.position);
           group.position.y = 2.45;
           group.scale.setScalar(1.3);
@@ -5215,10 +5725,6 @@
           );
           flare.position.z = -1.25;
           group.add(flare);
-          const light = new THREE.PointLight(0xff4d5f, 3.2, 10, 2);
-          light.position.z = -1.05;
-          group.add(light);
-
           group.position.copy(fighter.group.position);
           group.position.y -= 0.55;
           group.position.z += 1;
@@ -5387,8 +5893,6 @@
             new THREE.MeshBasicMaterial({ color: 0xffd84d })
           );
           group.add(shell);
-          const glow = new THREE.PointLight(0xffa63d, 3.8, 11, 2);
-          group.add(glow);
           const trail = new THREE.Mesh(
             new THREE.ConeGeometry(0.26, 1.35, 6),
             new THREE.MeshBasicMaterial({
@@ -5461,8 +5965,6 @@
             new THREE.MeshBasicMaterial({ color: 0xffef72 })
           );
           group.add(shell);
-          const glow = new THREE.PointLight(0xff7b35, 4.4, 13, 2);
-          group.add(glow);
           const trail = new THREE.Mesh(
             new THREE.ConeGeometry(0.3, 1.7, 6),
             new THREE.MeshBasicMaterial({
@@ -5522,8 +6024,6 @@
             new THREE.MeshBasicMaterial({ color: 0xfff09a })
           );
           group.add(shell);
-          const glow = new THREE.PointLight(0xff5d35, 4.8, 15, 2);
-          group.add(glow);
           const trail = new THREE.Mesh(
             new THREE.ConeGeometry(0.34, 2, 6),
             new THREE.MeshBasicMaterial({
@@ -5593,8 +6093,10 @@
                 this.evadeProjectileWithBarrelRoll(this.enemyShells, index, shell);
                 continue;
               }
+              const impactPosition = shell.group.position.clone();
               this.removeObject3D(shell.group);
               this.enemyShells.splice(index, 1);
+              if (this.consumeShieldImpact('shot', impactPosition)) continue;
               this.crash('ATINGIDO POR CANHÃO');
               return;
             }
@@ -5612,13 +6114,45 @@
 
         seedOpeningRun() {
           this.clearEntities();
-          const fuelRiver = this.getRiverAtZ(-64);
-          const shipRiver = this.getRiverAtZ(-108);
-          const heliRiver = this.getRiverAtZ(-142);
-          this.entities.push(this.createFuel(fuelRiver.center - 1.8, -64));
-          this.entities.push(this.createShip(shipRiver.center - shipRiver.halfWidth * 0.38, -108));
-          this.entities.push(this.createHelicopter(heliRiver.center + heliRiver.halfWidth * 0.34, -142));
-          this.spawnBridgeEncounter(-188);
+          const fuelZ = this.onboardingActive ? -230 : -64;
+          const shipZ = this.onboardingActive ? -315 : -126;
+          const heliZ = this.onboardingActive ? -355 : -158;
+          const bridgeZ = this.onboardingActive ? -410 : -188;
+          const fuelRiver = this.getRiverAtZ(fuelZ);
+          const shipRiver = this.getRiverAtZ(shipZ);
+          const heliRiver = this.getRiverAtZ(heliZ);
+          const openingFuel = this.createFuel(
+            this.onboardingActive ? fuelRiver.center : fuelRiver.center - 1.8,
+            fuelZ
+          );
+          openingFuel.tutorialFuel = this.onboardingActive;
+          if (this.onboardingActive) {
+            const tutorialRing = new THREE.Mesh(
+              new THREE.TorusGeometry(4.7, 0.15, 5, 24),
+              new THREE.MeshBasicMaterial({
+                color: 0x66f5ff,
+                transparent: true,
+                opacity: 0.78,
+                depthWrite: false,
+              })
+            );
+            tutorialRing.rotation.x = Math.PI / 2;
+            tutorialRing.position.y = 0.95;
+            openingFuel.group.add(tutorialRing);
+            openingFuel.group.userData.tutorialRing = tutorialRing;
+          }
+          this.entities.push(openingFuel);
+          if (this.environmentCyclesCompleted === CONFIG.tankUnlockCycle) {
+            const shieldRiver = this.getRiverAtZ(-91);
+            this.entities.push(
+              this.createEquipmentCrate('shield', shieldRiver.center, -91, 'tank-cycle')
+            );
+            this.tankCycleShieldSpawned = true;
+          }
+          this.entities.push(this.createShip(shipRiver.center - shipRiver.halfWidth * 0.38, shipZ));
+          this.entities.push(this.createHelicopter(heliRiver.center + heliRiver.halfWidth * 0.34, heliZ));
+          const openingBridge = this.spawnBridgeEncounter(bridgeZ);
+          openingBridge.tutorialBridge = this.onboardingActive;
         }
 
         clearEntities() {
@@ -6358,6 +6892,7 @@
           dom.touchResetPositions.addEventListener('click', () => this.resetMobileControlPositions());
           for (const zone of dom.mobileControlZones) this.bindMobileControlZone(zone);
           dom.flareButton.addEventListener('click', () => this.deployFlare());
+          dom.onboardingSkip.addEventListener('click', () => this.completeOnboarding('skipped'));
           dom.title.addEventListener('click', () => this.handleSecretTitleClick());
           dom.startRound.addEventListener('change', (event) => this.setStartingRound(event.target.value));
           addEventListener('resize', () => this.onResize());
@@ -6508,6 +7043,17 @@
             this.pursuitFighter = null;
           }
           const completedCycles = this.runMode === 'daily' ? 0 : this.selectedStartingRound - 1;
+          this.onboardingActive = Boolean(
+            this.runMode === 'classic' &&
+            completedCycles === 0 &&
+            (!this.onboardingCompleted || FORCE_ONBOARDING)
+          );
+          this.onboardingStep = this.onboardingActive ? 'move' : 'inactive';
+          this.onboardingStepIndex = this.onboardingActive ? 0 : -1;
+          this.onboardingInputTime = 0;
+          this.onboardingBoundaryToastCooldown = 0;
+          this.onboardingFuelHintShown = false;
+          document.body.classList.toggle('onboarding-active', this.onboardingActive);
           this.elapsed = 0;
           this.score = 0;
           this.comboCount = 0;
@@ -6567,6 +7113,19 @@
           this.barrelRollUsedThisEnvironment = false;
           this.barrelRolls = 0;
           this.barrelRollEvades = 0;
+          this.shieldActive = false;
+          this.shieldTimeRemaining = 0;
+          this.shieldsCollected = 0;
+          this.shieldImpactsAbsorbed = 0;
+          this.enemyKillStreak = 0;
+          this.bestEnemyKillStreak = 0;
+          this.shieldStreakDrops = 0;
+          this.tankCycleShieldSpawned = completedCycles > CONFIG.tankUnlockCycle;
+          this.radarActive = false;
+          this.radarTimeRemaining = 0;
+          this.radarsCollected = 0;
+          this.radarTargetCount = 0;
+          this.radarSupplyCycle = -1;
           this.nextFighterDistance = completedCycles >= CONFIG.fighterUnlockCycle
             ? CONFIG.fighterFirstDistance
             : null;
@@ -6578,11 +7137,13 @@
           this.input.shoot = false;
           this.speedLineMaterial.opacity = 0;
           this.speedLineGroup.visible = false;
+          this.radarMarkers.visible = false;
           this.setEnvironmentPhase(0, true);
           this.resetTerrainRun();
           this.player.position.x = this.getRiverAtZ(CONFIG.playerZ).center;
           this.player.position.y = 2.7;
           this.player.rotation.set(0, 0, 0);
+          this.player.userData.shieldVisual.visible = false;
           this.cameraTargetX = this.player.position.x;
           this.mode = 'PLAYING';
           this.platformAdPaused = false;
@@ -6593,6 +7154,7 @@
           if (!this.manualStepping) this.clock.start();
           this.syncCameraVisuals();
           this.seedOpeningRun();
+          this.updateOnboardingGuide();
           this.updateMissileAlert(0, false);
           this.updateCamera(1);
           dom.overlay.dataset.mode = 'menu';
@@ -6600,15 +7162,19 @@
           setLocalizedText(dom.subtitle, 'Ataque retro low-poly em 3D');
           dom.finalScore.textContent = '';
           setLocalizedText(dom.start, 'DECOLAR');
+          dom.menuExtras.open = false;
           dom.overlay.classList.add('hidden');
-          this.showToast(
-            this.runMode === 'daily'
-              ? `DESAFIO DO DIA · ${formatDailyDate(this.dailyChallengeDate)}`
-              : this.selectedStartingRound > 1
-              ? `SIMULAÇÃO · RODADA ${String(this.selectedStartingRound).padStart(2, '0')}`
-              : 'MISSÃO INICIADA',
-            1.4
-          );
+          document.body.classList.remove('menu-open');
+          if (!this.onboardingActive) {
+            this.showToast(
+              this.runMode === 'daily'
+                ? `DESAFIO DO DIA · ${formatDailyDate(this.dailyChallengeDate)}`
+                : this.selectedStartingRound > 1
+                ? `SIMULAÇÃO · RODADA ${String(this.selectedStartingRound).padStart(2, '0')}`
+                : 'MISSÃO INICIADA',
+              1.4
+            );
+          }
           this.updateHUD();
           this.platform.emit('run_started', {
             mode: this.runMode,
@@ -6618,6 +7184,7 @@
         }
 
         switchCamera() {
+          if (this.onboardingActive) return false;
           const modes = ['chase', 'top', 'cockpit'];
           const nextIndex = (modes.indexOf(this.cameraMode) + 1) % modes.length;
           this.cameraMode = modes[nextIndex];
@@ -6636,12 +7203,15 @@
           this.showToast(`CÂMERA: ${labels[this.cameraMode]}`, 1.15);
           this.syncCameraVisuals();
           this.updateCamera(1);
+          return true;
         }
 
         syncCameraVisuals() {
           const cockpitActive = this.cameraMode === 'cockpit' && (this.mode === 'PLAYING' || this.mode === 'PAUSED');
           this.cockpitRig.visible = cockpitActive;
           this.player.visible = this.mode !== 'CRASH' && this.cameraMode !== 'cockpit';
+          this.player.userData.shieldVisual.visible =
+            this.shieldActive && this.mode !== 'CRASH' && this.cameraMode !== 'cockpit';
         }
 
         togglePause() {
@@ -6684,10 +7254,115 @@
           this.toastTimer = duration;
         }
 
+        getOnboardingCopy(step = this.onboardingStep) {
+          const steps = {
+            move: {
+              title: 'MOVA O AVIÃO',
+              detail: this.mobileLayout ? 'USE ◀ ▶ PARA MOVER' : 'USE ← → OU A D',
+            },
+            speed: {
+              title: 'CONTROLE A VELOCIDADE',
+              detail: this.mobileLayout
+                ? 'USE ▲ ▼ PARA ACELERAR E FREAR'
+                : 'USE ↑ ↓ OU W S',
+            },
+            shoot: {
+              title: 'TESTE AS ARMAS',
+              detail: this.mobileLayout ? 'USE O BOTÃO TIRO' : 'PRESSIONE ESPAÇO PARA ATIRAR',
+            },
+            fuel: {
+              title: 'REABASTEÇA',
+              detail: 'SOBREVOE O FUEL · NÃO ATIRE',
+            },
+            bridge: {
+              title: 'ABRA O CAMINHO',
+              detail: 'ATIRE NA PONTE PARA AVANÇAR',
+            },
+          };
+          return steps[step] || steps.move;
+        }
+
+        updateOnboardingGuide() {
+          dom.onboardingGuide.classList.toggle('active', this.onboardingActive);
+          if (!this.onboardingActive) return;
+          const copy = this.getOnboardingCopy();
+          setLocalizedText(
+            dom.onboardingProgress,
+            `PRIMEIRO VOO · ${this.onboardingStepIndex + 1}/5`
+          );
+          setLocalizedText(dom.onboardingTitle, copy.title);
+          setLocalizedText(dom.onboardingDetail, copy.detail);
+        }
+
+        advanceOnboarding(nextStep) {
+          if (!this.onboardingActive) return;
+          const order = ['move', 'speed', 'shoot', 'fuel', 'bridge'];
+          const nextIndex = order.indexOf(nextStep);
+          if (nextIndex < 0 || nextIndex <= this.onboardingStepIndex) return;
+          this.onboardingStep = nextStep;
+          this.onboardingStepIndex = nextIndex;
+          this.onboardingInputTime = 0;
+          this.updateOnboardingGuide();
+          this.platform.emit('onboarding_step', { step: nextStep, index: nextIndex + 1 });
+        }
+
+        updateOnboarding(dt, axis) {
+          if (!this.onboardingActive || this.mode !== 'PLAYING') return;
+          this.onboardingBoundaryToastCooldown = Math.max(
+            0,
+            this.onboardingBoundaryToastCooldown - dt
+          );
+          if (this.onboardingStep === 'move') {
+            this.onboardingInputTime = axis !== 0
+              ? this.onboardingInputTime + dt
+              : Math.max(0, this.onboardingInputTime - dt * 0.5);
+            if (this.onboardingInputTime >= 0.22) this.advanceOnboarding('speed');
+          } else if (this.onboardingStep === 'speed') {
+            const usingSpeedControl = this.input.up !== this.input.down;
+            this.onboardingInputTime = usingSpeedControl
+              ? this.onboardingInputTime + dt
+              : Math.max(0, this.onboardingInputTime - dt * 0.5);
+            if (this.onboardingInputTime >= 0.22) this.advanceOnboarding('shoot');
+          } else if (this.onboardingStep === 'shoot' && this.input.shoot) {
+            this.advanceOnboarding('fuel');
+          }
+        }
+
+        completeOnboarding(source = 'bridge') {
+          if (!this.onboardingActive) return false;
+          this.onboardingActive = false;
+          this.onboardingCompleted = true;
+          this.onboardingStep = 'complete';
+          this.onboardingStepIndex = 5;
+          localStorage.setItem(ONBOARDING_STORAGE_KEY, '1');
+          document.body.classList.remove('onboarding-active');
+          for (const entity of this.entities) {
+            if (entity.tutorialFuel) {
+              entity.tutorialFuel = false;
+              if (entity.group.userData.tutorialRing) {
+                entity.group.userData.tutorialRing.visible = false;
+              }
+            }
+            if (entity.tutorialBridge) entity.tutorialBridge = false;
+          }
+          this.updateOnboardingGuide();
+          if (!['skipped', 'bridge'].includes(source)) {
+            this.showToast('PRIMEIRO VOO CONCLUÍDO', 1.6);
+          }
+          this.platform.emit('onboarding_completed', { source });
+          this.updateHUD();
+          return true;
+        }
+
         getTargetSpeed() {
           const base = lerp(CONFIG.minSpeed, CONFIG.maxSpeed, this.throttle);
           const levelSpeed = base * (1 + (this.level - 1) * 0.035);
-          return this.safetyModeActive ? Math.min(levelSpeed, CONFIG.safetyModeSpeed) : levelSpeed;
+          const safetyLimited = this.safetyModeActive
+            ? Math.min(levelSpeed, CONFIG.safetyModeSpeed)
+            : levelSpeed;
+          return this.onboardingActive
+            ? Math.min(safetyLimited, CONFIG.onboardingMaxSpeed)
+            : safetyLimited;
         }
 
         getSpeed() {
@@ -6728,7 +7403,7 @@
         }
 
         startBarrelRoll() {
-          if (this.mode !== 'PLAYING' || this.isBarrelRolling()) return false;
+          if (this.mode !== 'PLAYING' || this.onboardingActive || this.isBarrelRolling()) return false;
           if (this.barrelRollUsedThisEnvironment) {
             this.showToast('BARREL ROLL JÁ USADO · AGUARDE O PRÓXIMO AMBIENTE', 1.35);
             return false;
@@ -6805,12 +7480,253 @@
           this.showToast('BARREL ROLL · TIRO EVITADO', 0.85);
         }
 
+        spawnShieldCrateAhead(spawnSource, announce = true) {
+          if (spawnSource === 'tank-cycle') this.tankCycleShieldSpawned = true;
+          if (
+            this.shieldActive ||
+            this.entities.some((candidate) => candidate.type === 'equipamento')
+          ) return false;
+
+          const z = -88;
+          const river = this.getRiverAtZ(z);
+          let spawnX;
+          let forkRoute = null;
+          if (river.forkActive) {
+            const routes = this.getForkRouteSides(river.forkIndex);
+            spawnX = this.pickRiverChannelX(river, routes.supplySide, this.gameplayRandom(), 0.68);
+            forkRoute = 'supply';
+          } else {
+            spawnX = this.pickNavigableRiverX(river, this.gameplayRandom(), 0.68);
+          }
+          const crate = this.createEquipmentCrate('shield', spawnX, z, spawnSource);
+          if (forkRoute) {
+            crate.forkRoute = forkRoute;
+            crate.forkIndex = river.forkIndex;
+          }
+          this.entities.push(crate);
+          if (announce) this.showToast('SUPRIMENTO DE ESCUDO À FRENTE', 1.55);
+          this.platform.emit('equipment_spawned', {
+            equipment: 'shield',
+            source: spawnSource,
+            killStreak: this.enemyKillStreak,
+            distance: Math.round(this.distance),
+          });
+          return true;
+        }
+
+        spawnRadarCrateAhead(spawnSource = 'low-visibility', announce = true) {
+          this.radarSupplyCycle = this.environmentCyclesCompleted;
+          if (
+            this.radarActive ||
+            this.entities.some(
+              (candidate) => candidate.type === 'equipamento' && candidate.equipment === 'radar'
+            )
+          ) return false;
+
+          const z = -82;
+          const river = this.getRiverAtZ(z);
+          let spawnX;
+          let forkRoute = null;
+          if (river.forkActive) {
+            const routes = this.getForkRouteSides(river.forkIndex);
+            spawnX = this.pickRiverChannelX(river, routes.supplySide, this.gameplayRandom(), 0.66);
+            forkRoute = 'supply';
+          } else {
+            spawnX = this.pickNavigableRiverX(river, this.gameplayRandom(), 0.66);
+          }
+          const crate = this.createEquipmentCrate('radar', spawnX, z, spawnSource);
+          if (forkRoute) {
+            crate.forkRoute = forkRoute;
+            crate.forkIndex = river.forkIndex;
+          }
+          this.entities.push(crate);
+          if (announce) this.showToast('SUPRIMENTO DE RADAR À FRENTE', 1.55);
+          this.platform.emit('equipment_spawned', {
+            equipment: 'radar',
+            source: spawnSource,
+            environment: this.getEnvironmentPhase().key,
+            distance: Math.round(this.distance),
+          });
+          return true;
+        }
+
+        registerEnemyKill() {
+          this.enemyKillStreak += 1;
+          this.bestEnemyKillStreak = Math.max(this.bestEnemyKillStreak, this.enemyKillStreak);
+          if (this.enemyKillStreak % CONFIG.shieldStreakRequired !== 0) return false;
+
+          const available = Boolean(
+            !this.shieldActive &&
+            !this.entities.some((candidate) => candidate.type === 'equipamento')
+          );
+          const wonDrop = available &&
+            this.gameplayRandom('combat') < CONFIG.shieldStreakDropChance;
+          this.platform.emit('shield_streak_roll', {
+            killStreak: this.enemyKillStreak,
+            available,
+            won: wonDrop,
+          });
+          if (!wonDrop) return false;
+          this.shieldStreakDrops += 1;
+          return this.spawnShieldCrateAhead('kill-streak');
+        }
+
+        activateShield() {
+          if (this.shieldActive) return false;
+          this.shieldActive = true;
+          this.shieldTimeRemaining = CONFIG.shieldDuration;
+          this.shieldsCollected += 1;
+          this.player.userData.shieldVisual.visible = true;
+          this.audio.refuel();
+          this.showToast(`ESCUDO COLETADO · ${CONFIG.shieldDuration}s · 1 IMPACTO`, 1.65);
+          this.platform.emit('equipment_collected', {
+            equipment: 'shield',
+            charges: 1,
+            distance: Math.round(this.distance),
+          });
+          this.updateHUD();
+          return true;
+        }
+
+        activateRadar() {
+          if (this.radarActive) return false;
+          this.radarActive = true;
+          this.radarTimeRemaining = CONFIG.radarDuration;
+          this.radarsCollected += 1;
+          this.audio.refuel();
+          this.showToast(`RADAR COLETADO · ${CONFIG.radarDuration}s · ALVOS MARCADOS`, 1.65);
+          this.platform.emit('equipment_collected', {
+            equipment: 'radar',
+            duration: CONFIG.radarDuration,
+            environment: this.getEnvironmentPhase().key,
+            distance: Math.round(this.distance),
+          });
+          this.updateRadarMarkers();
+          this.updateHUD();
+          return true;
+        }
+
+        consumeShieldImpact(source, impactPosition) {
+          if (!this.shieldActive) return false;
+          this.shieldActive = false;
+          this.shieldTimeRemaining = 0;
+          this.shieldImpactsAbsorbed += 1;
+          this.player.userData.shieldVisual.visible = false;
+          this.spawnSparks(impactPosition.clone().setY(2.7), 22);
+          this.audio.perfectEvasion();
+          this.showToast(
+            source === 'missile' ? 'ESCUDO ABSORVEU O MÍSSIL' : 'ESCUDO ABSORVEU O TIRO',
+            1.45
+          );
+          this.platform.emit('shield_consumed', {
+            source,
+            livesRemaining: this.lives,
+            distance: Math.round(this.distance),
+          });
+          this.updateHUD();
+          return true;
+        }
+
+        updateShieldTimer(dt) {
+          if (!this.shieldActive) return;
+          this.shieldTimeRemaining = Math.max(0, this.shieldTimeRemaining - dt);
+          if (this.shieldTimeRemaining > 0) return;
+          this.shieldActive = false;
+          this.player.userData.shieldVisual.visible = false;
+          this.showToast('ESCUDO EXPIRADO', 1.25);
+          this.platform.emit('shield_expired', {
+            distance: Math.round(this.distance),
+          });
+          this.updateHUD();
+        }
+
+        writeRadarMarker(group, height, count) {
+          if (!group || count >= CONFIG.radarMaxTargets) return count;
+          const x = group.position.x;
+          const z = group.position.z;
+          const distance = Math.hypot(x - this.player.position.x, z - CONFIG.playerZ);
+          if (distance > CONFIG.radarDetectionRange || z > CONFIG.playerZ + 26) return count;
+          const offset = count * 3;
+          this.radarMarkerPositions[offset] = x;
+          this.radarMarkerPositions[offset + 1] = group.position.y + height;
+          this.radarMarkerPositions[offset + 2] = z;
+          return count + 1;
+        }
+
+        updateRadarMarkers() {
+          if (!this.radarActive || this.mode === 'CRASH' || this.mode === 'GAMEOVER') {
+            this.radarTargetCount = 0;
+            this.radarMarkers.visible = false;
+            this.radarMarkers.geometry.setDrawRange(0, 0);
+            return;
+          }
+
+          let count = 0;
+          for (const entity of this.entities) {
+            if (!RADAR_TARGET_TYPES.has(entity.type)) continue;
+            const height = entity.type === 'ponte' ? 8.2 : entity.type === 'helicóptero' ? 3.2 : 4.2;
+            count = this.writeRadarMarker(entity.group, height, count);
+          }
+          if (this.pursuitFighter) {
+            count = this.writeRadarMarker(this.pursuitFighter.group, 2.6, count);
+          }
+          for (const missile of this.missiles) {
+            count = this.writeRadarMarker(missile.group, 1.7, count);
+          }
+          for (const shell of this.enemyShells) {
+            count = this.writeRadarMarker(shell.group, 1.45, count);
+          }
+
+          this.radarTargetCount = count;
+          const positionAttribute = this.radarMarkers.geometry.attributes.position;
+          positionAttribute.needsUpdate = true;
+          this.radarMarkers.geometry.setDrawRange(0, count);
+          this.radarMarkers.material.size = 16 + Math.sin(this.elapsed * 8) * 2;
+          this.radarMarkers.material.opacity = 0.78 + Math.sin(this.elapsed * 6.2) * 0.16;
+          this.radarMarkers.visible = count > 0;
+        }
+
+        updateRadar(dt) {
+          if (!this.radarActive) {
+            this.updateRadarMarkers();
+            return;
+          }
+          this.radarTimeRemaining = Math.max(0, this.radarTimeRemaining - dt);
+          if (this.radarTimeRemaining <= 0) {
+            this.radarActive = false;
+            this.radarTimeRemaining = 0;
+            this.showToast('RADAR EXPIRADO', 1.25);
+            this.platform.emit('radar_expired', {
+              distance: Math.round(this.distance),
+            });
+            this.updateHUD();
+          }
+          this.updateRadarMarkers();
+        }
+
+        updateShieldVisual() {
+          const visual = this.player.userData.shieldVisual;
+          visual.visible = this.shieldActive && this.cameraMode !== 'cockpit' && this.mode !== 'CRASH';
+          if (!visual.visible) return;
+          const pulse = 1 + Math.sin(this.elapsed * 8.5) * 0.035;
+          const responsiveScale = this.mobileLayout ? 0.84 : 1;
+          visual.scale.set(
+            5.9 * pulse * responsiveScale,
+            2.35 * pulse * responsiveScale,
+            4.65 * pulse * responsiveScale
+          );
+          visual.rotation.y += 0.012;
+          visual.rotation.z -= 0.006;
+          visual.material.opacity =
+            (this.mobileLayout ? 0.2 : 0.27) + Math.sin(this.elapsed * 10.5) * 0.055;
+        }
+
         shoot() {
           if (this.fireCooldown > 0 || this.mode !== 'PLAYING') return;
           const mesh = this.acquireBullet();
           mesh.position.set(this.player.position.x, this.player.position.y - 0.12, CONFIG.playerZ - 3.1);
           this.scene.add(mesh);
-          this.bullets.push({ mesh });
+          this.bullets.push({ mesh, travelDistance: 0 });
           this.fireCooldown = 0.16;
           this.audio.shoot();
         }
@@ -6845,6 +7761,7 @@
           const isPlaying = this.mode === 'PLAYING';
           if (isPlaying) this.updateFlightSpeed(dt);
           if (isPlaying) this.updateCombo(dt);
+          if (isPlaying) this.updateShieldTimer(dt);
           const speed = isPlaying ? this.getSpeed() : 12;
           this.audio.setEngine(this.getSpeedRatio(), isPlaying);
           this.updateSpeedEffects(dt, speed, isPlaying);
@@ -6856,6 +7773,7 @@
           this.updateEnemyShells(dt, isPlaying);
           this.updateBullets(dt, isPlaying);
           this.updateParticles(dt);
+          if (isPlaying) this.updateRadar(dt);
 
           if (isPlaying) {
             this.distance += speed * dt;
@@ -6891,7 +7809,10 @@
             if (axis !== 0 && !this.isBarrelRolling()) {
               this.lastLateralDirection = axis;
             }
-            this.player.position.x += axis * CONFIG.lateralSpeed * dt;
+            const lateralScale = this.onboardingActive
+              ? CONFIG.onboardingLateralScale
+              : 1;
+            this.player.position.x += axis * CONFIG.lateralSpeed * lateralScale * dt;
             const baseFlightY = 2.7 + Math.sin(this.elapsed * 5.5) * 0.08;
             const barrelRolling = this.updateBarrelRoll(dt, baseFlightY);
             if (!barrelRolling) {
@@ -6904,7 +7825,9 @@
             this.player.userData.exhaust.scale.y =
               0.62 + this.throttle * 0.5 + speedRatio * 1.35 + Math.sin(this.elapsed * 28) * 0.1;
             this.player.userData.exhaust.material.opacity = 0.58 + speedRatio * 0.36;
+            this.updateShieldVisual();
             if (this.input.shoot) this.shoot();
+            this.updateOnboarding(dt, axis);
 
             this.fuel -= CONFIG.fuelDrain * (0.72 + this.throttle * 0.58) * dt;
             if (this.fuel <= 0) {
@@ -7208,6 +8131,14 @@
                 this.launchTrainShell(entity);
               }
             } else if (entity.type === 'ponte') {
+              if (
+                entity.tutorialBridge &&
+                this.onboardingActive &&
+                this.onboardingStep !== 'bridge' &&
+                entity.group.position.z > -82
+              ) {
+                entity.group.position.z = -220;
+              }
               const trackingPlayer = Boolean(entity.group.userData.trackingPlayer);
               for (const beacon of entity.group.userData.beacons || []) {
                 this.updateNavigationBeacon(beacon, trackingPlayer ? this.player.position : null);
@@ -7240,8 +8171,32 @@
                 entity.group,
                 entity.group.userData.trackPlayer ? this.player.position : null
               );
+            } else if (entity.type === 'equipamento') {
+              entity.group.rotation.y += dt * 0.9;
+              entity.group.position.y = 0.2 + Math.sin(this.elapsed * 3.4 + entity.phase) * 0.16;
+              entity.group.userData.ring.rotation.z += dt * 2.4;
+              entity.group.userData.core.rotation.y -= dt * 1.8;
+              if (
+                canInteract &&
+                Math.abs(entity.group.position.z - CONFIG.playerZ) < CONFIG.equipmentPickupDepth &&
+                Math.abs(entity.group.position.x - this.player.position.x) < CONFIG.equipmentPickupWidth
+              ) {
+                if (entity.equipment === 'radar') this.activateRadar();
+                else this.activateShield();
+                this.spawnSparks(entity.group.position.clone().setY(2.2), 16);
+                this.removeObject3D(entity.group);
+                this.entities.splice(index, 1);
+                continue;
+              }
             } else if (entity.type === 'fuel') {
               entity.refueling = false;
+              const tutorialRing = entity.group.userData.tutorialRing;
+              if (tutorialRing?.visible) {
+                const ringPulse = 1 + Math.sin(this.elapsed * 5.2) * 0.08;
+                tutorialRing.scale.setScalar(ringPulse);
+                tutorialRing.material.opacity = 0.62 + Math.sin(this.elapsed * 6.4) * 0.2;
+                tutorialRing.rotation.z += dt * 0.55;
+              }
               if (
                 canInteract &&
                 Math.abs(entity.group.position.z - CONFIG.playerZ) < 4.5 &&
@@ -7250,6 +8205,19 @@
                 const before = this.fuel;
                 this.fuel = Math.min(100, this.fuel + CONFIG.fuelRefillRate * dt);
                 entity.refueling = true;
+                if (
+                  entity.tutorialFuel &&
+                  this.onboardingActive &&
+                  this.onboardingStep === 'fuel'
+                ) {
+                  this.audio.refuel();
+                  this.advanceOnboarding('bridge');
+                  this.showToast('FUEL COLETADO · TANQUE CHEIO', 1.5);
+                  this.spawnSparks(entity.group.position.clone().setY(2.1), 12);
+                  this.removeObject3D(entity.group);
+                  this.entities.splice(index, 1);
+                  continue;
+                }
                 if (this.fuel > before) {
                   this.refuelToneTimer -= dt;
                   if (this.refuelToneTimer <= 0) {
@@ -7257,6 +8225,11 @@
                     this.refuelToneTimer = 0.18;
                   }
                 }
+              }
+              if (entity.tutorialFuel && this.onboardingActive && entity.group.position.z > 60) {
+                const tutorialRiver = this.getRiverAtZ(-118);
+                entity.group.position.set(tutorialRiver.center, 0.12, -118);
+                entity.refueling = false;
               }
             }
 
@@ -7313,8 +8286,10 @@
                 this.evadeProjectileWithBarrelRoll(this.missiles, index, missile);
                 continue;
               }
+              const impactPosition = missile.group.position.clone();
               this.removeObject3D(missile.group);
               this.missiles.splice(index, 1);
+              if (this.consumeShieldImpact('missile', impactPosition)) continue;
               this.crash('ATINGIDO POR MÍSSIL');
               return;
             }
@@ -7458,7 +8433,21 @@
         updateBullets(dt, canHit) {
           for (let bulletIndex = this.bullets.length - 1; bulletIndex >= 0; bulletIndex -= 1) {
             const bullet = this.bullets[bulletIndex];
-            bullet.mesh.position.z -= CONFIG.bulletSpeed * dt;
+            const bulletStep = CONFIG.bulletSpeed * dt;
+            bullet.mesh.position.z -= bulletStep;
+            bullet.travelDistance += bulletStep;
+
+            const topCameraReady = this.cameraMode === 'top' && this.cameraTop.position.y > 40;
+            const topVisibleHalfDepth =
+              (this.cameraTop.top - this.cameraTop.bottom) / (2 * this.cameraTop.zoom);
+            const topScreenLimitZ =
+              this.cameraTop.position.z - topVisibleHalfDepth - CONFIG.playerBulletTopScreenMargin;
+            const leftTopScreen = topCameraReady && bullet.mesh.position.z < topScreenLimitZ;
+            if (bullet.travelDistance >= CONFIG.playerBulletRange || leftTopScreen) {
+              this.releaseBullet(bullet.mesh);
+              this.bullets.splice(bulletIndex, 1);
+              continue;
+            }
             let consumed = false;
 
             if (canHit) {
@@ -7486,13 +8475,24 @@
                 entityIndex -= 1
               ) {
                 const entity = this.entities[entityIndex];
-                if (entity.type === 'farol') continue;
+                if (entity.type === 'farol' || entity.type === 'equipamento') continue;
                 const dz = Math.abs(bullet.mesh.position.z - entity.group.position.z);
                 const dx = Math.abs(bullet.mesh.position.x - entity.group.position.x);
                 const hit = entity.type === 'ponte'
                   ? dz < 2.4 && dx < entity.halfWidth
                   : dz < entity.radius + 0.8 && dx < (entity.hitRadius || entity.radius);
                 if (!hit) continue;
+
+                if (entity.type === 'fuel' && entity.tutorialFuel && this.onboardingActive) {
+                  this.spawnSparks(bullet.mesh.position.clone(), 5);
+                  this.audio.hit();
+                  if (!this.onboardingFuelHintShown) {
+                    this.onboardingFuelHintShown = true;
+                    this.showToast('FUEL É SUPRIMENTO · SOBREVÔE', 1.6);
+                  }
+                  consumed = true;
+                  break;
+                }
 
                 entity.health -= 1;
                 this.spawnSparks(bullet.mesh.position.clone(), entity.health <= 0 ? 14 : 5);
@@ -7516,6 +8516,9 @@
 
         destroyEntity(index) {
           const entity = this.entities[index];
+          const firstFlightCompleted = Boolean(
+            entity.type === 'ponte' && entity.tutorialBridge && this.onboardingActive
+          );
           const bridgeDistance = entity.type === 'ponte'
             ? CONFIG.playerZ - entity.group.position.z
             : null;
@@ -7538,6 +8541,7 @@
               combatLabels[entity.type],
               entity.routeScoreMultiplier || 1
             );
+            this.registerEnemyKill();
           } else if (entity.score > 0) {
             scoreAward = this.awardSpeedAdjustedScore(entity.score);
           } else {
@@ -7556,9 +8560,16 @@
             }
             this.preserveBridgeBeacons(entity);
             nextEnvironment = this.advanceEnvironment();
+            if (firstFlightCompleted) this.completeOnboarding('bridge');
           }
           this.removeObject3D(entity.group);
           this.entities.splice(index, 1);
+          if (nextEnvironment?.shieldEquipmentUnlocked) {
+            this.spawnShieldCrateAhead('tank-cycle', false);
+          }
+          if (nextEnvironment?.radarSupplyUnlocked) {
+            this.spawnRadarCrateAhead('low-visibility', false);
+          }
           this.platform.emit('entity_destroyed', {
             entity: entity.type,
             points: scoreAward?.points || entity.score || 0,
@@ -7570,6 +8581,9 @@
             const navalMessage = nextEnvironment.navalCombatUnlocked ? ' · NAVIOS ARMADOS' : '';
             const trainMessage = nextEnvironment.trainCombatUnlocked ? ' · TREM ARMADO' : '';
             const fighterMessage = nextEnvironment.fighterPursuitUnlocked ? ' · CAÇA PERSEGUIDOR' : '';
+            const shieldMessage = nextEnvironment.shieldEquipmentUnlocked ? ' · ESCUDO DISPONÍVEL' : '';
+            const radarMessage = nextEnvironment.radarSupplyUnlocked ? ' · RADAR DISPONÍVEL' : '';
+            const onboardingMessage = firstFlightCompleted ? ' · PRIMEIRO VOO CONCLUÍDO' : '';
             const turboMessage = scoreAward.speedMultiplier > 1
               ? ` · TURBO ×${this.formatScoreMultiplier(scoreAward.speedMultiplier)}`
               : '';
@@ -7579,16 +8593,16 @@
                 ? scoreAward.points + CONFIG.lastMomentBridgeScore
                 : CONFIG.lastMomentBridgeScore;
               this.showToast(
-                `PONTE NO LIMITE${turboMessage} · +${pointsMessage} · ${nextEnvironment.label}${lifeMessage}${navalMessage}${trainMessage}${fighterMessage}`,
+                `PONTE NO LIMITE${turboMessage} · +${pointsMessage} · ${nextEnvironment.label}${lifeMessage}${navalMessage}${trainMessage}${fighterMessage}${shieldMessage}${radarMessage}${onboardingMessage}`,
                 2.4
               );
             } else if (scoreAward.speedMultiplier > 1) {
               this.showToast(
-                `PONTE DESTRUÍDA${turboMessage} · +${scoreAward.points} · ${nextEnvironment.label}${lifeMessage}${navalMessage}${trainMessage}${fighterMessage}`,
+                `PONTE DESTRUÍDA${turboMessage} · +${scoreAward.points} · ${nextEnvironment.label}${lifeMessage}${navalMessage}${trainMessage}${fighterMessage}${shieldMessage}${radarMessage}${onboardingMessage}`,
                 2.4
               );
             } else {
-              this.showToast(`PONTE DESTRUÍDA · ${nextEnvironment.label}${lifeMessage}${navalMessage}${trainMessage}${fighterMessage}`, 2.4);
+              this.showToast(`PONTE DESTRUÍDA · ${nextEnvironment.label}${lifeMessage}${navalMessage}${trainMessage}${fighterMessage}${shieldMessage}${radarMessage}${onboardingMessage}`, 2.4);
             }
           } else if (entity.type === 'fuel') {
             this.showToast(`FUEL DESTRUÍDO · -${CONFIG.fuelPenalty} PONTOS`, 1.8);
@@ -7784,6 +8798,17 @@
           const river = this.getRiverAtZ(CONFIG.playerZ);
           const navigation = this.getRiverNavigation(river, this.player.position.x);
           if (navigation.outerCollision) {
+            if (
+              this.onboardingActive &&
+              this.elapsed <= CONFIG.onboardingBoundaryGraceSeconds
+            ) {
+              this.player.position.x = this.getSafeRiverRespawnX(river, this.player.position.x);
+              if (this.onboardingBoundaryToastCooldown <= 0) {
+                this.showToast('LIMITE DO RIO · VOLTE AO CENTRO', 1.1);
+                this.onboardingBoundaryToastCooldown = 2.2;
+              }
+              return;
+            }
             this.crash('COLISÃO COM A MARGEM');
             return;
           }
@@ -7793,7 +8818,12 @@
           }
 
           for (const entity of this.entities) {
-            if (entity.type === 'fuel' || entity.type === 'farol' || entity.type === 'trem') continue;
+            if (
+              entity.type === 'fuel' ||
+              entity.type === 'farol' ||
+              entity.type === 'trem' ||
+              entity.type === 'equipamento'
+            ) continue;
             const dz = Math.abs(entity.group.position.z - CONFIG.playerZ);
             const dx = Math.abs(entity.group.position.x - this.player.position.x);
             const collision = entity.type === 'ponte'
@@ -7812,8 +8842,15 @@
           this.barrelRollTimer = 0;
           this.barrelRollElapsed = 0;
           this.player.rotation.z = 0;
+          this.shieldActive = false;
+          this.shieldTimeRemaining = 0;
+          this.player.userData.shieldVisual.visible = false;
+          this.radarActive = false;
+          this.radarTimeRemaining = 0;
+          this.updateRadarMarkers();
           this.mode = 'CRASH';
           this.lives -= 1;
+          this.enemyKillStreak = 0;
           this.resetCombo();
           this.resetBankSkim();
           this.crashTimer = 1.15;
@@ -7857,6 +8894,8 @@
 
         gameOver() {
           this.mode = 'GAMEOVER';
+          dom.onboardingGuide.classList.remove('active');
+          document.body.classList.remove('onboarding-active');
           this.syncCameraVisuals();
           const best = Math.max(this.score, Number(localStorage.getItem('rio-de-aco-best') || 0));
           localStorage.setItem('rio-de-aco-best', String(best));
@@ -7868,7 +8907,9 @@
           setLocalizedText(dom.finalScore, `PONTUAÇÃO ${String(this.score).padStart(6, '0')}`);
           setLocalizedText(dom.start, 'VOAR NOVAMENTE');
           this.prepareLeaderboardSubmission();
+          dom.menuExtras.open = true;
           dom.overlay.classList.remove('hidden');
+          document.body.classList.add('menu-open');
           dom.toast.classList.remove('show');
           this.platform.emit('run_ended', {
             mode: this.runMode,
@@ -8038,7 +9079,8 @@
           const flareAvailable = this.canDeployFlare();
           dom.flareButton.classList.toggle('active', flareAvailable);
           dom.flareButton.disabled = !flareAvailable;
-          const barrelRollVisible = this.mode === 'PLAYING' || this.mode === 'PAUSED';
+          const flightControlsVisible = this.mode === 'PLAYING' || this.mode === 'PAUSED';
+          const barrelRollVisible = flightControlsVisible && !this.onboardingActive;
           const personalizationOpen = this.mobileSettingsExpanded || this.mobilePositioningActive;
           const barrelRollState = this.isBarrelRolling()
             ? 'rolling'
@@ -8050,18 +9092,41 @@
             : barrelRollState === 'used'
               ? 'BARREL ROLL · USADO'
               : '[Q] BARREL ROLL · PRONTO');
-          dom.mobileControls.hidden = !barrelRollVisible;
+          dom.equipmentShield.classList.toggle(
+            'active',
+            this.shieldActive && (this.mode === 'PLAYING' || this.mode === 'PAUSED')
+          );
+          const shieldSeconds = Math.ceil(this.shieldTimeRemaining);
+          setLocalizedText(
+            dom.equipmentShield,
+            this.mobileLayout
+              ? `◆ ESCUDO · ${shieldSeconds}s`
+              : `◆ ESCUDO · ${shieldSeconds}s · 1 IMPACTO`
+          );
+          dom.equipmentRadar.classList.toggle(
+            'active',
+            this.radarActive && (this.mode === 'PLAYING' || this.mode === 'PAUSED')
+          );
+          const radarSeconds = Math.ceil(this.radarTimeRemaining);
+          const radarTargetLabel = this.radarTargetCount === 1 ? 'ALVO' : 'ALVOS';
+          setLocalizedText(
+            dom.equipmentRadar,
+            this.mobileLayout
+              ? `◉ RADAR · ${radarSeconds}s`
+              : `◉ RADAR · ${radarSeconds}s · ${this.radarTargetCount} ${radarTargetLabel}`
+          );
+          dom.mobileControls.hidden = !flightControlsVisible;
           for (const button of dom.touchCameraButtons) {
-            button.disabled = !barrelRollVisible || personalizationOpen;
+            button.disabled = !flightControlsVisible || personalizationOpen || this.onboardingActive;
           }
           for (const button of dom.touchBarrelRollButtons) {
             button.disabled =
-              this.mode !== 'PLAYING' || personalizationOpen || this.isBarrelRolling() || this.barrelRollUsedThisEnvironment;
+              this.mode !== 'PLAYING' || this.onboardingActive || personalizationOpen || this.isBarrelRolling() || this.barrelRollUsedThisEnvironment;
           }
-          dom.touchPause.disabled = !barrelRollVisible || personalizationOpen;
-          dom.touchInfo.disabled = !barrelRollVisible || personalizationOpen;
-          dom.touchLayout.disabled = !barrelRollVisible || personalizationOpen;
-          dom.touchSettings.disabled = !barrelRollVisible;
+          dom.touchPause.disabled = !flightControlsVisible || personalizationOpen;
+          dom.touchInfo.disabled = !flightControlsVisible || personalizationOpen || this.onboardingActive;
+          dom.touchLayout.disabled = !flightControlsVisible || personalizationOpen || this.onboardingActive;
+          dom.touchSettings.disabled = !flightControlsVisible || this.onboardingActive;
           setLocalizedText(dom.touchPause, this.mode === 'PAUSED' ? 'CONTINUAR' : 'PAUSA');
           dom.fuelFill.style.transform = `scaleX(${clamp(this.fuel / 100, 0, 1)})`;
           dom.fuelNumber.textContent = `${Math.ceil(this.fuel)}%`;
@@ -8094,6 +9159,7 @@
           this.renderer.setPixelRatio(
             Math.min(devicePixelRatio, this.getGraphicsProfile().maxPixelRatio)
           );
+          this.updateOnboardingGuide();
           this.updateMobileControlPositions();
         }
 
@@ -8118,6 +9184,8 @@
               x: Number(entity.group.position.x.toFixed(1)),
               z: Number(entity.group.position.z.toFixed(1)),
               health: entity.health,
+              ...(entity.tutorialFuel ? { tutorialFuel: true, protectedFromShots: true } : {}),
+              ...(entity.tutorialBridge ? { tutorialBridge: true } : {}),
               ...(entity.forkRoute
                 ? {
                     forkRoute: entity.forkRoute,
@@ -8249,6 +9317,13 @@
                   }
                 : {}),
               ...(entity.type === 'fuel' ? { refueling: entity.refueling } : {}),
+              ...(entity.type === 'equipamento'
+                ? {
+                    equipment: entity.equipment,
+                    collectable: true,
+                    spawnSource: entity.spawnSource,
+                  }
+                : {}),
               ...(entity.type === 'lançador'
                 ? {
                     triggered: entity.triggered,
@@ -8287,6 +9362,7 @@
             audio: {
               enabled: this.soundEnabled,
               muted: this.audio.muted,
+              externalMuted: this.audio.externalMuted,
               contextState: this.audio.context?.state || 'not-created',
               masterLevel: this.audio.masterLevel,
             },
@@ -8306,6 +9382,19 @@
             },
             coordinateSystem: 'x: esquerda(-)/direita(+); z: à frente é negativo; avião permanece em z=8',
             mode: this.mode,
+            onboarding: {
+              active: this.onboardingActive,
+              completed: this.onboardingCompleted,
+              step: this.onboardingStep,
+              stepIndex: this.onboardingStepIndex,
+              totalSteps: 5,
+              inputTime: Number(this.onboardingInputTime.toFixed(2)),
+              speedLimited: this.onboardingActive,
+              lateralAssist: this.onboardingActive,
+              boundaryGraceRemaining: Number(
+                Math.max(0, CONFIG.onboardingBoundaryGraceSeconds - this.elapsed).toFixed(1)
+              ),
+            },
             pause: {
               automatic: this.autoPaused,
               source: this.backgroundPauseSource,
@@ -8338,6 +9427,22 @@
             score: this.score,
             lives: this.lives,
             fuel: Number(this.fuel.toFixed(1)),
+            equipment: {
+              shieldActive: this.shieldActive,
+              shieldCharges: this.shieldActive ? 1 : 0,
+              shieldTimeRemaining: Number(this.shieldTimeRemaining.toFixed(2)),
+              shieldsCollected: this.shieldsCollected,
+              impactsAbsorbed: this.shieldImpactsAbsorbed,
+              enemyKillStreak: this.enemyKillStreak,
+              bestEnemyKillStreak: this.bestEnemyKillStreak,
+              streakDrops: this.shieldStreakDrops,
+              tankCycleSpawned: this.tankCycleShieldSpawned,
+              radarActive: this.radarActive,
+              radarTimeRemaining: Number(this.radarTimeRemaining.toFixed(2)),
+              radarsCollected: this.radarsCollected,
+              radarTargetCount: this.radarTargetCount,
+              radarSupplyCycle: this.radarSupplyCycle,
+            },
             leaderboard: {
               board: this.leaderboardBoard,
               challengeDate: this.leaderboardBoard === 'daily' ? this.dailyChallengeDate : null,
@@ -8363,6 +9468,15 @@
               lifePerCompletedCycle: 1,
               fuelDestructionPenalty: CONFIG.fuelPenalty,
               fuelRefillPerSecond: CONFIG.fuelRefillRate,
+              shieldDuration: CONFIG.shieldDuration,
+              shieldTankUnlockRound: CONFIG.tankUnlockCycle + 1,
+              shieldStreakRequired: CONFIG.shieldStreakRequired,
+              shieldStreakDropChance: CONFIG.shieldStreakDropChance,
+              shieldCharges: 1,
+              radarDuration: CONFIG.radarDuration,
+              radarUnlockRound: CONFIG.radarUnlockCycle + 1,
+              radarDetectionRange: CONFIG.radarDetectionRange,
+              radarSupply: 'uma caixa no primeiro ambiente de baixa visibilidade de cada rodada',
               missileLockDistance: CONFIG.missileLockDistance,
               missilePropulsionSpeed: CONFIG.missilePropulsionSpeed,
               perfectEvasionRadius: CONFIG.perfectEvasionRadius,
@@ -8605,6 +9719,9 @@
             bullets: this.bullets.slice(0, 8).map((bullet) => ({
               x: Number(bullet.mesh.position.x.toFixed(1)),
               z: Number(bullet.mesh.position.z.toFixed(1)),
+              remainingRange: Number(
+                Math.max(0, CONFIG.playerBulletRange - bullet.travelDistance).toFixed(1)
+              ),
             })),
             missiles: this.missiles.map((missile) => ({
               x: Number(missile.group.position.x.toFixed(1)),
@@ -8664,7 +9781,12 @@
         }
       }
 
-      new RiverRaidGame();
+      const startRiverRaid = () => new RiverRaidGame();
+      if (window.RIO_DE_ACO_PLATFORM_READY?.then) {
+        window.RIO_DE_ACO_PLATFORM_READY.then(startRiverRaid, startRiverRaid);
+      } else {
+        startRiverRaid();
+      }
     </script>
   </body>
 </html>
