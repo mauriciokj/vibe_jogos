@@ -53,6 +53,8 @@ Resultado da alpha.1:
 
 ## Fase 2 — Fluidez e resposta
 
+Status: em andamento desde 12/08/2026. A `v2.0.0-alpha.2` iniciou a reutilização dos recursos gráficos da primeira rodada.
+
 - Eliminar criação cara de geometria, materiais e texturas durante a partida.
 - Reutilizar inimigos, projéteis, explosões e partículas por meio de pools.
 - Aquecer previamente efeitos e materiais antes de iniciar o voo.
@@ -65,6 +67,13 @@ Metas iniciais:
 - Celular intermediário: pelo menos 30 FPS estáveis, buscando 45 FPS.
 - Nenhuma pausa perceptível quando um inimigo ou efeito aparece pela primeira vez.
 - Nenhum erro de console em uma sessão automatizada de três minutos.
+
+Primeiro incremento concluído:
+
+- Recursos de navio, helicóptero, FUEL, ponte, farol e holofote passaram a ser compartilhados.
+- Uma segunda onda de 20 objetos reutilizou 100% das geometrias e texturas já aquecidas.
+- Pools completos de navios, helicópteros e FUEL reutilizaram exatamente os mesmos 18 grupos na segunda onda; o custo observado caiu de cerca de 0,7 ms para 0,1 ms.
+- Próximo alvo: medição contínua do tempo de quadro durante geração e reciclagem do terreno.
 
 ## Fase 3 — Direção visual
 

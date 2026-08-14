@@ -8,6 +8,17 @@ O jogo usa versionamento semântico:
 
 Cada publicação deve atualizar `GAME_VERSION` no `index.html` e registrar as mudanças neste arquivo.
 
+## 2.0.0-alpha.2 — 2026-08-12
+
+- Navios, helicópteros, depósitos FUEL, pontes, faróis, holofotes e luzes de navegação agora reutilizam geometrias 3D compartilhadas em vez de recriá-las durante o voo.
+- Rótulos FUEL compartilham uma única textura e um único material, eliminando novas texturas a cada depósito gerado.
+- Holofotes compartilham somente três formatos previamente aquecidos na primeira rodada, preservando opacidade e movimento independentes de cada veículo ou farol.
+- Teste de estresse com 20 objetos comuns acrescentou apenas uma geometria na primeira onda; repetir a onda acrescentou zero geometrias, zero texturas e nenhum programa gráfico.
+- Navios, helicópteros e depósitos FUEL agora mantêm pools completos de até dez grupos cada; sair da tela, ser destruído, coletado ou removido no reinício devolve o objeto ao pool.
+- A segunda onda reutilizou exatamente os mesmos 18 grupos 3D da primeira e reduziu o custo de geração de aproximadamente 0,7 ms para 0,1 ms no ambiente automatizado.
+- Contadores de criação, reutilização e disponibilidade dos pools foram adicionados ao diagnóstico textual de desempenho.
+- Tutorial completo, controles móveis, ponte, faróis e aparência da primeira rodada foram revalidados sem erros de console.
+
 ## 2.0.0-alpha.1 — 2026-08-07
 
 - Menu principal reduzido a uma proposta clara, um objetivo curto e o botão `DECOLAR`; ranking, desafio e instruções completas ficam em uma área secundária expansível.

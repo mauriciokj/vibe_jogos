@@ -1943,7 +1943,7 @@
     <script src="./crazygames.js"></script>
     <script src="./vendor/three.min.js"></script>
     <script>
-      const GAME_VERSION = '2.0.0-alpha.1';
+      const GAME_VERSION = '2.0.0-alpha.2';
       const platformOverrides =
         window.RIO_DE_ACO_CONFIG && typeof window.RIO_DE_ACO_CONFIG === 'object'
           ? window.RIO_DE_ACO_CONFIG
@@ -2406,6 +2406,7 @@
         hudRefreshRate: 20,
         maxBulletPool: 48,
         maxParticlePool: 180,
+        maxCommonEntityPool: 10,
       };
 
       const GRAPHICS_PROFILES = Object.freeze({
@@ -3487,6 +3488,12 @@
           this.particles = [];
           this.bulletPool = [];
           this.particlePool = [];
+          this.entityPools = { navio: [], 'helicóptero': [], fuel: [] };
+          this.entityPoolStats = {
+            created: { navio: 0, 'helicóptero': 0, fuel: 0 },
+            reused: { navio: 0, 'helicóptero': 0, fuel: 0 },
+            released: { navio: 0, 'helicóptero': 0, fuel: 0 },
+          };
           this.terrain = [];
           this.terrainRefreshQueue = [];
           this.waterMaterials = [];
@@ -3750,9 +3757,62 @@
             bullet: new THREE.BoxGeometry(0.24, 0.24, 2.1),
             particle: new THREE.TetrahedronGeometry(1, 0),
             flareParticle: new THREE.OctahedronGeometry(1, 0),
+            shipHull: new THREE.ConeGeometry(1.35, 5.4, 5),
+            shipDeck: new THREE.BoxGeometry(1.65, 0.45, 2.6),
+            shipTower: new THREE.BoxGeometry(0.75, 0.9, 0.9),
+            shipGun: new THREE.CylinderGeometry(0.13, 0.13, 1.4, 5),
+            helicopterBody: new THREE.OctahedronGeometry(1.15, 0),
+            helicopterCabin: new THREE.OctahedronGeometry(0.72, 0),
+            helicopterTail: new THREE.BoxGeometry(0.36, 0.38, 3.2),
+            helicopterBladeLong: new THREE.BoxGeometry(7, 0.08, 0.22),
+            helicopterBladeWide: new THREE.BoxGeometry(0.22, 0.08, 7),
+            fuelBarge: new THREE.BoxGeometry(5.5, 0.5, 8),
+            fuelTank: new THREE.CylinderGeometry(0.7, 0.85, 3, 7),
+            fuelStripe: new THREE.BoxGeometry(5.75, 0.18, 1.3),
+            navigationLensSmall: new THREE.OctahedronGeometry(0.15, 0),
+            navigationLensLarge: new THREE.OctahedronGeometry(0.19, 0),
+            beaconBase: new THREE.CylinderGeometry(1.15, 1.45, 0.55, 7),
+            beaconLower: new THREE.CylinderGeometry(0.72, 1.02, 2.15, 7),
+            beaconStripe: new THREE.CylinderGeometry(0.64, 0.76, 1.05, 7),
+            beaconUpper: new THREE.CylinderGeometry(0.55, 0.65, 0.72, 7),
+            beaconGallery: new THREE.CylinderGeometry(0.92, 0.92, 0.16, 8),
+            beaconLens: new THREE.OctahedronGeometry(0.43, 0),
+            beaconRoof: new THREE.ConeGeometry(0.82, 0.78, 7),
+            bridgeDeck: new THREE.BoxGeometry(1, 0.75, 3.3),
+            bridgeSlab: new THREE.BoxGeometry(2.4, 0.15, 3.7),
+            bridgeTower: new THREE.BoxGeometry(1.25, 4.6, 1.4),
+            bridgeCap: new THREE.ConeGeometry(1.05, 1.6, 4),
+            tutorialFuelRing: new THREE.TorusGeometry(4.7, 0.15, 5, 24),
           };
           this.persistentGeometries = new Set(Object.values(this.shared));
           this.persistentMaterials = new Set(Object.values(this.materials));
+          this.searchlightGeometryCache = new Map();
+          this.labelMaterialCache = new Map();
+        }
+
+        getSearchlightGeometry(length, radius) {
+          const key = `${length}:${radius}`;
+          let geometry = this.searchlightGeometryCache.get(key);
+          if (!geometry) {
+            geometry = new THREE.CylinderGeometry(0.04, radius, length, 10, 1, true);
+            this.searchlightGeometryCache.set(key, geometry);
+            this.persistentGeometries.add(geometry);
+          }
+          return geometry;
+        }
+
+        createLabelSprite(text, foreground = '#15243a', background = '#ffd84d') {
+          const key = `${text}:${foreground}:${background}`;
+          let material = this.labelMaterialCache.get(key);
+          if (!material) {
+            const template = makeLabelSprite(text, foreground, background);
+            material = template.material;
+            this.labelMaterialCache.set(key, material);
+            this.persistentMaterials.add(material);
+          }
+          const sprite = new THREE.Sprite(material);
+          sprite.scale.set(7, 2.65, 1);
+          return sprite;
         }
 
         disposeObject3D(root) {
@@ -3816,6 +3876,77 @@
           mesh.removeFromParent();
           mesh.visible = false;
           if (this.particlePool.length < CONFIG.maxParticlePool) this.particlePool.push(mesh);
+        }
+
+        acquirePooledEntity(type) {
+          const pool = this.entityPools[type];
+          if (!pool?.length) return null;
+          const entity = pool.pop();
+          entity.group.visible = true;
+          this.entityPoolStats.reused[type] += 1;
+          return entity;
+        }
+
+        resetPooledEntity(entity, x, y, z) {
+          entity.group.position.set(x, y, z);
+          entity.group.rotation.set(0, 0, 0);
+          entity.group.scale.set(1, 1, 1);
+          entity.group.visible = true;
+          entity.health = entity.type === 'fuel' ? 1 : 2;
+          entity.phase = entity.type === 'fuel' ? 0 : Math.random() * Math.PI * 2;
+          entity.vx = 0;
+          entity.refueling = false;
+          entity.tutorialFuel = false;
+          entity.forkRoute = null;
+          entity.forkIndex = null;
+          entity.routeScoreMultiplier = 1;
+          entity.channel = 'único';
+          entity.trackingPlayer = false;
+          entity.targetLockTime = 0;
+          entity.cannonCooldown = 0;
+          entity.cannonShotsFired = 0;
+          entity.group.userData.trackingPlayer = false;
+          for (const light of entity.group.userData.navigationLights || []) {
+            light.lens.material.opacity = 0.38;
+            light.lens.scale.setScalar(0.72);
+            light.light.visible = false;
+            light.light.intensity = 0;
+          }
+          for (const searchlight of entity.group.userData.searchLights || []) {
+            searchlight.beam.visible = false;
+            searchlight.beam.material.opacity = 0;
+            searchlight.spot.visible = false;
+            searchlight.spot.intensity = 0;
+            searchlight.trackingTarget = false;
+            searchlight.aim.quaternion.copy(searchlight.defaultAimQuaternion);
+            searchlight.pivot.rotation.set(0, 0, 0);
+          }
+          this.scene.add(entity.group);
+          return entity;
+        }
+
+        releaseEntity(entity) {
+          if (!entity?.group) return;
+          const pool = this.entityPools[entity.type];
+          if (!pool) {
+            this.removeObject3D(entity.group);
+            return;
+          }
+          const tutorialRing = entity.group.userData.tutorialRing;
+          if (tutorialRing) {
+            this.removeObject3D(tutorialRing);
+            delete entity.group.userData.tutorialRing;
+          }
+          entity.group.removeFromParent();
+          entity.group.visible = false;
+          entity.tutorialFuel = false;
+          entity.refueling = false;
+          if (pool.length < CONFIG.maxCommonEntityPool) {
+            pool.push(entity);
+            this.entityPoolStats.released[entity.type] += 1;
+          } else {
+            this.disposeObject3D(entity.group);
+          }
         }
 
         createCactus(scale = 1) {
@@ -4872,7 +5003,10 @@
               transparent: true,
               opacity: 0.42,
             });
-            const lens = new THREE.Mesh(new THREE.OctahedronGeometry(index === 2 ? 0.19 : 0.15, 0), lensMaterial);
+            const lens = new THREE.Mesh(
+              index === 2 ? this.shared.navigationLensLarge : this.shared.navigationLensSmall,
+              lensMaterial
+            );
             lens.position.set(...spec.position);
             group.add(lens);
             const light = { intensity: 0, visible: false };
@@ -4895,7 +5029,7 @@
             blending: THREE.AdditiveBlending,
           });
           const beam = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.04, radius, length, 10, 1, true),
+            this.getSearchlightGeometry(length, radius),
             beamMaterial
           );
           beam.position.y = -length / 2;
@@ -4985,18 +5119,26 @@
         }
 
         createShip(x, z) {
+          const pooled = this.acquirePooledEntity('navio');
+          if (pooled) {
+            const entity = this.resetPooledEntity(pooled, x, 0.72, z);
+            entity.vx = lerp(CONFIG.shipMinSpeed, CONFIG.shipMaxSpeed, this.gameplayRandom()) *
+              (this.gameplayRandom() > 0.5 ? 1 : -1);
+            entity.group.rotation.y = -Math.sign(entity.vx) * Math.PI / 2;
+            return entity;
+          }
           const group = new THREE.Group();
-          const hull = new THREE.Mesh(new THREE.ConeGeometry(1.35, 5.4, 5), this.materials.navy);
+          const hull = new THREE.Mesh(this.shared.shipHull, this.materials.navy);
           hull.rotation.x = -Math.PI / 2;
           group.add(hull);
-          const deck = new THREE.Mesh(new THREE.BoxGeometry(1.65, 0.45, 2.6), this.materials.rockLight);
+          const deck = new THREE.Mesh(this.shared.shipDeck, this.materials.rockLight);
           deck.position.y = 0.55;
           deck.position.z = 0.4;
           group.add(deck);
-          const tower = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.9, 0.9), this.materials.white);
+          const tower = new THREE.Mesh(this.shared.shipTower, this.materials.white);
           tower.position.set(0, 1.15, 0.55);
           group.add(tower);
-          const gun = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 1.4, 5), this.materials.black);
+          const gun = new THREE.Mesh(this.shared.shipGun, this.materials.black);
           gun.rotation.x = Math.PI / 2;
           gun.position.set(0, 1.25, -0.65);
           group.add(gun);
@@ -5015,7 +5157,7 @@
             (this.gameplayRandom() > 0.5 ? 1 : -1);
           group.rotation.y = -Math.sign(lateralSpeed) * Math.PI / 2;
           this.scene.add(group);
-          return {
+          const entity = {
             type: 'navio',
             group,
             radius: 2.15,
@@ -5028,23 +5170,34 @@
             cannonCooldown: 0,
             cannonShotsFired: 0,
           };
+          this.entityPoolStats.created.navio += 1;
+          return entity;
         }
 
         createHelicopter(x, z) {
+          const pooled = this.acquirePooledEntity('helicóptero');
+          if (pooled) {
+            const entity = this.resetPooledEntity(pooled, x, 4.6, z);
+            entity.vx = lerp(CONFIG.helicopterMinSpeed, CONFIG.helicopterMaxSpeed, this.gameplayRandom()) *
+              (this.gameplayRandom() > 0.5 ? 1 : -1);
+            entity.group.rotation.y = -Math.sign(entity.vx) * Math.PI / 2;
+            entity.group.userData.rotor.rotation.set(0, 0, 0);
+            return entity;
+          }
           const group = new THREE.Group();
-          const body = new THREE.Mesh(new THREE.OctahedronGeometry(1.15, 0), this.materials.red);
+          const body = new THREE.Mesh(this.shared.helicopterBody, this.materials.red);
           body.scale.set(1.15, 0.75, 1.4);
           group.add(body);
-          const cabin = new THREE.Mesh(new THREE.OctahedronGeometry(0.72, 0), this.materials.glass);
+          const cabin = new THREE.Mesh(this.shared.helicopterCabin, this.materials.glass);
           cabin.position.z = -0.7;
           cabin.scale.set(0.9, 0.75, 0.8);
           group.add(cabin);
-          const tail = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.38, 3.2), this.materials.red);
+          const tail = new THREE.Mesh(this.shared.helicopterTail, this.materials.red);
           tail.position.z = 2.05;
           group.add(tail);
           const rotor = new THREE.Group();
-          const bladeA = new THREE.Mesh(new THREE.BoxGeometry(7, 0.08, 0.22), this.materials.black);
-          const bladeB = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.08, 7), this.materials.black);
+          const bladeA = new THREE.Mesh(this.shared.helicopterBladeLong, this.materials.black);
+          const bladeB = new THREE.Mesh(this.shared.helicopterBladeWide, this.materials.black);
           rotor.add(bladeA, bladeB);
           rotor.position.y = 1.2;
           group.add(rotor);
@@ -5069,7 +5222,7 @@
             (this.gameplayRandom() > 0.5 ? 1 : -1);
           group.rotation.y = -Math.sign(lateralSpeed) * Math.PI / 2;
           this.scene.add(group);
-          return {
+          const entity = {
             type: 'helicóptero',
             group,
             radius: 2.15,
@@ -5078,27 +5231,31 @@
             phase: Math.random() * Math.PI * 2,
             vx: lateralSpeed,
           };
+          this.entityPoolStats.created['helicóptero'] += 1;
+          return entity;
         }
 
         createFuel(x, z) {
+          const pooled = this.acquirePooledEntity('fuel');
+          if (pooled) return this.resetPooledEntity(pooled, x, 0.12, z);
           const group = new THREE.Group();
-          const barge = new THREE.Mesh(new THREE.BoxGeometry(5.5, 0.5, 8), this.materials.yellow);
+          const barge = new THREE.Mesh(this.shared.fuelBarge, this.materials.yellow);
           barge.position.y = 0.4;
           group.add(barge);
           for (const side of [-1, 1]) {
-            const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.85, 3, 7), this.materials.white);
+            const tank = new THREE.Mesh(this.shared.fuelTank, this.materials.white);
             tank.position.set(side * 1.45, 1.85, 0.3);
             group.add(tank);
           }
-          const stripe = new THREE.Mesh(new THREE.BoxGeometry(5.75, 0.18, 1.3), this.materials.red);
+          const stripe = new THREE.Mesh(this.shared.fuelStripe, this.materials.red);
           stripe.position.set(0, 0.78, -1.6);
           group.add(stripe);
-          const label = makeLabelSprite('FUEL');
+          const label = this.createLabelSprite('FUEL');
           label.position.set(0, 4.2, 0);
           group.add(label);
           group.position.set(x, 0.12, z);
           this.scene.add(group);
-          return {
+          const entity = {
             type: 'fuel',
             group,
             radius: 3.25,
@@ -5108,6 +5265,8 @@
             vx: 0,
             refueling: false,
           };
+          this.entityPoolStats.created.fuel += 1;
+          return entity;
         }
 
         createEquipmentCrate(equipment, x, z, spawnSource = 'world') {
@@ -5146,7 +5305,7 @@
           ring.position.y = 1.5;
           group.add(ring);
 
-          const label = makeLabelSprite(
+          const label = this.createLabelSprite(
             isRadar ? 'RADAR' : GAME_LANGUAGE === 'en' ? 'SHIELD' : 'ESCUDO'
           );
           label.position.set(0, 3.8, 0);
@@ -5172,36 +5331,33 @@
 
         createNavigationBeacon(color, phase) {
           const beacon = new THREE.Group();
-          const whiteMaterial = new THREE.MeshLambertMaterial({ color: COLORS.cream, flatShading: true });
-          const stripeMaterial = new THREE.MeshLambertMaterial({ color: COLORS.red, flatShading: true });
-          const darkMaterial = new THREE.MeshLambertMaterial({ color: COLORS.navy, flatShading: true });
           const lightMaterial = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.48 });
 
-          const base = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.45, 0.55, 7), this.materials.rock);
+          const base = new THREE.Mesh(this.shared.beaconBase, this.materials.rock);
           base.position.y = 0.38;
           beacon.add(base);
 
-          const lowerTower = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 1.02, 2.15, 7), whiteMaterial);
+          const lowerTower = new THREE.Mesh(this.shared.beaconLower, this.materials.white);
           lowerTower.position.y = 1.7;
           beacon.add(lowerTower);
 
-          const stripe = new THREE.Mesh(new THREE.CylinderGeometry(0.64, 0.76, 1.05, 7), stripeMaterial);
+          const stripe = new THREE.Mesh(this.shared.beaconStripe, this.materials.red);
           stripe.position.y = 3.25;
           beacon.add(stripe);
 
-          const upperTower = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.65, 0.72, 7), whiteMaterial);
+          const upperTower = new THREE.Mesh(this.shared.beaconUpper, this.materials.white);
           upperTower.position.y = 4.12;
           beacon.add(upperTower);
 
-          const gallery = new THREE.Mesh(new THREE.CylinderGeometry(0.92, 0.92, 0.16, 8), darkMaterial);
+          const gallery = new THREE.Mesh(this.shared.beaconGallery, this.materials.navy);
           gallery.position.y = 4.52;
           beacon.add(gallery);
 
-          const lens = new THREE.Mesh(new THREE.OctahedronGeometry(0.43, 0), lightMaterial);
+          const lens = new THREE.Mesh(this.shared.beaconLens, lightMaterial);
           lens.position.y = 4.98;
           beacon.add(lens);
 
-          const roof = new THREE.Mesh(new THREE.ConeGeometry(0.82, 0.78, 7), stripeMaterial);
+          const roof = new THREE.Mesh(this.shared.beaconRoof, this.materials.red);
           roof.position.y = 5.57;
           beacon.add(roof);
 
@@ -5238,19 +5394,20 @@
           const river = this.getRiverAtZ(z);
           const group = new THREE.Group();
           const width = river.halfWidth * 2 + 7;
-          const deck = new THREE.Mesh(new THREE.BoxGeometry(width, 0.75, 3.3), this.materials.bridge);
+          const deck = new THREE.Mesh(this.shared.bridgeDeck, this.materials.bridge);
+          deck.scale.x = width;
           deck.position.y = 1.1;
           group.add(deck);
           for (let x = -width / 2 + 2; x <= width / 2 - 2; x += 4) {
-            const slab = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.15, 3.7), this.materials.bridgeTop);
+            const slab = new THREE.Mesh(this.shared.bridgeSlab, this.materials.bridgeTop);
             slab.position.set(x, 1.55, 0);
             group.add(slab);
           }
           for (const side of [-1, 1]) {
-            const tower = new THREE.Mesh(new THREE.BoxGeometry(1.25, 4.6, 1.4), this.materials.rockLight);
+            const tower = new THREE.Mesh(this.shared.bridgeTower, this.materials.rockLight);
             tower.position.set(side * (river.halfWidth + 1.7), 2.35, 0);
             group.add(tower);
-            const cap = new THREE.Mesh(new THREE.ConeGeometry(1.05, 1.6, 4), this.materials.yellow);
+            const cap = new THREE.Mesh(this.shared.bridgeCap, this.materials.yellow);
             cap.position.set(side * (river.halfWidth + 1.7), 5.3, 0);
             cap.rotation.y = Math.PI / 4;
             group.add(cap);
@@ -6128,7 +6285,7 @@
           openingFuel.tutorialFuel = this.onboardingActive;
           if (this.onboardingActive) {
             const tutorialRing = new THREE.Mesh(
-              new THREE.TorusGeometry(4.7, 0.15, 5, 24),
+              this.shared.tutorialFuelRing,
               new THREE.MeshBasicMaterial({
                 color: 0x66f5ff,
                 transparent: true,
@@ -6156,7 +6313,7 @@
         }
 
         clearEntities() {
-          for (const entity of this.entities) this.removeObject3D(entity.group);
+          for (const entity of this.entities) this.releaseEntity(entity);
           for (const bullet of this.bullets) this.releaseBullet(bullet.mesh);
           for (const missile of this.missiles) this.removeObject3D(missile.group);
           for (const shell of this.enemyShells) this.removeObject3D(shell.group);
@@ -8059,7 +8216,7 @@
               }
               if (entity.group.position.x <= entity.endX) {
                 entity.crossingComplete = true;
-                this.removeObject3D(entity.group);
+                this.releaseEntity(entity);
                 this.entities.splice(index, 1);
                 continue;
               }
@@ -8184,7 +8341,7 @@
                 if (entity.equipment === 'radar') this.activateRadar();
                 else this.activateShield();
                 this.spawnSparks(entity.group.position.clone().setY(2.2), 16);
-                this.removeObject3D(entity.group);
+                this.releaseEntity(entity);
                 this.entities.splice(index, 1);
                 continue;
               }
@@ -8214,7 +8371,7 @@
                   this.advanceOnboarding('bridge');
                   this.showToast('FUEL COLETADO · TANQUE CHEIO', 1.5);
                   this.spawnSparks(entity.group.position.clone().setY(2.1), 12);
-                  this.removeObject3D(entity.group);
+                  this.releaseEntity(entity);
                   this.entities.splice(index, 1);
                   continue;
                 }
@@ -8234,7 +8391,7 @@
             }
 
             if (entity.group.position.z > 72) {
-              this.removeObject3D(entity.group);
+              this.releaseEntity(entity);
               this.entities.splice(index, 1);
             }
           }
@@ -8562,7 +8719,7 @@
             nextEnvironment = this.advanceEnvironment();
             if (firstFlightCompleted) this.completeOnboarding('bridge');
           }
-          this.removeObject3D(entity.group);
+          this.releaseEntity(entity);
           this.entities.splice(index, 1);
           if (nextEnvironment?.shieldEquipmentUnlocked) {
             this.spawnShieldCrateAhead('tank-cycle', false);
@@ -8882,7 +9039,7 @@
           for (let index = this.entities.length - 1; index >= 0; index -= 1) {
             const z = this.entities[index].group.position.z;
             if (z > CONFIG.playerZ - 18 && z < CONFIG.playerZ + 25) {
-              this.removeObject3D(this.entities[index].group);
+              this.releaseEntity(this.entities[index]);
               this.entities.splice(index, 1);
             }
           }
@@ -9697,6 +9854,10 @@
               triangles: this.renderer.info.render.triangles,
               bulletPool: this.bulletPool.length,
               particlePool: this.particlePool.length,
+              entityPools: Object.fromEntries(
+                Object.entries(this.entityPools).map(([type, pool]) => [type, pool.length])
+              ),
+              entityPoolStats: this.entityPoolStats,
               activeParticles: this.particles.length,
               weatherParticles: this.getGraphicsProfile().weatherParticles,
               speedLines: this.getGraphicsProfile().speedLines,

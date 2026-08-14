@@ -497,3 +497,14 @@ Original prompt: Criar um novo jogo retro inspirado em River Raid, em Three.js, 
 - Capturas finais foram inspecionadas em desktop 1280×720 e celular 390×844. A orientação não cobre o avião nem os controles essenciais; após a conclusão, o HUD completo retorna normalmente.
 - TODO v2: aguardar o teste do usuário antes de commit e publicação da `v2.0.0-alpha.1`; depois iniciar a Fase 2 com pré-aquecimento e medição de fluidez.
 - A `v2.0.0-alpha.1` foi aprovada pelo usuário em 12/08/2026. Autorizados o commit, a publicação em produção e o início da Fase 2.
+- A `v2.0.0-alpha.1` foi registrada no commit `87cda85`, enviada para `main` e confirmada em produção no domínio `https://vibe-jogos.vercel.app` em 12/08/2026.
+- `v2.0.0-alpha.2` local inicia a Fase 2 compartilhando geometrias de navios, helicópteros, depósitos FUEL, pontes, faróis, holofotes e luzes de navegação. Rótulos FUEL também reutilizam uma única textura e material.
+- O novo teste `tests/v2-shared-resources-smoke.mjs` criou duas ondas de 20 objetos. A primeira precisou de apenas uma geometria adicional; a segunda adicionou zero geometrias, zero texturas e zero programas gráficos. Não houve erros de console.
+- O fluxo completo do onboarding foi repetido em desktop e celular. Tutorial, ponte, faróis, HUD e controles mantiveram a aparência e o comportamento esperados nas capturas inspecionadas.
+- TODO v2: aguardar o teste do usuário antes de commit/publicação da `v2.0.0-alpha.2`; depois criar pools dos grupos completos e medir tempo de quadro durante geração e reciclagem do terreno.
+- A branch `codex/river-raid-v2-performance` foi criada em 14/08/2026 para isolar a continuação da Fase 2 sem alterar `main`.
+- A `v2.0.0-alpha.2` agora também mantém pools completos de até dez navios, dez helicópteros e dez depósitos FUEL. Remoção por saída de tela, destruição, coleta, colisão próxima ou reinício devolve esses objetos ao pool com todo o estado visual e de combate restaurado.
+- `tests/v2-entity-pools-smoke.mjs` confirmou que a segunda onda reutilizou os mesmos 18 UUIDs dos grupos da primeira, sem novas criações. No ambiente automatizado, a geração caiu de aproximadamente 0,7 ms para 0,1 ms.
+- O diagnóstico textual passou a expor tamanho, criações, reutilizações e devoluções de cada pool. O teste de recursos compartilhados passou a registrar zero novas geometrias já na primeira onda após o aquecimento.
+- Regressões do onboarding em desktop/celular e o cliente oficial passaram sem erros. Capturas confirmaram navio, helicóptero, FUEL, ponte, faróis e controles com aparência correta após reutilização.
+- TODO v2: medir e reduzir os picos da reciclagem dos segmentos do terreno; a `alpha.2` fica nesta branch até nova validação.
