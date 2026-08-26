@@ -33,6 +33,24 @@ const report = await page.evaluate(() => {
     const sorted = [...values].sort((left, right) => left - right);
     return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * fraction))] || 0;
   };
+  const getBoundsOverflow = (segment) => {
+    let maxOverflow = 0;
+    for (const mesh of segment.meshes) {
+      const positions = mesh.geometry.attributes.position;
+      const sphere = mesh.geometry.boundingSphere;
+      if (!sphere) return Number.POSITIVE_INFINITY;
+      for (let index = 0; index < positions.count; index += 1) {
+        const dx = positions.getX(index) - sphere.center.x;
+        const dy = positions.getY(index) - sphere.center.y;
+        const dz = positions.getZ(index) - sphere.center.z;
+        maxOverflow = Math.max(
+          maxOverflow,
+          Math.hypot(dx, dy, dz) - sphere.radius
+        );
+      }
+    }
+    return maxOverflow;
+  };
   const profileBiome = (biome, startIndex) => {
     const biomeCycles = { valley: 0, desert: 2, jungle: 3 };
     game.environmentCyclesCompleted = biomeCycles[biome];
@@ -45,11 +63,14 @@ const report = await page.evaluate(() => {
     const secondIds = new Set(segment.decorations.children.map((child) => child.uuid));
     const reusedTopLevelObjects = [...secondIds].filter((id) => firstIds.has(id)).length;
     const timings = [];
+    let maxBoundsOverflow = 0;
     for (let round = 0; round < 40; round += 1) {
       for (let index = 0; index < game.terrain.length; index += 1) {
         const startedAt = performance.now();
-        game.rebuildTerrainSegment(game.terrain[index], startIndex + round * game.terrain.length + index);
+        const terrainSegment = game.terrain[index];
+        game.rebuildTerrainSegment(terrainSegment, startIndex + round * game.terrain.length + index);
         timings.push(performance.now() - startedAt);
+        maxBoundsOverflow = Math.max(maxBoundsOverflow, getBoundsOverflow(terrainSegment));
       }
     }
     return {
@@ -61,6 +82,7 @@ const report = await page.evaluate(() => {
       firstDecorationCount: firstIds.size,
       secondDecorationCount: secondIds.size,
       reusedTopLevelObjects,
+      maxBoundsOverflow: Number(maxBoundsOverflow.toFixed(6)),
     };
   };
 
@@ -124,6 +146,12 @@ if (
 for (const [biome, profile] of Object.entries(report.biomes)) {
   if (expectPooling && profile.reusedTopLevelObjects <= 0) {
     console.error(`${biome} não reutilizou objetos visuais entre segmentos.`);
+    process.exitCode = 1;
+  }
+  if (expectPooling && profile.maxBoundsOverflow > 0.001) {
+    console.error(
+      `${biome} manteve vértices ${profile.maxBoundsOverflow} unidades fora do limite de visibilidade.`
+    );
     process.exitCode = 1;
   }
 }

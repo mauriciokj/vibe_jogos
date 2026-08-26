@@ -16,6 +16,7 @@ Cada publicação deve atualizar `GAME_VERSION` no `index.html` e registrar as m
 - Em 480 reciclagens por bioma, o tempo total caiu de 14,2 para 7,3 ms no vale, de 22,9 para 5,0 ms no deserto e de 17,0 para 6,3 ms na jungle.
 - A comparação usa o mesmo teste contra o commit anterior; geometrias e texturas permaneceram estáveis e 7–14 objetos visuais foram reutilizados imediatamente em cada segmento.
 - Vale, deserto e jungle foram inspecionados após milhares de reutilizações, preservando montanhas, árvores, cactos, ondas, cores e largura do rio.
+- Os limites de visibilidade das malhas do rio agora são recalculados junto com cada curva, evitando que uma margem pisque ou desapareça antes de sair da lateral da câmera.
 
 ## 2.0.0-alpha.2 — 2026-08-12
 

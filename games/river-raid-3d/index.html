@@ -2991,6 +2991,7 @@
         geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
         geometry.setIndex([0, 1, 2, 1, 3, 2]);
         geometry.computeVertexNormals();
+        geometry.computeBoundingSphere();
         return geometry;
       }
 
@@ -3003,6 +3004,7 @@
         }
         positions.needsUpdate = true;
         geometry.computeVertexNormals();
+        geometry.computeBoundingSphere();
       }
 
       function makeLabelSprite(text, foreground = '#15243a', background = '#ffd84d') {

@@ -514,3 +514,6 @@ Original prompt: Criar um novo jogo retro inspirado em River Raid, em Three.js, 
 - As capturas reais mostraram cactos e paleta quente no deserto, vegetação densa e paleta verde na jungle e o cenário clássico no vale. Nenhum objeto sumiu ou manteve transformação de outro bioma.
 - A regressão completa passou para onboarding desktop/celular, pools de entidades, recursos compartilhados e um voo automatizado de 290 unidades sem erros de console. O cenário reciclou 191 objetos durante o voo sem descarte.
 - TODO v2: aquecer efeitos de combate antes de eles entrarem no campo de visão e medir uma sessão real de três minutos.
+- Corrigido um piscar ocasional na lateral direita: as quatro extremidades das malhas recicladas podiam ficar até 4,9 unidades fora da esfera de visibilidade antiga. `updateQuadGeometry` agora recalcula esse limite sempre que a curva do rio muda.
+- O teste de terreno agora mede todas as extremidades após 1.440 reconstruções e confirmou zero vértices fora do limite de visibilidade. Vale, deserto, jungle, onboarding desktop/celular e um voo de 301 unidades foram reinspecionados sem falhas visuais ou erros de console.
+- TODO v2: retomar o aquecimento dos efeitos de combate e a medição da sessão real de três minutos.
