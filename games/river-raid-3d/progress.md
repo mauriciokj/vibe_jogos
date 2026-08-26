@@ -508,3 +508,9 @@ Original prompt: Criar um novo jogo retro inspirado em River Raid, em Three.js, 
 - O diagnóstico textual passou a expor tamanho, criações, reutilizações e devoluções de cada pool. O teste de recursos compartilhados passou a registrar zero novas geometrias já na primeira onda após o aquecimento.
 - Regressões do onboarding em desktop/celular e o cliente oficial passaram sem erros. Capturas confirmaram navio, helicóptero, FUEL, ponte, faróis e controles com aparência correta após reutilização.
 - TODO v2: medir e reduzir os picos da reciclagem dos segmentos do terreno; a `alpha.2` fica nesta branch até nova validação.
+- `v2.0.0-alpha.3` local adiciona pools por tipo para montanhas, árvores, cactos, pedras e ondas. Cada segmento devolve seus objetos em vez de descartá-los; o limite de 160 por tipo cobriu vale, deserto e jungle sem descartes.
+- `tests/v2-terrain-recycling-smoke.mjs` executa 480 reconstruções por bioma, verifica estabilidade de geometrias/texturas, exige reutilização real e captura os três ambientes depois do estresse.
+- O mesmo roteiro foi executado contra o commit `5119864`: vale caiu de 14,2 para 7,3 ms, deserto de 22,9 para 5,0 ms e jungle de 17,0 para 6,3 ms; reduções aproximadas de 49%, 78% e 63%.
+- As capturas reais mostraram cactos e paleta quente no deserto, vegetação densa e paleta verde na jungle e o cenário clássico no vale. Nenhum objeto sumiu ou manteve transformação de outro bioma.
+- A regressão completa passou para onboarding desktop/celular, pools de entidades, recursos compartilhados e um voo automatizado de 290 unidades sem erros de console. O cenário reciclou 191 objetos durante o voo sem descarte.
+- TODO v2: aquecer efeitos de combate antes de eles entrarem no campo de visão e medir uma sessão real de três minutos.

@@ -53,7 +53,7 @@ Resultado da alpha.1:
 
 ## Fase 2 — Fluidez e resposta
 
-Status: em andamento desde 12/08/2026. A `v2.0.0-alpha.2` iniciou a reutilização dos recursos gráficos da primeira rodada.
+Status: em andamento desde 12/08/2026. A `v2.0.0-alpha.3` concluiu a primeira rodada de pools para entidades comuns e reciclagem do cenário.
 
 - Eliminar criação cara de geometria, materiais e texturas durante a partida.
 - Reutilizar inimigos, projéteis, explosões e partículas por meio de pools.
@@ -73,7 +73,8 @@ Primeiro incremento concluído:
 - Recursos de navio, helicóptero, FUEL, ponte, farol e holofote passaram a ser compartilhados.
 - Uma segunda onda de 20 objetos reutilizou 100% das geometrias e texturas já aquecidas.
 - Pools completos de navios, helicópteros e FUEL reutilizaram exatamente os mesmos 18 grupos na segunda onda; o custo observado caiu de cerca de 0,7 ms para 0,1 ms.
-- Próximo alvo: medição contínua do tempo de quadro durante geração e reciclagem do terreno.
+- Montanhas, árvores, cactos, pedras e ondas passaram a usar pools por tipo; o custo de 480 reciclagens caiu 49% no vale, 78% no deserto e 63% na jungle.
+- Próximo alvo: aquecimento antecipado dos efeitos de combate e medição contínua do tempo de quadro em uma sessão real de três minutos.
 
 ## Fase 3 — Direção visual
 

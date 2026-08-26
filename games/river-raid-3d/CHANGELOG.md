@@ -8,6 +8,15 @@ O jogo usa versionamento semântico:
 
 Cada publicação deve atualizar `GAME_VERSION` no `index.html` e registrar as mudanças neste arquivo.
 
+## 2.0.0-alpha.3 — 2026-08-26
+
+- Montanhas, árvores, cactos, pedras e ondas agora retornam a pools próprios quando um segmento do rio é reciclado, eliminando a recriação contínua de objetos 3D do cenário.
+- Cada tipo pode conservar até 160 objetos leves, suficiente para alternar entre vale, deserto e jungle sem descartes no teste completo.
+- O diagnóstico textual informa tipos, objetos disponíveis, criações, reutilizações, devoluções e descartes dos pools do terreno.
+- Em 480 reciclagens por bioma, o tempo total caiu de 14,2 para 7,3 ms no vale, de 22,9 para 5,0 ms no deserto e de 17,0 para 6,3 ms na jungle.
+- A comparação usa o mesmo teste contra o commit anterior; geometrias e texturas permaneceram estáveis e 7–14 objetos visuais foram reutilizados imediatamente em cada segmento.
+- Vale, deserto e jungle foram inspecionados após milhares de reutilizações, preservando montanhas, árvores, cactos, ondas, cores e largura do rio.
+
 ## 2.0.0-alpha.2 — 2026-08-12
 
 - Navios, helicópteros, depósitos FUEL, pontes, faróis, holofotes e luzes de navegação agora reutilizam geometrias 3D compartilhadas em vez de recriá-las durante o voo.

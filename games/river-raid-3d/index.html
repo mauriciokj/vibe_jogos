@@ -1943,7 +1943,7 @@
     <script src="./crazygames.js"></script>
     <script src="./vendor/three.min.js"></script>
     <script>
-      const GAME_VERSION = '2.0.0-alpha.2';
+      const GAME_VERSION = '2.0.0-alpha.3';
       const platformOverrides =
         window.RIO_DE_ACO_CONFIG && typeof window.RIO_DE_ACO_CONFIG === 'object'
           ? window.RIO_DE_ACO_CONFIG
@@ -2407,6 +2407,7 @@
         maxBulletPool: 48,
         maxParticlePool: 180,
         maxCommonEntityPool: 10,
+        maxTerrainDecorationPool: 160,
       };
 
       const GRAPHICS_PROFILES = Object.freeze({
@@ -3496,6 +3497,13 @@
           };
           this.terrain = [];
           this.terrainRefreshQueue = [];
+          this.terrainDecorationPools = new Map();
+          this.terrainDecorationPoolStats = {
+            created: 0,
+            reused: 0,
+            released: 0,
+            discarded: 0,
+          };
           this.waterMaterials = [];
           this.lastHudUpdateAt = -Infinity;
           this.tempVectorA = new THREE.Vector3();
@@ -3974,6 +3982,71 @@
           }
           cactus.scale.setScalar(scale);
           return cactus;
+        }
+
+        acquireTerrainDecoration(key, factory) {
+          let pool = this.terrainDecorationPools.get(key);
+          if (!pool) {
+            pool = [];
+            this.terrainDecorationPools.set(key, pool);
+          }
+          let object = pool.pop();
+          if (object) {
+            this.terrainDecorationPoolStats.reused += 1;
+          } else {
+            object = factory();
+            object.userData.terrainPoolKey = key;
+            this.terrainDecorationPoolStats.created += 1;
+          }
+          object.visible = true;
+          object.position.set(0, 0, 0);
+          object.rotation.set(0, 0, 0);
+          object.scale.set(1, 1, 1);
+          return object;
+        }
+
+        acquireTerrainMesh(key, geometry, material) {
+          const mesh = this.acquireTerrainDecoration(
+            key,
+            () => new THREE.Mesh(geometry, material)
+          );
+          mesh.geometry = geometry;
+          mesh.material = material;
+          return mesh;
+        }
+
+        acquireTerrainCactus(scale = 1) {
+          const cactus = this.acquireTerrainDecoration(
+            'cactus',
+            () => this.createCactus(1)
+          );
+          cactus.scale.setScalar(scale);
+          return cactus;
+        }
+
+        releaseTerrainDecorations(group) {
+          while (group.children.length > 0) {
+            const object = group.children[group.children.length - 1];
+            object.removeFromParent();
+            object.visible = false;
+            const key = object.userData.terrainPoolKey;
+            if (!key) {
+              this.disposeObject3D(object);
+              continue;
+            }
+            let pool = this.terrainDecorationPools.get(key);
+            if (!pool) {
+              pool = [];
+              this.terrainDecorationPools.set(key, pool);
+            }
+            if (pool.length < CONFIG.maxTerrainDecorationPool) {
+              pool.push(object);
+              this.terrainDecorationPoolStats.released += 1;
+            } else {
+              this.disposeObject3D(object);
+              this.terrainDecorationPoolStats.discarded += 1;
+            }
+          }
         }
 
         createCockpitRig() {
@@ -4502,8 +4575,7 @@
 
         rebuildTerrainSegment(segment, worldIndex) {
           segment.worldIndex = worldIndex;
-          this.disposeObject3D(segment.decorations);
-          segment.decorations.clear();
+          this.releaseTerrainDecorations(segment.decorations);
 
           const halfLength = CONFIG.segmentLength / 2;
           const centerDistance = worldIndex * CONFIG.segmentLength;
@@ -4611,9 +4683,12 @@
               const z = -halfLength + 4 + seededNoise(seed + 1) * (CONFIG.segmentLength - 8);
               const x = side * ((jungle ? 18 : 22) + sample * (jungle ? 15 : 18));
               const scale = 0.7 + seededNoise(seed + 2) * 1.05;
-              const mountain = new THREE.Mesh(
-                sample > 0.52 ? this.shared.mountain : this.shared.hill,
-                sample > 0.65 ? this.materials.rockLight : this.materials.rock
+              const mountainGeometry = sample > 0.52 ? this.shared.mountain : this.shared.hill;
+              const mountainMaterial = sample > 0.65 ? this.materials.rockLight : this.materials.rock;
+              const mountain = this.acquireTerrainMesh(
+                `terrain:${sample > 0.52 ? 'mountain' : 'hill'}:${sample > 0.65 ? 'light' : 'dark'}`,
+                mountainGeometry,
+                mountainMaterial
               );
               mountain.position.set(x, (sample > 0.52 ? 4.2 : 2.55) * scale, z);
               mountain.scale.set(scale, scale, scale);
@@ -4622,14 +4697,20 @@
 
               if (sample < 0.65) {
                 if (desert) {
-                  const cactus = this.createCactus(0.62 + seededNoise(seed + 5) * 0.42);
+                  const cactus = this.acquireTerrainCactus(
+                    0.62 + seededNoise(seed + 5) * 0.42
+                  );
                   cactus.position.set(side * (16 + seededNoise(seed + 4) * 7), 0.22, z + 3.4);
                   cactus.rotation.y = seededNoise(seed + 6) * Math.PI;
                   segment.decorations.add(cactus);
                 } else if (jungle) {
                   for (let treeIndex = 0; treeIndex < 2; treeIndex += 1) {
                     const treeScale = 1.05 + seededNoise(seed + 5 + treeIndex) * 0.72;
-                    const tree = new THREE.Mesh(this.shared.tree, this.materials.bankDark);
+                    const tree = this.acquireTerrainMesh(
+                      'terrain:tree',
+                      this.shared.tree,
+                      this.materials.bankDark
+                    );
                     tree.position.set(
                       side * (14 + seededNoise(seed + 4 + treeIndex * 3) * 8),
                       2.15 * treeScale,
@@ -4640,7 +4721,11 @@
                     segment.decorations.add(tree);
                   }
                 } else {
-                  const tree = new THREE.Mesh(this.shared.tree, this.materials.bankDark);
+                  const tree = this.acquireTerrainMesh(
+                    'terrain:tree',
+                    this.shared.tree,
+                    this.materials.bankDark
+                  );
                   tree.position.set(side * (16 + seededNoise(seed + 4) * 7), 2.15, z + 3.4);
                   segment.decorations.add(tree);
                 }
@@ -4654,7 +4739,7 @@
             const islandCenter = (segment.ahead.center + segment.behind.center) * 0.5;
             const treeScale = 0.58 + seededNoise(seed) * 0.28;
             if (desert) {
-              const islandCactus = this.createCactus(treeScale * 0.72);
+              const islandCactus = this.acquireTerrainCactus(treeScale * 0.72);
               islandCactus.position.set(
                 islandCenter + (seededNoise(seed + 1) - 0.5) * islandWidth * 0.65,
                 0.24,
@@ -4662,7 +4747,11 @@
               );
               segment.decorations.add(islandCactus);
             } else {
-              const islandTree = new THREE.Mesh(this.shared.tree, this.materials.bankDark);
+              const islandTree = this.acquireTerrainMesh(
+                'terrain:tree',
+                this.shared.tree,
+                this.materials.bankDark
+              );
               islandTree.position.set(
                 islandCenter + (seededNoise(seed + 1) - 0.5) * islandWidth * 0.8,
                 1.9 * treeScale,
@@ -4671,7 +4760,11 @@
               islandTree.scale.setScalar(treeScale);
               segment.decorations.add(islandTree);
               if (jungle) {
-                const secondTree = new THREE.Mesh(this.shared.tree, this.materials.bankDark);
+                const secondTree = this.acquireTerrainMesh(
+                  'terrain:tree',
+                  this.shared.tree,
+                  this.materials.bankDark
+                );
                 secondTree.position.set(
                   islandCenter - (seededNoise(seed + 7) - 0.5) * islandWidth * 0.7,
                   1.7 * treeScale,
@@ -4683,7 +4776,11 @@
             }
 
             if (seededNoise(seed + 3) > 0.42) {
-              const markerRock = new THREE.Mesh(this.shared.hill, this.materials.rockLight);
+              const markerRock = this.acquireTerrainMesh(
+                'terrain:hill:light',
+                this.shared.hill,
+                this.materials.rockLight
+              );
               const rockScale = 0.22 + seededNoise(seed + 4) * 0.16;
               markerRock.position.set(
                 islandCenter + (seededNoise(seed + 5) - 0.5) * islandWidth,
@@ -4700,7 +4797,11 @@
             const distance = segment.worldIndex * 17 + i * 4;
             const t = seededNoise(distance);
             const river = this.interpolateRiverShape(segment.ahead, segment.behind, t);
-            const wave = new THREE.Mesh(this.shared.wave, this.materials.wave);
+            const wave = this.acquireTerrainMesh(
+              'terrain:wave',
+              this.shared.wave,
+              this.materials.wave
+            );
             wave.scale.x = 2.6 + seededNoise(distance + 3) * 2.5;
             wave.rotation.x = -Math.PI / 2;
             wave.position.set(
@@ -9858,6 +9959,14 @@
                 Object.entries(this.entityPools).map(([type, pool]) => [type, pool.length])
               ),
               entityPoolStats: this.entityPoolStats,
+              terrainDecorationPool: {
+                available: [...this.terrainDecorationPools.values()].reduce(
+                  (total, pool) => total + pool.length,
+                  0
+                ),
+                types: this.terrainDecorationPools.size,
+                ...this.terrainDecorationPoolStats,
+              },
               activeParticles: this.particles.length,
               weatherParticles: this.getGraphicsProfile().weatherParticles,
               speedLines: this.getGraphicsProfile().speedLines,
