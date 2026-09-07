@@ -11,5 +11,10 @@
     }
   ],
   "cleanUrls": true,
-  "trailingSlash": true
+  "trailingSlash": true,
+  "functions": {
+    "api/asfalto.js": {
+      "maxDuration": 300
+    }
+  }
 }

@@ -1,0 +1,31 @@
+{
+  "name": "asfalto-bruto",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 4317 --strictPort",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "tsx --test tests/*.test.ts",
+    "test:browser": "node tests/browser.mjs && node tests/extended.mjs",
+    "dev:server": "tsx watch server/dev.ts",
+    "start:server": "tsx server/dev.ts",
+    "export:jogos": "node scripts/export-jogos.mjs",
+    "test:online": "tsx tests/online-browser.ts",
+    "test:redis": "tsx tests/redis-online.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.18.1",
+    "esbuild": "^0.28.2",
+    "playwright": "^1.55.0",
+    "tsx": "^4.20.0",
+    "typescript": "~5.9.3",
+    "vite": "^7.1.0"
+  },
+  "dependencies": {
+    "ioredis": "^6.0.0",
+    "ws": "^8.21.3"
+  }
+}

@@ -3,6 +3,8 @@
   "private": true,
   "type": "commonjs",
   "dependencies": {
-    "@vercel/kv": "^2.0.0"
+    "@vercel/kv": "^2.0.0",
+    "ws": "^8.21.3",
+    "ioredis": "^6.0.0"
   }
 }
