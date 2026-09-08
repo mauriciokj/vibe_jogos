@@ -58,6 +58,8 @@ export class GameAudio {
     const gain = ctx.createGain(); gain.gain.value = volume; source.connect(gain); gain.connect(this.master); source.start();
   }
   event(event: GameEvent) {
+    if (event.type === 'horn') { this.tone(370,.4,.14,'sawtooth');this.tone(465,.4,.1,'square'); }
+    if (event.type === 'nitro') { this.noise(.5,.17);this.tone(185,.3,.08,'triangle'); }
     if (event.type === 'hit') { this.noise(.1, .38); this.tone(90, .1, .3, 'triangle'); }
     if (event.type === 'crash') this.noise(.45, .42);
     if (event.type === 'attack') this.noise(.07, .1);

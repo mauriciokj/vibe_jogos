@@ -32,6 +32,9 @@ O terminal informa a URL da prévia. A pasta `dist/` contém a versão distribu�
 | Socar / tomar o bastão de um rival | J |
 | Chutar e empurrar o rival | K |
 | Usar o bastão equipado | L |
+| Apoiar o joelho (com joelheira, exceto choppers) | Dois toques rápidos em A/← ou D/→ |
+| Ativar nitro comprado | N |
+| Buzinar / provocar | B / Q |
 | Pausar / continuar | Esc |
 | Alternar tela cheia | F |
 | Ligar / desligar som | M |
@@ -39,6 +42,8 @@ O terminal informa a URL da prévia. A pasta `dist/` contém a versão distribu�
 O rival ao alcance recebe uma marca verde. Um “!” indica um ataque em preparação. Os rivais têm uma preparação extra de 250 ms para permitir evasão. Ataques só atingem uma vez durante a janela de acerto e respeitam distância lateral e longitudinal.
 
 O som começa depois de uma interação. Em telas estreitas, há controles por toque. O projeto foi priorizado para desktop; o toque é uma alternativa e ainda merece testes em dispositivos físicos.
+
+Joelheira: dois toques rápidos em A/← ou D/→. Nitro: **N**. Buzina: **B**. Provocação: **Q**. Detalhes de preços, estoque e controles em [Equipamentos e controles](docs/equipamentos-controles.md).
 
 ## O que está implementado
 
@@ -56,7 +61,10 @@ O som começa depois de uma interação. Em telas estreitas, há controles por t
 - Largada, classificação por distância/tempo de chegada, resultados, recompensas, repetição da corrida, pausa automática ao sair da janela.
 - Garagem com **sete modelos**: Ferro 500 (street), Veneno 750 (esportiva), Brutal 1000 (muscle), Falcão 450 (supermoto), Estradeira 900 (cruiser), Lobo 1200 (chopper) e Agulha 600 (café racer). Cada uma tem silhueta, aceleração, aderência nas curvas e resistência próprias; três níveis de motor, resistência e dirigibilidade, além de reparos. A Falcão é a mais ágil; a Lobo exige frear antes, mas suporta mais danos.
 - Próxima estrada liberada com uma colocação entre os cinco primeiros. Todas as colocações recebem dinheiro; derrotas recebem uma pequena ajuda. A Ferro 500 recebe reparo gratuito até 55% depois de cada corrida, evitando bloqueio econômico.
-- Salvamento local de créditos, motos, melhorias, condições, pistas, recordes e preferência de áudio. A garagem permite apagar o progresso com uma confirmação.
+- Joelheiras permanentes em cinco cores, preços e bônus: duplo toque para o mesmo lado ativa o apoio de joelho por até 4s acima de 72 km/h. Choppers não fazem a manobra; tentar na chuva causa queda. O bônus atua durante o apoio em curva e respeita a agilidade da moto.
+- Nitro a $2.500 por carga: +10% de aceleração e velocidade máxima durante 5s, com consumo permanente. Estoque por moto, limitado a 2, 3 ou 5 cargas. A Brutal 1000 é a única com capacidade 5.
+- B buzina e Q sorteia uma de dez provocações aprovadas, exibida em balão. Rivais próximos também provocam ocasionalmente, sem afetar o RNG da física. No celular, dois analógicos controlam direção e aceleração/frenagem; o duplo movimento da direção ativa o joelho. Botões de combate e nitro mantidos; sem botões B/Q.
+- Salvamento local de créditos, motos, melhorias, joelheiras, nitro, condições, pistas, recordes e preferência de áudio. A garagem permite apagar o progresso com uma confirmação.
 - Sprites e cenários originais, asfalto com textura, defensas, refletores, placas de curva, vegetação e relevo detalhados. Faixas curtas e detalhes no acostamento reforçam a passagem do cenário.
 - Câmera de perseguição mais baixa e próxima do asfalto, com campo de visão progressivo e tamanho da moto estável ao acelerar. Faixas de 3 metros, refletores mais próximos e vegetação junto ao acostamento reforçam a sensação de velocidade, preservando a velocidade real e a física da corrida.
 - Rastros no asfalto e no acostamento acompanham o deslocamento real; vento nas bordas, pneus animados e suspensão completam o movimento. A preferência do sistema por movimento reduzido desativa as variações da câmera e os efeitos extras. A pausa congela os rastros junto com a corrida.
@@ -77,6 +85,8 @@ O som começa depois de uma interação. Em telas estreitas, há controles por t
 | `src/game/scenery.ts` | Vegetação, rochas e construções originais em cache, com aleatoriedade apenas visual |
 | `src/game/audio.ts` | Motor e efeitos sonoros, sem influência na simulação |
 | `src/game/save.ts` | Progressão, compras, reparos e persistência no navegador |
+| `src/game/bikes.ts` / `src/game/equipment.ts` / `src/game/banter.ts` | Modelos, equipamentos, técnica de curva e provocações |
+| `src/equipment-ui.ts` / `src/touch.css` | Loja e analógicos móveis |
 | `src/game/routes.ts` / `src/menu.css` | Combinações de pista/condição e menu em fluxo responsivo, com rolagem em janelas baixas |
 | `src/main.ts` | Entradas, ciclo de execução, HUD, menus e integração |
 | `src/multiplayer/` | Protocolo, conexão, previsão de movimento e estilos das salas |
@@ -86,7 +96,7 @@ O som começa depois de uma interação. Em telas estreitas, há controles por t
 
 A simulação não acessa DOM, Canvas, áudio ou relógio real. Usa IDs estáveis, entradas por jogador e um gerador pseudoaleatório com seed e estado serializado. `snapshot()` e `restoreSnapshot()` reproduzem uma corrida; testes verificam resultados idênticos após restaurar e continuar com os mesmos comandos.
 
-**Multiplayer é opcional e já está implementado.** O modo individual continua local, com a mesma garagem. Antes de criar ou entrar numa sala, cada pessoa escolhe livremente um dos sete modelos com atributos de fábrica, sem usar compras ou melhorias da campanha. Os bots também pilotam modelos variados. O botão Multiplayer abre salas para 2–8 pessoas, com janela de 60 segundos e largada em até 5 segundos quando todos os presentes estão prontos. Quem cria a sala pode marcar **Completar com bots**: vagas livres recebem pilotos identificados como CPU na largada, até completar oito. Continuam necessárias duas pessoas reais. O servidor controla a corrida; cada piloto tem sua própria câmera, prisão e resultado. Veja [MULTIPLAYER.md](MULTIPLAYER.md) para as regras completas, reconexão, testes e publicação no catálogo Vibe Jogos.
+**Multiplayer é opcional e já está implementado.** O modo individual continua local, com a mesma garagem. Antes de criar ou entrar numa sala, cada pessoa escolhe livremente um dos sete modelos com atributos de fábrica, sem as melhorias de motor, resistência e dirigibilidade da campanha. A joelheira equipada e as cargas de nitro compradas acompanham o jogador; cargas usadas são descontadas da garagem. Os bots também pilotam modelos variados. O botão Multiplayer abre salas para 2–8 pessoas, com janela de 60 segundos e largada em até 5 segundos quando todos os presentes estão prontos. Quem cria a sala pode marcar **Completar com bots**: vagas livres recebem pilotos identificados como CPU na largada, até completar oito. Continuam necessárias duas pessoas reais. O servidor controla a corrida; cada piloto tem sua própria câmera, prisão e resultado. Veja [MULTIPLAYER.md](MULTIPLAYER.md) para as regras completas, reconexão, testes e publicação no catálogo Vibe Jogos.
 
 Para usar o modo online localmente, execute também `npm run dev:server` em outro terminal. A publicação atual usa uma VPS com um único processo Node e `ASFALTO_STORE=memory`, sem Redis. O catálogo está em `flowofdevelopment.com/catalogo/`; a infraestrutura e o deploy ficam em `infra/vps/` no repositório `mauriciokj/vibe_jogos`, branch `codex/vps-centralizacao`. A configuração Vercel anterior permanece disponível e exige Redis entre instâncias.
 
@@ -99,11 +109,12 @@ npx playwright install chromium
 npm run test:browser
 ```
 
-- **56 testes de simulação, salas e conexões:** pilotagem, frenagem, limites, alcance, roubo de arma, evasão, quedas, colisões, óleo, barreiras, classificação, polícia, economia, snapshots e consistência a 30/60/144 FPS.
+- **65 testes de simulação, salas e conexões:** pilotagem, frenagem, limites, alcance, roubo de arma, evasão, quedas, colisões, óleo, barreiras, classificação, polícia, economia, equipamentos, duplo toque, nitro, provocações, snapshots e consistência a 30/60/144 FPS.
 - Corridas completas nas três pistas, em piso seco e na chuva, com comandos dentro dos limites de controle do jogador.
 - Testes de navegador: teclado, tutorial, pausa, reinício, todos os golpes, queda/retorno, captura, corrida completa, resultados, desbloqueio, persistência, reparos, compras, todas as melhorias, seleção de moto, reset, áudio, tela cheia e toque.
 - `npm run test:online` verifica dois navegadores e seis conexões adicionais com 200ms de atraso de ida e volta. Inclui largada, combate, reconexão, prisão individual e retorno ao modo individual.
 - `npm run test:conditions` verifica as 12 combinações visuais, seleção persistente, saves anteriores, pausa/reinício, cartões, navegação lateral e menu em sete tamanhos, sala com duas pessoas e seis bots, condição e aparição compartilhadas, golpes na chuva e reconexão. Artefatos em `output/conditions/`.
+- `npm run test:equipment` verifica compras, cinco joelheiras, nitro 2/3/5, duplo toque, chopper, queda na chuva, pausas/reinícios, buzina, balões, dois toques simultâneos reais no Chromium, ações online e consumo preservado na reconexão.
 - `npm run test:bikes` verifica os sete modelos na garagem e na corrida, compras, melhorias, preservação do save, seleção online móvel, atributos de fábrica e reconexão entre modelos diferentes.
 - `npm run test:tactics` verifica a opção de bots, corrida com duas pessoas e seis CPUs, frenagem compartilhada, reconexão, resultados, mapa/retrovisor no desktop e celular, além da cadência de uma corrida com os instrumentos.
 - `npm run test:motion` verifica estabilidade de movimento com atraso variável de rede e armazenamento, direção e golpes com toques de 5ms em alta velocidade.

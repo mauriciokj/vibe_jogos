@@ -1,5 +1,5 @@
-import { EMPTY_COMMAND, type AttackKind, type Command, type RaceState, type RaceCondition } from '../game/types';
-import { NET_VERSION, RECONNECT_MS, type AttackInput, type ClientMessage, type RoomView, type ServerMessage } from './protocol';
+import { EMPTY_COMMAND, type AttackKind, type Command, type RaceState, type RaceCondition, type RiderAction } from '../game/types';
+import { NET_VERSION, RECONNECT_MS, type AttackInput, type ActionInput, type Loadout, type ClientMessage, type RoomView, type ServerMessage } from './protocol';
 import { RacePresentation } from './presentation';
 
 type Connection = 'offline' | 'connecting' | 'connected' | 'reconnecting';
@@ -15,6 +15,8 @@ export class OnlineClient {
   private sendTimer?: ReturnType<typeof setInterval>;
   private attacks: AttackInput[] = [];
   private attackSeq = 0;
+  private actions: ActionInput[] = [];
+  private actionSeq = 0;
   private seq = 0;
   private current: Command = EMPTY_COMMAND;
   private presentation?: RacePresentation;
@@ -30,12 +32,16 @@ export class OnlineClient {
     try { const s=JSON.parse(sessionStorage.getItem(sessionKey) ?? 'null'); if(s?.code && s?.token){this.code=s.code;this.token=s.token;this.open({type:'resume',version:NET_VERSION,code:s.code,token:s.token});return true;} } catch {}
     return false;
   }
-  create(name: string, trackId: string, fillBots = false, bikeId = 'ferro', condition: RaceCondition = 'sunset') { this.open({type:'create',version:NET_VERSION,name,trackId,fillBots,bikeId,condition}); }
-  join(name: string, code: string, bikeId = 'ferro') { this.open({type:'join',version:NET_VERSION,name,bikeId,code:code.trim().toUpperCase()}); }
+  create(name: string, trackId: string, fillBots = false, bikeId = 'ferro', condition: RaceCondition = 'sunset', loadout?: Loadout) { this.open({type:'create',version:NET_VERSION,name,trackId,fillBots,bikeId,condition,loadout}); }
+  join(name: string, code: string, bikeId = 'ferro', loadout?: Loadout) { this.open({type:'join',version:NET_VERSION,name,bikeId,code:code.trim().toUpperCase(),loadout}); }
   ready(ready: boolean) { this.send({type:'ready',ready}); }
   private send(message: ClientMessage) { if(this.ws?.readyState===WebSocket.OPEN)this.ws.send(JSON.stringify(message)); }
   private sendInput() {
-    if(this.status==='connected' && this.room?.phase==='racing')this.send({type:'input',seq:++this.seq,command:{...this.current,attack:null},attacks:this.attacks});
+    if(this.status==='connected' && this.room?.phase==='racing')this.send({type:'input',seq:++this.seq,command:{...this.current,attack:null},attacks:this.attacks,actions:this.actions});
+  }
+  action(kind: RiderAction) {
+    if(this.status!=='connected' || this.room?.phase!=='racing' || this.actions.length>=8)return;
+    this.actions.push({kind,seq:++this.actionSeq});this.sendInput();
   }
   attack(kind: AttackKind) {
     const now=performance.now();
@@ -64,7 +70,7 @@ export class OnlineClient {
       let data: ServerMessage;try{data=JSON.parse(event.data);}catch{return;}
       if(data.type==='welcome') {
         clearTimeout(this.connectTimer);this.reconnectStarted=0;
-        if(this.id!==data.id || this.code!==data.room.code){this.attacks=[];this.attackSeq=0;this.seq=0;this.presentation=new RacePresentation(data.id);this.room=null;}
+        if(this.id!==data.id || this.code!==data.room.code){this.attacks=[];this.attackSeq=0;this.actions=[];this.actionSeq=0;this.seq=0;this.presentation=new RacePresentation(data.id);this.room=null;}
         this.id=data.id;this.code=data.room.code;this.token=data.token;
         this.seq=Math.max(this.seq,data.room.ack[this.id] ?? 0);this.persistSession();this.setStatus('connected');this.accept(data.room);
       } else if(data.type==='state')this.accept(data.room);
@@ -93,6 +99,8 @@ export class OnlineClient {
     this.room=room;
     const ack=room.attackAck[this.id] ?? 0;
     this.attacks=this.attacks.filter(a=>a.seq>ack);this.attackSeq=Math.max(this.attackSeq,ack);
+    const actionAck=room.actionAck?.[this.id] ?? 0;
+    this.actions=this.actions.filter(a=>a.seq>actionAck);this.actionSeq=Math.max(this.actionSeq,actionAck);
     this.presentation?.accept(room,performance.now(),this.serverNow());
     this.hooks.room(room);
   }
@@ -109,6 +117,6 @@ export class OnlineClient {
   leave(notify=true) { if(notify)this.send({type:'leave'});this.stop(true);this.forgetSession();this.hooks.left(); }
   private stop(clear: boolean) {
     this.stopped=true;clearTimeout(this.reconnectTimer);clearTimeout(this.connectTimer);clearInterval(this.sendTimer);this.ws?.close();this.ws=undefined;this.setStatus('offline');
-    if(clear){this.id='';this.code='';this.token='';this.room=null;this.presentation=undefined;this.attacks=[];this.seq=0;this.attackSeq=0;this.current=EMPTY_COMMAND;this.clockReady=false;}
+    if(clear){this.id='';this.code='';this.token='';this.room=null;this.presentation=undefined;this.attacks=[];this.actions=[];this.seq=0;this.attackSeq=0;this.actionSeq=0;this.current=EMPTY_COMMAND;this.clockReady=false;}
   }
 }

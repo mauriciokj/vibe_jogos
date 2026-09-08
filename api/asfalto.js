@@ -72,19 +72,54 @@ function advanceScenicEvent(state) {
   if (humans.some((r) => r.z >= event.z - 180)) event.startedAt = state.time;
 }
 
-// src/game/content.ts
+// src/game/bikes.ts
 var BIKES = [
-  { id: "ferro", name: "Ferro 500", class: "STREET", style: "street", price: 0, speed: 64, acceleration: 13.2, handling: 1.1, armor: 1, color: "#dfff71", tagline: "Equilibrada para aprender a rua. Leve no bolso, firme na pista." },
-  { id: "veneno", name: "Veneno 750", class: "ESPORTIVA", style: "sport", price: 2800, speed: 73, acceleration: 15, handling: 1.2, armor: 0.95, color: "#ee734d", tagline: "Carenagem afiada e motor forte. Acelera muito, exige cuidado no contato." },
-  { id: "brutal", name: "Brutal 1000", class: "MUSCLE", style: "muscle", price: 4800, speed: 78, acceleration: 12.5, handling: 0.95, armor: 1.4, color: "#b6a1fb", tagline: "Pneu largo e a maior final. Freie cedo para domar o peso nas curvas." },
-  { id: "falcao", name: "Falc\xE3o 450", class: "SUPERMOTO", style: "supermoto", price: 1800, speed: 60, acceleration: 15.6, handling: 1.6, armor: 0.82, color: "#74dfe9", tagline: "Alta, estreita e muito \xE1gil. Contorna r\xE1pido, perde nas retas e no impacto." },
-  { id: "estradeira", name: "Estradeira 900", class: "CRUISER", style: "cruiser", price: 2400, speed: 66, acceleration: 12.4, handling: 1, armor: 1.55, color: "#e6b965", tagline: "Custom de banco baixo, cromados e alforjes. Aguenta a briga, pede uma curva mais aberta." },
-  { id: "lobo", name: "Lobo 1200", class: "CHOPPER", style: "chopper", price: 3500, speed: 71, acceleration: 11.4, handling: 0.82, armor: 1.7, color: "#c57566", tagline: "Garfo longo, guid\xE3o alto e muito metal. A mais resistente; prepare bem a frenagem." },
-  { id: "agulha", name: "Agulha 600", class: "CAF\xC9 RACER", style: "cafe", price: 3900, speed: 69, acceleration: 14.5, handling: 1.42, armor: 0.9, color: "#91b897", tagline: "Tanque cl\xE1ssico, banco de couro e dire\xE7\xE3o precisa. Boa sa\xEDda de curva, pouca prote\xE7\xE3o." }
+  { id: "ferro", nitroCapacity: 2, name: "Ferro 500", class: "STREET", style: "street", price: 0, speed: 64, acceleration: 13.2, handling: 1.1, armor: 1, color: "#dfff71", tagline: "Equilibrada para aprender a rua. Leve no bolso, firme na pista." },
+  { id: "veneno", nitroCapacity: 3, name: "Veneno 750", class: "ESPORTIVA", style: "sport", price: 2800, speed: 73, acceleration: 15, handling: 1.2, armor: 0.95, color: "#ee734d", tagline: "Carenagem afiada e motor forte. Acelera muito, exige cuidado no contato." },
+  { id: "brutal", nitroCapacity: 5, name: "Brutal 1000", class: "MUSCLE", style: "muscle", price: 4800, speed: 78, acceleration: 12.5, handling: 0.95, armor: 1.4, color: "#b6a1fb", tagline: "Pneu largo e a maior final. Freie cedo para domar o peso nas curvas." },
+  { id: "falcao", nitroCapacity: 2, name: "Falc\xE3o 450", class: "SUPERMOTO", style: "supermoto", price: 1800, speed: 60, acceleration: 15.6, handling: 1.6, armor: 0.82, color: "#74dfe9", tagline: "Alta, estreita e muito \xE1gil. Contorna r\xE1pido, perde nas retas e no impacto." },
+  { id: "estradeira", nitroCapacity: 2, name: "Estradeira 900", class: "CRUISER", style: "cruiser", price: 2400, speed: 66, acceleration: 12.4, handling: 1, armor: 1.55, color: "#e6b965", tagline: "Custom de banco baixo, cromados e alforjes. Aguenta a briga, pede uma curva mais aberta." },
+  { id: "lobo", nitroCapacity: 3, name: "Lobo 1200", class: "CHOPPER", style: "chopper", price: 3500, speed: 71, acceleration: 11.4, handling: 0.82, armor: 1.7, color: "#c57566", tagline: "Garfo longo, guid\xE3o alto e muito metal. A mais resistente; prepare bem a frenagem." },
+  { id: "agulha", nitroCapacity: 3, name: "Agulha 600", class: "CAF\xC9 RACER", style: "cafe", price: 3900, speed: 69, acceleration: 14.5, handling: 1.42, armor: 0.9, color: "#91b897", tagline: "Tanque cl\xE1ssico, banco de couro e dire\xE7\xE3o precisa. Boa sa\xEDda de curva, pouca prote\xE7\xE3o." }
 ];
 function getBike(id) {
   return BIKES.find((b) => b.id === id) ?? BIKES[0];
 }
+var supportsKneeDown = (bikeId) => getBike(bikeId).style !== "chopper";
+
+// src/game/equipment.ts
+var NITRO_DURATION = 5;
+var NITRO_MULTIPLIER = 1.1;
+var KNEE_DURATION = 4;
+function nitroCount(bikeId, value) {
+  return typeof value === "number" && Number.isInteger(value) ? Math.max(0, Math.min(getBike(bikeId).nitroCapacity, value)) : 0;
+}
+var KNEE_PADS = [
+  { id: "white", name: "Branca", color: "#e7eddf", price: 450, grip: 0.12 },
+  { id: "green", name: "Verde", color: "#a8ef66", price: 900, grip: 0.22 },
+  { id: "blue", name: "Azul", color: "#67c5ff", price: 1600, grip: 0.32 },
+  { id: "purple", name: "Roxa", color: "#c59aff", price: 2600, grip: 0.42 },
+  { id: "gold", name: "Dourada", color: "#ffd16a", price: 4e3, grip: 0.55 }
+];
+function getKneePad(id) {
+  return KNEE_PADS.find((p) => p.id === id);
+}
+function equippedKneePad(save) {
+  return save?.ownedKneePads?.includes(save.kneePadId ?? "") ? getKneePad(save.kneePadId) : void 0;
+}
+var ramp = (value) => Math.max(0, Math.min(1, value));
+function kneeSupport(rider, curve) {
+  if (!getKneePad(rider.kneePadId) || !supportsKneeDown(rider.bikeId) || !(rider.kneeTime > 0) || rider.kneeSide !== Math.sign(curve) || rider.crash || rider.out || rider.finishedAt !== null || Math.abs(rider.x) > 7) return 0;
+  return ramp((rider.speed - 20) / 10) * ramp((Math.abs(curve) - 0.15) / 0.5);
+}
+function cornerHandling(rider, curve) {
+  return rider.handling * (1 + (getKneePad(rider.kneePadId)?.grip ?? 0) * kneeSupport(rider, curve));
+}
+function plannedCornerHandling(handling, kneePadId) {
+  return handling * (1 + (getKneePad(kneePadId)?.grip ?? 0));
+}
+
+// src/game/content.ts
 var TRACKS = [
   { id: "costa", name: "Costa do Sol", region: "RODOVIA LITOR\xC2NEA", distance: 8400, difficulty: "NORMAL", prize: 1400, index: 0, sky: ["#567d9b", "#e0a6aa", "#fbd4ad"], land: ["#779b77", "#699271"], road: ["#555a5b", "#505557"], accent: "#deff70" },
   { id: "serra", name: "Serra da Fuma\xE7a", region: "ESTRADA DA MONTANHA", distance: 9200, difficulty: "DIF\xCDCIL", prize: 1850, index: 1, sky: ["#555f83", "#b794b1", "#f2c2b5"], land: ["#728b70", "#637e67"], road: ["#555962", "#50545c"], accent: "#b9a0f8" },
@@ -120,10 +155,10 @@ function curveAt(z, trackId) {
 function cornerSpeed(curve, handling = 1.1) {
   return Math.sqrt(3e3 * handling / Math.max(0.01, Math.abs(curve)));
 }
-function cornerPace(z, trackId, handling = 1.1, condition = "sunset") {
+function cornerPace(z, trackId, handling = 1.1, condition = "sunset", kneePadId) {
   let speed = 120;
   for (let ahead = 0; ahead <= 240; ahead += 20) {
-    const safe = cornerSpeed(curveAt(z + ahead, trackId), handling * roadGrip(condition));
+    const safe = cornerSpeed(curveAt(z + ahead, trackId), plannedCornerHandling(handling, kneePadId) * roadGrip(condition));
     speed = Math.min(speed, Math.sqrt(safe * safe + 2 * 19 * brakeGrip(condition) * Math.max(0, ahead - 12)));
   }
   return speed;
@@ -136,6 +171,41 @@ function cornerForces(speed, handling, curve, shoulder = false) {
     drift: Math.sign(curve) * (4 * load + 4 * excess * excess),
     sliding: excess > 0.2
   };
+}
+
+// src/game/banter.ts
+var TAUNTS = [
+  "Ningu\xE9m me pega!",
+  "Eu sou o melhor!",
+  "Come poeira!",
+  "Ficou pra tr\xE1s!",
+  "T\xE1 passeando?",
+  "Essa estrada \xE9 minha!",
+  "Quero ver acompanhar!",
+  "Hoje eu levo essa!",
+  "Sai da frente!",
+  "S\xF3 vai ver minha placa!"
+];
+function pick(seed, count) {
+  let hash = 2166136261;
+  for (const char of seed) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
+  return (hash >>> 0) % count;
+}
+function sayTaunt(state, rider) {
+  if (rider.crash || rider.out || rider.finishedAt !== null || (rider.tauntReadyAt ?? 0) > state.time) return;
+  const seq = (rider.tauntSeq ?? 0) + 1, old = rider.speech?.index;
+  let index = pick(`${rider.id}/${state.tick}/${seq}`, TAUNTS.length);
+  if (index === old) index = (index + 1) % TAUNTS.length;
+  rider.speech = { index, until: state.time + 3 };
+  rider.tauntReadyAt = state.time + 5;
+  rider.tauntSeq = seq;
+}
+function advanceBanter(state) {
+  if (state.time < (state.nextTauntAt ?? 12)) return;
+  state.nextTauntAt = state.time + 10 + pick(`${state.tick}/${state.trackId}`, 8);
+  const humans = state.riders.filter((r) => r.profile === "player" && !r.out);
+  const rivals = state.riders.filter((r) => r.profile !== "player" && r.profile !== "police" && !r.crash && !r.out && r.finishedAt === null && humans.some((h) => Math.abs(h.z - r.z) < 100));
+  if (rivals.length) sayTaunt(state, rivals[pick(String(state.tick), rivals.length)]);
 }
 
 // src/game/types.ts
@@ -169,6 +239,10 @@ function createRace(trackId = "costa", save, seed = 88117, condition = "sunset")
   const bike = getBike(save?.bikeId);
   const up = save?.upgrades[bike.id] ?? { engine: 0, armor: 0, handling: 0 };
   const player = makeRider("player", "VOC\xCA", "player", bike.color, 1.7, 0);
+  const pad = equippedKneePad(save);
+  if (pad) player.kneePadId = pad.id;
+  const nitro = nitroCount(bike.id, save?.nitro?.[bike.id]);
+  if (nitro) player.nitro = nitro;
   Object.assign(player, { bikeId: bike.id, maxSpeed: bike.speed + up.engine * 2.5, acceleration: bike.acceleration + up.engine * 0.7, handling: bike.handling + up.handling * 0.1, armor: bike.armor + up.armor * 0.15, integrity: save?.condition[bike.id] ?? 100, weapon: true });
   const names = ["NINA", "COBRA", "DANTE", "LUNA", "ROCHA", "FA\xCDSCA", "ZECA"];
   const colors = ["#d87bfa", "#f28451", "#6cdace", "#ebbc5c", "#a4bde2", "#ef6f8a", "#e7e6dc"];
@@ -204,14 +278,42 @@ function nearestTarget(state, rider, kind = "weapon") {
   const info = ATTACKS[kind];
   return state.riders.filter((r) => r.id !== rider.id && !r.out && !r.crash && !r.immune && r.finishedAt === null && Math.abs(r.z - rider.z) < info.longitudinal && Math.abs(r.x - rider.x) < info.reach).sort((a, b) => Math.abs(a.z - rider.z) + Math.abs(a.x - rider.x) - Math.abs(b.z - rider.z) - Math.abs(b.x - rider.x))[0];
 }
-function crashRider(state, rider) {
-  if (rider.crash || rider.immune) return;
+function crashRider(state, rider, force = false) {
+  if (rider.crash || rider.immune && !force) return;
   rider.crash = 2.1 + rider.speed / 110;
   rider.speed *= 0.17;
   rider.integrity = Math.max(0, rider.integrity - 13 / rider.armor);
   rider.attack = null;
+  rider.kneeTime = 0;
+  rider.nitroTime = 0;
+  rider.speech = void 0;
   rider.falls++;
   state.events.push({ type: "crash", actor: rider.id, text: "NO CH\xC3O! \u2212TEMPO \xB7 \u2212MOTO" });
+}
+function performAction(state, rider, action) {
+  if (state.mode !== "racing" || rider.out || rider.crash || rider.finishedAt !== null) return;
+  if (action === "kneeLeft" || action === "kneeRight") {
+    if (!getKneePad(rider.kneePadId) || !supportsKneeDown(rider.bikeId) || rider.speed < 20 || Math.abs(rider.x) > ROAD_HALF) return;
+    if (raceCondition(state.condition) === "rain") {
+      crashRider(state, rider, true);
+      state.events[state.events.length - 1].text = "JOELHO NO PISO MOLHADO \xB7 QUEDA!";
+      return;
+    }
+    const side = action === "kneeLeft" ? -1 : 1;
+    if ((rider.kneeTime ?? 0) > 0 && rider.kneeSide === side) return;
+    rider.kneeSide = side;
+    rider.kneeTime = KNEE_DURATION;
+  } else if (action === "nitro") {
+    if (!(rider.nitro > 0) || (rider.nitroTime ?? 0) > 0) return;
+    rider.nitro--;
+    rider.nitroUsed = (rider.nitroUsed ?? 0) + 1;
+    rider.nitroTime = NITRO_DURATION;
+    state.events.push({ type: "nitro", actor: rider.id });
+  } else if (action === "horn") {
+    if ((rider.hornCooldown ?? 0) > 0) return;
+    rider.hornCooldown = 1;
+    state.events.push({ type: "horn", actor: rider.id });
+  } else if (action === "taunt") sayTaunt(state, rider);
 }
 function impact(state, rider, damage, push) {
   if (rider.immune || rider.crash) return;
@@ -250,9 +352,9 @@ function botCommand(state, rider) {
   const nearby = nearestTarget(state, rider, rider.weapon ? "weapon" : "punch");
   if (nearby && rider.cooldown === 0 && (rider.profile !== "careful" || state.tick % 80 < 8)) attack = rider.weapon ? "weapon" : rider.profile === "aggressive" ? "kick" : "punch";
   const curve = curveAt(rider.z, state.trackId);
-  const forces = cornerForces(rider.speed, rider.handling * roadGrip(state.condition), curve, Math.abs(rider.x) > ROAD_HALF);
+  const forces = cornerForces(rider.speed, cornerHandling(rider, curve) * roadGrip(state.condition), curve, Math.abs(rider.x) > ROAD_HALF);
   const steering = clamp((target - rider.x) * 0.9 + forces.drift / forces.lateral, -1, 1);
-  const pace = cornerPace(rider.z, state.trackId, rider.handling, state.condition) * (rider.profile === "careful" ? 0.92 : rider.profile === "fast" ? 1.03 : 0.98);
+  const pace = cornerPace(rider.z, state.trackId, rider.handling, state.condition, rider.kneePadId) * (rider.profile === "careful" ? 0.92 : rider.profile === "fast" ? 1.03 : 0.98);
   brake = Math.max(brake, clamp((rider.speed - pace) * 0.3, 0, 1));
   if (police && rider.z > player.z + 7) brake = Math.max(brake, 0.42);
   return { throttle: rider.speed > pace - 0.6 || brake > 0.1 ? 0 : 1, brake, steer: steering, attack };
@@ -268,6 +370,10 @@ function applyCommand(state, rider, command) {
   }
   rider.cooldown = Math.max(0, rider.cooldown - STEP);
   rider.immune = Math.max(0, rider.immune - STEP);
+  if (rider.hornCooldown) rider.hornCooldown = Math.max(0, rider.hornCooldown - STEP);
+  if (rider.kneeTime) rider.kneeTime = Math.max(0, rider.kneeTime - STEP);
+  if (rider.nitroTime) rider.nitroTime = Math.max(0, rider.nitroTime - STEP);
+  if (command.action) performAction(state, rider, command.action);
   if (rider.finishedAt !== null) {
     rider.speed = Math.max(0, rider.speed - STEP * 12);
     return;
@@ -285,14 +391,17 @@ function applyCommand(state, rider, command) {
     return;
   }
   const onShoulder = Math.abs(rider.x) > ROAD_HALF;
+  if (rider.kneeTime && (onShoulder || rider.speed < 20 || command.steer * (rider.kneeSide ?? 0) < -0.2)) rider.kneeTime = 0;
   const curve = curveAt(rider.z, state.trackId);
+  const boost = (rider.nitroTime ?? 0) > 0 ? NITRO_MULTIPLIER : 1;
+  const topSpeed = rider.maxSpeed * boost;
   const shoulderLimit = Math.abs(curve) > 0.8 ? 0.38 : 0.56;
-  const max = rider.maxSpeed * (onShoulder ? shoulderLimit : 1) * (0.92 + rider.integrity / 1250);
-  const acceleration = command.throttle * rider.acceleration * (onShoulder ? 0.55 : 1) * (1 - 0.35 * rider.speed / rider.maxSpeed);
-  rider.speed = clamp(rider.speed + (acceleration - command.brake * 29 * brakeGrip(state.condition) - (command.throttle ? 1.2 : 3.6)) * STEP, 0, rider.maxSpeed);
+  const max = topSpeed * (onShoulder ? shoulderLimit : 1) * (0.92 + rider.integrity / 1250);
+  const acceleration = command.throttle * rider.acceleration * boost * (onShoulder ? 0.55 : 1) * (1 - 0.35 * rider.speed / topSpeed);
+  rider.speed = clamp(rider.speed + (acceleration - command.brake * 29 * brakeGrip(state.condition) - (command.throttle ? 1.2 : 3.6)) * STEP, 0, Math.max(rider.speed, topSpeed));
   if (rider.speed > max) rider.speed = Math.max(max, rider.speed - STEP * (onShoulder ? 34 : 4));
   const steering = clamp(command.steer, -1, 1);
-  const forces = cornerForces(rider.speed, rider.handling * roadGrip(state.condition), curve, onShoulder);
+  const forces = cornerForces(rider.speed, cornerHandling(rider, curve) * roadGrip(state.condition), curve, onShoulder);
   rider.x = clamp(rider.x + (steering * forces.lateral - forces.drift) * STEP, -10.5, 10.5);
   rider.lean += (steering * 0.32 - rider.lean) * 0.12;
   rider.z += rider.speed * STEP;
@@ -379,7 +488,7 @@ function createMultiplayerRace(trackId, players, seed = 88117, fillBots = false,
   const colors = ["#dcff74", "#d87bfa", "#6cdace", "#f28451", "#ebbc5c", "#a4bde2", "#ef6f8a", "#e7e6dc"];
   const base = state.riders[0];
   const bots = state.riders.slice(1);
-  state.riders = players.map((p, i) => ({ ...base, ...stockBike(p.bikeId), id: p.id, name: p.name, color: colors[i], x: [-5.1, -1.7, 1.7, 5.1][i % 4], z: -(Math.floor(i / 4) * 8), profile: "player" }));
+  state.riders = players.map((p, i) => ({ ...base, ...stockBike(p.bikeId), kneePadId: getKneePad(p.kneePadId)?.id, nitro: nitroCount(p.bikeId, p.nitro), id: p.id, name: p.name, color: colors[i], x: [-5.1, -1.7, 1.7, 5.1][i % 4], z: -(Math.floor(i / 4) * 8), profile: "player" }));
   if (fillBots) for (let i = players.length; i < 8; i++) {
     const bot = bots[i - players.length];
     state.riders.push({ ...base, ...stockBike(BIKES[i % BIKES.length].id), id: `cpu-${i}`, name: `${bot.name} CPU`, profile: bot.profile, color: colors[i], x: [-5.1, -1.7, 1.7, 5.1][i % 4], targetX: [-5.1, -1.7, 1.7, 5.1][i % 4], z: -(Math.floor(i / 4) * 8) });
@@ -488,6 +597,7 @@ function stepRace(state, commands = {}) {
     else if (state.multiplayer && state.time >= 360) finishRider(state, r, "timeout");
   }
   advanceScenicEvent(state);
+  advanceBanter(state);
   for (const [index, r] of ranking(state).entries()) if (index < oldOrder.indexOf(r.id)) state.events.push({ type: "pass", actor: r.id });
   if (state.tick % 600 === 0) {
     for (const key of Object.keys(state.collisions)) if (state.time - state.collisions[key] > 5) delete state.collisions[key];
@@ -495,7 +605,7 @@ function stepRace(state, commands = {}) {
 }
 
 // src/multiplayer/protocol.ts
-var NET_VERSION = 5;
+var NET_VERSION = 6;
 var MAX_PLAYERS = 8;
 var ROOM_WAIT_MS = 6e4;
 var READY_WAIT_MS = 5e3;
@@ -522,13 +632,26 @@ function cleanAttacks(value) {
   }
   return attacks;
 }
+function cleanActions(value) {
+  if (value === void 0) return [];
+  if (!Array.isArray(value) || value.length > 8) return null;
+  let previous = 0;
+  const actions = [];
+  for (const a of value) {
+    if (!a || !Number.isSafeInteger(a.seq) || a.seq <= previous || !["kneeLeft", "kneeRight", "nitro", "horn", "taunt"].includes(a.kind)) return null;
+    actions.push({ seq: a.seq, kind: a.kind });
+    previous = a.seq;
+  }
+  return actions;
+}
 
 // server/room.ts
 var import_node_crypto = require("node:crypto");
 var inputKey = (member) => `${member.id}:${member.epoch}`;
 var secret = () => (0, import_node_crypto.randomBytes)(24).toString("base64url");
-function makeMember(name, now, bikeId) {
-  return { id: `human-${(0, import_node_crypto.randomBytes)(8).toString("hex")}`, name: cleanName(name), bikeId: getBike(typeof bikeId === "string" ? bikeId : void 0).id, ready: false, connected: true, token: secret(), epoch: secret(), lastSeen: now };
+function makeMember(name, now, bikeId, loadout) {
+  const bike = getBike(typeof bikeId === "string" ? bikeId : void 0);
+  return { id: `human-${(0, import_node_crypto.randomBytes)(8).toString("hex")}`, name: cleanName(name), bikeId: bike.id, kneePadId: getKneePad(loadout?.kneePadId)?.id, nitro: nitroCount(bike.id, loadout?.nitro), ready: false, connected: true, token: secret(), epoch: secret(), lastSeen: now };
 }
 function makeRoom(code, trackId, member, now, fillBots = false, condition) {
   if (!TRACKS.some((t) => t.id === trackId)) throw new Error("Estrada inv\xE1lida.");
@@ -546,6 +669,7 @@ function makeRoom(code, trackId, member, now, fillBots = false, condition) {
     race: null,
     ack: {},
     attackAck: {},
+    actionAck: {},
     updatedAt: now,
     createdAt: now,
     finishedAt: null
@@ -563,10 +687,11 @@ function viewRoom(room, now) {
     revision: room.revision,
     serverNow: now,
     simulationAt: room.updatedAt,
-    members: room.members.map(({ id, name, bikeId, ready, connected }) => ({ id, name, bikeId, ready, connected })),
+    members: room.members.map(({ id, name, bikeId, kneePadId, nitro, ready, connected }) => ({ id, name, bikeId, kneePadId, nitro, ready, connected })),
     race: room.race,
     ack: room.ack,
-    attackAck: room.attackAck
+    attackAck: room.attackAck,
+    actionAck: room.actionAck
   };
 }
 function lobbyClock(room, now) {
@@ -657,6 +782,11 @@ function pulseRoom(room, inputs, now) {
     for (const m of room.members) {
       const latest = inputs[inputKey(m)], rider = room.race.riders.find((r) => r.id === m.id);
       if (!latest || !m.connected || now - latest.at >= 500 || !rider) continue;
+      const ability = latest.actions?.find((a) => a.seq > (room.actionAck?.[m.id] ?? 0));
+      if (ability) {
+        (room.actionAck ??= {})[m.id] = ability.seq;
+        tickCommands[m.id] = { ...tickCommands[m.id], action: ability.kind };
+      }
       const action = latest.attacks?.find((a) => a.seq > (room.attackAck[m.id] ?? 0));
       if (!action) continue;
       if (rider.out || rider.crash || rider.finishedAt !== null || action.kind === "weapon" && !rider.weapon) {
@@ -664,7 +794,7 @@ function pulseRoom(room, inputs, now) {
         continue;
       }
       if (rider.attack || rider.cooldown > STEP) continue;
-      tickCommands[m.id] = { ...commands[m.id], attack: action.kind };
+      tickCommands[m.id] = { ...tickCommands[m.id], attack: action.kind };
       room.attackAck[m.id] = action.seq;
       started.push({ id: m.id, seq: action.seq });
     }
@@ -936,10 +1066,10 @@ function createGameServer(store, options = {}) {
         return;
       }
       if (data.type === "input") {
-        const command = cleanCommand(data.command), attacks = cleanAttacks(data.attacks);
-        if (!peer.code || !command || !attacks || !Number.isSafeInteger(data.seq) || data.seq <= peer.seq) return;
+        const command = cleanCommand(data.command), attacks = cleanAttacks(data.attacks), actions = cleanActions(data.actions);
+        if (!peer.code || !command || !attacks || !actions || !Number.isSafeInteger(data.seq) || data.seq <= peer.seq) return;
         peer.seq = data.seq;
-        peer.pending = peer.latestInput = { seq: data.seq, command, attacks, at: now() };
+        peer.pending = peer.latestInput = { seq: data.seq, command, attacks, actions, at: now() };
         void flush(peer);
         return;
       }
@@ -950,7 +1080,7 @@ function createGameServer(store, options = {}) {
           if (peer.code) throw new Error("Voc\xEA j\xE1 est\xE1 em uma sala.");
           if (data.version !== NET_VERSION) throw new Error("Atualize a p\xE1gina para entrar nesta vers\xE3o.");
           if (data.type === "create") {
-            const member = makeMember(data.name, now(), data.bikeId);
+            const member = makeMember(data.name, now(), data.bikeId, data.loadout);
             let room;
             do {
               room = makeRoom((0, import_node_crypto2.randomBytes)(4).toString("hex").slice(0, 6).toUpperCase(), data.trackId, member, now(), data.fillBots === true, data.condition);
@@ -959,7 +1089,7 @@ function createGameServer(store, options = {}) {
           } else {
             const code = String(data.code ?? "").toUpperCase();
             if (!/^[A-F0-9]{6}$/.test(code)) throw new Error("Digite o c\xF3digo de 6 caracteres da sala.");
-            let member = makeMember(data.name, now(), data.bikeId);
+            let member = makeMember(data.name, now(), data.bikeId, data.loadout);
             const room = await store.mutate(code, (r) => {
               if (data.type === "join") joinRoom(r, member, now());
               else {

@@ -1,8 +1,8 @@
 import type { Bike, BikeStyle } from './types';
 // Original pixel artwork. Geometry is rasterized once, then scaled by the road renderer.
 const cache = new Map<string, HTMLCanvasElement>();
-export function bikeSprite(color: string, pose = 'ride', side = 1, police = false, frame = 0, style: BikeStyle = 'street'): HTMLCanvasElement {
-  const key = `${color}/${pose}/${side}/${police}/${frame}/${style}`;
+export function bikeSprite(color: string, pose = 'ride', side = 1, police = false, frame = 0, style: BikeStyle = 'street', padColor = '', kneeSide = 0): HTMLCanvasElement {
+  const key = `${color}/${pose}/${side}/${police}/${frame}/${style}/${padColor}/${kneeSide}`;
   if (cache.has(key)) return cache.get(key)!;
   const canvas = document.createElement('canvas'); canvas.width = 88; canvas.height = 128;
   const c = canvas.getContext('2d')!;
@@ -34,6 +34,18 @@ export function bikeSprite(color: string, pose = 'ride', side = 1, police = fals
   if (low) { c.translate(-2,14); c.scale(1.045,.86); }
   else if (style === 'sport' || style === 'cafe') { c.translate(0,12); c.scale(1,.86); }
   // Rider boots and trousers wrap around the tank.
+  if(kneeSide && pose!=='kick') {
+    c.save();c.translate(44,0);c.scale(kneeSide*side,1);c.translate(-44,0);
+    poly([28,53,42,51,40,70,31,82,25,86,20,81,26,64],dark);
+    rect(21,78,10,10,'#677581');
+    // Outside thigh opens toward the asphalt; the boot stays beside the engine.
+    poly([48,52,61,54,72,76,84,102,84,110,74,115,66,100,51,77],dark);
+    poly([57,78,68,86,79,100,73,108,58,95,51,87],'#465665');
+    rect(51,84,12,9,'#75828a');rect(52,91,13,3,'#d0d8c7');
+    poly([73,101,82,101,87,107,84,114,75,116,70,110],padColor || '#dfe5cb');
+    rect(74,105,8,3,'#f7ffe6');rect(76,112,8,3,'#667b79');
+    c.restore();
+  } else {
   poly([27, 53, 40, 50, 40, 68, 31, 84, 25, 89, 19, 84, 23, 68], dark);
   if (pose === 'kick') {
     poly([49, 52, 60, 54, 61, 68, 75, 76, 82, 76, 86, 84, 74, 88, 50, 74], dark);
@@ -43,6 +55,8 @@ export function bikeSprite(color: string, pose = 'ride', side = 1, police = fals
     rect(61, 79, 8, 12, '#526071'); rect(62, 89, 9, 4, '#c3c8c3');
   }
   rect(18, 78, 9, 13, '#526071'); rect(18, 89, 9, 4, '#c3c8c3');
+  if(padColor){rect(23,69,10,10,padColor);if(pose!=='kick')rect(58,69,10,10,padColor);}
+  }
   // Handlebars and bent arms. Customs draw their raised arms below.
   if (!low) {
   rect(16, 43, 56, 4, '#29303c'); rect(12, 42, 8, 6, '#d4d8ca'); rect(68, 42, 8, 6, '#d4d8ca');
@@ -138,12 +152,17 @@ function drawRearBody(c: CanvasRenderingContext2D, color: string, style: BikeSty
   }
 }
 
-export function bikeFrontSprite(color: string, style: BikeStyle = 'street', pose = 'ride', side = 1, police = false, frame = 0): HTMLCanvasElement {
-  const key=`front/${color}/${style}/${pose}/${side}/${police}/${frame}`;
+export function bikeFrontSprite(color: string, style: BikeStyle = 'street', pose = 'ride', side = 1, police = false, frame = 0, padColor = '', kneeSide = 0): HTMLCanvasElement {
+  const key=`front/${color}/${style}/${pose}/${side}/${police}/${frame}/${padColor}/${kneeSide}`;
   if(cache.has(key))return cache.get(key)!;
   const canvas=document.createElement('canvas');canvas.width=88;canvas.height=128;const c=canvas.getContext('2d')!;
   const r=(x:number,y:number,w:number,h:number,col:string)=>{c.fillStyle=col;c.fillRect(x,y,w,h);};
   const custom=style==='cruiser'||style==='chopper',slim=style==='supermoto'||style==='cafe';
+  if(padColor){r(23,65,10,12,padColor);r(55,65,10,12,padColor);}
+  if(kneeSide && pose!=='kick'){
+    c.strokeStyle='#253842';c.lineWidth=12;c.beginPath();c.moveTo(44,52);c.lineTo(44+kneeSide*22,78);c.lineTo(44+kneeSide*35,109);c.lineTo(44+kneeSide*15,88);c.stroke();
+    r(38+kneeSide*35,103,13,12,padColor || '#e5eed5');r(40+kneeSide*35,105,8,3,'#f5ffe9');
+  }
   r(slim?38:35,91,slim?12:18,35,'#17222c');r(37,108+frame*3,14,2,'#4a585f');
   r(30,65,5,50,'#b9c6c3');r(54,65,5,50,'#b9c6c3');
   if(style==='cruiser'){r(8,77,19,26,'#31363d');r(61,77,19,26,'#31363d');r(8,77,19,5,color);r(61,77,19,5,color);}

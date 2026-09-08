@@ -64,3 +64,11 @@ Artefatos locais estão em `road rash/output/vps/`: `live-check.json`, `eight.js
 - Sala criada pelo seletor combinado em Serra da Fumaça · Chuva, com duas pessoas entre os dois domínios e seis bots. Ambos receberam pista/condição corretas; reconexão preservou identidade e escolha. Saída explícita dos dois clientes ao concluir. Sem erros JavaScript.
 - Screenshots do menu, criação de sala e corrida revisados em `output/route-menu/published-*.png`; relatório `published.json`. Os testes do domínio principal usaram mapeamento DNS temporário no Chromium para a VPS, mantendo validação TLS.
 - Esta anotação é posterior à release e não requer nova ativação.
+
+## Equipamentos, manobra de joelho e controles — validação local
+
+- Cinco joelheiras permanentes, duplo toque para iniciar manobra, chopper incompatível e queda ao tentar no piso molhado. Nitro consumível por moto (2/3/5 cargas), B buzina, Q e provocações ocasionais com balões. Dois analógicos móveis e botão Nitro.
+- Protocolo v6: catálogo/capacidades validados no servidor, fila de ações com ACK, estado de equipamentos compartilhado e recibos locais de consumo que resistem à reconexão. Compras permanecem no save local, sem autenticação de carteira no servidor.
+- Build passou; 56 testes anteriores e nove novos passaram. Teste de navegador cobriu lojas, saves, cinco joelheiras, manobra, chuva, chopper, potência/consumo/pausa/reinício do nitro, som/evento de buzina, balões, multiplayer e reconexão.
+- Toques simultâneos nativos via Chromium: direção e acelerador, dupla deflexão para a esquerda, liberação e pausa limpando dedos capturados; retrato e paisagem. O detector usa o timestamp do evento para não depender do atraso de processamento do navegador.
+- Capturas de gameplay/loja foram inspecionadas. Balões acompanham a cabeça inclinada; texto de queda não sobrepõe o aviso principal. Relatório `output/equipment/browser-check.json`, sem erros JavaScript/console. A verificação pública será registrada após ativar a release.

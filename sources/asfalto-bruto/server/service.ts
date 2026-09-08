@@ -3,7 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { isIP } from 'node:net';
 import { WebSocket, WebSocketServer } from 'ws';
 import { finishRider } from '../src/game/simulation';
-import { cleanAttacks, cleanCommand, NET_VERSION, RECONNECT_MS, type ServerMessage } from '../src/multiplayer/protocol';
+import { cleanActions, cleanAttacks, cleanCommand, NET_VERSION, RECONNECT_MS, type ServerMessage } from '../src/multiplayer/protocol';
 import { depart, inputKey, joinRoom, lobbyClock, makeMember, makeRoom, pulseRoom, secret, setReady, viewRoom, type Inputs, type Member, type Room, type StoredInput } from './room';
 import { BusyRoom, MemoryStore, type RoomStore } from './store';
 
@@ -75,9 +75,9 @@ export function createGameServer(store: RoomStore, options: { origins?: string[]
       peer.lastSeen = now();
       if (data.type === 'ping') { send(peer,{type:'pong',sentAt:Number(data.sentAt)||0,serverNow:now()}); return; }
       if (data.type === 'input') {
-        const command = cleanCommand(data.command), attacks=cleanAttacks(data.attacks);
-        if (!peer.code || !command || !attacks || !Number.isSafeInteger(data.seq) || data.seq <= peer.seq) return;
-        peer.seq = data.seq; peer.pending = peer.latestInput = {seq:data.seq,command,attacks,at:now()};
+        const command = cleanCommand(data.command), attacks=cleanAttacks(data.attacks),actions=cleanActions(data.actions);
+        if (!peer.code || !command || !attacks || !actions || !Number.isSafeInteger(data.seq) || data.seq <= peer.seq) return;
+        peer.seq = data.seq; peer.pending = peer.latestInput = {seq:data.seq,command,attacks,actions,at:now()};
         void flush(peer);return;
       }
       if (busy) return; busy = true;
@@ -86,13 +86,13 @@ export function createGameServer(store: RoomStore, options: { origins?: string[]
           if (peer.code) throw new Error('Você já está em uma sala.');
           if (data.version !== NET_VERSION) throw new Error('Atualize a página para entrar nesta versão.');
           if (data.type === 'create') {
-            const member = makeMember(data.name,now(),data.bikeId); let room: Room;
+            const member = makeMember(data.name,now(),data.bikeId,data.loadout); let room: Room;
             do { room = makeRoom(randomBytes(4).toString('hex').slice(0,6).toUpperCase(),data.trackId,member,now(),data.fillBots === true,data.condition); } while (!await store.create(room));
             await attach(peer,room,member);
           } else {
             const code = String(data.code ?? '').toUpperCase();
             if (!/^[A-F0-9]{6}$/.test(code)) throw new Error('Digite o código de 6 caracteres da sala.');
-            let member = makeMember(data.name,now(),data.bikeId);
+            let member = makeMember(data.name,now(),data.bikeId,data.loadout);
             const room = await store.mutate(code,r => {
               if (data.type === 'join') joinRoom(r,member,now());
               else {

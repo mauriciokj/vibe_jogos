@@ -4,6 +4,8 @@ import { clamp, curveAt, elevationAt, getBike, getTrack } from './content';
 import { nearestTarget, ROAD_HALF } from './simulation';
 import { bikeSprite, carSprite } from './sprites';
 import { scenerySprite, visualHash } from './scenery';
+import { getKneePad, kneeSupport } from './equipment';
+import { TAUNTS } from './banter';
 import type { RaceState, Rider, Track } from './types';
 
 interface Point { x: number; y: number; scale: number; road: number; clip: number; }
@@ -320,6 +322,8 @@ export class Renderer {
     const p = this.project(r.z, r.x);
     if (!p || p.y < 0 || p.y > p.clip + 100) return;
     const c = this.ctx, player = r.id === this.localId;
+    const support=kneeSupport(r,curveAt(r.z,state.trackId)),kneeSide=support>.35 && r.attack?.kind!=='kick'?(r.kneeSide ?? 0):0;
+    const leanAngle=r.lean*.65*(1-support)+support*(r.kneeSide ?? 0)*.59;
     let height = p.scale * 3.55;
     height = Math.min(height, this.h * .36);
     const width = height * 88 / 128;
@@ -331,9 +335,16 @@ export class Renderer {
     if (r.crash) {
       c.rotate(1.25); c.translate(-height * .23, -width * .14);
       for (let i = 0; i < 8; i++) { c.fillStyle = i % 2 ? '#f9cd8b' : '#d2b78d'; c.fillRect(-width * .8 + Math.sin(state.time * 13 + i) * width, -height * .2 - i * 3, 4, 4); }
-    } else { c.rotate(r.lean * .65); if (!this.reducedMotion) c.translate(0, Math.sin(r.z * 1.1) * Math.min(1, r.speed / 50) * height * .003); }
+    } else { c.rotate(leanAngle); if (!this.reducedMotion) c.translate(0, Math.sin(r.z * 1.1) * Math.min(1, r.speed / 50) * height * .003); }
     const pose = r.attack && r.attack.age > .08 ? r.attack.kind : 'ride';
-    c.drawImage(bikeSprite(r.color, pose, r.attack?.side ?? 1, r.profile === 'police', r.speed > 8 ? Math.floor(r.z * 1.6) % 3 : 0, getBike(r.bikeId).style), -width / 2, -height, width, height);
+    c.drawImage(bikeSprite(r.color, pose, r.attack?.side ?? 1, r.profile === 'police', r.speed > 8 ? Math.floor(r.z * 1.6) % 3 : 0, getBike(r.bikeId).style,getKneePad(r.kneePadId)?.color,kneeSide), -width / 2, -height, width, height);
+    if((r.nitroTime ?? 0)>0 && !r.crash){
+      for(const side of [-1,1]){
+        const x=side*width*.26,flicker=.8+Math.sin(state.time*45)*.2;
+        c.fillStyle='#73dffe';c.beginPath();c.moveTo(x-width*.04,-height*.14);c.lineTo(x+width*.04,-height*.14);c.lineTo(x,height*.09*flicker);c.closePath();c.fill();
+        c.fillStyle='#f1ffdf';c.fillRect(x-width*.015,-height*.14,width*.03,height*.09);
+      }
+    }
     c.restore();
     if (!player && height > 58 && !r.crash && p.y < p.clip + 5) {
       c.save();
@@ -345,6 +356,15 @@ export class Renderer {
       if (r.attack) { c.fillStyle = '#ff9b65'; c.font = 'bold 20px monospace'; c.fillText('!', p.x, y - 23); }
       if (targetId === r.id) { c.strokeStyle = '#e2ff7b'; c.lineWidth = 2; c.beginPath(); c.moveTo(p.x - width * .5, p.y - height * .5 - 8); c.lineTo(p.x - width * .5 - 7, p.y - height * .5); c.lineTo(p.x - width * .5, p.y - height * .5 + 8); c.stroke(); }
       c.restore();
+    }
+    if(r.speech && r.speech.until>state.time && !r.crash && !r.out && height>40) {
+      const text=TAUNTS[r.speech.index];if(!text)return;
+      c.save();c.font=`600 ${player?13:11}px 'Barlow',sans-serif`;c.textAlign='center';c.textBaseline='middle';
+      const headX=p.x+Math.sin(leanAngle)*height*.9,headY=p.y-Math.cos(leanAngle)*height;
+      const bw=c.measureText(text).width+24,bh=29,bx=clamp(headX-bw/2,8,this.w-bw-8),by=Math.max(12,headY-42);
+      c.fillStyle='#f0f1ddec';c.strokeStyle='#2b4d4e';c.lineWidth=1.5;c.beginPath();c.roundRect(bx,by,bw,bh,7);c.fill();c.stroke();
+      const tip=clamp(headX,bx+12,bx+bw-12);c.beginPath();c.moveTo(tip-5,by+bh-1);c.lineTo(tip,by+bh+7);c.lineTo(tip+5,by+bh-1);c.fill();
+      c.fillStyle='#183036';c.fillText(text,bx+bw/2,by+bh/2);c.restore();
     }
   }
   private atmosphere(state: RaceState) {

@@ -1,5 +1,6 @@
 import { CONDITIONS, raceCondition, recordKey } from './conditions';
 import { BIKES, TRACKS, clamp, getTrack } from './content';
+import { KNEE_PADS, NITRO_PRICE, equippedKneePad, getKneePad, nitroCount } from './equipment';
 import type { RaceState, SaveData, Upgrade } from './types';
 
 export const SAVE_KEY = 'asfalto-bruto:v1';
@@ -21,6 +22,10 @@ export function loadSave(): SaveData {
     valid.races = Number.isFinite(saved.races) ? Math.max(0, saved.races) : 0;
     valid.muted = saved.muted === true;
     valid.raceCondition = raceCondition(saved.raceCondition);
+    if (Array.isArray(saved.ownedKneePads)) valid.ownedKneePads=KNEE_PADS.filter(p=>saved.ownedKneePads.includes(p.id)).map(p=>p.id);
+    const pad=equippedKneePad({...valid,kneePadId:saved.kneePadId});if(pad)valid.kneePadId=pad.id;
+    if(saved.nitro && typeof saved.nitro==='object')valid.nitro=Object.fromEntries(valid.owned.filter(id=>saved.nitro[id]!==undefined).map(id=>[id,nitroCount(id,saved.nitro[id])]));
+    if(saved.nitroReceipts && typeof saved.nitroReceipts==='object')valid.nitroReceipts=Object.fromEntries(Object.entries(saved.nitroReceipts).filter(([id,used])=>/^human-[a-f0-9]{16}$/.test(id) && Number.isInteger(used) && (used as number)>=0 && (used as number)<=5).slice(-64)) as Record<string,number>;
     for (const id of valid.owned) {
       valid.condition[id] = Number.isFinite(saved.condition?.[id]) ? clamp(saved.condition[id], 0, 100) : 100;
       valid.upgrades[id] = { engine: 0, armor: 0, handling: 0 };
@@ -37,6 +42,30 @@ export function persist(save: SaveData): boolean {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); return true; } catch { return false; }
 }
 export function repairCost(save: SaveData, bikeId = save.bikeId) { return Math.ceil((100 - (save.condition[bikeId] ?? 100)) * 4); }
+export function buyKneePad(save: SaveData, id: string): boolean {
+  const pad=getKneePad(id);if(!pad)return false;
+  const owned=save.ownedKneePads ?? [];
+  if(!owned.includes(id)) {
+    if(save.cash<pad.price)return false;
+    save.cash-=pad.price;save.ownedKneePads=[...owned,id];
+  }
+  save.kneePadId=id;return true;
+}
+export function buyNitro(save: SaveData): boolean {
+  const count=nitroCount(save.bikeId,save.nitro?.[save.bikeId]);
+  if(save.cash<NITRO_PRICE || count>=BIKES.find(b=>b.id===save.bikeId)!.nitroCapacity)return false;
+  save.cash-=NITRO_PRICE;save.nitro={...save.nitro,[save.bikeId]:count+1};return true;
+}
+export function spendNitro(save: SaveData, bikeId: string, quantity: number): boolean {
+  if(quantity<=0)return false;
+  save.nitro={...save.nitro,[bikeId]:Math.max(0,nitroCount(bikeId,save.nitro?.[bikeId])-quantity)};return true;
+}
+export function recordOnlineNitro(save: SaveData, rider: import('./types').Rider): boolean {
+  const used=rider.nitroUsed ?? 0,previous=save.nitroReceipts?.[rider.id] ?? 0;
+  if(used<=previous)return false;
+  spendNitro(save,rider.bikeId ?? 'ferro',used-previous);
+  save.nitroReceipts=Object.fromEntries([...Object.entries(save.nitroReceipts ?? {}).filter(([id])=>id!==rider.id),[rider.id,used]].slice(-64));return true;
+}
 export function repair(save: SaveData): boolean {
   const cost = repairCost(save);
   if (save.cash < cost) return false;

@@ -2,29 +2,31 @@ import { CONDITIONS, raceCondition } from '../src/game/conditions';
 import { randomBytes } from 'node:crypto';
 import { createMultiplayerRace, finishRider, STEP, stepRace } from '../src/game/simulation';
 import { TRACKS, getBike } from '../src/game/content';
+import { getKneePad, nitroCount } from '../src/game/equipment';
 import { EMPTY_COMMAND, type Command } from '../src/game/types';
-import { cleanName, MAX_PLAYERS, READY_WAIT_MS, RECONNECT_MS, ROOM_WAIT_MS, type AttackInput, type MemberView, type RoomView } from '../src/multiplayer/protocol';
+import { cleanName, MAX_PLAYERS, READY_WAIT_MS, RECONNECT_MS, ROOM_WAIT_MS, type AttackInput, type ActionInput, type Loadout, type MemberView, type RoomView } from '../src/multiplayer/protocol';
 
 export interface Member extends MemberView { token: string; epoch: string; lastSeen: number; }
 export interface Room extends Omit<RoomView,'members'|'serverNow'|'simulationAt'> {
   members: Member[]; updatedAt: number; createdAt: number; finishedAt: number | null;
 }
-export interface StoredInput { seq: number; command: Command; at: number; attacks?: AttackInput[]; }
+export interface StoredInput { seq: number; command: Command; at: number; attacks?: AttackInput[]; actions?: ActionInput[]; }
 export type Inputs = Record<string, StoredInput>;
 export const inputKey = (member: Member) => `${member.id}:${member.epoch}`;
 export const secret = () => randomBytes(24).toString('base64url');
-export function makeMember(name: unknown, now: number, bikeId?: unknown): Member {
-  return { id: `human-${randomBytes(8).toString('hex')}`, name: cleanName(name), bikeId: getBike(typeof bikeId === 'string' ? bikeId : undefined).id, ready: false, connected: true, token: secret(), epoch: secret(), lastSeen: now };
+export function makeMember(name: unknown, now: number, bikeId?: unknown, loadout?: Loadout): Member {
+  const bike=getBike(typeof bikeId==='string'?bikeId:undefined);
+  return { id: `human-${randomBytes(8).toString('hex')}`, name: cleanName(name), bikeId: bike.id, kneePadId:getKneePad(loadout?.kneePadId)?.id, nitro:nitroCount(bike.id,loadout?.nitro), ready: false, connected: true, token: secret(), epoch: secret(), lastSeen: now };
 }
 export function makeRoom(code: string, trackId: unknown, member: Member, now: number, fillBots = false, condition?: unknown): Room {
   if (!TRACKS.some(t => t.id === trackId)) throw new Error('Estrada inválida.');
   if(condition!==undefined && !CONDITIONS.some(c=>c.id===condition))throw new Error('Condição inválida.');
   return { code, condition: raceCondition(condition), trackId: trackId as string, fillBots: fillBots === true, phase: 'lobby', locked: false, deadline: now+ROOM_WAIT_MS, revision: 0,
-    members: [member], race: null, ack: {}, attackAck: {}, updatedAt: now, createdAt: now, finishedAt: null };
+    members: [member], race: null, ack: {}, attackAck: {}, actionAck: {}, updatedAt: now, createdAt: now, finishedAt: null };
 }
 export function viewRoom(room: Room, now: number): RoomView {
   return { code: room.code, condition: raceCondition(room.condition), trackId: room.trackId, fillBots: room.fillBots, phase: room.phase, locked: room.locked, deadline: room.deadline,
-    revision: room.revision, serverNow: now, simulationAt: room.updatedAt, members: room.members.map(({id,name,bikeId,ready,connected}) => ({id,name,bikeId,ready,connected})), race: room.race, ack: room.ack, attackAck: room.attackAck };
+    revision: room.revision, serverNow: now, simulationAt: room.updatedAt, members: room.members.map(({id,name,bikeId,kneePadId,nitro,ready,connected}) => ({id,name,bikeId,kneePadId,nitro,ready,connected})), race: room.race, ack: room.ack, attackAck: room.attackAck, actionAck:room.actionAck };
 }
 export function lobbyClock(room: Room, now: number) {
   if (room.phase !== 'lobby') return;
@@ -97,11 +99,16 @@ export function pulseRoom(room: Room, inputs: Inputs, now: number) {
     for(const m of room.members) {
       const latest=inputs[inputKey(m)],rider=room.race.riders.find(r=>r.id===m.id);
       if(!latest || !m.connected || now-latest.at>=500 || !rider)continue;
+      const ability=latest.actions?.find(a=>a.seq>(room.actionAck?.[m.id] ?? 0));
+      if(ability){
+        (room.actionAck ??= {})[m.id]=ability.seq;
+        tickCommands[m.id]={...tickCommands[m.id],action:ability.kind};
+      }
       const action=latest.attacks?.find(a=>a.seq>(room.attackAck[m.id] ?? 0));
       if(!action)continue;
       if(rider.out || rider.crash || rider.finishedAt!==null || (action.kind==='weapon' && !rider.weapon)) {room.attackAck[m.id]=action.seq;continue;}
       if(rider.attack || rider.cooldown>STEP)continue;
-      tickCommands[m.id]={...commands[m.id],attack:action.kind};
+      tickCommands[m.id]={...tickCommands[m.id],attack:action.kind};
       room.attackAck[m.id]=action.seq;started.push({id:m.id,seq:action.seq});
     }
     stepRace(room.race,tickCommands);

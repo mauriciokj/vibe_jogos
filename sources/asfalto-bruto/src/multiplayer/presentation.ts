@@ -1,5 +1,6 @@
 import { ATTACKS, predictMovement, STEP, nearestTarget } from '../game/simulation';
 import { clamp } from '../game/content';
+import { NITRO_MULTIPLIER } from '../game/equipment';
 import { EMPTY_COMMAND, type AttackKind, type Command, type RaceState, type Rider } from '../game/types';
 import type { RoomView } from './protocol';
 
@@ -79,7 +80,9 @@ export class RacePresentation {
       const acceleration=velocity?.acceleration ?? 0;
       r.z+=Math.max(0,r.speed*age+.5*acceleration*age*age);
       r.x=clamp(r.x+(velocity?.x ?? 0)*age,-10.5,10.5);
-      r.speed=clamp(r.speed+acceleration*age,0,r.maxSpeed);
+      r.speed=clamp(r.speed+acceleration*age,0,Math.max(r.speed,r.maxSpeed*((r.nitroTime ?? 0)>0?NITRO_MULTIPLIER:1)));
+      if(r.kneeTime)r.kneeTime=Math.max(0,r.kneeTime-age);
+      if(r.nitroTime)r.nitroTime=Math.max(0,r.nitroTime-age);
     } else if(canMove && r.crash) r.z+=r.speed*(1-Math.pow(.975,age/STEP))*STEP/(1-.975);
     if(r.attack) {
       r.attack.age+=age;
