@@ -63,18 +63,12 @@ try {
   });
   await check('complete race in browser, without invulnerability or position skips', async () => {
     await page.evaluate(() => window.__game.start());
-    const summary = await page.evaluate(() => {
+    const summary = await page.evaluate(async () => {
+      const {safeDrivingCommand} = await import('/tests/driving.ts');
       let frames = 0;
       while (JSON.parse(window.render_game_to_text()).mode !== 'finished' && frames < 60 * 300) {
-        const s = JSON.parse(window.__game.snapshot()), p = s.riders[0], curve = JSON.parse(window.render_game_to_text()).curve;
-        const hazards = [...s.traffic, ...s.obstacles].filter(t => t.z - p.z > -8 && t.z - p.z < 115);
-        const nearby = s.riders.filter(r => r.id !== p.id && !r.crash && Math.abs(r.z - p.z) < 20);
-        const cost = x => Math.abs(x - p.x) * .8 + (x < 0 ? .4 : 0)
-          + hazards.reduce((sum,t) => sum + (Math.abs(x-t.x)<2.65 ? 100-Math.max(0,t.z-p.z)*.2 : 0),0)
-          + nearby.reduce((sum,r) => sum + (Math.abs(x-r.x)<(r.profile==='police'?4:2.5) ? (r.profile==='police'?30:13) : 0),0);
-        const target = [1.4,-1.4,5.1,-5.1].sort((a,b)=>cost(a)-cost(b))[0];
-        const steer = Math.max(-1, Math.min(1, (target - p.x) * .9 + curve * .2));
-        window.__game.command({ throttle: 1, brake: 0, steer, attack: null }, 6); frames += 6;
+        const s = JSON.parse(window.__game.snapshot());
+        window.__game.command(safeDrivingCommand(s), 6); frames += 6;
       }
       return JSON.parse(window.render_game_to_text());
     });

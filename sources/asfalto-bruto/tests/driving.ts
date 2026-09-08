@@ -1,4 +1,4 @@
-import { clamp, curveAt } from '../src/game/content';
+import { clamp, cornerForces, cornerPace, curveAt } from '../src/game/content';
 import type { Command, RaceState } from '../src/game/types';
 
 // Read-only test driver. It only emits the same bounded controls a human can use.
@@ -11,5 +11,6 @@ export function safeDrivingCommand(s: RaceState): Command {
     + hazards.reduce((sum, t) => sum + (Math.abs(x - t.x) < 2.65 ? 100 - Math.max(0, t.z - p.z) * .2 : 0), 0)
     + riders.reduce((sum, r) => sum + (Math.abs(x - r.x) < (r.profile === 'police' ? 4 : 2.5) ? (r.profile === 'police' ? 30 : 13) : 0), 0);
   const target = lanes.sort((a, b) => cost(a) - cost(b))[0];
-  return { throttle: 1, brake: 0, steer: clamp((target - p.x) * .9 + curveAt(p.z, s.trackId) * .2, -1, 1), attack: null };
+  const pace=cornerPace(p.z,s.trackId,p.handling), forces=cornerForces(p.speed,p.handling,curveAt(p.z,s.trackId),Math.abs(p.x)>7);
+  return { throttle: p.speed>pace-.5?0:1, brake: clamp((p.speed-pace)*.3,0,1), steer: clamp((target-p.x)*.9+forces.drift/forces.lateral,-1,1), attack:null };
 }

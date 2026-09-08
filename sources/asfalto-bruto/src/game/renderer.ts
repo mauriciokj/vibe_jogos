@@ -112,7 +112,7 @@ export class Renderer {
       const z = start + i * segment, dz = z - camZ;
       if (z <= nearZ) continue;
       const curve = curveAt(z, state.trackId);
-      dx += curve * .0016 * (segment / 6);
+      dx += curve * .0008 * segment;
       wx += dx * segment;
       const scale = this.focal / dz * this.projectionWidth / 2;
       const x = this.w / 2 + (wx - player.x * .6) * scale;

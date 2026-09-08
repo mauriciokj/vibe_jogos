@@ -12,10 +12,53 @@ export const TRACKS: Track[] = [
 ];
 export function getTrack(id: string): Track { return TRACKS.find(t => t.id === id) ?? TRACKS[0]; }
 export function clamp(v: number, min: number, max: number) { return Math.min(max, Math.max(min, v)); }
+export interface Corner { start: number; end: number; bend: number; ramp: number; }
+const cornerCache = new Map<string, Corner[]>();
+export function trackCorners(trackId: string): Corner[] {
+  const track = getTrack(trackId), cached = cornerCache.get(track.id);
+  if (cached) return cached;
+  const corners: Corner[] = [];
+  const strengths = [1.65, 2.3, 1.4, 2.05, 2.6, 1.75];
+  let start = 650;
+  for (let i = 0; start < track.distance - 500; i++) {
+    const length = [300, 270, 330, 260][i % 4];
+    corners.push({ start, end: start + length, bend: (i % 2 ? -1 : 1) * strengths[i % strengths.length] * (1 + track.index * .12), ramp: 85 });
+    start += length + [270, 180, 320, 220][i % 4] - track.index * 35;
+  }
+  cornerCache.set(track.id, corners);
+  return corners;
+}
 export function curveAt(z: number, trackId: string) {
-  const i = getTrack(trackId).index;
-  const intro = clamp((z - 280) / 600, 0, 1);
-  return (Math.sin(z / (520 - i * 60)) * .66 + Math.sin(z / 231 + 1) * .27) * intro * (1 + i * .2);
+  const corner = trackCorners(trackId).find(c => z >= c.start && z <= c.end);
+  if (!corner) return 0;
+  const t = clamp(Math.min(z - corner.start, corner.end - z) / corner.ramp, 0, 1);
+  return corner.bend * t * t * (3 - 2 * t);
+}
+export function cornerSpeed(curve: number, handling = 1.1) {
+  return Math.sqrt(3000 * handling / Math.max(.01, Math.abs(curve)));
+}
+// Braking envelope: account for the distance still available before each bend.
+// Used by AI and the HUD; movement itself never applies an automatic brake.
+export function cornerPace(z: number, trackId: string, handling = 1.1) {
+  let speed = 120;
+  for (let ahead = 0; ahead <= 240; ahead += 20) {
+    const safe = cornerSpeed(curveAt(z + ahead, trackId), handling);
+    speed = Math.min(speed, Math.sqrt(safe * safe + 2 * 19 * Math.max(0, ahead - 12)));
+  }
+  return speed;
+}
+export function cornerForces(speed: number, handling: number, curve: number, shoulder = false) {
+  const load = speed * speed * Math.abs(curve) / (3000 * handling);
+  const excess = Math.max(0, load - 1);
+  return {
+    lateral: (2.6 + speed * .0625) * handling * (shoulder ? .72 : 1) / (1 + excess * .9),
+    drift: Math.sign(curve) * (4 * load + 4 * excess * excess),
+    sliding: excess > .2,
+  };
+}
+export function upcomingCorner(z: number, trackId: string, handling = 1.1) {
+  const c = trackCorners(trackId).find(c => c.end - 35 > z && c.start - z <= 240);
+  return c ? { direction: c.bend > 0 ? 'right' : 'left', distance: Math.max(0, Math.round(c.start - z)), speed: Math.floor(cornerSpeed(c.bend, handling) * 3.6 / 5) * 5, tight: Math.abs(c.bend) >= 2 } : null;
 }
 export function elevationAt(z: number, trackId: string) {
   const i = getTrack(trackId).index;

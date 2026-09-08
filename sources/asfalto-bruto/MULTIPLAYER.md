@@ -5,6 +5,7 @@ O modo individual continua local, com garagem, melhorias e progressão existente
 ## Regras da sala
 
 - A primeira pessoa cria a sala, escolhe uma das três estradas e recebe um código/convite.
+- Ao criar, **Completar com bots** é opcional e vem desmarcado. Quando marcado, vagas livres são preenchidas por pilotos **CPU** somente na largada, até um total de 8. Todas as vagas continuam disponíveis para pessoas durante a espera. Bots não contam como prontos nem substituem o mínimo de 2 pessoas reais.
 - O relógio começa em **60 segundos**. Entradas posteriores não prolongam a janela.
 - É preciso ter **pelo menos 2 pessoas conectadas** na largada. Com apenas uma ao fim do tempo, a sala fica aguardando; a chegada da segunda abre uma nova janela de 60 segundos.
 - Quando todos os presentes marcam **Pronto**, o tempo restante cai para **no máximo 5 segundos**. Uma pessoa sozinha não acelera a largada.
@@ -12,6 +13,8 @@ O modo individual continua local, com garagem, melhorias e progressão existente
 - Ao zerar o relógio, a corrida começa diretamente, sem outra contagem adicional.
 - Polícia escolhe o piloto não eliminado mais próximo, humano ou bot. Queda a até 30m de um policial ativo causa prisão; a regra de captura parado também continua.
 - Prisão, moto destruída, saída ou chegada são resultados individuais. Os demais continuam. Há limite de 6 minutos para encerrar participantes ainda na pista.
+- Bots usam os mesmos limites da Ferro 500, dirigem e freiam por IA no servidor e participam do combate e da classificação. Quando todos os humanos concluem ou são eliminados, a corrida encerra os bots restantes.
+- As curvas exigem reduzir a velocidade para manter aderência. Mapa de proximidade (±300m) e retrovisor (200m atrás) usam posições da mesma simulação compartilhada.
 - O menu de pausa online deixa a corrida continuar e neutraliza os controles locais. A pausa individual mantém o comportamento anterior.
 - Reconexão reserva a identidade por 15 segundos; após perda prolongada, o piloto sai da corrida. Atualizar a página tenta retomar a mesma vaga usando um token de sessão.
 
@@ -32,7 +35,7 @@ Em desenvolvimento, salas ficam em memória por padrão. Para testar armazenamen
 ASFALTO_REDIS_URL=redis://127.0.0.1:6398 npm run dev:server
 ```
 
-O navegador envia controles e sequências, nunca posição, vida ou resultados. O servidor limita valores e taxa de mensagens, rejeita sequências antigas e aplica um relógio próprio. O protocolo v2 transmite o instante da simulação para desenhar todos os pilotos na mesma linha de tempo. As correções preservam a posição já desenhada e convergem gradualmente, com extrapolação limitada a 350ms. A classificação exibida vem do servidor.
+O navegador envia controles e sequências, nunca posição, vida ou resultados. O servidor limita valores e taxa de mensagens, rejeita sequências antigas e aplica um relógio próprio. O protocolo v3 transmite o instante da simulação para desenhar todos os pilotos na mesma linha de tempo. As correções preservam a posição já desenhada e convergem gradualmente, com extrapolação limitada a 350ms. A classificação exibida vem do servidor.
 
 Toques de teclado e dos botões na tela geram ações numeradas, enviadas imediatamente e mantidas nos pacotes seguintes até a confirmação do servidor. Isso evita perder golpes curtos entre atualizações. O servidor respeita os intervalos entre golpes e executa cada ação apenas uma vez. Segurar o botão repete os golpes no intervalo permitido. A animação local começa imediatamente; acertos, danos, roubo de arma, prisão e resultados dependem da confirmação do servidor. Os eventos de impacto permanecem disponíveis por um segundo para chegar mesmo quando uma atualização é atrasada.
 
@@ -57,7 +60,7 @@ As conexões podem cair em instâncias diferentes. Por isso, produção exige Re
 | Redis TCP/TLS | `ASFALTO_REDIS_URL`, `REDIS_URL` ou `KV_URL` |
 | Redis REST / integração já usada pelo catálogo | `KV_REST_API_URL` + `KV_REST_API_TOKEN`, ou `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` |
 
-Configure as variáveis tanto em **Preview** quanto em **Production**. Nenhuma credencial é enviada ao navegador. As chaves ficam isoladas no prefixo `asfalto:online:v2`, com expiração de 30 minutos; o leaderboard existente não é acessado. O protocolo v2 exige atualizar as páginas e criar uma nova sala; salas v1 não são migradas. Mutação com trava e verificação de posse impede que duas instâncias sobrescrevam a mesma sala. REST tem mais latência por operação que uma conexão Redis persistente: validar a região e a cadência em produção antes de ampliar o público.
+Configure as variáveis tanto em **Preview** quanto em **Production**. Nenhuma credencial é enviada ao navegador. As chaves ficam isoladas no prefixo `asfalto:online:v3`, com expiração de 30 minutos; o leaderboard existente não é acessado. O protocolo v3 exige atualizar as páginas e criar uma nova sala; salas v1/v2 não são migradas. Mutação com trava e verificação de posse impede que duas instâncias sobrescrevam a mesma sala. REST tem mais latência por operação que uma conexão Redis persistente: validar a região e a cadência em produção antes de ampliar o público.
 
 Cada atualização usa duas operações Redis: a primeira adquire a trava, incorpora os controles mais recentes da instância e lê o estado; a segunda salva com verificação de posse e libera a trava. Isso evita quatro esperas sequenciais por atualização. Entradas continuam ordenadas por sequência e são compartilhadas entre instâncias. Alterações de direção, aceleração e freio são enviadas imediatamente, além dos pacotes periódicos.
 
@@ -72,6 +75,7 @@ npm test
 npm run test:browser
 npm run test:online
 npm run test:motion
+npm run test:tactics
 ASFALTO_TEST_REDIS_URL=redis://127.0.0.1:6398 npm run test:redis
 # Mede uma sala de teste na prévia publicada, com 8 conexões reais:
 ASFALTO_BENCH_PLAYERS=8 ASFALTO_BENCH_OUTPUT=output/latency/eight.json npm run test:network

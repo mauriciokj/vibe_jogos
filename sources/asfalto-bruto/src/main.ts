@@ -3,8 +3,10 @@ import './multiplayer/style.css';
 import { OnlineClient } from './multiplayer/client';
 import type { RoomView } from './multiplayer/protocol';
 import { EMPTY_COMMAND } from './game/types';
-import { BIKES, clamp, clockString, curveAt, getTrack, money, TRACKS } from './game/content';
+import { BIKES, clamp, clockString, cornerForces, cornerPace, curveAt, upcomingCorner, getTrack, money, TRACKS } from './game/content';
+import { raceAwareness } from './game/awareness';
 import { GameAudio } from './game/audio';
+import { RaceInstruments } from './game/instruments';
 import { Renderer } from './game/renderer';
 import { createRace, nearestTarget, ranking, restoreSnapshot, snapshot, STEP, stepRace } from './game/simulation';
 import { bikeSprite } from './game/sprites';
@@ -43,8 +45,8 @@ root.innerHTML = `
         <div class="hud-track"><div class="eyebrow" id="race-region">RODOVIA LITORÂNEA</div><h2 id="race-track">COSTA DO SOL</h2><span class="hud-time" id="race-time">00:00.0</span></div>
         <div class="hud-actions"><button class="icon-btn" data-action="mute" aria-label="Silenciar áudio">${icons.sound}</button><button class="icon-btn" data-action="fullscreen" aria-label="Tela cheia (F)">${icons.full}</button><button class="icon-btn" id="pause-btn" aria-label="Pausar (Esc)">${icons.pause}</button></div>
       </div>
-      <div class="online-hud" id="online-hud" hidden></div><div class="heat-status"><span class="heat-dots" id="heat-dots">${'<i></i>'.repeat(8)}</span><span id="heat-label">PROCURADO</span></div>
-      <div class="rival-list" id="rival-list"></div><div class="race-message" id="race-message" aria-live="polite"></div>
+      <canvas id="rear-view" class="rear-view" aria-label="Retrovisor: pilotos e trânsito até 200 metros atrás"></canvas><canvas id="race-map" class="race-map" aria-label="Mapa dos 300 metros à frente e atrás e distâncias entre pilotos"></canvas><div class="online-hud" id="online-hud" hidden></div><div class="heat-status"><span class="heat-dots" id="heat-dots">${'<i></i>'.repeat(8)}</span><span id="heat-label">PROCURADO</span></div>
+      <div id="corner-warning" class="corner-warning" hidden><b id="corner-arrow">↱</b><div><strong id="corner-title"></strong><span id="corner-detail"></span></div></div><div class="rival-list" id="rival-list"></div><div class="race-message" id="race-message" aria-live="polite"></div>
       <div class="countdown" id="countdown"><strong id="count-number">3</strong><span>PREPARE-SE · SEGURE W OU ↑</span></div>
       <div class="crash-overlay" id="crash" hidden><strong>LEVANTA E VAI.</strong><small id="crash-time">VOLTANDO À PISTA...</small></div>
       <div class="race-bottom"><div class="vitals"><div class="meter-label"><span>PILOTO</span><b id="health-value">100%</b></div><div class="meter-track"><i id="health-bar"></i></div><div class="meter-label"><span>MOTO</span><b id="integrity-value">100%</b></div><div class="meter-track bike"><i id="integrity-bar"></i></div><div class="weapon"><span class="weapon-icon">╱</span><span id="weapon-label">BASTÃO</span><kbd>L</kbd><small>J SOCO · K CHUTE</small></div></div>
@@ -59,7 +61,7 @@ root.innerHTML = `
     <div class="control">Pilotar <span class="keys"><kbd>A</kbd><kbd>D</kbd><kbd>←</kbd><kbd>→</kbd></span></div><div class="control">Soco rápido <span class="keys"><kbd>J</kbd></span></div>
     <div class="control">Chute · empurra o rival <span class="keys"><kbd>K</kbd></span></div><div class="control">Usar bastão <span class="keys"><kbd>L</kbd></span></div>
     <div class="control">Pausar <span class="keys"><kbd>Esc</kbd></span></div><div class="control">Tela cheia / som <span class="keys"><kbd>F</kbd><kbd>M</kbd></span></div>
-  </div><div class="tip"><b>Chegue perto e acerte.</b> O rival ao alcance recebe uma marca verde. Um soco em um piloto armado toma o bastão dele. O sinal “!” avisa que um ataque está vindo.</div><div class="tip"><b>Cuide de você e da moto.</b> Piloto sem resistência cai e volta à pista; moto sem integridade encerra a corrida. Fuja do acostamento, desvie do óleo e observe o trânsito na contramão.</div><div class="tip"><b>A polícia não dorme.</b> Velocidade e golpes aumentam a procura. Caiu com a polícia a até 30 metros? Prisão imediata e fim da corrida. Ficar abaixo de 29 km/h ao lado do policial por 3 segundos também causa prisão. Chegue entre os 5 primeiros para abrir a próxima estrada.</div><div class="help-footer"><span>Progresso salvo neste navegador. No celular, use os botões na tela.</span><button id="help-go" class="primary">ENTENDI. VAMOS CORRER ${icons.arrow}</button></div></div></dialog>
+  </div><div class="tip"><b>Chegue perto e acerte.</b> O rival ao alcance recebe uma marca verde. Um soco em um piloto armado toma o bastão dele. O sinal “!” avisa que um ataque está vindo.</div><div class="tip"><b>Freie antes da curva.</b> O aviso mostra a direção, a distância e uma velocidade de referência. Entrar rápido demais faz a moto escorregar para fora. Solte W / ↑ ou freie com S / ↓, contorne e acelere na saída. O mapa mostra as distâncias; o retrovisor revela os últimos 200 metros.</div><div class="tip"><b>Cuide de você e da moto.</b> Piloto sem resistência cai e volta à pista; moto sem integridade encerra a corrida. Fuja do acostamento, desvie do óleo e observe o trânsito na contramão.</div><div class="tip"><b>A polícia não dorme.</b> Velocidade e golpes aumentam a procura. Caiu com a polícia a até 30 metros? Prisão imediata e fim da corrida. Ficar abaixo de 29 km/h ao lado do policial por 3 segundos também causa prisão. Chegue entre os 5 primeiros para abrir a próxima estrada.</div><div class="help-footer"><span>Progresso salvo neste navegador. No celular, use os botões na tela.</span><button id="help-go" class="primary">ENTENDI. VAMOS CORRER ${icons.arrow}</button></div></div></dialog>
   <dialog id="pause-modal" class="pause-modal" aria-labelledby="pause-title"><div class="dialog-body"><div class="eyebrow" style="justify-content:center">UM RESPIRO NO ACOSTAMENTO</div><h2 id="pause-title">CORRIDA PAUSADA</h2><p>A estrada espera por você.</p><button class="primary" id="resume-btn">CONTINUAR ↗</button><button class="secondary" id="restart-btn">RECOMEÇAR CORRIDA</button><button class="text-button" id="menu-btn">VOLTAR AO MENU</button></div></dialog>
   <dialog id="garage-modal" aria-labelledby="garage-title"></dialog>
   <dialog id="result-modal" class="result-modal" aria-labelledby="result-title"></dialog>
@@ -68,7 +70,7 @@ root.innerHTML = `
     <div class="dialog-header"><div><div class="eyebrow">CORRA COM OUTRAS PESSOAS</div><h2 id="online-title">Multiplayer</h2></div><button class="close-btn" id="online-close" aria-label="Voltar ao menu">×</button></div>
     <div class="dialog-body">
       <div id="online-form"><label class="online-label" for="online-name">SEU APELIDO</label><input id="online-name" class="online-input" maxlength="18" placeholder="Como você quer ser chamado?" autocomplete="nickname" />
-        <div class="online-choices"><div><h3>Criar uma sala</h3><label class="online-label" for="online-track">ESTRADA</label><select id="online-track" class="online-input">${TRACKS.map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}</select><button class="primary" id="online-create">CRIAR SALA ↗</button></div>
+        <div class="online-choices"><div><h3>Criar uma sala</h3><label class="online-label" for="online-track">ESTRADA</label><select id="online-track" class="online-input">${TRACKS.map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}</select><label class="bot-option"><input type="checkbox" id="online-bots" /><span>Completar com bots<small>Até 8 pilotos na largada · mínimo 2 pessoas</small></span></label><button class="primary" id="online-create">CRIAR SALA ↗</button></div>
         <div><h3>Entrar com amigos</h3><label class="online-label" for="online-code-input">CÓDIGO DA SALA</label><input id="online-code-input" class="online-input code-input" maxlength="6" placeholder="A1B2C3" autocapitalize="characters" autocomplete="off" spellcheck="false"/><button class="secondary" id="online-join">ENTRAR NA SALA ↗</button></div></div>
         <p class="online-note">De 2 a 8 pessoas. Todos correm com a Ferro 500, em condições iguais. Sua garagem e progresso individual ficam preservados.</p>
       </div>
@@ -83,6 +85,7 @@ root.innerHTML = `
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const renderer = new Renderer($<HTMLCanvasElement>('game'));
+const instruments = new RaceInstruments($<HTMLCanvasElement>('rear-view'),$<HTMLCanvasElement>('race-map'));
 const audio = new GameAudio();
 let save = loadSave();
 let selectedTrack = 'costa';
@@ -127,7 +130,7 @@ function enterOnline(create: boolean) {
   onlineMode=true;onlineRaceStarted=false;lastOnlineEventTick=-1;$('online-error').hidden=true;
   const name=$<HTMLInputElement>('online-name').value.trim() || 'Piloto';
   try{localStorage.setItem('asfalto:nickname',name);}catch{}
-  if(create)online.create(name,$<HTMLSelectElement>('online-track').value);
+  if(create)online.create(name,$<HTMLSelectElement>('online-track').value,$<HTMLInputElement>('online-bots').checked);
   else online.join(name,$<HTMLInputElement>('online-code-input').value);
   void audio.start();
 }
@@ -143,9 +146,9 @@ function receiveOnlineRoom(room: RoomView) {
     $('online-form').hidden=true;$('online-lobby').hidden=false;$('online-code').textContent=room.code;
     $('online-track-name').textContent=getTrack(room.trackId).name.toUpperCase();
     const present=room.members.filter(m=>m.connected),me=room.members.find(m=>m.id===online.id);
-    $('online-count').textContent=`${present.length} / 8 PILOTOS`;
+    $('online-count').textContent=`${present.length} / 8 PESSOAS${room.fillBots ? ` · +${8-present.length} CPU NA LARGADA` : ''}`;
     $('online-members').innerHTML=Array.from({length:8},(_,i)=>{
-      const m=present[i];return m?`<div class="lobby-member ${m.id===online.id?'me':''}"><span class="lobby-number">${String(i+1).padStart(2,'0')}</span><b>${escapeHTML(m.name)}${m.id===online.id?' <small>VOCÊ</small>':''}</b><span class="ready-state ${m.ready?'is-ready':''}">${m.ready?'✓ PRONTO':'AGUARDANDO'}</span></div>`:`<div class="lobby-member empty"><span class="lobby-number">${String(i+1).padStart(2,'0')}</span><span>Vaga aberta</span></div>`;
+      const m=present[i];return m?`<div class="lobby-member ${m.id===online.id?'me':''}"><span class="lobby-number">${String(i+1).padStart(2,'0')}</span><b>${escapeHTML(m.name)}${m.id===online.id?' <small>VOCÊ</small>':''}</b><span class="ready-state ${m.ready?'is-ready':''}">${m.ready?'✓ PRONTO':'AGUARDANDO'}</span></div>`:`<div class="lobby-member empty"><span class="lobby-number">${String(i+1).padStart(2,'0')}</span><span>${room.fillBots ? 'Vaga aberta · CPU na largada' : 'Vaga aberta'}</span></div>`;
     }).join('');
     $('online-lobby-hint').textContent=present.length<2?'Precisamos de pelo menos 2 pessoas para largar. Convide um amigo.':room.locked?'Prepare-se! A entrada de novos pilotos está fechada.':'Todos prontos? A contagem cai para 5 segundos. Caso contrário, a corrida começa ao zerar o tempo.';
     const ready=$<HTMLButtonElement>('online-ready');ready.textContent=me?.ready?'✓ PRONTO · AGUARDANDO OS OUTROS':'ESTOU PRONTO ↗';ready.disabled=room.locked || online.status!=='connected';ready.setAttribute('aria-pressed',String(!!me?.ready));
@@ -174,13 +177,13 @@ function showOnlineResult(room: RoomView) {
   if(!settled) {
     settled=true;screen='result';paused=false;keys.clear();closeDialogs();
     const title=result.reason==='finish'?`${result.place}º NA <span>CHEGADA.</span>`:result.reason==='caught'?'FIM DA <span>LINHA.</span>':'FIM DE <span>CORRIDA.</span>';
-    $('result-modal').innerHTML=`<div class="result-top"><div class="eyebrow">MULTIPLAYER / SALA ${room.code}</div><h2 id="result-title" class="result-title">${title}</h2><p class="result-sub">${result.reason==='caught'?'Você foi preso e perdeu a corrida.':result.reason==='wrecked'?'Sua moto ficou sem integridade.':result.reason==='left'?'Você saiu da corrida.':result.reason==='timeout'?'O tempo máximo da corrida terminou.':'Você cruzou a linha de chegada.'} Os demais pilotos podem continuar.</p><p id="online-result-status" class="online-note"></p></div><div id="online-result-table" class="result-table"></div><div class="result-actions"><button id="online-menu-btn" class="primary">VOLTAR AO MENU ↗</button></div>`;
+    $('result-modal').innerHTML=`<div class="result-top"><div class="eyebrow">MULTIPLAYER / SALA ${room.code}</div><h2 id="result-title" class="result-title">${title}</h2><p class="result-sub">${result.reason==='caught'?'Você foi preso e perdeu a corrida.':result.reason==='wrecked'?'Sua moto ficou sem integridade.':result.reason==='left'?'Você saiu da corrida.':result.reason==='timeout'?'O tempo máximo da corrida terminou.':'Você cruzou a linha de chegada.'}</p><p id="online-result-status" class="online-note"></p></div><div id="online-result-table" class="result-table"></div><div class="result-actions"><button id="online-menu-btn" class="primary">VOLTAR AO MENU ↗</button></div>`;
     $<HTMLDialogElement>('result-modal').showModal();audio.update(0,false,false,0);
   }
-  $('online-result-status').textContent=room.phase==='finished'?'CORRIDA ENCERRADA':`${Object.keys(room.race!.multiplayer!.results).length} / ${room.members.length} PILOTOS CONCLUÍRAM`;
+  $('online-result-status').textContent=room.phase==='finished'?'CORRIDA ENCERRADA':`${Object.keys(room.race!.multiplayer!.results).length} / ${ranking(room.race!).length} PILOTOS CONCLUÍRAM`;
   $('online-result-table').innerHTML=ranking(room.race!).map((r,i)=>{
     const result=room.race!.multiplayer!.results[r.id];
-    const label=result?({finish:clockString(result.time),caught:'PRESO',wrecked:'MOTO QUEBRADA',left:'SAIU',timeout:'TEMPO ESGOTADO'}[result.reason]):'NA PISTA';
+    const label=result?({finish:clockString(result.time),caught:'PRESO',wrecked:'MOTO QUEBRADA',left:'SAIU',timeout:r.profile==='player'?'TEMPO ESGOTADO':'NÃO CONCLUIU'}[result.reason]):'NA PISTA';
     return `<div class="result-rider ${r.id===online.id?'me':''}"><span>${result && result.reason!=='finish'?'—':i+1}. ${escapeHTML(r.name)}</span><span>${label}</span></div>`;
   }).join('');
 }
@@ -258,6 +261,16 @@ function updateHUD() {
   setText('weapon-label', p.weapon ? 'BASTÃO' : 'SEM ARMA');
   const pct = clamp(p.z / getTrack(race.trackId).distance * 100, 0, 100);
   $('progress-bar').style.width = `${pct}%`; $('progress-dot').style.left = `${pct}%`; setText('distance', `${(p.z / 1000).toFixed(1)} KM`);
+  const corner = upcomingCorner(p.z, race.trackId, p.handling);
+  $('corner-warning').hidden = !corner || !!p.out || race.mode !== 'racing';
+  if (corner) {
+    const fast = p.speed > cornerPace(p.z, race.trackId, p.handling) + 2;
+    const sliding = cornerForces(p.speed,p.handling,curveAt(p.z,race.trackId)).sliding;
+    $('corner-warning').classList.toggle('braking',fast);
+    setText('corner-arrow',corner.direction === 'right' ? '↱' : '↰');
+    setText('corner-title',sliding ? 'SEM ADERÊNCIA · FREIE' : fast ? 'FREIE ANTES DA CURVA' : corner.tight ? 'CURVA FECHADA' : 'CURVA À FRENTE');
+    setText('corner-detail',`${corner.distance > 0 ? `${corner.distance} M · ` : ''}${corner.speed} KM/H · ${corner.direction === 'right' ? 'DIREITA' : 'ESQUERDA'}`);
+  }
   const bars = Math.round(p.speed / p.maxSpeed * 18);
   $('revs').querySelectorAll('i').forEach((n, i) => n.classList.toggle('on', i < bars));
   $('heat-dots').querySelectorAll('i').forEach((n, i) => n.classList.toggle('on', i < Math.ceil(race.heat / 12.5)));
@@ -270,7 +283,7 @@ function updateHUD() {
   $('crash').hidden = p.crash === 0 || !!p.out || race.mode === 'finished';
   if (p.crash) setText('crash-time', `DE VOLTA EM ${p.crash.toFixed(1)}s · SEGURE O ACELERADOR`);
   if (race.time > messageUntil) setText('race-message', Math.abs(p.x) > 7 && p.speed > 6 ? 'ACOSTAMENTO · MENOS ADERÊNCIA' : race.time < 5 && race.mode === 'racing' ? 'ACELERA. A ESTRADA É SUA.' : '');
-  if (onlineMode || race.tick % 12 === 0 || inCountdown) {
+  if (race.tick % 6 === 0 || inCountdown) {
     const start = clamp(place - 2, 0, 4);
     $('rival-list').innerHTML = order.slice(start, start + 4).map((r, i) => `<div class="rival-entry ${r.id === localId() ? 'me' : ''}"><span>${start + i + 1}</span><span>${escapeHTML(r.name)}</span><span class="gap">${r.out==='caught'?'PRESO':r.out?'FORA':r.id === localId() ? '◂' : `${r.z >= standingZ ? '+' : '−'}${Math.round(Math.abs(r.z - standingZ))}m`}</span></div>`).join('');
   }
@@ -316,7 +329,7 @@ function update() {
   audio.update(localRider().speed, true, race.policeActive && Math.abs((race.riders.find(r => r.id === 'police')?.z ?? 99999) - localRider().z) < 100, race.time);
   if (race.mode === 'finished') showResult();
 }
-function draw() { renderer.render(race, screen === 'menu',localId()); if (screen !== 'menu') updateHUD(); }
+function draw() { renderer.render(race, screen === 'menu',localId()); if (screen !== 'menu') { updateHUD(); instruments.draw(race,localId()); } }
 function frame(now: number) {
   const dt = Math.min((now - last) / 1000, .1); last = now;
   if(onlineMode) {
@@ -392,7 +405,7 @@ declare global {
 }
 window.render_game_to_text = () => {
   const p = localRider(), target = nearestTarget(race, p, p.weapon ? 'weapon' : 'punch');
-  return JSON.stringify({ online: onlineMode?{status:online.status,id:online.id,code:online.code,phase:online.room?.phase,locked:online.room?.locked,deadline:online.room?.deadline,serverNow:online.serverNow(),members:online.room?.members}:null, screen, paused, modal: document.querySelector('dialog[open]')?.id ?? null, mode: race.mode, coordinates: 'x in metres: negative left, positive right; road ±7. z forward in metres. speed m/s.', tick: race.tick, time: +race.time.toFixed(2), countdown: +race.countdown.toFixed(2), track: race.trackId, length: getTrack(race.trackId).distance, player: { out:p.out ?? null, x: +p.x.toFixed(2), z: +p.z.toFixed(1), speed: +p.speed.toFixed(2), health: +p.health.toFixed(1), integrity: +p.integrity.toFixed(1), weapon: p.weapon, attack: p.attack, cooldown: +p.cooldown.toFixed(2), crash: +p.crash.toFixed(2), immune: +p.immune.toFixed(2), hits: p.hits, falls: p.falls, place: ranking(onlineMode ? (online.room?.race ?? race) : race).findIndex(r => r.id === localId()) + 1 }, curve: +curveAt(p.z, race.trackId).toFixed(2), target: target?.id ?? null, riders: race.riders.filter(r => r.id !== localId() && Math.abs(r.z - p.z) < 400).map(r => ({ id: r.id, name: r.name, x: +r.x.toFixed(1), dz: +(r.z - p.z).toFixed(1), speed: +r.speed.toFixed(1), health: +r.health.toFixed(1), weapon: r.weapon, attack: r.attack, crash: +r.crash.toFixed(1) })), traffic: race.traffic.filter(t => t.z - p.z > -10 && t.z - p.z < 350).map(t => ({ x: t.x, dz: +(t.z - p.z).toFixed(1), direction: t.speed < 0 ? 'oncoming' : 'forward' })), obstacles: race.obstacles.filter(o => o.z - p.z > -10 && o.z - p.z < 200).map(o => ({ kind: o.kind, x: o.x, dz: +(o.z - p.z).toFixed(1) })), heat: +race.heat.toFixed(1), police: race.policeActive, capture: +race.capture.toFixed(2), result: onlineMode?(race.multiplayer?.results[online.id] ?? null):race.result, save: { cash: save.cash, bike: save.bikeId, unlocked: save.unlocked, races: save.races } });
+  return JSON.stringify({ online: onlineMode?{status:online.status,id:online.id,code:online.code,phase:online.room?.phase,locked:online.room?.locked,deadline:online.room?.deadline,serverNow:online.serverNow(),members:online.room?.members,fillBots:online.room?.fillBots}:null, screen, paused, modal: document.querySelector('dialog[open]')?.id ?? null, mode: race.mode, coordinates: 'x in metres: negative left, positive right; road ±7. z forward in metres. speed m/s.', tick: race.tick, time: +race.time.toFixed(2), countdown: +race.countdown.toFixed(2), track: race.trackId, length: getTrack(race.trackId).distance, player: { out:p.out ?? null, x: +p.x.toFixed(2), z: +p.z.toFixed(1), speed: +p.speed.toFixed(2), health: +p.health.toFixed(1), integrity: +p.integrity.toFixed(1), weapon: p.weapon, attack: p.attack, cooldown: +p.cooldown.toFixed(2), crash: +p.crash.toFixed(2), immune: +p.immune.toFixed(2), hits: p.hits, falls: p.falls, place: ranking(onlineMode ? (online.room?.race ?? race) : race).findIndex(r => r.id === localId()) + 1 }, awareness:raceAwareness(race,localId()), corner:upcomingCorner(p.z,race.trackId,p.handling), curve: +curveAt(p.z, race.trackId).toFixed(2), target: target?.id ?? null, riders: race.riders.filter(r => r.id !== localId() && Math.abs(r.z - p.z) < 400).map(r => ({ id: r.id, name: r.name, x: +r.x.toFixed(1), dz: +(r.z - p.z).toFixed(1), speed: +r.speed.toFixed(1), health: +r.health.toFixed(1), weapon: r.weapon, attack: r.attack, crash: +r.crash.toFixed(1) })), traffic: race.traffic.filter(t => t.z - p.z > -10 && t.z - p.z < 350).map(t => ({ x: t.x, dz: +(t.z - p.z).toFixed(1), direction: t.speed < 0 ? 'oncoming' : 'forward' })), obstacles: race.obstacles.filter(o => o.z - p.z > -10 && o.z - p.z < 200).map(o => ({ kind: o.kind, x: o.x, dz: +(o.z - p.z).toFixed(1) })), heat: +race.heat.toFixed(1), police: race.policeActive, capture: +race.capture.toFixed(2), result: onlineMode?(race.multiplayer?.results[online.id] ?? null):race.result, save: { cash: save.cash, bike: save.bikeId, unlocked: save.unlocked, races: save.races } });
 };
 window.advanceTime = ms => { if(onlineMode){draw();return;} testMode = true; for (let i = 0; i < Math.round(ms / (STEP * 1000)); i++) update(); draw(); };
 if (testMode) window.__game = {

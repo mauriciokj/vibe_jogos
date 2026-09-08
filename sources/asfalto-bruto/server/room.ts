@@ -15,13 +15,13 @@ export const secret = () => randomBytes(24).toString('base64url');
 export function makeMember(name: unknown, now: number): Member {
   return { id: `human-${randomBytes(8).toString('hex')}`, name: cleanName(name), ready: false, connected: true, token: secret(), epoch: secret(), lastSeen: now };
 }
-export function makeRoom(code: string, trackId: unknown, member: Member, now: number): Room {
+export function makeRoom(code: string, trackId: unknown, member: Member, now: number, fillBots = false): Room {
   if (!TRACKS.some(t => t.id === trackId)) throw new Error('Estrada inválida.');
-  return { code, trackId: trackId as string, phase: 'lobby', locked: false, deadline: now+ROOM_WAIT_MS, revision: 0,
+  return { code, trackId: trackId as string, fillBots: fillBots === true, phase: 'lobby', locked: false, deadline: now+ROOM_WAIT_MS, revision: 0,
     members: [member], race: null, ack: {}, attackAck: {}, updatedAt: now, createdAt: now, finishedAt: null };
 }
 export function viewRoom(room: Room, now: number): RoomView {
-  return { code: room.code, trackId: room.trackId, phase: room.phase, locked: room.locked, deadline: room.deadline,
+  return { code: room.code, trackId: room.trackId, fillBots: room.fillBots, phase: room.phase, locked: room.locked, deadline: room.deadline,
     revision: room.revision, serverNow: now, simulationAt: room.updatedAt, members: room.members.map(({id,name,ready,connected}) => ({id,name,ready,connected})), race: room.race, ack: room.ack, attackAck: room.attackAck };
 }
 export function lobbyClock(room: Room, now: number) {
@@ -37,7 +37,7 @@ export function lobbyClock(room: Room, now: number) {
   if (room.deadline-now <= READY_WAIT_MS) room.locked = true;
   if (now < room.deadline) return;
   room.members = present;
-  room.race = createMultiplayerRace(room.trackId,present,randomBytes(4).readUInt32LE());
+  room.race = createMultiplayerRace(room.trackId,present,randomBytes(4).readUInt32LE(),room.fillBots);
   room.race.mode = 'racing'; room.race.countdown = 0;
   room.phase = 'racing'; room.updatedAt = now; room.deadline = null;
 }

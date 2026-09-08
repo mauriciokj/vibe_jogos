@@ -58,10 +58,46 @@ function getTrack(id) {
 function clamp(v, min, max) {
   return Math.min(max, Math.max(min, v));
 }
+var cornerCache = /* @__PURE__ */ new Map();
+function trackCorners(trackId) {
+  const track = getTrack(trackId), cached = cornerCache.get(track.id);
+  if (cached) return cached;
+  const corners = [];
+  const strengths = [1.65, 2.3, 1.4, 2.05, 2.6, 1.75];
+  let start = 650;
+  for (let i = 0; start < track.distance - 500; i++) {
+    const length = [300, 270, 330, 260][i % 4];
+    corners.push({ start, end: start + length, bend: (i % 2 ? -1 : 1) * strengths[i % strengths.length] * (1 + track.index * 0.12), ramp: 85 });
+    start += length + [270, 180, 320, 220][i % 4] - track.index * 35;
+  }
+  cornerCache.set(track.id, corners);
+  return corners;
+}
 function curveAt(z, trackId) {
-  const i = getTrack(trackId).index;
-  const intro = clamp((z - 280) / 600, 0, 1);
-  return (Math.sin(z / (520 - i * 60)) * 0.66 + Math.sin(z / 231 + 1) * 0.27) * intro * (1 + i * 0.2);
+  const corner = trackCorners(trackId).find((c) => z >= c.start && z <= c.end);
+  if (!corner) return 0;
+  const t = clamp(Math.min(z - corner.start, corner.end - z) / corner.ramp, 0, 1);
+  return corner.bend * t * t * (3 - 2 * t);
+}
+function cornerSpeed(curve, handling = 1.1) {
+  return Math.sqrt(3e3 * handling / Math.max(0.01, Math.abs(curve)));
+}
+function cornerPace(z, trackId, handling = 1.1) {
+  let speed = 120;
+  for (let ahead = 0; ahead <= 240; ahead += 20) {
+    const safe = cornerSpeed(curveAt(z + ahead, trackId), handling);
+    speed = Math.min(speed, Math.sqrt(safe * safe + 2 * 19 * Math.max(0, ahead - 12)));
+  }
+  return speed;
+}
+function cornerForces(speed, handling, curve, shoulder = false) {
+  const load = speed * speed * Math.abs(curve) / (3e3 * handling);
+  const excess = Math.max(0, load - 1);
+  return {
+    lateral: (2.6 + speed * 0.0625) * handling * (shoulder ? 0.72 : 1) / (1 + excess * 0.9),
+    drift: Math.sign(curve) * (4 * load + 4 * excess * excess),
+    sliding: excess > 0.2
+  };
 }
 
 // src/game/types.ts
@@ -172,10 +208,12 @@ function botCommand(state, rider) {
   const nearby = nearestTarget(state, rider, rider.weapon ? "weapon" : "punch");
   if (nearby && rider.cooldown === 0 && (rider.profile !== "careful" || state.tick % 80 < 8)) attack = rider.weapon ? "weapon" : rider.profile === "aggressive" ? "kick" : "punch";
   const curve = curveAt(rider.z, state.trackId);
-  const steering = clamp((target - rider.x) * 0.9 + curve * 0.18, -1, 1);
-  if (rider.profile === "careful" && Math.abs(curve) > 0.8) brake = Math.max(brake, 0.08);
-  if (police && rider.z > player.z + 7) brake = 0.42;
-  return { throttle: 1, brake, steer: steering, attack };
+  const forces = cornerForces(rider.speed, rider.handling, curve, Math.abs(rider.x) > ROAD_HALF);
+  const steering = clamp((target - rider.x) * 0.9 + forces.drift / forces.lateral, -1, 1);
+  const pace = cornerPace(rider.z, state.trackId, rider.handling) * (rider.profile === "careful" ? 0.92 : rider.profile === "fast" ? 1.03 : 0.98);
+  brake = Math.max(brake, clamp((rider.speed - pace) * 0.3, 0, 1));
+  if (police && rider.z > player.z + 7) brake = Math.max(brake, 0.42);
+  return { throttle: rider.speed > pace - 0.6 || brake > 0.1 ? 0 : 1, brake, steer: steering, attack };
 }
 function policeTarget(state, officer) {
   return state.riders.filter((r) => r.id !== officer.id && r.profile !== "police" && !r.out && r.finishedAt === null).sort((a, b) => Math.hypot(a.z - officer.z, a.x - officer.x) - Math.hypot(b.z - officer.z, b.x - officer.x) || a.id.localeCompare(b.id))[0];
@@ -205,15 +243,15 @@ function applyCommand(state, rider, command) {
     return;
   }
   const onShoulder = Math.abs(rider.x) > ROAD_HALF;
-  const max = rider.maxSpeed * (onShoulder ? 0.56 : 1) * (0.92 + rider.integrity / 1250);
-  const acceleration = command.throttle * rider.acceleration * (1 - 0.35 * rider.speed / rider.maxSpeed);
+  const curve = curveAt(rider.z, state.trackId);
+  const shoulderLimit = Math.abs(curve) > 0.8 ? 0.38 : 0.56;
+  const max = rider.maxSpeed * (onShoulder ? shoulderLimit : 1) * (0.92 + rider.integrity / 1250);
+  const acceleration = command.throttle * rider.acceleration * (onShoulder ? 0.55 : 1) * (1 - 0.35 * rider.speed / rider.maxSpeed);
   rider.speed = clamp(rider.speed + (acceleration - command.brake * 29 - (command.throttle ? 1.2 : 3.6)) * STEP, 0, rider.maxSpeed);
-  if (rider.speed > max) rider.speed = Math.max(max, rider.speed - STEP * (onShoulder ? 18 : 4));
+  if (rider.speed > max) rider.speed = Math.max(max, rider.speed - STEP * (onShoulder ? 34 : 4));
   const steering = clamp(command.steer, -1, 1);
-  const grip = onShoulder ? 0.72 : 1;
-  const lateral = steering * (2.6 + rider.speed * 0.0625) * rider.handling * grip;
-  const drift = curveAt(rider.z, state.trackId) * Math.pow(rider.speed / 64, 2) * 1.3;
-  rider.x = clamp(rider.x + (lateral - drift) * STEP, -10.5, 10.5);
+  const forces = cornerForces(rider.speed, rider.handling, curve, onShoulder);
+  rider.x = clamp(rider.x + (steering * forces.lateral - forces.drift) * STEP, -10.5, 10.5);
   rider.lean += (steering * 0.32 - rider.lean) * 0.12;
   rider.z += rider.speed * STEP;
   rider.health = Math.min(100, rider.health + STEP * 1.15);
@@ -293,12 +331,17 @@ function resolveCollisions(state, oldZ) {
     }
   }
 }
-function createMultiplayerRace(trackId, players, seed = 88117) {
+function createMultiplayerRace(trackId, players, seed = 88117, fillBots = false) {
   if (players.length < 2 || players.length > 8 || new Set(players.map((p) => p.id)).size !== players.length) throw new Error("A corrida precisa de 2 a 8 pilotos distintos.");
   const state = createRace(trackId, void 0, seed);
   const colors = ["#dcff74", "#d87bfa", "#6cdace", "#f28451", "#ebbc5c", "#a4bde2", "#ef6f8a", "#e7e6dc"];
   const base = state.riders[0];
+  const bots = state.riders.slice(1);
   state.riders = players.map((p, i) => ({ ...base, id: p.id, name: p.name, color: colors[i], x: [-5.1, -1.7, 1.7, 5.1][i % 4], z: -(Math.floor(i / 4) * 8), profile: "player" }));
+  if (fillBots) for (let i = players.length; i < 8; i++) {
+    const bot = bots[i - players.length];
+    state.riders.push({ ...base, id: `cpu-${i}`, name: `${bot.name} CPU`, profile: bot.profile, color: colors[i], x: [-5.1, -1.7, 1.7, 5.1][i % 4], targetX: [-5.1, -1.7, 1.7, 5.1][i % 4], z: -(Math.floor(i / 4) * 8) });
+  }
   state.multiplayer = { humanIds: players.map((p) => p.id), results: {} };
   return state;
 }
@@ -320,7 +363,12 @@ function finishRider(state, rider, reason, arrestCause) {
   };
   if (state.multiplayer) {
     state.multiplayer.results[rider.id] = result;
-    if (state.multiplayer.humanIds.every((id) => state.multiplayer.results[id])) state.mode = "finished";
+    if (state.mode !== "finished" && state.multiplayer.humanIds.every((id) => state.multiplayer.results[id])) {
+      state.mode = "finished";
+      for (const bot of state.riders) if (bot.profile !== "player" && bot.profile !== "police" && !state.multiplayer.results[bot.id]) {
+        finishRider(state, bot, bot.finishedAt !== null ? "finish" : "timeout");
+      }
+    }
   } else if (rider.id === "player") {
     state.result = result;
     state.mode = "finished";
@@ -403,7 +451,7 @@ function stepRace(state, commands = {}) {
 }
 
 // src/multiplayer/protocol.ts
-var NET_VERSION = 2;
+var NET_VERSION = 3;
 var MAX_PLAYERS = 8;
 var ROOM_WAIT_MS = 6e4;
 var READY_WAIT_MS = 5e3;
@@ -438,11 +486,12 @@ var secret = () => (0, import_node_crypto.randomBytes)(24).toString("base64url")
 function makeMember(name, now) {
   return { id: `human-${(0, import_node_crypto.randomBytes)(8).toString("hex")}`, name: cleanName(name), ready: false, connected: true, token: secret(), epoch: secret(), lastSeen: now };
 }
-function makeRoom(code, trackId, member, now) {
+function makeRoom(code, trackId, member, now, fillBots = false) {
   if (!TRACKS.some((t) => t.id === trackId)) throw new Error("Estrada inv\xE1lida.");
   return {
     code,
     trackId,
+    fillBots: fillBots === true,
     phase: "lobby",
     locked: false,
     deadline: now + ROOM_WAIT_MS,
@@ -460,6 +509,7 @@ function viewRoom(room, now) {
   return {
     code: room.code,
     trackId: room.trackId,
+    fillBots: room.fillBots,
     phase: room.phase,
     locked: room.locked,
     deadline: room.deadline,
@@ -488,7 +538,7 @@ function lobbyClock(room, now) {
   if (room.deadline - now <= READY_WAIT_MS) room.locked = true;
   if (now < room.deadline) return;
   room.members = present;
-  room.race = createMultiplayerRace(room.trackId, present, (0, import_node_crypto.randomBytes)(4).readUInt32LE());
+  room.race = createMultiplayerRace(room.trackId, present, (0, import_node_crypto.randomBytes)(4).readUInt32LE(), room.fillBots);
   room.race.mode = "racing";
   room.race.countdown = 0;
   room.phase = "racing";
@@ -654,7 +704,7 @@ var RedisStore = class {
     } else throw new Error("Configure o Redis do multiplayer no servidor.");
   }
   key(code, field) {
-    return `asfalto:online:v2:{${code}}:${field}`;
+    return `asfalto:online:v3:{${code}}:${field}`;
   }
   async create(room) {
     return await this.command("SET", this.key(room.code, "state"), JSON.stringify(room), "NX", "EX", 1800) === "OK";
@@ -848,7 +898,7 @@ function createGameServer(store, options = {}) {
             const member = makeMember(data.name, now());
             let room;
             do {
-              room = makeRoom((0, import_node_crypto2.randomBytes)(4).toString("hex").slice(0, 6).toUpperCase(), data.trackId, member, now());
+              room = makeRoom((0, import_node_crypto2.randomBytes)(4).toString("hex").slice(0, 6).toUpperCase(), data.trackId, member, now(), data.fillBots === true);
             } while (!await store.create(room));
             await attach(peer, room, member);
           } else {

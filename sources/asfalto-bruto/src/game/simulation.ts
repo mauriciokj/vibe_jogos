@@ -1,4 +1,4 @@
-import { BIKES, clamp, curveAt, getTrack } from './content';
+import { BIKES, clamp, cornerForces, cornerPace, curveAt, getTrack } from './content';
 import { EMPTY_COMMAND, type AttackKind, type Command, type RaceResult, type RaceState, type Rider, type SaveData } from './types';
 
 export const STEP = 1 / 60;
@@ -112,10 +112,12 @@ export function botCommand(state: RaceState, rider: Rider): Command {
   const nearby = nearestTarget(state, rider, rider.weapon ? 'weapon' : 'punch');
   if (nearby && rider.cooldown === 0 && (rider.profile !== 'careful' || state.tick % 80 < 8)) attack = rider.weapon ? 'weapon' : rider.profile === 'aggressive' ? 'kick' : 'punch';
   const curve = curveAt(rider.z, state.trackId);
-  const steering = clamp((target - rider.x) * .9 + curve * .18, -1, 1);
-  if (rider.profile === 'careful' && Math.abs(curve) > .8) brake = Math.max(brake, .08);
-  if (police && rider.z > player.z + 7) brake = .42;
-  return { throttle: 1, brake, steer: steering, attack };
+  const forces = cornerForces(rider.speed, rider.handling, curve, Math.abs(rider.x) > ROAD_HALF);
+  const steering = clamp((target - rider.x) * .9 + forces.drift / forces.lateral, -1, 1);
+  const pace = cornerPace(rider.z, state.trackId, rider.handling) * (rider.profile === 'careful' ? .92 : rider.profile === 'fast' ? 1.03 : .98);
+  brake = Math.max(brake, clamp((rider.speed - pace) * .3, 0, 1));
+  if (police && rider.z > player.z + 7) brake = Math.max(brake, .42);
+  return { throttle: rider.speed > pace - .6 || brake > .1 ? 0 : 1, brake, steer: steering, attack };
 }
 
 export function policeTarget(state: RaceState, officer: Rider): Rider | undefined {
@@ -141,15 +143,15 @@ function applyCommand(state: RaceState, rider: Rider, command: Command) {
     return;
   }
   const onShoulder = Math.abs(rider.x) > ROAD_HALF;
-  const max = rider.maxSpeed * (onShoulder ? .56 : 1) * (.92 + rider.integrity / 1250);
-  const acceleration = command.throttle * rider.acceleration * (1 - .35 * rider.speed / rider.maxSpeed);
+  const curve = curveAt(rider.z, state.trackId);
+  const shoulderLimit = Math.abs(curve) > .8 ? .38 : .56;
+  const max = rider.maxSpeed * (onShoulder ? shoulderLimit : 1) * (.92 + rider.integrity / 1250);
+  const acceleration = command.throttle * rider.acceleration * (onShoulder ? .55 : 1) * (1 - .35 * rider.speed / rider.maxSpeed);
   rider.speed = clamp(rider.speed + (acceleration - command.brake * 29 - (command.throttle ? 1.2 : 3.6)) * STEP, 0, rider.maxSpeed);
-  if (rider.speed > max) rider.speed = Math.max(max, rider.speed - STEP * (onShoulder ? 18 : 4));
+  if (rider.speed > max) rider.speed = Math.max(max, rider.speed - STEP * (onShoulder ? 34 : 4));
   const steering = clamp(command.steer, -1, 1);
-  const grip = onShoulder ? .72 : 1;
-  const lateral = steering * (2.6 + rider.speed * .0625) * rider.handling * grip;
-  const drift = curveAt(rider.z, state.trackId) * Math.pow(rider.speed / 64, 2) * 1.3;
-  rider.x = clamp(rider.x + (lateral - drift) * STEP, -10.5, 10.5);
+  const forces = cornerForces(rider.speed, rider.handling, curve, onShoulder);
+  rider.x = clamp(rider.x + (steering * forces.lateral - forces.drift) * STEP, -10.5, 10.5);
   rider.lean += (steering * .32 - rider.lean) * .12;
   rider.z += rider.speed * STEP;
   rider.health = Math.min(100, rider.health + STEP * 1.15);
@@ -226,12 +228,17 @@ function resolveCollisions(state: RaceState, oldZ: Map<string, number>) {
   }
 }
 
-export function createMultiplayerRace(trackId: string, players: { id: string; name: string }[], seed = 88117): RaceState {
+export function createMultiplayerRace(trackId: string, players: { id: string; name: string }[], seed = 88117, fillBots = false): RaceState {
   if (players.length < 2 || players.length > 8 || new Set(players.map(p => p.id)).size !== players.length) throw new Error('A corrida precisa de 2 a 8 pilotos distintos.');
   const state = createRace(trackId, undefined, seed);
   const colors = ['#dcff74', '#d87bfa', '#6cdace', '#f28451', '#ebbc5c', '#a4bde2', '#ef6f8a', '#e7e6dc'];
   const base = state.riders[0];
+  const bots = state.riders.slice(1);
   state.riders = players.map((p,i) => ({ ...base, id: p.id, name: p.name, color: colors[i], x: [-5.1,-1.7,1.7,5.1][i%4], z: -(Math.floor(i/4)*8), profile: 'player' }));
+  if (fillBots) for (let i = players.length; i < 8; i++) {
+    const bot = bots[i - players.length];
+    state.riders.push({ ...base, id: `cpu-${i}`, name: `${bot.name} CPU`, profile: bot.profile, color: colors[i], x: [-5.1,-1.7,1.7,5.1][i%4], targetX: [-5.1,-1.7,1.7,5.1][i%4], z: -(Math.floor(i/4)*8) });
+  }
   state.multiplayer = { humanIds: players.map(p => p.id), results: {} };
   return state;
 }
@@ -245,7 +252,12 @@ export function finishRider(state: RaceState, rider: Rider, reason: RaceResult['
     hits: rider.hits, falls: rider.falls };
   if (state.multiplayer) {
     state.multiplayer.results[rider.id] = result;
-    if (state.multiplayer.humanIds.every(id => state.multiplayer!.results[id])) state.mode = 'finished';
+    if (state.mode !== 'finished' && state.multiplayer.humanIds.every(id => state.multiplayer!.results[id])) {
+      state.mode = 'finished';
+      for (const bot of state.riders) if (bot.profile !== 'player' && bot.profile !== 'police' && !state.multiplayer.results[bot.id]) {
+        finishRider(state,bot,bot.finishedAt !== null ? 'finish' : 'timeout');
+      }
+    }
   } else if (rider.id === 'player') { state.result = result; state.mode = 'finished'; }
   state.events.push({ type: 'finish', actor: rider.id });
 }

@@ -39,7 +39,7 @@ try {
   await a.goto('http://127.0.0.1:4352/?test');const offlineSave=(await state()).save;await shots(a,'01-menu');
   await a.click('#online-btn');await a.fill('#online-name','Ana');await shots(a,'02-online-form');await a.click('#online-create');
   await a.waitForFunction(()=>JSON.parse(window.render_game_to_text()).online?.phase==='lobby');const code=(await state()).online.code;
-  await shots(a,'03-one-player');assert.equal(await a.locator('#online-count').innerText(),'1 / 8 PILOTOS');
+  await shots(a,'03-one-player');assert.equal(await a.locator('#online-count').innerText(),'1 / 8 PESSOAS');
   await a.click('#online-ready');await a.waitForTimeout(250);assert.equal((await state()).online.locked,false);
   await b.goto(`http://127.0.0.1:4352/?test&sala=${code}`);await b.fill('#online-name','Bia');await b.click('#online-join');
   await b.waitForFunction(()=>JSON.parse(window.render_game_to_text()).online?.phase==='lobby');

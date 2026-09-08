@@ -43,6 +43,8 @@ O som começa depois de uma interação. Em telas estreitas, há controles por t
 ## O que está implementado
 
 - Um jogador e sete rivais com perfis agressivo, cauteloso e veloz, usando o mesmo sistema de comandos da simulação.
+- Curvas alternadas com aviso de direção, distância e velocidade de referência. Excesso de velocidade reduz a aderência; frear antes da entrada e acelerar na saída permite ganhar terreno sem depender de acidentes.
+- Mapa de proximidade com 300m para cada lado, pilotos por cor e distâncias ao da frente e de trás. Retrovisor mostra motos e trânsito nos últimos 200m, com indicação de aproximação.
 - Três estradas com curvas, elevações e cenários próprios: **Costa do Sol** (8,4 km), **Serra da Fumaça** (9,2 km) e **Vale Vermelho** (10,2 km).
 - Trânsito nos dois sentidos, carros e vans nas faixas, óleo, barreiras, ultrapassagens e colisões.
 - Socos, chutes, bastão, roubo de arma, quedas, recuperação e um breve período de proteção ao voltar à pista.
@@ -65,6 +67,7 @@ O som começa depois de uma interação. Em telas estreitas, há controles por t
 | `src/game/simulation.ts` | Simulação em passos de 1/60 s, entradas, IA, colisões, combate, eventos e snapshots |
 | `src/game/types.ts` | Estado serializável e tipos de comandos, pilotos e progressão |
 | `src/game/content.ts` | Parâmetros das motos, estradas, curvas e elevações |
+| `src/game/awareness.ts` / `instruments.ts` | Distâncias por identidade local, mapa e retrovisor com resolução limitada |
 | `src/game/renderer.ts` | Projeção, desenho, profundidade, oclusão nas elevações e efeitos |
 | `src/game/sprites.ts` | Motos, pilotos e carros rasterizados, incluindo animação dos pneus |
 | `src/game/scenery.ts` | Vegetação, rochas e construções originais em cache, com aleatoriedade apenas visual |
@@ -78,7 +81,7 @@ O som começa depois de uma interação. Em telas estreitas, há controles por t
 
 A simulação não acessa DOM, Canvas, áudio ou relógio real. Usa IDs estáveis, entradas por jogador e um gerador pseudoaleatório com seed e estado serializado. `snapshot()` e `restoreSnapshot()` reproduzem uma corrida; testes verificam resultados idênticos após restaurar e continuar com os mesmos comandos.
 
-**Multiplayer é opcional e já está implementado.** O modo individual continua local, com a mesma garagem. O botão Multiplayer abre salas para 2–8 pessoas, com janela de 60 segundos e largada em até 5 segundos quando todos os presentes estão prontos. O servidor controla a corrida; cada piloto tem sua própria câmera, prisão e resultado. Veja [MULTIPLAYER.md](MULTIPLAYER.md) para as regras completas, reconexão, testes e publicação no catálogo Vibe Jogos.
+**Multiplayer é opcional e já está implementado.** O modo individual continua local, com a mesma garagem. O botão Multiplayer abre salas para 2–8 pessoas, com janela de 60 segundos e largada em até 5 segundos quando todos os presentes estão prontos. Quem cria a sala pode marcar **Completar com bots**: vagas livres recebem pilotos identificados como CPU na largada, até completar oito. Continuam necessárias duas pessoas reais. O servidor controla a corrida; cada piloto tem sua própria câmera, prisão e resultado. Veja [MULTIPLAYER.md](MULTIPLAYER.md) para as regras completas, reconexão, testes e publicação no catálogo Vibe Jogos.
 
 Para usar o modo online localmente, execute também `npm run dev:server` em outro terminal. O Redis é obrigatório no Vercel para compartilhar salas entre instâncias; em desenvolvimento há armazenamento em memória.
 
@@ -91,10 +94,11 @@ npx playwright install chromium
 npm run test:browser
 ```
 
-- **31 testes de simulação, salas e conexões:** pilotagem, frenagem, limites, alcance, roubo de arma, evasão, quedas, colisões, óleo, barreiras, classificação, polícia, economia, snapshots e consistência a 30/60/144 FPS.
+- **42 testes de simulação, salas e conexões:** pilotagem, frenagem, limites, alcance, roubo de arma, evasão, quedas, colisões, óleo, barreiras, classificação, polícia, economia, snapshots e consistência a 30/60/144 FPS.
 - Corridas completas nas três pistas, com comandos dentro dos limites de controle do jogador.
 - Testes de navegador: teclado, tutorial, pausa, reinício, todos os golpes, queda/retorno, captura, corrida completa, resultados, desbloqueio, persistência, reparos, compras, todas as melhorias, seleção de moto, reset, áudio, tela cheia e toque.
 - `npm run test:online` verifica dois navegadores e seis conexões adicionais com 200ms de atraso de ida e volta. Inclui largada, combate, reconexão, prisão individual e retorno ao modo individual.
+- `npm run test:tactics` verifica a opção de bots, corrida com duas pessoas e seis CPUs, frenagem compartilhada, reconexão, resultados, mapa/retrovisor no desktop e celular, além da cadência de uma corrida com os instrumentos.
 - `npm run test:motion` verifica estabilidade de movimento com atraso variável de rede e armazenamento, direção e golpes com toques de 5ms em alta velocidade.
 - `npm run test:network` mede a cadência e a confirmação dos comandos na prévia publicada. Aceita `ASFALTO_BENCH_URL` para outro servidor e `ASFALTO_BENCH_PLAYERS=8` para medir uma sala cheia.
 - `ASFALTO_TEST_REDIS_URL=redis://127.0.0.1:6398 npm run test:redis` verifica Redis real, concorrência e reconexão entre duas instâncias.
