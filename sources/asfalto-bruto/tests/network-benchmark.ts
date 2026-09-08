@@ -31,8 +31,9 @@ try {
   for(let i=0;i<count;i++){
     const p=new Peer();peers.push(p);await once(p.ws,'open');
     p.send(i?{type:'join',version:NET_VERSION,name:`Medição ${i+1}`,code:peers[0].room.code}:{type:'create',version:NET_VERSION,name:'Medição 1',trackId:'costa'});
-    await p.wait(()=>!!p.id);p.send({type:'ready',ready:true});
+    await p.wait(()=>!!p.id);
   }
+  for(const p of peers)p.send({type:'ready',ready:true});
   await Promise.all(peers.map(p=>p.wait(()=>p.room?.phase==='racing')));
   let seq=0;timer=setInterval(()=>{
     seq++;for(const p of peers){p.sent.set(seq,performance.now());p.send({type:'input',seq,command:{throttle:1,brake:0,steer:0,attack:null},attacks:[]});if(seq%10===0)p.send({type:'ping',sentAt:performance.now()});}

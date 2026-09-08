@@ -96,6 +96,7 @@ npm run test:browser
 - Testes de navegador: teclado, tutorial, pausa, reinício, todos os golpes, queda/retorno, captura, corrida completa, resultados, desbloqueio, persistência, reparos, compras, todas as melhorias, seleção de moto, reset, áudio, tela cheia e toque.
 - `npm run test:online` verifica dois navegadores e seis conexões adicionais com 200ms de atraso de ida e volta. Inclui largada, combate, reconexão, prisão individual e retorno ao modo individual.
 - `npm run test:motion` verifica estabilidade de movimento com atraso variável de rede e armazenamento, direção e golpes com toques de 5ms em alta velocidade.
+- `npm run test:network` mede a cadência e a confirmação dos comandos na prévia publicada. Aceita `ASFALTO_BENCH_URL` para outro servidor e `ASFALTO_BENCH_PLAYERS=8` para medir uma sala cheia.
 - `ASFALTO_TEST_REDIS_URL=redis://127.0.0.1:6398 npm run test:redis` verifica Redis real, concorrência e reconexão entre duas instâncias.
 - Imagens dos estados testados e relatórios são gravados em `output/browser/` e `output/online/`. O teste de recursos externos confirma que o jogo só solicita arquivos da própria origem.
 - A skill de desenvolvimento de jogos também foi usada para executar o cliente Playwright de ações curtas e inspecionar seus screenshots/estados.

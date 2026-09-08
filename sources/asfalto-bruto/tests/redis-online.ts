@@ -17,6 +17,13 @@ await assert.rejects(()=>stores[0].mutate(code,r=>joinRoom(r,makeMember('Nono',D
 // Monotonic input sequences are enforced atomically, even across instances.
 await Promise.all([stores[0].input(code,'fixture',{seq:20,at:Date.now(),command:{throttle:1,brake:0,steer:0,attack:null}}),stores[1].input(code,'fixture',{seq:2,at:Date.now(),command:{throttle:0,brake:0,steer:0,attack:null}})]);
 await stores[0].mutate(code,(_r,inputs)=>assert.equal(inputs.fixture.seq,20));
+// Inputs arriving with the simulation read must win atomically, retain JSON
+// arrays/nulls and remain monotonic against concurrent writes from other nodes.
+const inline={seq:21,at:Date.now(),command:{throttle:1,brake:0,steer:0,attack:null},attacks:[]};
+await stores[0].mutate(code,(_r,inputs)=>assert.deepEqual(inputs.fixture,inline),0,{fixture:inline});
+await stores[1].mutate(code,(_r,inputs)=>assert.deepEqual(inputs.fixture,inline),0,{fixture:{...inline,seq:19}});
+await assert.rejects(()=>stores[0].mutate(code,()=>{throw new Error('fixture rollback');}),/fixture rollback/);
+await stores[1].mutate(code,(_r,inputs)=>assert.deepEqual(inputs.fixture,inline));
 let skew=0;const now=()=>Date.now()+skew;
 const apps=stores.map(store=>createGameServer(store,{now}));
 for(const app of apps){app.server.listen(0,'127.0.0.1');await once(app.server,'listening');}

@@ -3,10 +3,10 @@ import { randomBytes } from 'node:crypto';
 import { WebSocket, WebSocketServer } from 'ws';
 import { finishRider } from '../src/game/simulation';
 import { cleanAttacks, cleanCommand, NET_VERSION, RECONNECT_MS, type ServerMessage } from '../src/multiplayer/protocol';
-import { depart, inputKey, joinRoom, lobbyClock, makeMember, makeRoom, pulseRoom, secret, setReady, viewRoom, type Member, type Room, type StoredInput } from './room';
+import { depart, inputKey, joinRoom, lobbyClock, makeMember, makeRoom, pulseRoom, secret, setReady, viewRoom, type Inputs, type Member, type Room, type StoredInput } from './room';
 import { BusyRoom, MemoryStore, type RoomStore } from './store';
 
-interface Peer { ws: WebSocket; code: string; id: string; epoch: string; seq: number; pending?: StoredInput; writing: boolean; lastSeen: number; alive: boolean; }
+interface Peer { ws: WebSocket; code: string; id: string; epoch: string; seq: number; pending?: StoredInput; latestInput?: StoredInput; writing: boolean; lastSeen: number; alive: boolean; }
 export function createGameServer(store: RoomStore, options: { origins?: string[]; now?: () => number } = {}) {
   const now = options.now ?? Date.now;
   const peers = new Set<Peer>();
@@ -74,7 +74,8 @@ export function createGameServer(store: RoomStore, options: { origins?: string[]
       if (data.type === 'input') {
         const command = cleanCommand(data.command), attacks=cleanAttacks(data.attacks);
         if (!peer.code || !command || !attacks || !Number.isSafeInteger(data.seq) || data.seq <= peer.seq) return;
-        peer.seq = data.seq; peer.pending = {seq:data.seq,command,attacks,at:now()}; return;
+        peer.seq = data.seq; peer.pending = peer.latestInput = {seq:data.seq,command,attacks,at:now()};
+        void flush(peer);return;
       }
       if (busy) return; busy = true;
       try {
@@ -127,7 +128,11 @@ export function createGameServer(store: RoomStore, options: { origins?: string[]
   async function pump(code: string) {
     if (pumping.has(code)) return;
     pumping.add(code);
-    try { broadcast(await store.mutate(code,(r,inputs)=>pulseRoom(r,inputs,now()),0)); }
+    try {
+      const inputs:Inputs={};
+      for(const p of peers)if(p.code===code && p.latestInput)inputs[`${p.id}:${p.epoch}`]=p.latestInput;
+      broadcast(await store.mutate(code,(r,inputs)=>pulseRoom(r,inputs,now()),0,inputs));
+    }
     catch (e) {
       if (e instanceof BusyRoom) { const room = await store.read(code).catch(()=>null); if (room) broadcast(room); }
       else for (const peer of peers) if (peer.code === code) { send(peer,{type:'error',message:'Não foi possível sincronizar a sala. Reconectando…'}); peer.ws.close(1013); }

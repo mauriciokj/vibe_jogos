@@ -48,6 +48,8 @@ O exportador gera `games/asfalto-bruto/`, o endpoint `api/asfalto.js`, o cartão
 
 O endpoint usa WebSockets nativos das Vercel Functions, disponíveis em beta em setembro de 2026, e precisa de **Fluid Compute habilitado**. A função é configurada com duração máxima de 300 segundos; o cliente reconecta quando a conexão é encerrada pelo provedor.
 
+A função `api/asfalto.js` é publicada em **São Paulo (`gru1`)**, próximo dos jogadores brasileiros e do banco usado neste catálogo. Essa configuração é específica do jogo. A medição da prévia revelou atualizações a cada ~500ms e confirmações de comando em ~590ms antes da mudança de região. Em São Paulo, a cadência voltou a ~50ms e a confirmação caiu para ~53ms na mesma medição com dois participantes. São amostras da rede de teste, não uma garantia para toda conexão.
+
 As conexões podem cair em instâncias diferentes. Por isso, produção exige Redis compartilhado e nunca usa silenciosamente o armazenamento local. Variáveis de servidor aceitas:
 
 | Conexão | Variáveis |
@@ -56,6 +58,8 @@ As conexões podem cair em instâncias diferentes. Por isso, produção exige Re
 | Redis REST / integração já usada pelo catálogo | `KV_REST_API_URL` + `KV_REST_API_TOKEN`, ou `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` |
 
 Configure as variáveis tanto em **Preview** quanto em **Production**. Nenhuma credencial é enviada ao navegador. As chaves ficam isoladas no prefixo `asfalto:online:v2`, com expiração de 30 minutos; o leaderboard existente não é acessado. O protocolo v2 exige atualizar as páginas e criar uma nova sala; salas v1 não são migradas. Mutação com trava e verificação de posse impede que duas instâncias sobrescrevam a mesma sala. REST tem mais latência por operação que uma conexão Redis persistente: validar a região e a cadência em produção antes de ampliar o público.
+
+Cada atualização usa duas operações Redis: a primeira adquire a trava, incorpora os controles mais recentes da instância e lê o estado; a segunda salva com verificação de posse e libera a trava. Isso evita quatro esperas sequenciais por atualização. Entradas continuam ordenadas por sequência e são compartilhadas entre instâncias. Alterações de direção, aceleração e freio são enviadas imediatamente, além dos pacotes periódicos.
 
 Se o Redis não estiver configurado, a API retorna 503 e o cliente informa a indisponibilidade; o modo individual continua disponível. O endpoint HTTP permite verificar `multiplayer` e `sharedRooms`, sem retornar credenciais.
 
@@ -69,8 +73,13 @@ npm run test:browser
 npm run test:online
 npm run test:motion
 ASFALTO_TEST_REDIS_URL=redis://127.0.0.1:6398 npm run test:redis
+# Mede uma sala de teste na prévia publicada, com 8 conexões reais:
+ASFALTO_BENCH_PLAYERS=8 ASFALTO_BENCH_OUTPUT=output/latency/eight.json npm run test:network
+# Para medir um servidor local, acrescente ASFALTO_BENCH_URL=ws://127.0.0.1:4318/
 ```
 
 Os testes online usam um servidor isolado, duas páginas e seis conexões adicionais, com relay que adiciona 100ms em cada direção. Cobrem salas, prontidão, largada, oito vagas, câmeras independentes, combate, roubo de arma, pausa online, reconexão, prisão individual, resultados e retorno ao modo individual. `test:motion` adiciona atraso variável de 65–170ms em cada sentido e 65ms no armazenamento; mede recuos e saltos de posição, testa direção em velocidade máxima e toques de 5ms para os três golpes, incluindo o botão na tela. Os testes Redis cobrem concorrência e duas instâncias. Artefatos visuais ficam em `output/online/` e `output/online-motion/`.
 
 O protocolo ainda não oferece contas, ranking online persistente, matchmaking público ou compensação histórica de golpes. A validação com atraso não substitui testes em celulares físicos e redes móveis. A implantação pública deve ser verificada com pelo menos dois dispositivos externos, incluindo retomada de conexões no limite da função.
+
+O benchmark registra intervalo entre estados, idade do estado ao sair do servidor, tempo até confirmar um comando, ping e tamanho das mensagens. Um teste visual pode ocultar uma baixa frequência de atualizações por causa da extrapolação; confira esses indicadores ao investigar lag.

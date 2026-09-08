@@ -98,7 +98,9 @@ export class OnlineClient {
   }
   step(command: Command) {
     if(!this.room?.race || this.room.phase!=='racing' || this.status!=='connected')return;
+    const changed=command.throttle!==this.current.throttle || command.brake!==this.current.brake || command.steer!==this.current.steer;
     this.current=command;this.presentation?.control(command,performance.now());
+    if(changed)this.sendInput();
     if(command.attack)this.attack(command.attack);
   }
   view(): RaceState | null {

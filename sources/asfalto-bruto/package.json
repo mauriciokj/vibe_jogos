@@ -14,7 +14,8 @@
     "export:jogos": "node scripts/export-jogos.mjs",
     "test:online": "tsx tests/online-browser.ts",
     "test:redis": "tsx tests/redis-online.ts",
-    "test:motion": "tsx tests/online-motion.ts"
+    "test:motion": "tsx tests/online-motion.ts",
+    "test:network": "tsx tests/network-benchmark.ts"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

@@ -604,9 +604,12 @@ var MemoryStore = class {
   async read(code) {
     return clone(this.rooms.get(code) ?? null);
   }
-  async mutate(code, change) {
+  async mutate(code, change, _retries, localInputs = {}) {
     const old = this.rooms.get(code);
     if (!old) throw new Error("Sala n\xE3o encontrada ou encerrada.");
+    const all = this.inputs.get(code) ?? {};
+    for (const [key, input] of Object.entries(localInputs)) if (!all[key] || all[key].seq < input.seq) all[key] = clone(input);
+    this.inputs.set(code, all);
     const room = clone(old);
     change(room, clone(this.inputs.get(code) ?? {}));
     room.revision++;
@@ -663,29 +666,42 @@ var RedisStore = class {
   async input(code, key, input) {
     await this.command("EVAL", `local old=redis.call('HGET',KEYS[1],ARGV[1]); if not old or cjson.decode(old).seq<tonumber(ARGV[2]) then redis.call('HSET',KEYS[1],ARGV[1],ARGV[3]); redis.call('EXPIRE',KEYS[1],1800); return 1 end; return 0`, 1, this.key(code, "inputs"), key, input.seq, JSON.stringify(input));
   }
-  async mutate(code, change, retries = 50) {
+  async mutate(code, change, retries = 50, localInputs = {}) {
     const lock = this.key(code, "lock"), token = secret();
-    let acquired = false;
+    let snapshot;
     for (let n = 0; n <= retries; n++) {
-      if (await this.command("SET", lock, token, "NX", "PX", 4e3) === "OK") {
-        acquired = true;
+      const result = await this.command("EVAL", `
+        if not redis.call('SET',KEYS[1],ARGV[1],'NX','PX',4000) then return {0} end
+        local room=redis.call('GET',KEYS[2])
+        if not room then redis.call('DEL',KEYS[1]); return {-1} end
+        for key,raw in pairs(cjson.decode(ARGV[2])) do
+          local input=cjson.decode(raw)
+          local old=redis.call('HGET',KEYS[3],key)
+          if not old or cjson.decode(old).seq<input.seq then redis.call('HSET',KEYS[3],key,raw) end
+        end
+        redis.call('EXPIRE',KEYS[3],1800)
+        return {1,room,redis.call('HGETALL',KEYS[3])}
+      `, 3, lock, this.key(code, "state"), this.key(code, "inputs"), token, JSON.stringify(Object.fromEntries(Object.entries(localInputs).map(([key, input]) => [key, JSON.stringify(input)]))));
+      if (result[0] === -1) throw new Error("Sala n\xE3o encontrada ou encerrada.");
+      if (result[0] === 1) {
+        snapshot = result;
         break;
       }
       if (n < retries) await new Promise((resolve) => setTimeout(resolve, 20));
     }
-    if (!acquired) throw new BusyRoom("Sala ocupada por um instante. Tente novamente.");
+    if (!snapshot) throw new BusyRoom("Sala ocupada por um instante. Tente novamente.");
+    let committed = false;
     try {
-      const [room, raw] = await Promise.all([this.read(code), this.command("HGETALL", this.key(code, "inputs"))]);
-      if (!room) throw new Error("Sala n\xE3o encontrada ou encerrada.");
-      const entries = raw, inputs = {};
+      const room = JSON.parse(snapshot[1]), entries = snapshot[2], inputs = {};
       for (let i = 0; i < entries.length; i += 2) inputs[entries[i]] = JSON.parse(entries[i + 1]);
       change(room, inputs);
       room.revision++;
-      const saved = await this.command("EVAL", `if redis.call('GET',KEYS[1])==ARGV[1] then redis.call('SET',KEYS[2],ARGV[2],'EX',1800); return 1 end; return 0`, 2, lock, this.key(code, "state"), token, JSON.stringify(room));
+      const saved = await this.command("EVAL", `if redis.call('GET',KEYS[1])==ARGV[1] then redis.call('SET',KEYS[2],ARGV[2],'EX',1800); redis.call('DEL',KEYS[1]); return 1 end; return 0`, 2, lock, this.key(code, "state"), token, JSON.stringify(room));
       if (saved !== 1) throw new BusyRoom("A sala est\xE1 sincronizando. Tente novamente.");
+      committed = true;
       return room;
     } finally {
-      await this.command("EVAL", `if redis.call('GET',KEYS[1])==ARGV[1] then return redis.call('DEL',KEYS[1]) end; return 0`, 1, lock, token).catch(() => {
+      if (!committed) await this.command("EVAL", `if redis.call('GET',KEYS[1])==ARGV[1] then return redis.call('DEL',KEYS[1]) end; return 0`, 1, lock, token).catch(() => {
       });
     }
   }
@@ -818,7 +834,8 @@ function createGameServer(store, options = {}) {
         const command = cleanCommand(data.command), attacks = cleanAttacks(data.attacks);
         if (!peer.code || !command || !attacks || !Number.isSafeInteger(data.seq) || data.seq <= peer.seq) return;
         peer.seq = data.seq;
-        peer.pending = { seq: data.seq, command, attacks, at: now() };
+        peer.pending = peer.latestInput = { seq: data.seq, command, attacks, at: now() };
+        void flush(peer);
         return;
       }
       if (busy) return;
@@ -887,7 +904,9 @@ function createGameServer(store, options = {}) {
     if (pumping.has(code)) return;
     pumping.add(code);
     try {
-      broadcast(await store.mutate(code, (r, inputs) => pulseRoom(r, inputs, now()), 0));
+      const inputs = {};
+      for (const p of peers) if (p.code === code && p.latestInput) inputs[`${p.id}:${p.epoch}`] = p.latestInput;
+      broadcast(await store.mutate(code, (r, inputs2) => pulseRoom(r, inputs2, now()), 0, inputs));
     } catch (e) {
       if (e instanceof BusyRoom) {
         const room = await store.read(code).catch(() => null);
