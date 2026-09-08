@@ -51,13 +51,13 @@ O som começa depois de uma interação. Em telas estreitas, há controles por t
 - Resistência do piloto e integridade da moto separadas. Piloto sem resistência cai; moto sem integridade encerra a corrida.
 - Procura policial alimentada pela velocidade e pelos golpes. Depois de 1,3 km e 48 pontos de procura, um policial inicia a perseguição. Cair com um policial ativo a até **30 metros** causa **prisão imediata e derrota**, inclusive se ele se aproximar enquanto o piloto ainda estiver no chão. Também há captura após 3 segundos ao lado do policial, abaixo de 8 m/s (aproximadamente 29 km/h).
 - Largada, classificação por distância/tempo de chegada, resultados, recompensas, repetição da corrida, pausa automática ao sair da janela.
-- Garagem com **Ferro 500**, **Veneno 750** e **Brutal 1000**, três níveis de motor, resistência e dirigibilidade, além de reparos.
+- Garagem com **sete modelos**: Ferro 500 (street), Veneno 750 (esportiva), Brutal 1000 (muscle), Falcão 450 (supermoto), Estradeira 900 (cruiser), Lobo 1200 (chopper) e Agulha 600 (café racer). Cada uma tem silhueta, aceleração, aderência nas curvas e resistência próprias; três níveis de motor, resistência e dirigibilidade, além de reparos. A Falcão é a mais ágil; a Lobo exige frear antes, mas suporta mais danos.
 - Próxima estrada liberada com uma colocação entre os cinco primeiros. Todas as colocações recebem dinheiro; derrotas recebem uma pequena ajuda. A Ferro 500 recebe reparo gratuito até 55% depois de cada corrida, evitando bloqueio econômico.
 - Salvamento local de créditos, motos, melhorias, condições, pistas, recordes e preferência de áudio. A garagem permite apagar o progresso com uma confirmação.
 - Sprites e cenários originais, asfalto com textura, defensas, refletores, placas de curva, vegetação e relevo detalhados. Faixas curtas e detalhes no acostamento reforçam a passagem do cenário.
 - Câmera de perseguição mais baixa e próxima do asfalto, com campo de visão progressivo e tamanho da moto estável ao acelerar. Faixas de 3 metros, refletores mais próximos e vegetação junto ao acostamento reforçam a sensação de velocidade, preservando a velocidade real e a física da corrida.
 - Rastros no asfalto e no acostamento acompanham o deslocamento real; vento nas bordas, pneus animados e suspensão completam o movimento. A preferência do sistema por movimento reduzido desativa as variações da câmera e os efeitos extras. A pausa congela os rastros junto com a corrida.
-- Áudio sintetizado com motor e vento proporcionais à velocidade. Fontes distribuídas localmente, sem chamadas externas durante o jogo.
+- Áudio sintetizado com motor e vento proporcionais à velocidade e timbre mais grave nas customs. Fontes distribuídas localmente, sem chamadas externas durante o jogo.
 - Motos recalibradas: cerca de 12% mais velocidade máxima e 25% mais aceleração que a primeira versão. A Ferro 500 alcança aproximadamente 230 km/h sem melhorias; a Veneno 750, 263 km/h; a Brutal 1000, 281 km/h. Danos e acostamento reduzem esses valores.
 
 ## Estrutura e multiplayer opcional
@@ -81,7 +81,7 @@ O som começa depois de uma interação. Em telas estreitas, há controles por t
 
 A simulação não acessa DOM, Canvas, áudio ou relógio real. Usa IDs estáveis, entradas por jogador e um gerador pseudoaleatório com seed e estado serializado. `snapshot()` e `restoreSnapshot()` reproduzem uma corrida; testes verificam resultados idênticos após restaurar e continuar com os mesmos comandos.
 
-**Multiplayer é opcional e já está implementado.** O modo individual continua local, com a mesma garagem. O botão Multiplayer abre salas para 2–8 pessoas, com janela de 60 segundos e largada em até 5 segundos quando todos os presentes estão prontos. Quem cria a sala pode marcar **Completar com bots**: vagas livres recebem pilotos identificados como CPU na largada, até completar oito. Continuam necessárias duas pessoas reais. O servidor controla a corrida; cada piloto tem sua própria câmera, prisão e resultado. Veja [MULTIPLAYER.md](MULTIPLAYER.md) para as regras completas, reconexão, testes e publicação no catálogo Vibe Jogos.
+**Multiplayer é opcional e já está implementado.** O modo individual continua local, com a mesma garagem. Antes de criar ou entrar numa sala, cada pessoa escolhe livremente um dos sete modelos com atributos de fábrica, sem usar compras ou melhorias da campanha. Os bots também pilotam modelos variados. O botão Multiplayer abre salas para 2–8 pessoas, com janela de 60 segundos e largada em até 5 segundos quando todos os presentes estão prontos. Quem cria a sala pode marcar **Completar com bots**: vagas livres recebem pilotos identificados como CPU na largada, até completar oito. Continuam necessárias duas pessoas reais. O servidor controla a corrida; cada piloto tem sua própria câmera, prisão e resultado. Veja [MULTIPLAYER.md](MULTIPLAYER.md) para as regras completas, reconexão, testes e publicação no catálogo Vibe Jogos.
 
 Para usar o modo online localmente, execute também `npm run dev:server` em outro terminal. O Redis é obrigatório no Vercel para compartilhar salas entre instâncias; em desenvolvimento há armazenamento em memória.
 
@@ -94,10 +94,11 @@ npx playwright install chromium
 npm run test:browser
 ```
 
-- **42 testes de simulação, salas e conexões:** pilotagem, frenagem, limites, alcance, roubo de arma, evasão, quedas, colisões, óleo, barreiras, classificação, polícia, economia, snapshots e consistência a 30/60/144 FPS.
+- **48 testes de simulação, salas e conexões:** pilotagem, frenagem, limites, alcance, roubo de arma, evasão, quedas, colisões, óleo, barreiras, classificação, polícia, economia, snapshots e consistência a 30/60/144 FPS.
 - Corridas completas nas três pistas, com comandos dentro dos limites de controle do jogador.
 - Testes de navegador: teclado, tutorial, pausa, reinício, todos os golpes, queda/retorno, captura, corrida completa, resultados, desbloqueio, persistência, reparos, compras, todas as melhorias, seleção de moto, reset, áudio, tela cheia e toque.
 - `npm run test:online` verifica dois navegadores e seis conexões adicionais com 200ms de atraso de ida e volta. Inclui largada, combate, reconexão, prisão individual e retorno ao modo individual.
+- `npm run test:bikes` verifica os sete modelos na garagem e na corrida, compras, melhorias, preservação do save, seleção online móvel, atributos de fábrica e reconexão entre modelos diferentes.
 - `npm run test:tactics` verifica a opção de bots, corrida com duas pessoas e seis CPUs, frenagem compartilhada, reconexão, resultados, mapa/retrovisor no desktop e celular, além da cadência de uma corrida com os instrumentos.
 - `npm run test:motion` verifica estabilidade de movimento com atraso variável de rede e armazenamento, direção e golpes com toques de 5ms em alta velocidade.
 - `npm run test:network` mede a cadência e a confirmação dos comandos na prévia publicada. Aceita `ASFALTO_BENCH_URL` para outro servidor e `ASFALTO_BENCH_PLAYERS=8` para medir uma sala cheia. `ASFALTO_BENCH_BOTS=1` completa as vagas com CPUs.
@@ -109,7 +110,7 @@ npm run test:browser
 
 ## Limites desta versão
 
-É uma primeira versão funcional, ainda aberta a ajustes de dificuldade e sensação de controle após testes humanos. O cenário é 2.5D, a física é arcade e o som é sintetizado. Os desenhos das três motos compartilham a silhueta básica, com cores e comportamento diferentes. A meta é 60 FPS, mas o resultado depende do dispositivo e do navegador. A validação automatizada usou Chromium desktop e viewport móvel, não uma matriz de celulares físicos.
+É uma primeira versão funcional, ainda aberta a ajustes de dificuldade e sensação de controle após testes humanos. O cenário é 2.5D, a física é arcade e o som é sintetizado. Os sete modelos usam arte original em cache, com vistas próprias na garagem, na corrida e no retrovisor. A meta é 60 FPS, mas o resultado depende do dispositivo e do navegador. A validação automatizada usou Chromium desktop e viewport móvel, não uma matriz de celulares físicos.
 
 ## Fontes e licenças
 

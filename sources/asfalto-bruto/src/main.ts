@@ -3,13 +3,13 @@ import './multiplayer/style.css';
 import { OnlineClient } from './multiplayer/client';
 import type { RoomView } from './multiplayer/protocol';
 import { EMPTY_COMMAND } from './game/types';
-import { BIKES, clamp, clockString, cornerForces, cornerPace, curveAt, upcomingCorner, getTrack, money, TRACKS } from './game/content';
+import { BIKES, clamp, clockString, cornerForces, cornerPace, curveAt, upcomingCorner, getBike, handlingLabel, zeroToHundred, getTrack, money, TRACKS } from './game/content';
 import { raceAwareness } from './game/awareness';
 import { GameAudio } from './game/audio';
 import { RaceInstruments } from './game/instruments';
 import { Renderer } from './game/renderer';
 import { createRace, nearestTarget, ranking, restoreSnapshot, snapshot, STEP, stepRace } from './game/simulation';
-import { bikeSprite } from './game/sprites';
+import { bikePortrait } from './game/sprites';
 import { buyBike, buyUpgrade, freshSave, loadSave, persist, repair, repairCost, settleRace, upgradeCost } from './game/save';
 import type { Command, RaceState, Upgrade } from './game/types';
 
@@ -70,9 +70,9 @@ root.innerHTML = `
     <div class="dialog-header"><div><div class="eyebrow">CORRA COM OUTRAS PESSOAS</div><h2 id="online-title">Multiplayer</h2></div><button class="close-btn" id="online-close" aria-label="Voltar ao menu">×</button></div>
     <div class="dialog-body">
       <div id="online-form"><label class="online-label" for="online-name">SEU APELIDO</label><input id="online-name" class="online-input" maxlength="18" placeholder="Como você quer ser chamado?" autocomplete="nickname" />
-        <div class="online-choices"><div><h3>Criar uma sala</h3><label class="online-label" for="online-track">ESTRADA</label><select id="online-track" class="online-input">${TRACKS.map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}</select><label class="bot-option"><input type="checkbox" id="online-bots" /><span>Completar com bots<small>Até 8 pilotos na largada · mínimo 2 pessoas</small></span></label><button class="primary" id="online-create">CRIAR SALA ↗</button></div>
+        <div class="online-bike-choice"><label class="online-label" for="online-bike">SUA MOTO · TODOS OS MODELOS LIBERADOS NO ONLINE</label><select id="online-bike" class="online-input">${BIKES.map(b=>`<option value="${b.id}">${b.name} · ${b.class}</option>`).join('')}</select><div id="online-bike-preview" class="online-bike-preview"></div></div><div class="online-choices"><div><h3>Criar uma sala</h3><label class="online-label" for="online-track">ESTRADA</label><select id="online-track" class="online-input">${TRACKS.map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}</select><label class="bot-option"><input type="checkbox" id="online-bots" /><span>Completar com bots<small>Até 8 pilotos na largada · mínimo 2 pessoas</small></span></label><button class="primary" id="online-create">CRIAR SALA ↗</button></div>
         <div><h3>Entrar com amigos</h3><label class="online-label" for="online-code-input">CÓDIGO DA SALA</label><input id="online-code-input" class="online-input code-input" maxlength="6" placeholder="A1B2C3" autocapitalize="characters" autocomplete="off" spellcheck="false"/><button class="secondary" id="online-join">ENTRAR NA SALA ↗</button></div></div>
-        <p class="online-note">De 2 a 8 pessoas. Todos correm com a Ferro 500, em condições iguais. Sua garagem e progresso individual ficam preservados.</p>
+        <p class="online-note">De 2 a 8 pessoas. Escolha seu estilo de pilotagem. No online, todos têm acesso às motos de fábrica, sem melhorias. Sua garagem e progresso individual ficam preservados.</p>
       </div>
       <div id="online-lobby" hidden><div class="lobby-heading"><div><span class="online-label">CONVIDE PELO CÓDIGO</span><div class="room-code" id="online-code"></div><button class="text-button" id="online-copy">COPIAR CONVITE ↗</button></div><div class="lobby-clock"><strong id="online-clock">60</strong><span id="online-clock-label">SEGUNDOS PARA LARGAR</span></div></div>
         <div class="lobby-meta"><span id="online-track-name"></span><span id="online-count">1 / 8 PILOTOS</span></div><div id="online-members" class="lobby-members"></div>
@@ -124,15 +124,21 @@ const escapeHTML = (s: string) => s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt
 function openOnline() {
   keys.clear();$('online-error').hidden=true;$('online-form').hidden=false;$('online-lobby').hidden=true;
   $<HTMLSelectElement>('online-track').value=selectedTrack;
+  $<HTMLSelectElement>('online-bike').value=save.bikeId; updateOnlineBikePreview();
   try{$<HTMLInputElement>('online-name').value=localStorage.getItem('asfalto:nickname') ?? '';}catch{}
   $<HTMLDialogElement>('online-modal').showModal();
 }
+function updateOnlineBikePreview() {
+  const bike=getBike($<HTMLSelectElement>('online-bike').value);
+  $('online-bike-preview').innerHTML=`<img src="${bikePortrait(bike).toDataURL()}" alt="${bike.name} vista de lado"/><div><b>${bike.class} · ${Math.round(bike.speed*3.6)} KM/H</b><span>${handlingLabel(bike.handling)} · 0–100 EM ${zeroToHundred(bike).toFixed(1)}S</span><small>${bike.tagline}</small></div>`;
+}
+$<HTMLSelectElement>('online-bike').addEventListener('change',updateOnlineBikePreview);
 function enterOnline(create: boolean) {
   onlineMode=true;onlineRaceStarted=false;lastOnlineEventTick=-1;$('online-error').hidden=true;
   const name=$<HTMLInputElement>('online-name').value.trim() || 'Piloto';
   try{localStorage.setItem('asfalto:nickname',name);}catch{}
-  if(create)online.create(name,$<HTMLSelectElement>('online-track').value,$<HTMLInputElement>('online-bots').checked);
-  else online.join(name,$<HTMLInputElement>('online-code-input').value);
+  if(create)online.create(name,$<HTMLSelectElement>('online-track').value,$<HTMLInputElement>('online-bots').checked,$<HTMLSelectElement>('online-bike').value);
+  else online.join(name,$<HTMLInputElement>('online-code-input').value,$<HTMLSelectElement>('online-bike').value);
   void audio.start();
 }
 function drawLobbyClock() {
@@ -149,7 +155,7 @@ function receiveOnlineRoom(room: RoomView) {
     const present=room.members.filter(m=>m.connected),me=room.members.find(m=>m.id===online.id);
     $('online-count').textContent=`${present.length} / 8 PESSOAS${room.fillBots ? ` · +${8-present.length} CPU NA LARGADA` : ''}`;
     $('online-members').innerHTML=Array.from({length:8},(_,i)=>{
-      const m=present[i];return m?`<div class="lobby-member ${m.id===online.id?'me':''}"><span class="lobby-number">${String(i+1).padStart(2,'0')}</span><b>${escapeHTML(m.name)}${m.id===online.id?' <small>VOCÊ</small>':''}</b><span class="ready-state ${m.ready?'is-ready':''}">${m.ready?'✓ PRONTO':'AGUARDANDO'}</span></div>`:`<div class="lobby-member empty"><span class="lobby-number">${String(i+1).padStart(2,'0')}</span><span>${room.fillBots ? 'Vaga aberta · CPU na largada' : 'Vaga aberta'}</span></div>`;
+      const m=present[i];return m?`<div class="lobby-member ${m.id===online.id?'me':''}"><span class="lobby-number">${String(i+1).padStart(2,'0')}</span><b>${escapeHTML(m.name)}${m.id===online.id?' <small>VOCÊ</small>':''}<small class="lobby-bike-name">${getBike(m.bikeId).name}</small></b><span class="ready-state ${m.ready?'is-ready':''}">${m.ready?'✓ PRONTO':'AGUARDANDO'}</span></div>`:`<div class="lobby-member empty"><span class="lobby-number">${String(i+1).padStart(2,'0')}</span><span>${room.fillBots ? 'Vaga aberta · CPU na largada' : 'Vaga aberta'}</span></div>`;
     }).join('');
     $('online-lobby-hint').textContent=present.length<2?'Precisamos de pelo menos 2 pessoas para largar. Convide um amigo.':room.locked?'Prepare-se! A entrada de novos pilotos está fechada.':'Todos prontos? A contagem cai para 5 segundos. Caso contrário, a corrida começa ao zerar o tempo.';
     const ready=$<HTMLButtonElement>('online-ready');ready.textContent=me?.ready?'✓ PRONTO · AGUARDANDO OS OUTROS':'ESTOU PRONTO ↗';ready.disabled=room.locked || online.status!=='connected';ready.setAttribute('aria-pressed',String(!!me?.ready));
@@ -291,10 +297,10 @@ function updateHUD() {
   }
 }
 function renderGarage() {
-  $('garage-modal').innerHTML = `<div class="dialog-header"><div><div class="eyebrow">SUA OFICINA. SUAS REGRAS.</div><h2 id="garage-title">Garagem</h2></div><button class="close-btn" data-close="garage-modal" aria-label="Fechar garagem">×</button></div><div class="dialog-body"><div class="garage-grid">${BIKES.map(b => {
+  $('garage-modal').innerHTML = `<div class="dialog-header"><div><div class="eyebrow">SUA OFICINA. SUAS REGRAS.</div><h2 id="garage-title">Garagem</h2></div><button class="close-btn" data-close="garage-modal" aria-label="Fechar garagem">×</button></div><div class="dialog-body"><div class="garage-intro"><div><b>${BIKES.length} MOTOS. ESCOLHA SEU ESTILO.</b><p>Compare os dados de fábrica. As melhorias valem para a moto equipada.</p></div><button class="secondary" id="garage-workshop">MELHORIAS & REPAROS ↓</button></div><div class="garage-grid">${BIKES.slice().sort((a,b)=>a.price-b.price).map((b,index) => {
     const owned = save.owned.includes(b.id), equipped = save.bikeId === b.id;
-    return `<article class="bike-card ${equipped ? 'equipped' : ''}"><div class="bike-class">${b.class} / 0${BIKES.indexOf(b) + 1}</div><h3>${b.name}</h3><img class="bike-image" src="${bikeSprite(b.color).toDataURL()}" alt="${b.name}, moto ${b.class.toLowerCase()} vista por trás"/><p>${b.tagline}</p><div class="bike-stats"><div class="bike-stat">VELOCIDADE <strong>${Math.round(b.speed * 3.6)} KM/H</strong></div><div class="bike-stat">DIREÇÃO <strong>${b.handling >= 1.1 ? 'ÁGIL' : 'PESADA'}</strong></div><div class="bike-stat">RESISTÊNCIA <strong>${Math.round(b.armor * 100)}%</strong></div></div><button class="secondary" data-bike="${b.id}" ${equipped || (!owned && save.cash < b.price) ? 'disabled' : ''}>${equipped ? '✓ EQUIPADA' : owned ? 'EQUIPAR ↗' : `COMPRAR · ${money(b.price)}`}</button></article>`;
-  }).join('')}</div><div class="garage-tools"><div><h3>MELHORIAS · ${BIKES.find(b => b.id === save.bikeId)!.name.toUpperCase()}</h3>${(['engine', 'armor', 'handling'] as const).map(k => {
+    return `<article class="bike-card ${equipped ? 'equipped' : ''}"><div class="bike-class">${b.class} / 0${index + 1}</div><h3>${b.name}</h3><img class="bike-image" src="${bikePortrait(b).toDataURL()}" alt="${b.name}, moto ${b.class.toLowerCase()} vista de lado"/><p>${b.tagline}</p><div class="bike-stats"><div class="bike-stat">VELOCIDADE <strong>${Math.round(b.speed * 3.6)} KM/H</strong></div><div class="bike-stat">0–100 KM/H <strong>${zeroToHundred(b).toFixed(1)} S</strong></div><div class="bike-stat curve-stat">CURVAS <strong>${handlingLabel(b.handling)}</strong><meter min="0" max="1.6" value="${b.handling}" aria-label="Agilidade nas curvas: ${handlingLabel(b.handling)}"></meter></div><div class="bike-stat">RESISTÊNCIA DA MOTO <strong>${Math.round(b.armor * 100)}%</strong></div></div><button class="secondary" data-bike="${b.id}" ${equipped || (!owned && save.cash < b.price) ? 'disabled' : ''}>${equipped ? '✓ EQUIPADA' : owned ? 'EQUIPAR ↗' : `COMPRAR · ${money(b.price)}`}</button></article>`;
+  }).join('')}</div><div class="garage-tools" id="garage-tools"><div><h3>MELHORIAS · ${BIKES.find(b => b.id === save.bikeId)!.name.toUpperCase()}</h3>${(['engine', 'armor', 'handling'] as const).map(k => {
     const level = save.upgrades[save.bikeId][k], label = { engine: 'Motor', armor: 'Resistência', handling: 'Dirigibilidade' }[k];
     return `<div class="upgrade"><span>${label}<span class="levels">${'▰'.repeat(level)}${'▱'.repeat(3 - level)}</span></span><button class="secondary" data-upgrade="${k}" ${level >= 3 || save.cash < upgradeCost(save, k) ? 'disabled' : ''}>${level >= 3 ? 'MÁXIMO' : `+ ${money(upgradeCost(save, k))}`}</button></div>`;
   }).join('')}</div><div class="repair-panel"><h3>MOTO EM ${Math.round(save.condition[save.bikeId])}%</h3><p>A Ferro 500 recebe reparos gratuitos até 55% após cada corrida. Você sempre pode voltar à estrada.</p><button class="secondary" id="repair-btn" ${repairCost(save) === 0 || save.cash < repairCost(save) ? 'disabled' : ''}>${repairCost(save) === 0 ? '✓ NENHUM REPARO NECESSÁRIO' : `REPARAR 100% · ${money(repairCost(save))}`}</button></div></div><div class="garage-footer"><span>SALDO <b>${money(save.cash)}</b></span><button class="text-button danger" id="reset-btn">Reiniciar progresso</button></div></div>`;
@@ -328,7 +334,7 @@ function update() {
     if (localEvent && event.text) { setText('race-message', event.text); messageUntil = race.time + 1.6; $('race-message').classList.toggle('alert', event.type === 'police' || event.type === 'crash'); }
     if (localEvent && (event.type === 'hit' || event.type === 'crash')) renderer.hit();
   }
-  audio.update(localRider().speed, true, race.policeActive && Math.abs((race.riders.find(r => r.id === 'police')?.z ?? 99999) - localRider().z) < 100, race.time);
+  audio.update(localRider().speed, true, race.policeActive && Math.abs((race.riders.find(r => r.id === 'police')?.z ?? 99999) - localRider().z) < 100, race.time, getBike(localRider().bikeId).style);
   if (race.mode === 'finished') showResult();
 }
 function draw() { renderer.render(race, screen === 'menu',localId()); if (screen !== 'menu') { updateHUD(); instruments.draw(race,localId()); } }
@@ -337,7 +343,7 @@ function frame(now: number) {
   if(onlineMode) {
     accumulator+=dt;while(accumulator>=STEP){online.step(paused || screen!=='race'?{...EMPTY_COMMAND,brake:1}:input());accumulator-=STEP;}
     const view=online.view();if(view)race=view;drawLobbyClock();
-    if(screen==='race'){const p=localRider();audio.update(p.speed,!paused,race.policeActive && Math.abs((race.riders.find(r=>r.profile==='police')?.z ?? 99999)-p.z)<100,race.time);}
+    if(screen==='race'){const p=localRider();audio.update(p.speed,!paused,race.policeActive && Math.abs((race.riders.find(r=>r.profile==='police')?.z ?? 99999)-p.z)<100,race.time,getBike(p.bikeId).style);}
   } else if (!testMode) { accumulator += dt; while (accumulator >= STEP) { update(); accumulator -= STEP; } }
   draw(); requestAnimationFrame(frame);
 }
@@ -361,6 +367,7 @@ document.addEventListener('click', event => {
     case 'online-copy': { const url=new URL(location.href);url.search='';url.searchParams.set('sala',online.code);void navigator.clipboard.writeText(url.toString()).then(()=>{$('online-status').textContent='CONVITE COPIADO';}).catch(()=>{$('online-status').textContent=`COMPARTILHE O CÓDIGO ${online.code}`;});break;}
     case 'start-btn': requestStart(); break;
     case 'help-go': sessionStorage.setItem('asfalto-instructions', '1'); $<HTMLDialogElement>('help-modal').close(); if (helpStartsRace || screen === 'menu') startRace(); break;
+    case 'garage-workshop': $('garage-tools').scrollIntoView({block:'start'}); break;
     case 'garage-btn': case 'change-bike': showGarage(); break;
     case 'pause-btn': pauseGame(); break;
     case 'resume-btn': resumeGame(); break;
@@ -407,7 +414,7 @@ declare global {
 }
 window.render_game_to_text = () => {
   const p = localRider(), target = nearestTarget(race, p, p.weapon ? 'weapon' : 'punch');
-  return JSON.stringify({ online: onlineMode?{status:online.status,id:online.id,code:online.code,phase:online.room?.phase,locked:online.room?.locked,deadline:online.room?.deadline,serverNow:online.serverNow(),members:online.room?.members,fillBots:online.room?.fillBots}:null, screen, paused, modal: document.querySelector('dialog[open]')?.id ?? null, mode: race.mode, coordinates: 'x in metres: negative left, positive right; road ±7. z forward in metres. speed m/s.', tick: race.tick, time: +race.time.toFixed(2), countdown: +race.countdown.toFixed(2), track: race.trackId, length: getTrack(race.trackId).distance, player: { out:p.out ?? null, x: +p.x.toFixed(2), z: +p.z.toFixed(1), speed: +p.speed.toFixed(2), health: +p.health.toFixed(1), integrity: +p.integrity.toFixed(1), weapon: p.weapon, attack: p.attack, cooldown: +p.cooldown.toFixed(2), crash: +p.crash.toFixed(2), immune: +p.immune.toFixed(2), hits: p.hits, falls: p.falls, place: ranking(onlineMode ? (online.room?.race ?? race) : race).findIndex(r => r.id === localId()) + 1 }, awareness:raceAwareness(race,localId()), corner:upcomingCorner(p.z,race.trackId,p.handling), curve: +curveAt(p.z, race.trackId).toFixed(2), target: target?.id ?? null, riders: race.riders.filter(r => r.id !== localId() && Math.abs(r.z - p.z) < 400).map(r => ({ id: r.id, name: r.name, x: +r.x.toFixed(1), dz: +(r.z - p.z).toFixed(1), speed: +r.speed.toFixed(1), health: +r.health.toFixed(1), weapon: r.weapon, attack: r.attack, crash: +r.crash.toFixed(1) })), traffic: race.traffic.filter(t => t.z - p.z > -10 && t.z - p.z < 350).map(t => ({ x: t.x, dz: +(t.z - p.z).toFixed(1), direction: t.speed < 0 ? 'oncoming' : 'forward' })), obstacles: race.obstacles.filter(o => o.z - p.z > -10 && o.z - p.z < 200).map(o => ({ kind: o.kind, x: o.x, dz: +(o.z - p.z).toFixed(1) })), heat: +race.heat.toFixed(1), police: race.policeActive, capture: +race.capture.toFixed(2), result: onlineMode?(race.multiplayer?.results[online.id] ?? null):race.result, save: { cash: save.cash, bike: save.bikeId, unlocked: save.unlocked, races: save.races } });
+  return JSON.stringify({ online: onlineMode?{status:online.status,id:online.id,code:online.code,phase:online.room?.phase,locked:online.room?.locked,deadline:online.room?.deadline,serverNow:online.serverNow(),members:online.room?.members,fillBots:online.room?.fillBots}:null, screen, paused, modal: document.querySelector('dialog[open]')?.id ?? null, mode: race.mode, coordinates: 'x in metres: negative left, positive right; road ±7. z forward in metres. speed m/s.', tick: race.tick, time: +race.time.toFixed(2), countdown: +race.countdown.toFixed(2), track: race.trackId, length: getTrack(race.trackId).distance, player: { bikeId:getBike(p.bikeId).id,bike:getBike(p.bikeId).name,handling:p.handling,armor:p.armor,out:p.out ?? null, x: +p.x.toFixed(2), z: +p.z.toFixed(1), speed: +p.speed.toFixed(2), health: +p.health.toFixed(1), integrity: +p.integrity.toFixed(1), weapon: p.weapon, attack: p.attack, cooldown: +p.cooldown.toFixed(2), crash: +p.crash.toFixed(2), immune: +p.immune.toFixed(2), hits: p.hits, falls: p.falls, place: ranking(onlineMode ? (online.room?.race ?? race) : race).findIndex(r => r.id === localId()) + 1 }, awareness:raceAwareness(race,localId()), corner:upcomingCorner(p.z,race.trackId,p.handling), curve: +curveAt(p.z, race.trackId).toFixed(2), target: target?.id ?? null, riders: race.riders.filter(r => r.id !== localId() && Math.abs(r.z - p.z) < 400).map(r => ({ id: r.id, name: r.name, bikeId:getBike(r.bikeId).id, x: +r.x.toFixed(1), dz: +(r.z - p.z).toFixed(1), speed: +r.speed.toFixed(1), health: +r.health.toFixed(1), weapon: r.weapon, attack: r.attack, crash: +r.crash.toFixed(1) })), traffic: race.traffic.filter(t => t.z - p.z > -10 && t.z - p.z < 350).map(t => ({ x: t.x, dz: +(t.z - p.z).toFixed(1), direction: t.speed < 0 ? 'oncoming' : 'forward' })), obstacles: race.obstacles.filter(o => o.z - p.z > -10 && o.z - p.z < 200).map(o => ({ kind: o.kind, x: o.x, dz: +(o.z - p.z).toFixed(1) })), heat: +race.heat.toFixed(1), police: race.policeActive, capture: +race.capture.toFixed(2), result: onlineMode?(race.multiplayer?.results[online.id] ?? null):race.result, save: { cash: save.cash, bike: save.bikeId, unlocked: save.unlocked, races: save.races } });
 };
 window.advanceTime = ms => { if(onlineMode){draw();return;} testMode = true; for (let i = 0; i < Math.round(ms / (STEP * 1000)); i++) update(); draw(); };
 if (testMode) window.__game = {

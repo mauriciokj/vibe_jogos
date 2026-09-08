@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { createMultiplayerRace, finishRider, STEP, stepRace } from '../src/game/simulation';
-import { TRACKS } from '../src/game/content';
+import { TRACKS, getBike } from '../src/game/content';
 import { EMPTY_COMMAND, type Command } from '../src/game/types';
 import { cleanName, MAX_PLAYERS, READY_WAIT_MS, RECONNECT_MS, ROOM_WAIT_MS, type AttackInput, type MemberView, type RoomView } from '../src/multiplayer/protocol';
 
@@ -12,8 +12,8 @@ export interface StoredInput { seq: number; command: Command; at: number; attack
 export type Inputs = Record<string, StoredInput>;
 export const inputKey = (member: Member) => `${member.id}:${member.epoch}`;
 export const secret = () => randomBytes(24).toString('base64url');
-export function makeMember(name: unknown, now: number): Member {
-  return { id: `human-${randomBytes(8).toString('hex')}`, name: cleanName(name), ready: false, connected: true, token: secret(), epoch: secret(), lastSeen: now };
+export function makeMember(name: unknown, now: number, bikeId?: unknown): Member {
+  return { id: `human-${randomBytes(8).toString('hex')}`, name: cleanName(name), bikeId: getBike(typeof bikeId === 'string' ? bikeId : undefined).id, ready: false, connected: true, token: secret(), epoch: secret(), lastSeen: now };
 }
 export function makeRoom(code: string, trackId: unknown, member: Member, now: number, fillBots = false): Room {
   if (!TRACKS.some(t => t.id === trackId)) throw new Error('Estrada inválida.');
@@ -22,7 +22,7 @@ export function makeRoom(code: string, trackId: unknown, member: Member, now: nu
 }
 export function viewRoom(room: Room, now: number): RoomView {
   return { code: room.code, trackId: room.trackId, fillBots: room.fillBots, phase: room.phase, locked: room.locked, deadline: room.deadline,
-    revision: room.revision, serverNow: now, simulationAt: room.updatedAt, members: room.members.map(({id,name,ready,connected}) => ({id,name,ready,connected})), race: room.race, ack: room.ack, attackAck: room.attackAck };
+    revision: room.revision, serverNow: now, simulationAt: room.updatedAt, members: room.members.map(({id,name,bikeId,ready,connected}) => ({id,name,bikeId,ready,connected})), race: room.race, ack: room.ack, attackAck: room.attackAck };
 }
 export function lobbyClock(room: Room, now: number) {
   if (room.phase !== 'lobby') return;

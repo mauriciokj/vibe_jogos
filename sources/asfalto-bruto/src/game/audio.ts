@@ -1,4 +1,4 @@
-import type { GameEvent } from './types';
+import type { GameEvent, BikeStyle } from './types';
 
 export class GameAudio {
   private context?: AudioContext;
@@ -30,12 +30,14 @@ export class GameAudio {
     this.muted = muted;
     if (this.master && this.context) this.master.gain.setTargetAtTime(muted ? 0 : .28, this.context.currentTime, .03);
   }
-  update(speed: number, running: boolean, police: boolean, time: number) {
+  update(speed: number, running: boolean, police: boolean, time: number, style: BikeStyle = 'street') {
     if (!this.context || !this.engine || !this.engineGain) return;
     const rpm = speed % 15;
-    this.engine.frequency.setTargetAtTime(35 + rpm * 4 + speed * .7, this.context.currentTime, .06);
-    this.engineGain.gain.setTargetAtTime(running ? .07 + speed / 850 : 0, this.context.currentTime, .08);
-    this.engineFilter?.frequency.setTargetAtTime(260 + speed * 8, this.context.currentTime, .1);
+    const custom=style==='cruiser'||style==='chopper';
+    const pitch=custom?.72:style==='sport'?1.2:style==='muscle'?.84:style==='supermoto'?1.08:1;
+    this.engine.frequency.setTargetAtTime((35 + rpm * 4 + speed * .7) * pitch, this.context.currentTime, .06);
+    this.engineGain.gain.setTargetAtTime(running ? (.07 + speed / 850) * (custom ? 1 + .09 * Math.sin(time * 22) : 1) : 0, this.context.currentTime, .08);
+    this.engineFilter?.frequency.setTargetAtTime((260 + speed * 8) * pitch, this.context.currentTime, .1);
     this.windGain?.gain.setTargetAtTime(running ? Math.pow(Math.max(0, speed - 20) / 60, 2) * .16 : 0, this.context.currentTime, .15);
     if (police && running && Math.floor(time * 2) !== Math.floor((time - 1 / 60) * 2)) this.tone(Math.floor(time * 2) % 2 ? 630 : 810, .18, .05, 'sine');
   }

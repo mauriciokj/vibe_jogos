@@ -1,11 +1,11 @@
 import type { AttackKind, Command, RaceState } from '../game/types';
 
-export const NET_VERSION = 3;
+export const NET_VERSION = 4;
 export const MAX_PLAYERS = 8;
 export const ROOM_WAIT_MS = 60_000;
 export const READY_WAIT_MS = 5_000;
 export const RECONNECT_MS = 15_000;
-export interface MemberView { id: string; name: string; ready: boolean; connected: boolean; }
+export interface MemberView { id: string; name: string; bikeId: string; ready: boolean; connected: boolean; }
 export interface AttackInput { seq: number; kind: AttackKind; }
 export interface RoomView {
   code: string; trackId: string; fillBots: boolean; phase: 'lobby' | 'racing' | 'finished'; locked: boolean;
@@ -13,8 +13,8 @@ export interface RoomView {
   race: RaceState | null; ack: Record<string, number>; attackAck: Record<string, number>; simulationAt: number;
 }
 export type ClientMessage =
-  | { type: 'create'; version: number; name: string; trackId: string; fillBots?: boolean }
-  | { type: 'join'; version: number; name: string; code: string }
+  | { type: 'create'; version: number; name: string; trackId: string; fillBots?: boolean; bikeId?: string }
+  | { type: 'join'; version: number; name: string; code: string; bikeId?: string }
   | { type: 'resume'; version: number; code: string; token: string }
   | { type: 'ready'; ready: boolean }
   | { type: 'input'; seq: number; command: Command; attacks?: AttackInput[] }

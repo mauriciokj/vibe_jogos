@@ -1,4 +1,4 @@
-import { BIKES, clamp, cornerForces, cornerPace, curveAt, getTrack } from './content';
+import { BIKES, clamp, cornerForces, cornerPace, curveAt, getBike, getTrack } from './content';
 import { EMPTY_COMMAND, type AttackKind, type Command, type RaceResult, type RaceState, type Rider, type SaveData } from './types';
 
 export const STEP = 1 / 60;
@@ -18,21 +18,26 @@ export function random(state: RaceState) {
 }
 
 function makeRider(id: string, name: string, profile: Rider['profile'], color: string, x: number, z: number): Rider {
-  return { id, name, profile, color, x, z, speed: 0, lean: 0, health: 100, integrity: 100, maxSpeed: 55, acceleration: 10, handling: 1, armor: 1, weapon: false, attack: null, cooldown: 0, crash: 0, immune: 0, targetX: x, decisionAt: 0, finishedAt: null, hits: 0, falls: 0 };
+  return { id, name, profile, color, bikeId: 'ferro', x, z, speed: 0, lean: 0, health: 100, integrity: 100, maxSpeed: 55, acceleration: 10, handling: 1, armor: 1, weapon: false, attack: null, cooldown: 0, crash: 0, immune: 0, targetX: x, decisionAt: 0, finishedAt: null, hits: 0, falls: 0 };
+}
+
+export function stockBike(id?: string) {
+  const bike = getBike(id);
+  return { bikeId: bike.id, maxSpeed: bike.speed, acceleration: bike.acceleration, handling: bike.handling, armor: bike.armor };
 }
 
 export function createRace(trackId = 'costa', save?: SaveData, seed = 88117): RaceState {
-  const bike = BIKES.find(b => b.id === save?.bikeId) ?? BIKES[0];
+  const bike = getBike(save?.bikeId);
   const up = save?.upgrades[bike.id] ?? { engine: 0, armor: 0, handling: 0 };
   const player = makeRider('player', 'VOCÊ', 'player', bike.color, 1.7, 0);
-  Object.assign(player, { maxSpeed: bike.speed + up.engine * 2.5, acceleration: bike.acceleration + up.engine * .7, handling: bike.handling + up.handling * .1, armor: bike.armor + up.armor * .15, integrity: save?.condition[bike.id] ?? 100, weapon: true });
+  Object.assign(player, { bikeId: bike.id, maxSpeed: bike.speed + up.engine * 2.5, acceleration: bike.acceleration + up.engine * .7, handling: bike.handling + up.handling * .1, armor: bike.armor + up.armor * .15, integrity: save?.condition[bike.id] ?? 100, weapon: true });
   const names = ['NINA', 'COBRA', 'DANTE', 'LUNA', 'ROCHA', 'FAÍSCA', 'ZECA'];
   const colors = ['#d87bfa', '#f28451', '#6cdace', '#ebbc5c', '#a4bde2', '#ef6f8a', '#e7e6dc'];
   const profiles: Rider['profile'][] = ['aggressive', 'fast', 'careful', 'aggressive', 'careful', 'fast', 'aggressive'];
   const riders = [player, ...names.map((name, i) => {
     const r = makeRider(`rival-${i}`, name, profiles[i], colors[i], i % 2 ? -1.5 : 3.8, 7 + i * 9);
-    r.maxSpeed = (52 + i * .52 + getTrack(trackId).index * 2) * 1.12;
-    r.acceleration = (9.8 + (i % 3) * .6) * 1.2;
+    Object.assign(r,stockBike(BIKES[(i+1)%BIKES.length].id));
+    r.maxSpeed *= .92 + getTrack(trackId).index * .025;
     r.weapon = i === 1 || i === 3 || i === 6;
     return r;
   })];
@@ -228,16 +233,16 @@ function resolveCollisions(state: RaceState, oldZ: Map<string, number>) {
   }
 }
 
-export function createMultiplayerRace(trackId: string, players: { id: string; name: string }[], seed = 88117, fillBots = false): RaceState {
+export function createMultiplayerRace(trackId: string, players: { id: string; name: string; bikeId?: string }[], seed = 88117, fillBots = false): RaceState {
   if (players.length < 2 || players.length > 8 || new Set(players.map(p => p.id)).size !== players.length) throw new Error('A corrida precisa de 2 a 8 pilotos distintos.');
   const state = createRace(trackId, undefined, seed);
   const colors = ['#dcff74', '#d87bfa', '#6cdace', '#f28451', '#ebbc5c', '#a4bde2', '#ef6f8a', '#e7e6dc'];
   const base = state.riders[0];
   const bots = state.riders.slice(1);
-  state.riders = players.map((p,i) => ({ ...base, id: p.id, name: p.name, color: colors[i], x: [-5.1,-1.7,1.7,5.1][i%4], z: -(Math.floor(i/4)*8), profile: 'player' }));
+  state.riders = players.map((p,i) => ({ ...base, ...stockBike(p.bikeId), id: p.id, name: p.name, color: colors[i], x: [-5.1,-1.7,1.7,5.1][i%4], z: -(Math.floor(i/4)*8), profile: 'player' }));
   if (fillBots) for (let i = players.length; i < 8; i++) {
     const bot = bots[i - players.length];
-    state.riders.push({ ...base, id: `cpu-${i}`, name: `${bot.name} CPU`, profile: bot.profile, color: colors[i], x: [-5.1,-1.7,1.7,5.1][i%4], targetX: [-5.1,-1.7,1.7,5.1][i%4], z: -(Math.floor(i/4)*8) });
+    state.riders.push({ ...base, ...stockBike(BIKES[i%BIKES.length].id), id: `cpu-${i}`, name: `${bot.name} CPU`, profile: bot.profile, color: colors[i], x: [-5.1,-1.7,1.7,5.1][i%4], targetX: [-5.1,-1.7,1.7,5.1][i%4], z: -(Math.floor(i/4)*8) });
   }
   state.multiplayer = { humanIds: players.map(p => p.id), results: {} };
   return state;
@@ -302,7 +307,7 @@ export function stepRace(state: RaceState, commands: Record<string, Command> = {
   const front = active.slice().sort((a,b) => b.z-a.z)[0];
   if (!state.policeActive && state.heat >= 48 && front && front.z > 1300) {
     const police = makeRider('police','POLÍCIA','police','#e7e9e5',front.x+1.5,front.z-100);
-    police.speed = 58; police.maxSpeed = 71+getTrack(state.trackId).index*2; police.acceleration = 12.5; police.weapon = true;
+    police.bikeId = 'estradeira'; police.speed = 58; police.maxSpeed = 71+getTrack(state.trackId).index*2; police.acceleration = 12.5; police.weapon = true;
     state.riders.push(police); state.policeActive = true;
     state.events.push({ type: 'police', actor: 'police', text: 'POLÍCIA NA ESTRADA · CUIDADO!' });
   }

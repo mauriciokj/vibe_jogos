@@ -1,10 +1,11 @@
 export type AttackKind = 'punch' | 'kick' | 'weapon';
 export type RaceMode = 'countdown' | 'racing' | 'finished';
 export type Profile = 'aggressive' | 'careful' | 'fast' | 'player' | 'police';
+export type BikeStyle = 'street' | 'sport' | 'muscle' | 'supermoto' | 'cruiser' | 'chopper' | 'cafe';
 export interface Command { throttle: number; brake: number; steer: number; attack: AttackKind | null; }
 export interface Attack { kind: AttackKind; age: number; side: number; hit: boolean; id?: number; }
 export interface Rider {
-  id: string; name: string; color: string; profile: Profile;
+  id: string; name: string; color: string; profile: Profile; bikeId?: string;
   x: number; z: number; speed: number; lean: number;
   health: number; integrity: number; maxSpeed: number; acceleration: number; handling: number; armor: number;
   weapon: boolean; attack: Attack | null; cooldown: number; crash: number; immune: number;
@@ -22,7 +23,7 @@ export interface RaceState {
   result: RaceResult | null;
   multiplayer?: { humanIds: string[]; results: Record<string, RaceResult> };
 }
-export interface Bike { id: string; name: string; class: string; price: number; speed: number; acceleration: number; handling: number; armor: number; color: string; tagline: string; }
+export interface Bike { id: string; name: string; class: string; style: BikeStyle; price: number; speed: number; acceleration: number; handling: number; armor: number; color: string; tagline: string; }
 export interface Upgrade { engine: number; armor: number; handling: number; }
 export interface SaveData { version: 1; cash: number; owned: string[]; bikeId: string; upgrades: Record<string, Upgrade>; condition: Record<string, number>; unlocked: number; records: Record<string, { time: number; place: number }>; races: number; muted: boolean; }
 export interface Track { id: string; name: string; region: string; distance: number; difficulty: string; prize: number; index: number; sky: string[]; land: string[]; road: string[]; accent: string; }

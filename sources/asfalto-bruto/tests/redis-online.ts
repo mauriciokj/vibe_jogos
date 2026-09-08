@@ -33,17 +33,20 @@ async function message(ws:WebSocket,command:unknown){const promise=new Promise<a
 try {
   await stores[0].mutate(code,r=>{r.members[0].connected=true;r.members[0].lastSeen=Date.now()-17_000;});
   const ghost=await connect(1);const expired=await message(ghost,{type:'resume',version:NET_VERSION,code,token:filled!.members[0].token});assert.equal(expired.type,'error');assert.match(expired.message,/vaga expirou/);
-  const first=await connect(0);const welcome=await message(first,{type:'create',version:NET_VERSION,name:'Servidor 1',trackId:'costa',fillBots:true});assert.equal(welcome.type,'welcome');
-  const second=await connect(1);const joined=await message(second,{type:'join',version:NET_VERSION,name:'Servidor 2',code:welcome.room.code});assert.equal(joined.type,'welcome');assert.equal(joined.room.members.length,2);
+  const first=await connect(0);const welcome=await message(first,{type:'create',version:NET_VERSION,name:'Servidor 1',trackId:'costa',fillBots:true,bikeId:'lobo'});assert.equal(welcome.type,'welcome');
+  const second=await connect(1);const joined=await message(second,{type:'join',version:NET_VERSION,name:'Servidor 2',code:welcome.room.code,bikeId:'falcao'});assert.equal(joined.type,'welcome');assert.equal(joined.room.members.length,2);
   first.send(JSON.stringify({type:'ready',ready:true}));second.send(JSON.stringify({type:'ready',ready:true}));
   async function waitRoom(predicate:(r:NonNullable<Awaited<ReturnType<RedisStore['read']>>>)=>boolean) {
     for(let i=0;i<100;i++){const r=await stores[0].read(welcome.room.code);if(r && predicate(r))return r;await new Promise(r=>setTimeout(r,30));}throw new Error('Sala Redis não avançou.');
   }
   await waitRoom(r=>r.locked);skew+=5100;const racing=await waitRoom(r=>r.phase==='racing');assert.equal(racing.race!.riders.length,8);assert.equal(racing.members.length,2);assert.equal(racing.fillBots,true);
+  assert.equal(racing.race!.riders.find(r=>r.id===welcome.id)!.handling,.82);
+  assert.equal(racing.race!.riders.find(r=>r.id===joined.id)!.handling,1.6);
   first.send(JSON.stringify({type:'input',seq:1,command:{throttle:1,brake:0,steer:0,attack:null}}));
   await waitRoom(r=>(r.race?.riders.find(p=>p.id===welcome.id)?.speed ?? 0)>0);
   first.close();await once(first,'close');await new Promise(r=>setTimeout(r,100));
   const third=await connect(1);const resumed=await message(third,{type:'resume',version:NET_VERSION,code:welcome.room.code,token:welcome.token});assert.equal(resumed.id,welcome.id);assert.equal(resumed.room.code,welcome.room.code);assert.equal(resumed.room.phase,'racing');assert.ok(resumed.room.race.tick>0);assert.equal(resumed.room.race.riders.filter((r:{profile:string})=>r.profile!=='player').length,6);
   const snapshots=await Promise.all(stores.map(s=>s.read(welcome.room.code)));assert.deepEqual(snapshots[0]?.members,snapshots[1]?.members);
+  assert.equal(resumed.room.race.riders.find((r:{id:string})=>r.id===welcome.id).bikeId,'lobo');
   console.log('✓ Real Redis: concurrent eight-player capacity, atomic input ordering, expired sessions, racing on two instances and reconnection across instances.');
 } finally {peers.forEach(p=>p.terminate());for(const app of apps)await app.close();}

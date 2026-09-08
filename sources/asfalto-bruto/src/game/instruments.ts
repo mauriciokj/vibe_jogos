@@ -1,5 +1,6 @@
-import { clamp, curveAt, elevationAt, getTrack } from './content';
+import { clamp, curveAt, elevationAt, getBike, getTrack } from './content';
 import { MIRROR_RANGE, raceAwareness } from './awareness';
+import { bikeFrontSprite } from './sprites';
 import type { RaceState } from './types';
 
 // Small, independent views: they do not rebuild the full scene or change the
@@ -94,14 +95,8 @@ export class RaceInstruments {
         c.fillStyle=e.car.speed>=0?'#fff0b8':'#f78061';c.fillRect(-size*.4,-size*.28,size*.2,size*.1);c.fillRect(size*.2,-size*.28,size*.2,size*.1);
       }else if(e.r){
         const r=e.r;c.rotate(r.crash?1.2:-r.lean);
-        c.fillStyle='#102029';c.fillRect(-size*.1,-size*.4,size*.2,size*.4);
-        c.fillStyle=r.color;c.fillRect(-size*.24,-size*.65,size*.48,size*.35);
-        c.fillStyle='#d9e2d1';c.fillRect(-size*.32,-size*.51,size*.64,size*.07);
-        c.fillStyle=r.color;c.beginPath();c.arc(0,-size*.79,size*.18,0,Math.PI*2);c.fill();
-        c.fillStyle='#192c36';c.fillRect(-size*.16,-size*.84,size*.32,size*.09);
-        c.fillStyle='#fff0b0';c.fillRect(-size*.1,-size*.49,size*.2,size*.1);
-        if(r.attack){c.strokeStyle=r.color;c.lineWidth=Math.max(2,size*.09);c.beginPath();c.moveTo(0,-size*.58);c.lineTo(r.attack.side*size*.65,-size*.65);c.stroke();}
-        if(r.profile==='police'){c.fillStyle=state.tick%20<10?'#ed785d':'#74bcf4';c.fillRect(-size*.3,-size*.43,size*.13,size*.1);}
+        const width=size*88/128;
+        c.drawImage(bikeFrontSprite(r.color,getBike(r.bikeId).style,r.attack?.kind ?? 'ride',r.attack?.side ?? 1,r.profile==='police',Math.floor(state.time*8)%3),-width/2,-size,width,size);
       }
       c.restore();
     }

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { clamp, cornerForces, cornerPace, curveAt, getTrack, trackCorners, upcomingCorner } from '../src/game/content';
+import { clamp, cornerForces, cornerPace, curveAt, getBike, getTrack, trackCorners, upcomingCorner } from '../src/game/content';
 import { botCommand, createMultiplayerRace, createRace, finishRider, stepRace } from '../src/game/simulation';
 import { raceAwareness } from '../src/game/awareness';
 import { joinRoom, lobbyClock, makeMember, makeRoom, setReady, viewRoom } from '../server/room';
@@ -45,7 +45,7 @@ test('optional bots leave eight human slots open, need two humans and only fill 
   lobbyClock(room,65_003);assert.equal(room.phase,'racing');assert.equal(room.members.length,2);
   const s=room.race!;assert.equal(s.riders.length,8);assert.deepEqual(s.multiplayer!.humanIds,[a.id,b.id]);
   assert.equal(s.riders.filter(r=>r.profile!=='player'&&r.name.endsWith(' CPU')).length,6);
-  assert.equal(new Set(s.riders.map(r=>r.id)).size,8);assert.ok(s.riders.every(r=>r.maxSpeed===64));
+  assert.equal(new Set(s.riders.map(r=>r.id)).size,8);assert.ok(s.riders.every(r=>r.maxSpeed===getBike(r.bikeId).speed));
   const crowded=makeRoom('GHIJKL','costa',makeMember('1',0),0,true);
   for(let i=1;i<8;i++)joinRoom(crowded,makeMember(String(i+1),0),0);
   lobbyClock(crowded,60_000);assert.equal(crowded.race!.riders.length,8);assert.ok(crowded.race!.riders.every(r=>r.profile==='player'));

@@ -83,13 +83,13 @@ export function createGameServer(store: RoomStore, options: { origins?: string[]
           if (peer.code) throw new Error('Você já está em uma sala.');
           if (data.version !== NET_VERSION) throw new Error('Atualize a página para entrar nesta versão.');
           if (data.type === 'create') {
-            const member = makeMember(data.name,now()); let room: Room;
+            const member = makeMember(data.name,now(),data.bikeId); let room: Room;
             do { room = makeRoom(randomBytes(4).toString('hex').slice(0,6).toUpperCase(),data.trackId,member,now(),data.fillBots === true); } while (!await store.create(room));
             await attach(peer,room,member);
           } else {
             const code = String(data.code ?? '').toUpperCase();
             if (!/^[A-F0-9]{6}$/.test(code)) throw new Error('Digite o código de 6 caracteres da sala.');
-            let member = makeMember(data.name,now());
+            let member = makeMember(data.name,now(),data.bikeId);
             const room = await store.mutate(code,r => {
               if (data.type === 'join') joinRoom(r,member,now());
               else {

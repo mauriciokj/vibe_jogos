@@ -16,7 +16,8 @@
     "test:redis": "tsx tests/redis-online.ts",
     "test:motion": "tsx tests/online-motion.ts",
     "test:network": "tsx tests/network-benchmark.ts",
-    "test:tactics": "tsx tests/tactics-browser.ts"
+    "test:tactics": "tsx tests/tactics-browser.ts",
+    "test:bikes": "tsx tests/bikes-browser.ts"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

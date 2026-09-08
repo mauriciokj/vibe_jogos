@@ -43,10 +43,17 @@ var import_ws = require("ws");
 
 // src/game/content.ts
 var BIKES = [
-  { id: "ferro", name: "Ferro 500", class: "STREET", price: 0, speed: 64, acceleration: 13.2, handling: 1.1, armor: 1, color: "#dfff71", tagline: "Leve, esperta e pronta pra briga." },
-  { id: "veneno", name: "Veneno 750", class: "SPORT", price: 2800, speed: 73, acceleration: 15, handling: 1.2, armor: 0.95, color: "#ee734d", tagline: "A reta \xE9 sua. O resto voc\xEA conquista." },
-  { id: "brutal", name: "Brutal 1000", class: "MUSCLE", price: 4800, speed: 78, acceleration: 12.5, handling: 0.95, armor: 1.4, color: "#b6a1fb", tagline: "Mais motor. Menos conversa." }
+  { id: "ferro", name: "Ferro 500", class: "STREET", style: "street", price: 0, speed: 64, acceleration: 13.2, handling: 1.1, armor: 1, color: "#dfff71", tagline: "Equilibrada para aprender a rua. Leve no bolso, firme na pista." },
+  { id: "veneno", name: "Veneno 750", class: "ESPORTIVA", style: "sport", price: 2800, speed: 73, acceleration: 15, handling: 1.2, armor: 0.95, color: "#ee734d", tagline: "Carenagem afiada e motor forte. Acelera muito, exige cuidado no contato." },
+  { id: "brutal", name: "Brutal 1000", class: "MUSCLE", style: "muscle", price: 4800, speed: 78, acceleration: 12.5, handling: 0.95, armor: 1.4, color: "#b6a1fb", tagline: "Pneu largo e a maior final. Freie cedo para domar o peso nas curvas." },
+  { id: "falcao", name: "Falc\xE3o 450", class: "SUPERMOTO", style: "supermoto", price: 1800, speed: 60, acceleration: 15.6, handling: 1.6, armor: 0.82, color: "#74dfe9", tagline: "Alta, estreita e muito \xE1gil. Contorna r\xE1pido, perde nas retas e no impacto." },
+  { id: "estradeira", name: "Estradeira 900", class: "CRUISER", style: "cruiser", price: 2400, speed: 66, acceleration: 12.4, handling: 1, armor: 1.55, color: "#e6b965", tagline: "Custom de banco baixo, cromados e alforjes. Aguenta a briga, pede uma curva mais aberta." },
+  { id: "lobo", name: "Lobo 1200", class: "CHOPPER", style: "chopper", price: 3500, speed: 71, acceleration: 11.4, handling: 0.82, armor: 1.7, color: "#c57566", tagline: "Garfo longo, guid\xE3o alto e muito metal. A mais resistente; prepare bem a frenagem." },
+  { id: "agulha", name: "Agulha 600", class: "CAF\xC9 RACER", style: "cafe", price: 3900, speed: 69, acceleration: 14.5, handling: 1.42, armor: 0.9, color: "#91b897", tagline: "Tanque cl\xE1ssico, banco de couro e dire\xE7\xE3o precisa. Boa sa\xEDda de curva, pouca prote\xE7\xE3o." }
 ];
+function getBike(id) {
+  return BIKES.find((b) => b.id === id) ?? BIKES[0];
+}
 var TRACKS = [
   { id: "costa", name: "Costa do Sol", region: "RODOVIA LITOR\xC2NEA", distance: 8400, difficulty: "NORMAL", prize: 1400, index: 0, sky: ["#567d9b", "#e0a6aa", "#fbd4ad"], land: ["#779b77", "#699271"], road: ["#555a5b", "#505557"], accent: "#deff70" },
   { id: "serra", name: "Serra da Fuma\xE7a", region: "ESTRADA DA MONTANHA", distance: 9200, difficulty: "DIF\xCDCIL", prize: 1850, index: 1, sky: ["#555f83", "#b794b1", "#f2c2b5"], land: ["#728b70", "#637e67"], road: ["#555962", "#50545c"], accent: "#b9a0f8" },
@@ -121,20 +128,24 @@ function random(state) {
   return state.rng / 4294967296;
 }
 function makeRider(id, name, profile, color, x, z) {
-  return { id, name, profile, color, x, z, speed: 0, lean: 0, health: 100, integrity: 100, maxSpeed: 55, acceleration: 10, handling: 1, armor: 1, weapon: false, attack: null, cooldown: 0, crash: 0, immune: 0, targetX: x, decisionAt: 0, finishedAt: null, hits: 0, falls: 0 };
+  return { id, name, profile, color, bikeId: "ferro", x, z, speed: 0, lean: 0, health: 100, integrity: 100, maxSpeed: 55, acceleration: 10, handling: 1, armor: 1, weapon: false, attack: null, cooldown: 0, crash: 0, immune: 0, targetX: x, decisionAt: 0, finishedAt: null, hits: 0, falls: 0 };
+}
+function stockBike(id) {
+  const bike = getBike(id);
+  return { bikeId: bike.id, maxSpeed: bike.speed, acceleration: bike.acceleration, handling: bike.handling, armor: bike.armor };
 }
 function createRace(trackId = "costa", save, seed = 88117) {
-  const bike = BIKES.find((b) => b.id === save?.bikeId) ?? BIKES[0];
+  const bike = getBike(save?.bikeId);
   const up = save?.upgrades[bike.id] ?? { engine: 0, armor: 0, handling: 0 };
   const player = makeRider("player", "VOC\xCA", "player", bike.color, 1.7, 0);
-  Object.assign(player, { maxSpeed: bike.speed + up.engine * 2.5, acceleration: bike.acceleration + up.engine * 0.7, handling: bike.handling + up.handling * 0.1, armor: bike.armor + up.armor * 0.15, integrity: save?.condition[bike.id] ?? 100, weapon: true });
+  Object.assign(player, { bikeId: bike.id, maxSpeed: bike.speed + up.engine * 2.5, acceleration: bike.acceleration + up.engine * 0.7, handling: bike.handling + up.handling * 0.1, armor: bike.armor + up.armor * 0.15, integrity: save?.condition[bike.id] ?? 100, weapon: true });
   const names = ["NINA", "COBRA", "DANTE", "LUNA", "ROCHA", "FA\xCDSCA", "ZECA"];
   const colors = ["#d87bfa", "#f28451", "#6cdace", "#ebbc5c", "#a4bde2", "#ef6f8a", "#e7e6dc"];
   const profiles = ["aggressive", "fast", "careful", "aggressive", "careful", "fast", "aggressive"];
   const riders = [player, ...names.map((name, i) => {
     const r = makeRider(`rival-${i}`, name, profiles[i], colors[i], i % 2 ? -1.5 : 3.8, 7 + i * 9);
-    r.maxSpeed = (52 + i * 0.52 + getTrack(trackId).index * 2) * 1.12;
-    r.acceleration = (9.8 + i % 3 * 0.6) * 1.2;
+    Object.assign(r, stockBike(BIKES[(i + 1) % BIKES.length].id));
+    r.maxSpeed *= 0.92 + getTrack(trackId).index * 0.025;
     r.weapon = i === 1 || i === 3 || i === 6;
     return r;
   })];
@@ -337,10 +348,10 @@ function createMultiplayerRace(trackId, players, seed = 88117, fillBots = false)
   const colors = ["#dcff74", "#d87bfa", "#6cdace", "#f28451", "#ebbc5c", "#a4bde2", "#ef6f8a", "#e7e6dc"];
   const base = state.riders[0];
   const bots = state.riders.slice(1);
-  state.riders = players.map((p, i) => ({ ...base, id: p.id, name: p.name, color: colors[i], x: [-5.1, -1.7, 1.7, 5.1][i % 4], z: -(Math.floor(i / 4) * 8), profile: "player" }));
+  state.riders = players.map((p, i) => ({ ...base, ...stockBike(p.bikeId), id: p.id, name: p.name, color: colors[i], x: [-5.1, -1.7, 1.7, 5.1][i % 4], z: -(Math.floor(i / 4) * 8), profile: "player" }));
   if (fillBots) for (let i = players.length; i < 8; i++) {
     const bot = bots[i - players.length];
-    state.riders.push({ ...base, id: `cpu-${i}`, name: `${bot.name} CPU`, profile: bot.profile, color: colors[i], x: [-5.1, -1.7, 1.7, 5.1][i % 4], targetX: [-5.1, -1.7, 1.7, 5.1][i % 4], z: -(Math.floor(i / 4) * 8) });
+    state.riders.push({ ...base, ...stockBike(BIKES[i % BIKES.length].id), id: `cpu-${i}`, name: `${bot.name} CPU`, profile: bot.profile, color: colors[i], x: [-5.1, -1.7, 1.7, 5.1][i % 4], targetX: [-5.1, -1.7, 1.7, 5.1][i % 4], z: -(Math.floor(i / 4) * 8) });
   }
   state.multiplayer = { humanIds: players.map((p) => p.id), results: {} };
   return state;
@@ -419,6 +430,7 @@ function stepRace(state, commands = {}) {
   const front = active.slice().sort((a, b) => b.z - a.z)[0];
   if (!state.policeActive && state.heat >= 48 && front && front.z > 1300) {
     const police = makeRider("police", "POL\xCDCIA", "police", "#e7e9e5", front.x + 1.5, front.z - 100);
+    police.bikeId = "estradeira";
     police.speed = 58;
     police.maxSpeed = 71 + getTrack(state.trackId).index * 2;
     police.acceleration = 12.5;
@@ -451,7 +463,7 @@ function stepRace(state, commands = {}) {
 }
 
 // src/multiplayer/protocol.ts
-var NET_VERSION = 3;
+var NET_VERSION = 4;
 var MAX_PLAYERS = 8;
 var ROOM_WAIT_MS = 6e4;
 var READY_WAIT_MS = 5e3;
@@ -483,8 +495,8 @@ function cleanAttacks(value) {
 var import_node_crypto = require("node:crypto");
 var inputKey = (member) => `${member.id}:${member.epoch}`;
 var secret = () => (0, import_node_crypto.randomBytes)(24).toString("base64url");
-function makeMember(name, now) {
-  return { id: `human-${(0, import_node_crypto.randomBytes)(8).toString("hex")}`, name: cleanName(name), ready: false, connected: true, token: secret(), epoch: secret(), lastSeen: now };
+function makeMember(name, now, bikeId) {
+  return { id: `human-${(0, import_node_crypto.randomBytes)(8).toString("hex")}`, name: cleanName(name), bikeId: getBike(typeof bikeId === "string" ? bikeId : void 0).id, ready: false, connected: true, token: secret(), epoch: secret(), lastSeen: now };
 }
 function makeRoom(code, trackId, member, now, fillBots = false) {
   if (!TRACKS.some((t) => t.id === trackId)) throw new Error("Estrada inv\xE1lida.");
@@ -516,7 +528,7 @@ function viewRoom(room, now) {
     revision: room.revision,
     serverNow: now,
     simulationAt: room.updatedAt,
-    members: room.members.map(({ id, name, ready, connected }) => ({ id, name, ready, connected })),
+    members: room.members.map(({ id, name, bikeId, ready, connected }) => ({ id, name, bikeId, ready, connected })),
     race: room.race,
     ack: room.ack,
     attackAck: room.attackAck
@@ -704,7 +716,7 @@ var RedisStore = class {
     } else throw new Error("Configure o Redis do multiplayer no servidor.");
   }
   key(code, field) {
-    return `asfalto:online:v3:{${code}}:${field}`;
+    return `asfalto:online:v4:{${code}}:${field}`;
   }
   async create(room) {
     return await this.command("SET", this.key(room.code, "state"), JSON.stringify(room), "NX", "EX", 1800) === "OK";
@@ -895,7 +907,7 @@ function createGameServer(store, options = {}) {
           if (peer.code) throw new Error("Voc\xEA j\xE1 est\xE1 em uma sala.");
           if (data.version !== NET_VERSION) throw new Error("Atualize a p\xE1gina para entrar nesta vers\xE3o.");
           if (data.type === "create") {
-            const member = makeMember(data.name, now());
+            const member = makeMember(data.name, now(), data.bikeId);
             let room;
             do {
               room = makeRoom((0, import_node_crypto2.randomBytes)(4).toString("hex").slice(0, 6).toUpperCase(), data.trackId, member, now(), data.fillBots === true);
@@ -904,7 +916,7 @@ function createGameServer(store, options = {}) {
           } else {
             const code = String(data.code ?? "").toUpperCase();
             if (!/^[A-F0-9]{6}$/.test(code)) throw new Error("Digite o c\xF3digo de 6 caracteres da sala.");
-            let member = makeMember(data.name, now());
+            let member = makeMember(data.name, now(), data.bikeId);
             const room = await store.mutate(code, (r) => {
               if (data.type === "join") joinRoom(r, member, now());
               else {
