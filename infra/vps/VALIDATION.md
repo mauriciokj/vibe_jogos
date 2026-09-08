@@ -56,3 +56,11 @@ Artefatos locais estão em `road rash/output/vps/`: `live-check.json`, `eight.js
 - Teste de navegador passou nas 12 combinações, bloqueios, recordes, pausa/reinício, escolha persistente e sete tamanhos (1440×900, 1280×720, 681×620, 681×420, 390×844, 375×667 e 844×390). Screenshots revisados; controles sem sobreposição, setas visíveis e seleção inteiramente visível na lista.
 - Sala local com dois humanos e seis bots: chuva compartilhada, golpes autoritativos e reconexão preservando a linha do tempo decorativa, mesmo depois de sua aparição terminar. Nenhum erro de console. Relatório em `output/conditions/browser-check.json`.
 - Publicação e verificação pública serão registradas após a ativação.
+
+### Menu publicado e verificado
+
+- Commit `3c14dac`; release `20260908T203652Z-3c14dac` ativa. Asfalto, catálogo e Caddy ativos; protocolo v5 e armazenamento em memória. A publicação respeitou a verificação de corridas ativas.
+- HTTPS público: menu em 681×620 sem sobreposição, 12 cartões, bloqueios e seleção Costa do Sol · Noite preservada após atualizar a página; corrida individual iniciou com aceleração.
+- Sala criada pelo seletor combinado em Serra da Fumaça · Chuva, com duas pessoas entre os dois domínios e seis bots. Ambos receberam pista/condição corretas; reconexão preservou identidade e escolha. Saída explícita dos dois clientes ao concluir. Sem erros JavaScript.
+- Screenshots do menu, criação de sala e corrida revisados em `output/route-menu/published-*.png`; relatório `published.json`. Os testes do domínio principal usaram mapeamento DNS temporário no Chromium para a VPS, mantendo validação TLS.
+- Esta anotação é posterior à release e não requer nova ativação.
