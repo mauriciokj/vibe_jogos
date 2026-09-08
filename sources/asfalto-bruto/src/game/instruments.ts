@@ -1,3 +1,4 @@
+import { conditionTrack } from './conditions';
 import { clamp, curveAt, elevationAt, getBike, getTrack } from './content';
 import { MIRROR_RANGE, raceAwareness } from './awareness';
 import { bikeFrontSprite } from './sprites';
@@ -61,7 +62,7 @@ export class RaceInstruments {
   }
   private drawMirror(state: RaceState, localId: string) {
     const surface = this.surface(this.mirror); if (!surface) return;
-    const {c,w,h}=surface, me=state.riders.find(r=>r.id===localId) ?? state.riders[0], track=getTrack(state.trackId);
+    const {c,w,h}=surface, me=state.riders.find(r=>r.id===localId) ?? state.riders[0], track=conditionTrack(getTrack(state.trackId),state.condition);
     c.fillStyle=track.sky[1];c.fillRect(0,0,w,h);c.fillStyle=track.land[1];c.fillRect(0,h*.35,w,h);
     const points:{distance:number;x:number;y:number;scale:number;clip:number}[]=[];
     let dx=0,wx=0,clip=h;

@@ -1,9 +1,10 @@
-import { BIKES, clamp, getTrack } from './content';
+import { CONDITIONS, raceCondition, recordKey } from './conditions';
+import { BIKES, TRACKS, clamp, getTrack } from './content';
 import type { RaceState, SaveData, Upgrade } from './types';
 
 export const SAVE_KEY = 'asfalto-bruto:v1';
 export function freshSave(): SaveData {
-  return { version: 1, cash: 650, owned: ['ferro'], bikeId: 'ferro', upgrades: { ferro: { engine: 0, armor: 0, handling: 0 } }, condition: { ferro: 100 }, unlocked: 0, records: {}, races: 0, muted: false };
+  return { version: 1, raceCondition: 'sunset', cash: 650, owned: ['ferro'], bikeId: 'ferro', upgrades: { ferro: { engine: 0, armor: 0, handling: 0 } }, condition: { ferro: 100 }, unlocked: 0, records: {}, races: 0, muted: false };
 }
 export function loadSave(): SaveData {
   try {
@@ -18,12 +19,13 @@ export function loadSave(): SaveData {
     valid.unlocked = Number.isInteger(saved.unlocked) ? clamp(saved.unlocked, 0, 2) : 0;
     valid.races = Number.isFinite(saved.races) ? Math.max(0, saved.races) : 0;
     valid.muted = saved.muted === true;
+    valid.raceCondition = raceCondition(saved.raceCondition);
     for (const id of valid.owned) {
       valid.condition[id] = Number.isFinite(saved.condition?.[id]) ? clamp(saved.condition[id], 0, 100) : 100;
       valid.upgrades[id] = { engine: 0, armor: 0, handling: 0 };
       for (const key of ['engine', 'armor', 'handling'] as const) valid.upgrades[id][key] = Number.isInteger(saved.upgrades?.[id]?.[key]) ? clamp(saved.upgrades[id][key], 0, 3) : 0;
     }
-    for (const id of ['costa', 'serra', 'deserto']) {
+    for (const id of TRACKS.flatMap(t=>CONDITIONS.map(c=>recordKey(t.id,c.id)))) {
       const r = saved.records?.[id];
       if (r && Number.isFinite(r.time) && r.time > 0 && Number.isInteger(r.place) && r.place >= 1 && r.place <= 8) valid.records[id] = { time: r.time, place: r.place };
     }
@@ -62,8 +64,9 @@ export function settleRace(save: SaveData, state: RaceState) {
   save.condition[save.bikeId] = clamp(state.riders[0].integrity, 0, 100);
   const result = state.result;
   if (result.reason === 'finish') {
-    const old = save.records[state.trackId];
-    save.records[state.trackId] = { time: Math.min(old?.time ?? Infinity, result.time), place: Math.min(old?.place ?? 8, result.place) };
+    const key = recordKey(state.trackId,state.condition);
+    const old = save.records[key];
+    save.records[key] = { time: Math.min(old?.time ?? Infinity, result.time), place: Math.min(old?.place ?? 8, result.place) };
     if (result.place <= 5) save.unlocked = Math.max(save.unlocked, Math.min(2, getTrack(state.trackId).index + 1));
   }
   // A sponsor restores the starter bike to a safe minimum, so failure never locks out play.

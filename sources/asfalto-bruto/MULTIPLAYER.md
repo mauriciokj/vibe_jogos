@@ -4,7 +4,9 @@ O modo individual continua local, com garagem, melhorias e progressão existente
 
 ## Regras da sala
 
-- A primeira pessoa cria a sala, escolhe uma das três estradas e recebe um código/convite.
+- A primeira pessoa cria a sala, escolhe uma das três estradas e uma condição (Dia, Entardecer, Noite ou Chuva), e recebe um código/convite.
+- A condição é fixa para toda a sala e aparece na espera, corrida e resultados. A previsão local usa a mesma aderência e frenagem de chuva do servidor; bots também antecipam as curvas.
+- A sereia da Costa é apenas cenário. O servidor sorteia local e ocorrência fora do gerador aleatório da física e compartilha o início da aparição. Reconectar não reinicia o evento.
 - Ao criar, **Completar com bots** é opcional e vem desmarcado. Quando marcado, vagas livres são preenchidas por pilotos **CPU** somente na largada, até um total de 8. Todas as vagas continuam disponíveis para pessoas durante a espera. Bots não contam como prontos nem substituem o mínimo de 2 pessoas reais.
 - O relógio começa em **60 segundos**. Entradas posteriores não prolongam a janela.
 - É preciso ter **pelo menos 2 pessoas conectadas** na largada. Com apenas uma ao fim do tempo, a sala fica aguardando; a chegada da segunda abre uma nova janela de 60 segundos.
@@ -35,13 +37,19 @@ Em desenvolvimento, salas ficam em memória por padrão. Para testar armazenamen
 ASFALTO_REDIS_URL=redis://127.0.0.1:6398 npm run dev:server
 ```
 
-O navegador envia controles e sequências, nunca posição, vida ou resultados. O servidor limita valores e taxa de mensagens, rejeita sequências antigas e aplica um relógio próprio. O protocolo v4 inclui o modelo validado de cada piloto e transmite o instante da simulação para desenhar todos os pilotos na mesma linha de tempo. As correções preservam a posição já desenhada e convergem gradualmente, com extrapolação limitada a 350ms. A classificação exibida vem do servidor.
+O navegador envia controles e sequências, nunca posição, vida ou resultados. O servidor limita valores e taxa de mensagens, rejeita sequências antigas e aplica um relógio próprio. O protocolo v5 inclui a condição da corrida, a aparição decorativa e o modelo validado de cada piloto e transmite o instante da simulação para desenhar todos os pilotos na mesma linha de tempo. As correções preservam a posição já desenhada e convergem gradualmente, com extrapolação limitada a 350ms. A classificação exibida vem do servidor.
 
 Toques de teclado e dos botões na tela geram ações numeradas, enviadas imediatamente e mantidas nos pacotes seguintes até a confirmação do servidor. Isso evita perder golpes curtos entre atualizações. O servidor respeita os intervalos entre golpes e executa cada ação apenas uma vez. Segurar o botão repete os golpes no intervalo permitido. A animação local começa imediatamente; acertos, danos, roubo de arma, prisão e resultados dependem da confirmação do servidor. Os eventos de impacto permanecem disponíveis por um segundo para chegar mesmo quando uma atualização é atrasada.
 
-## Publicação no Vibe Jogos / Vercel
+## Publicação atual na VPS
 
-O catálogo existente é `mauriciokj/vibe_jogos`; `main` é a branch de produção. Prepare a integração em uma branch/worktree e execute:
+Produção está em `https://asfaltobruto.flowofdevelopment.com/asfalto-bruto/` e `https://flowofdevelopment.com/asfalto-bruto/`, atendidos pela mesma instância Node em `2.25.126.149`. Caddy termina HTTPS/WSS e encaminha ao serviço `vibe-asfalto`, com `ASFALTO_STORE=memory`. Não há operações Redis durante a corrida nessa instalação.
+
+Use o checkout limpo da branch `codex/vps-centralizacao` de `mauriciokj/vibe_jogos`: exporte o jogo, confira o diff, registre/envie o commit e execute `npm run deploy:vps -- root@2.25.126.149` no catálogo. O deploy valida a release e recusa a troca durante corridas ativas. Veja `infra/vps/README.md` e `VALIDATION.md` no catálogo. O protocolo v5 requer atualizar as páginas; os saves individuais v1 permanecem válidos.
+
+## Publicação alternativa no Vibe Jogos / Vercel (legado)
+
+O catálogo existente é `mauriciokj/vibe_jogos`; a configuração abaixo documenta a hospedagem Vercel anterior. Prepare a integração em uma branch/worktree e execute:
 
 ```sh
 npm run export:jogos -- "/caminho/do/worktree/Jogos"
@@ -60,7 +68,7 @@ As conexões podem cair em instâncias diferentes. Por isso, produção exige Re
 | Redis TCP/TLS | `ASFALTO_REDIS_URL`, `REDIS_URL` ou `KV_URL` |
 | Redis REST / integração já usada pelo catálogo | `KV_REST_API_URL` + `KV_REST_API_TOKEN`, ou `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` |
 
-Configure as variáveis tanto em **Preview** quanto em **Production**. Nenhuma credencial é enviada ao navegador. As chaves ficam isoladas no prefixo `asfalto:online:v4`, com expiração de 30 minutos; o leaderboard existente não é acessado. O protocolo v4 exige atualizar as páginas e criar uma nova sala; salas v1/v2/v3 não são migradas. Mutação com trava e verificação de posse impede que duas instâncias sobrescrevam a mesma sala. REST tem mais latência por operação que uma conexão Redis persistente: validar a região e a cadência em produção antes de ampliar o público.
+Configure as variáveis tanto em **Preview** quanto em **Production**. Nenhuma credencial é enviada ao navegador. As chaves ficam isoladas no prefixo `asfalto:online:v5`, com expiração de 30 minutos; o leaderboard existente não é acessado. O protocolo v5 exige atualizar as páginas e criar uma nova sala; salas v1/v2/v3/v4 não são migradas. Mutação com trava e verificação de posse impede que duas instâncias sobrescrevam a mesma sala. REST tem mais latência por operação que uma conexão Redis persistente: validar a região e a cadência em produção antes de ampliar o público.
 
 Cada atualização usa duas operações Redis: a primeira adquire a trava, incorpora os controles mais recentes da instância e lê o estado; a segunda salva com verificação de posse e libera a trava. Isso evita quatro esperas sequenciais por atualização. Entradas continuam ordenadas por sequência e são compartilhadas entre instâncias. Alterações de direção, aceleração e freio são enviadas imediatamente, além dos pacotes periódicos.
 
@@ -77,6 +85,7 @@ npm run test:online
 npm run test:motion
 npm run test:tactics
 npm run test:bikes
+npm run test:conditions
 ASFALTO_TEST_REDIS_URL=redis://127.0.0.1:6398 npm run test:redis
 # Mede uma sala de teste na prévia publicada, com 8 conexões reais:
 ASFALTO_BENCH_PLAYERS=8 ASFALTO_BENCH_OUTPUT=output/latency/eight.json npm run test:network

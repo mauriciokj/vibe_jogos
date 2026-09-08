@@ -1,5 +1,6 @@
+import { advanceScenicEvent, brakeGrip, coastalEvent, raceCondition, roadGrip } from './conditions';
 import { BIKES, clamp, cornerForces, cornerPace, curveAt, getBike, getTrack } from './content';
-import { EMPTY_COMMAND, type AttackKind, type Command, type RaceResult, type RaceState, type Rider, type SaveData } from './types';
+import { EMPTY_COMMAND, type AttackKind, type Command, type RaceResult, type RaceState, type RaceCondition, type Rider, type SaveData } from './types';
 
 export const STEP = 1 / 60;
 export const ROAD_HALF = 7;
@@ -26,7 +27,7 @@ export function stockBike(id?: string) {
   return { bikeId: bike.id, maxSpeed: bike.speed, acceleration: bike.acceleration, handling: bike.handling, armor: bike.armor };
 }
 
-export function createRace(trackId = 'costa', save?: SaveData, seed = 88117): RaceState {
+export function createRace(trackId = 'costa', save?: SaveData, seed = 88117, condition: RaceCondition = 'sunset'): RaceState {
   const bike = getBike(save?.bikeId);
   const up = save?.upgrades[bike.id] ?? { engine: 0, armor: 0, handling: 0 };
   const player = makeRider('player', 'VOCÊ', 'player', bike.color, 1.7, 0);
@@ -41,7 +42,7 @@ export function createRace(trackId = 'costa', save?: SaveData, seed = 88117): Ra
     r.weapon = i === 1 || i === 3 || i === 6;
     return r;
   })];
-  const state: RaceState = { version: 1, tick: 0, rng: seed || 1, trackId, mode: 'countdown', countdown: 3.5, time: 0, riders, traffic: [], obstacles: [], events: [], collisions: {}, heat: 0, capture: 0, policeActive: false, result: null };
+  const state: RaceState = { version: 1, condition: raceCondition(condition), scenicEvent: coastalEvent(trackId, seed), tick: 0, rng: seed || 1, trackId, mode: 'countdown', countdown: 3.5, time: 0, riders, traffic: [], obstacles: [], events: [], collisions: {}, heat: 0, capture: 0, policeActive: false, result: null };
   const length = getTrack(trackId).distance;
   for (let z = 400, i = 0; z < length + 1800; z += 230 + random(state) * 160, i++) {
     const oncoming = i % 3 === 1;
@@ -117,9 +118,9 @@ export function botCommand(state: RaceState, rider: Rider): Command {
   const nearby = nearestTarget(state, rider, rider.weapon ? 'weapon' : 'punch');
   if (nearby && rider.cooldown === 0 && (rider.profile !== 'careful' || state.tick % 80 < 8)) attack = rider.weapon ? 'weapon' : rider.profile === 'aggressive' ? 'kick' : 'punch';
   const curve = curveAt(rider.z, state.trackId);
-  const forces = cornerForces(rider.speed, rider.handling, curve, Math.abs(rider.x) > ROAD_HALF);
+  const forces = cornerForces(rider.speed, rider.handling * roadGrip(state.condition), curve, Math.abs(rider.x) > ROAD_HALF);
   const steering = clamp((target - rider.x) * .9 + forces.drift / forces.lateral, -1, 1);
-  const pace = cornerPace(rider.z, state.trackId, rider.handling) * (rider.profile === 'careful' ? .92 : rider.profile === 'fast' ? 1.03 : .98);
+  const pace = cornerPace(rider.z, state.trackId, rider.handling, state.condition) * (rider.profile === 'careful' ? .92 : rider.profile === 'fast' ? 1.03 : .98);
   brake = Math.max(brake, clamp((rider.speed - pace) * .3, 0, 1));
   if (police && rider.z > player.z + 7) brake = Math.max(brake, .42);
   return { throttle: rider.speed > pace - .6 || brake > .1 ? 0 : 1, brake, steer: steering, attack };
@@ -152,10 +153,10 @@ function applyCommand(state: RaceState, rider: Rider, command: Command) {
   const shoulderLimit = Math.abs(curve) > .8 ? .38 : .56;
   const max = rider.maxSpeed * (onShoulder ? shoulderLimit : 1) * (.92 + rider.integrity / 1250);
   const acceleration = command.throttle * rider.acceleration * (onShoulder ? .55 : 1) * (1 - .35 * rider.speed / rider.maxSpeed);
-  rider.speed = clamp(rider.speed + (acceleration - command.brake * 29 - (command.throttle ? 1.2 : 3.6)) * STEP, 0, rider.maxSpeed);
+  rider.speed = clamp(rider.speed + (acceleration - command.brake * 29 * brakeGrip(state.condition) - (command.throttle ? 1.2 : 3.6)) * STEP, 0, rider.maxSpeed);
   if (rider.speed > max) rider.speed = Math.max(max, rider.speed - STEP * (onShoulder ? 34 : 4));
   const steering = clamp(command.steer, -1, 1);
-  const forces = cornerForces(rider.speed, rider.handling, curve, onShoulder);
+  const forces = cornerForces(rider.speed, rider.handling * roadGrip(state.condition), curve, onShoulder);
   rider.x = clamp(rider.x + (steering * forces.lateral - forces.drift) * STEP, -10.5, 10.5);
   rider.lean += (steering * .32 - rider.lean) * .12;
   rider.z += rider.speed * STEP;
@@ -233,9 +234,9 @@ function resolveCollisions(state: RaceState, oldZ: Map<string, number>) {
   }
 }
 
-export function createMultiplayerRace(trackId: string, players: { id: string; name: string; bikeId?: string }[], seed = 88117, fillBots = false): RaceState {
+export function createMultiplayerRace(trackId: string, players: { id: string; name: string; bikeId?: string }[], seed = 88117, fillBots = false, condition: RaceCondition = 'sunset'): RaceState {
   if (players.length < 2 || players.length > 8 || new Set(players.map(p => p.id)).size !== players.length) throw new Error('A corrida precisa de 2 a 8 pilotos distintos.');
-  const state = createRace(trackId, undefined, seed);
+  const state = createRace(trackId, undefined, seed, condition);
   const colors = ['#dcff74', '#d87bfa', '#6cdace', '#f28451', '#ebbc5c', '#a4bde2', '#ef6f8a', '#e7e6dc'];
   const base = state.riders[0];
   const bots = state.riders.slice(1);
@@ -328,6 +329,7 @@ export function stepRace(state: RaceState, commands: Record<string, Command> = {
     else if (r.capture >= 3) finishRider(state,r,'caught');
     else if (state.multiplayer && state.time >= 360) finishRider(state,r,'timeout');
   }
+  advanceScenicEvent(state);
   for (const [index,r] of ranking(state).entries()) if (index < oldOrder.indexOf(r.id)) state.events.push({ type: 'pass', actor: r.id });
   if (state.tick%600===0) for (const key of Object.keys(state.collisions)) if (state.time-state.collisions[key]>5) delete state.collisions[key];
 }

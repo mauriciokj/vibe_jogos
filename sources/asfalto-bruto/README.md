@@ -46,6 +46,9 @@ O som começa depois de uma interação. Em telas estreitas, há controles por t
 - Curvas alternadas com aviso de direção, distância e velocidade de referência. Excesso de velocidade reduz a aderência; frear antes da entrada e acelerar na saída permite ganhar terreno sem depender de acidentes.
 - Mapa de proximidade com 300m para cada lado, pilotos por cor e distâncias ao da frente e de trás. Retrovisor mostra motos e trânsito nos últimos 200m, com indicação de aproximação.
 - Três estradas com curvas, elevações e cenários próprios: **Costa do Sol** (8,4 km), **Serra da Fumaça** (9,2 km) e **Vale Vermelho** (10,2 km).
+- **Dia, Entardecer, Noite e Chuva** nas três estradas: 12 combinações. A escolha muda o cenário e fica salva; na chuva, a aderência equivale a 82% da dirigibilidade e a frenagem a 88% da força original. Dia/noite mantêm a física seca. Os avisos de curva e os bots consideram o piso molhado.
+- Aparição rara de uma **sereia no mar da Costa**, com poses próprias por condição: cauda entre as ondas na chuva, brilho discreto à noite e pedra no entardecer. É apenas cenário, sem colisão, prêmio, dano ou aviso. Cada corrida tem 33% de chance, um local sorteado e uma janela de 8 segundos, iniciada quando o primeiro humano chega a 180m. No online, todos compartilham a mesma aparição.
+- Recordes por estrada e condição. Saves v1 continuam válidos; os recordes anteriores pertencem ao Entardecer.
 - Trânsito nos dois sentidos, carros e vans nas faixas, óleo, barreiras, ultrapassagens e colisões.
 - Socos, chutes, bastão, roubo de arma, quedas, recuperação e um breve período de proteção ao voltar à pista.
 - Resistência do piloto e integridade da moto separadas. Piloto sem resistência cai; moto sem integridade encerra a corrida.
@@ -66,6 +69,7 @@ O som começa depois de uma interação. Em telas estreitas, há controles por t
 | --- | --- |
 | `src/game/simulation.ts` | Simulação em passos de 1/60 s, entradas, IA, colisões, combate, eventos e snapshots |
 | `src/game/types.ts` | Estado serializável e tipos de comandos, pilotos e progressão |
+| `src/game/conditions.ts` / `mermaid.ts` | Condições, paletas, aderência e aparição decorativa independente da física |
 | `src/game/content.ts` | Parâmetros das motos, estradas, curvas e elevações |
 | `src/game/awareness.ts` / `instruments.ts` | Distâncias por identidade local, mapa e retrovisor com resolução limitada |
 | `src/game/renderer.ts` | Projeção, desenho, profundidade, oclusão nas elevações e efeitos |
@@ -75,7 +79,7 @@ O som começa depois de uma interação. Em telas estreitas, há controles por t
 | `src/game/save.ts` | Progressão, compras, reparos e persistência no navegador |
 | `src/main.ts` | Entradas, ciclo de execução, HUD, menus e integração |
 | `src/multiplayer/` | Protocolo, conexão, previsão de movimento e estilos das salas |
-| `server/` | Regras de salas, simulação autoritativa, conexões e armazenamento Redis |
+| `server/` | Regras de salas, simulação autoritativa, conexões e armazenamento em memória/Redis |
 | `api/asfalto.ts` | Endpoint WebSocket para Vercel |
 | `scripts/export-jogos.mjs` | Build e integração reproduzível no catálogo Vibe Jogos |
 
@@ -83,7 +87,7 @@ A simulação não acessa DOM, Canvas, áudio ou relógio real. Usa IDs estávei
 
 **Multiplayer é opcional e já está implementado.** O modo individual continua local, com a mesma garagem. Antes de criar ou entrar numa sala, cada pessoa escolhe livremente um dos sete modelos com atributos de fábrica, sem usar compras ou melhorias da campanha. Os bots também pilotam modelos variados. O botão Multiplayer abre salas para 2–8 pessoas, com janela de 60 segundos e largada em até 5 segundos quando todos os presentes estão prontos. Quem cria a sala pode marcar **Completar com bots**: vagas livres recebem pilotos identificados como CPU na largada, até completar oito. Continuam necessárias duas pessoas reais. O servidor controla a corrida; cada piloto tem sua própria câmera, prisão e resultado. Veja [MULTIPLAYER.md](MULTIPLAYER.md) para as regras completas, reconexão, testes e publicação no catálogo Vibe Jogos.
 
-Para usar o modo online localmente, execute também `npm run dev:server` em outro terminal. O Redis é obrigatório no Vercel para compartilhar salas entre instâncias; em desenvolvimento há armazenamento em memória.
+Para usar o modo online localmente, execute também `npm run dev:server` em outro terminal. A publicação atual usa uma VPS com um único processo Node e `ASFALTO_STORE=memory`, sem Redis. O catálogo está em `flowofdevelopment.com/catalogo/`; a infraestrutura e o deploy ficam em `infra/vps/` no repositório `mauriciokj/vibe_jogos`, branch `codex/vps-centralizacao`. A configuração Vercel anterior permanece disponível e exige Redis entre instâncias.
 
 ## Verificação
 
@@ -94,10 +98,11 @@ npx playwright install chromium
 npm run test:browser
 ```
 
-- **48 testes de simulação, salas e conexões:** pilotagem, frenagem, limites, alcance, roubo de arma, evasão, quedas, colisões, óleo, barreiras, classificação, polícia, economia, snapshots e consistência a 30/60/144 FPS.
-- Corridas completas nas três pistas, com comandos dentro dos limites de controle do jogador.
+- **56 testes de simulação, salas e conexões:** pilotagem, frenagem, limites, alcance, roubo de arma, evasão, quedas, colisões, óleo, barreiras, classificação, polícia, economia, snapshots e consistência a 30/60/144 FPS.
+- Corridas completas nas três pistas, em piso seco e na chuva, com comandos dentro dos limites de controle do jogador.
 - Testes de navegador: teclado, tutorial, pausa, reinício, todos os golpes, queda/retorno, captura, corrida completa, resultados, desbloqueio, persistência, reparos, compras, todas as melhorias, seleção de moto, reset, áudio, tela cheia e toque.
 - `npm run test:online` verifica dois navegadores e seis conexões adicionais com 200ms de atraso de ida e volta. Inclui largada, combate, reconexão, prisão individual e retorno ao modo individual.
+- `npm run test:conditions` verifica as 12 combinações visuais, seleção persistente, saves anteriores, pausa/reinício, menu em três tamanhos, sala com duas pessoas e seis bots, condição e aparição compartilhadas, golpes na chuva e reconexão. Artefatos em `output/conditions/`.
 - `npm run test:bikes` verifica os sete modelos na garagem e na corrida, compras, melhorias, preservação do save, seleção online móvel, atributos de fábrica e reconexão entre modelos diferentes.
 - `npm run test:tactics` verifica a opção de bots, corrida com duas pessoas e seis CPUs, frenagem compartilhada, reconexão, resultados, mapa/retrovisor no desktop e celular, além da cadência de uma corrida com os instrumentos.
 - `npm run test:motion` verifica estabilidade de movimento com atraso variável de rede e armazenamento, direção e golpes com toques de 5ms em alta velocidade.

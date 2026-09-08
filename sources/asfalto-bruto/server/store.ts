@@ -1,3 +1,4 @@
+import { NET_VERSION } from '../src/multiplayer/protocol';
 import Redis from 'ioredis';
 import { secret, type Inputs, type Room, type StoredInput } from './room';
 
@@ -53,7 +54,7 @@ export class RedisStore implements RoomStore {
       };
     } else throw new Error('Configure o Redis do multiplayer no servidor.');
   }
-  private key(code: string, field: string) { return `asfalto:online:v4:{${code}}:${field}`; }
+  private key(code: string, field: string) { return `asfalto:online:v${NET_VERSION}:{${code}}:${field}`; }
   async create(room: Room) { return await this.command('SET',this.key(room.code,'state'),JSON.stringify(room),'NX','EX',1800) === 'OK'; }
   async read(code: string) { const raw = await this.command('GET',this.key(code,'state')); return raw ? JSON.parse(raw as string) as Room : null; }
   async input(code: string, key: string, input: StoredInput) {

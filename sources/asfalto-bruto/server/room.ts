@@ -1,3 +1,4 @@
+import { CONDITIONS, raceCondition } from '../src/game/conditions';
 import { randomBytes } from 'node:crypto';
 import { createMultiplayerRace, finishRider, STEP, stepRace } from '../src/game/simulation';
 import { TRACKS, getBike } from '../src/game/content';
@@ -15,13 +16,14 @@ export const secret = () => randomBytes(24).toString('base64url');
 export function makeMember(name: unknown, now: number, bikeId?: unknown): Member {
   return { id: `human-${randomBytes(8).toString('hex')}`, name: cleanName(name), bikeId: getBike(typeof bikeId === 'string' ? bikeId : undefined).id, ready: false, connected: true, token: secret(), epoch: secret(), lastSeen: now };
 }
-export function makeRoom(code: string, trackId: unknown, member: Member, now: number, fillBots = false): Room {
+export function makeRoom(code: string, trackId: unknown, member: Member, now: number, fillBots = false, condition?: unknown): Room {
   if (!TRACKS.some(t => t.id === trackId)) throw new Error('Estrada inválida.');
-  return { code, trackId: trackId as string, fillBots: fillBots === true, phase: 'lobby', locked: false, deadline: now+ROOM_WAIT_MS, revision: 0,
+  if(condition!==undefined && !CONDITIONS.some(c=>c.id===condition))throw new Error('Condição inválida.');
+  return { code, condition: raceCondition(condition), trackId: trackId as string, fillBots: fillBots === true, phase: 'lobby', locked: false, deadline: now+ROOM_WAIT_MS, revision: 0,
     members: [member], race: null, ack: {}, attackAck: {}, updatedAt: now, createdAt: now, finishedAt: null };
 }
 export function viewRoom(room: Room, now: number): RoomView {
-  return { code: room.code, trackId: room.trackId, fillBots: room.fillBots, phase: room.phase, locked: room.locked, deadline: room.deadline,
+  return { code: room.code, condition: raceCondition(room.condition), trackId: room.trackId, fillBots: room.fillBots, phase: room.phase, locked: room.locked, deadline: room.deadline,
     revision: room.revision, serverNow: now, simulationAt: room.updatedAt, members: room.members.map(({id,name,bikeId,ready,connected}) => ({id,name,bikeId,ready,connected})), race: room.race, ack: room.ack, attackAck: room.attackAck };
 }
 export function lobbyClock(room: Room, now: number) {
@@ -37,7 +39,7 @@ export function lobbyClock(room: Room, now: number) {
   if (room.deadline-now <= READY_WAIT_MS) room.locked = true;
   if (now < room.deadline) return;
   room.members = present;
-  room.race = createMultiplayerRace(room.trackId,present,randomBytes(4).readUInt32LE(),room.fillBots);
+  room.race = createMultiplayerRace(room.trackId,present,randomBytes(4).readUInt32LE(),room.fillBots,room.condition);
   room.race.mode = 'racing'; room.race.countdown = 0;
   room.phase = 'racing'; room.updatedAt = now; room.deadline = null;
 }

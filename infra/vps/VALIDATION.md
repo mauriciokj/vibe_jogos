@@ -30,3 +30,13 @@ Artefatos desta etapa em `road rash/output/domain-cutover/` e `road rash/output/
 Os placares históricos do Rio de Aço continuam no Upstash; a leitura permanece bloqueada pela cota. Nenhum registro antigo foi apagado. Importar esses dados quando o acesso for recuperado.
 
 Artefatos locais estão em `road rash/output/vps/`: `live-check.json`, `eight.json`, `catalog-smoke.json`, `catalog-followup.json`, screenshots e `leaderboards-first-backup.sqlite` (arquivos de teste ignorados pelo Git).
+
+## Condições de pista — validação local em 2026-09-08
+
+- Expansão: Dia/Entardecer/Noite/Chuva nas três estradas existentes; aparição de sereia exclusiva da Costa, sem efeitos físicos; recordes por condição mantendo saves v1.
+- Protocolo v5: condição da sala e tempo/local da aparição compartilhados. Mesma frenagem e aderência de chuva na simulação, bots e previsão local.
+- Build TypeScript/Vite e 56 testes do jogo passaram. Corridas completas na chuva: Costa 183,9s / Serra 206,9s / Vale 241,5s com comandos limitados; condições secas mantêm resultados idênticos com a mesma seed.
+- `test:conditions`: 12 cenários, menu em 1440×900 / 1280×720 / 390×844 / 375×667 / 844×390, pausa/reinício, seleção persistente, save anterior, dois navegadores + seis bots, golpes na chuva e reconexão. Nenhum erro no console.
+- Cadência local de 120 quadros por condição: dia 59,0 FPS (p95 16,8ms), noite 60,0 FPS (p95 16,8ms), chuva 56,7 FPS (p95 33,3ms). Medição em Chromium automatizado, sem extrapolar para todos os dispositivos.
+- Cliente original da skill executado com ações curtas; screenshot e estado revisados. Relatório local: `output/conditions/browser-check.json`, junto às imagens.
+- Sete testes do catálogo/SQLite passaram. A publicação e a verificação HTTPS/WSS serão registradas abaixo após a ativação.

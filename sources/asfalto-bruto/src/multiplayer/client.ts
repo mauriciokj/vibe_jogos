@@ -1,4 +1,4 @@
-import { EMPTY_COMMAND, type AttackKind, type Command, type RaceState } from '../game/types';
+import { EMPTY_COMMAND, type AttackKind, type Command, type RaceState, type RaceCondition } from '../game/types';
 import { NET_VERSION, RECONNECT_MS, type AttackInput, type ClientMessage, type RoomView, type ServerMessage } from './protocol';
 import { RacePresentation } from './presentation';
 
@@ -30,7 +30,7 @@ export class OnlineClient {
     try { const s=JSON.parse(sessionStorage.getItem(sessionKey) ?? 'null'); if(s?.code && s?.token){this.code=s.code;this.token=s.token;this.open({type:'resume',version:NET_VERSION,code:s.code,token:s.token});return true;} } catch {}
     return false;
   }
-  create(name: string, trackId: string, fillBots = false, bikeId = 'ferro') { this.open({type:'create',version:NET_VERSION,name,trackId,fillBots,bikeId}); }
+  create(name: string, trackId: string, fillBots = false, bikeId = 'ferro', condition: RaceCondition = 'sunset') { this.open({type:'create',version:NET_VERSION,name,trackId,fillBots,bikeId,condition}); }
   join(name: string, code: string, bikeId = 'ferro') { this.open({type:'join',version:NET_VERSION,name,bikeId,code:code.trim().toUpperCase()}); }
   ready(ready: boolean) { this.send({type:'ready',ready}); }
   private send(message: ClientMessage) { if(this.ws?.readyState===WebSocket.OPEN)this.ws.send(JSON.stringify(message)); }

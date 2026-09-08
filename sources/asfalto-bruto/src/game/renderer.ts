@@ -1,3 +1,5 @@
+import { conditionTrack, raceCondition, scenicAppearance, seaColors } from './conditions';
+import { mermaidSprite } from './mermaid';
 import { clamp, curveAt, elevationAt, getBike, getTrack } from './content';
 import { nearestTarget, ROAD_HALF } from './simulation';
 import { bikeSprite, carSprite } from './sprites';
@@ -37,27 +39,41 @@ export class Renderer {
     for (let i = 0; i < coords.length; i += 2) i === 0 ? c.moveTo(coords[i], coords[i + 1]) : c.lineTo(coords[i], coords[i + 1]);
     c.closePath(); c.fill();
   }
-  private background(track: Track, z: number) {
+  private background(track: Track, z: number, state: RaceState) {
     const c = this.ctx, w = this.w, h = this.h;
     const horizon = this.camera.horizon - h * .02;
+    const condition=raceCondition(state.condition), sea=seaColors(condition);
     const sky = c.createLinearGradient(0, 0, 0, horizon + 40);
     track.sky.forEach((col, i) => sky.addColorStop(i / 2, col));
     c.fillStyle = sky; c.fillRect(0, 0, w, h);
     const parallax = Math.sin(z / 950) * 65;
     const sunX = w * .74 - parallax * .2;
     const sunY = h * .225;
-    const glow = c.createRadialGradient(sunX, sunY, h * .02, sunX, sunY, h * .24);
-    glow.addColorStop(0, '#ffeecb50'); glow.addColorStop(1, '#ffeecb00');
-    c.fillStyle = glow; c.fillRect(sunX - h * .24, 0, h * .48, h * .48);
-    c.fillStyle = '#ffe7b5'; c.beginPath(); c.arc(sunX, sunY, h * .073, 0, Math.PI * 2); c.fill();
-    for (let i = 0; i < 5; i++) { c.fillStyle = track.sky[1]; c.fillRect(sunX - h * .08, sunY + 10 + i * 8, h * .16, 1 + i * .5); }
-    // Long cloud bands, then layered mountain silhouettes.
-    c.fillStyle = '#f8d4c44a';
-    for (let i = 0; i < 7; i++) {
-      const x = ((i * 293 - parallax * .12) % (w + 240)) - 100;
-      const y = h * (.09 + (i % 3) * .045);
-      c.fillRect(x, y, 95 + i % 4 * 31, 3); c.fillRect(x + 40, y + 4, 140, 2);
+    if(condition==='night') {
+      c.fillStyle='#d7ead8';
+      for(let i=0;i<70;i++) { const x=visualHash(i*39+7)*w,y=visualHash(i*51+3)*h*.3;c.globalAlpha=.35+visualHash(i)*.6;c.fillRect(x,y,i%6===0?2:1,1); }
+      c.globalAlpha=1;
+      const halo=c.createRadialGradient(sunX,sunY,0,sunX,sunY,h*.13);halo.addColorStop(0,'#9bbbd22a');halo.addColorStop(1,'#9bbbd200');c.fillStyle=halo;c.fillRect(sunX-h*.13,sunY-h*.13,h*.26,h*.26);
+      c.fillStyle='#d8e4d7';c.beginPath();c.arc(sunX,sunY,h*.032,0,Math.PI*2);c.fill();
+      c.fillStyle='#aebec1';for(let i=0;i<5;i++){c.beginPath();c.arc(sunX+(visualHash(i+20)-.5)*h*.038,sunY+(visualHash(i+40)-.5)*h*.038,h*.003,0,Math.PI*2);c.fill();}
+    } else if(condition!=='rain') {
+      const glow=c.createRadialGradient(sunX,sunY,h*.02,sunX,sunY,h*.24);
+      glow.addColorStop(0,'#ffeecb50');glow.addColorStop(1,'#ffeecb00');c.fillStyle=glow;c.fillRect(sunX-h*.24,0,h*.48,h*.48);
+      c.fillStyle=condition==='day'?'#fff7d8':'#ffe7b5';c.beginPath();c.arc(sunX,sunY,h*(condition==='day'?.042:.073),0,Math.PI*2);c.fill();
+      if(condition==='sunset')for(let i=0;i<5;i++){c.fillStyle=track.sky[1];c.fillRect(sunX-h*.08,sunY+10+i*8,h*.16,1+i*.5);}
     }
+    c.fillStyle=condition==='rain'?'#283f4d40':condition==='night'?'#91a9bc16':condition==='day'?'#f4fcf088':'#f8d4c44a';
+    for(let i=0;i<7;i++) {
+      const x=((i*293-parallax*.12)%(w+240))-100,y=h*(.09+(i%3)*.045);
+      if(condition==='rain')continue;
+      else {c.fillRect(x,y,95+i%4*31,3);c.fillRect(x+40,y+4,140,2);}
+    }
+    if(condition==='rain')for(let layer=0;layer<2;layer++) {
+      const cloud=[0,0,w,0];
+      for(let x=w;x>=-24;x-=24)cloud.push(x,h*(.1+layer*.065)+Math.sin(x*.006+layer*2)*h*.025+Math.sin(x*.017+layer)*h*.014);
+      this.polygon(cloud,layer?'#314a5724':'#20394635');
+    }
+    const mountains=condition==='night'?['#293952','#304559','#375559']:condition==='rain'?['#6b828e','#5e7884','#58777a']:condition==='day'?['#84acb7','#6b9b9b',track.index===2?'#b48b70':'#527e72']:['#827c97','#73768b',track.index===2?'#aa796f':'#667e7f'];
     for (let layer = 0; layer < 3; layer++) {
       const coords = [-50, horizon + 45];
       for (let x = -50; x <= w + 70; x += 16) {
@@ -68,7 +84,7 @@ export class Renderer {
         coords.push(x, Math.round(y / 3) * 3);
       }
       coords.push(w + 70, horizon + 60);
-      this.polygon(coords, ['#827c97', '#73768b', track.index === 2 ? '#aa796f' : '#667e7f'][layer]);
+      this.polygon(coords, mountains[layer]);
       // Light and shaded ridges add depth without covering the mountain silhouette.
       c.save(); c.beginPath();
       for (let i = 0; i < coords.length; i += 2) i ? c.lineTo(coords[i], coords[i + 1]) : c.moveTo(coords[i], coords[i + 1]);
@@ -80,10 +96,10 @@ export class Renderer {
       c.restore();
     }
     if (track.index === 0) {
-      c.fillStyle = '#6d9da5'; c.fillRect(0, horizon, w * .62, h * .21);
-      c.fillStyle = '#a6bec0';
-      for (let y = horizon + 4; y < h * .55; y += 9) { c.fillRect(0, y, w * (.44 + Math.sin(y * .03) * .06), 1); }
-      c.fillStyle = '#e4c3a1'; c.fillRect(0, h * .53, w * .65, h * .15);
+      c.fillStyle = sea.water; c.fillRect(0, horizon, w * .62, h * .21);
+      c.fillStyle = sea.foam;
+      for (let y = horizon + 4; y < h * .55; y += 9) { c.fillRect(0, y, w * (.44 + Math.sin(y * .03 + state.time*.3) * .06), 1); }
+      c.fillStyle = sea.sand; c.fillRect(0, h * .53, w * .65, h * .15);
     }
   }
   private buildRoad(state: RaceState) {
@@ -123,7 +139,7 @@ export class Renderer {
   }
   private road(state: RaceState, track: Track) {
     const c = this.ctx, w = this.w, h = this.h;
-    const points = this.points;
+    const points = this.points, condition=raceCondition(state.condition), sea=seaColors(condition);
     let maxY = h;
     // Near-to-far hill clipping recorded for both terrain and sprites.
     for (const p of points) { p.clip = maxY; maxY = Math.min(maxY, p.y); }
@@ -136,11 +152,15 @@ export class Renderer {
       c.save(); c.beginPath(); c.rect(0, 0, w, a.clip); c.clip();
       this.polygon([0, a.y, w, a.y, w, b.y, 0, b.y], track.land[alt ? 0 : 1]);
       if (track.index === 0) {
-        this.polygon([0, a.y, a.x - aw * 2.7, a.y, b.x - bw * 2.7, b.y, 0, b.y], '#7aa4a4');
-        this.polygon([a.x - aw * 2.7, a.y, a.x - aw * 2.2, a.y, b.x - bw * 2.2, b.y, b.x - bw * 2.7, b.y], '#d4bd95');
+        this.polygon([0, a.y, a.x - aw * 2.7, a.y, b.x - bw * 2.7, b.y, 0, b.y], sea.water);
+        this.polygon([a.x - aw * 2.7, a.y, a.x - aw * 2.2, a.y, b.x - bw * 2.2, b.y, b.x - bw * 2.7, b.y], sea.sand);
       }
-      this.polygon([a.x - aw * 1.13, a.y, a.x + aw * 1.13, a.y, b.x + bw * 1.13, b.y, b.x - bw * 1.13, b.y], alt ? '#c2b9a0' : '#bab39b');
+      this.polygon([a.x - aw * 1.13, a.y, a.x + aw * 1.13, a.y, b.x + bw * 1.13, b.y, b.x - bw * 1.13, b.y], condition==='night' ? '#636e6d' : alt ? '#c2b9a0' : '#bab39b');
       this.polygon([a.x - aw, a.y + 1, a.x + aw, a.y + 1, b.x + bw, b.y - .5, b.x - bw, b.y - .5], track.road[alt ? 0 : 1]);
+      if(condition==='rain' && alt) {
+        // Broad reflections follow the road surface, with no extra obstacles.
+        for(const lane of [-3.3,3.3])this.polygon([a.x+(lane-1)*a.scale,a.y,a.x+(lane+.6)*a.scale,a.y,b.x+(lane+.6)*b.scale,b.y,b.x+(lane-1)*b.scale,b.y],'#b9d2d51a');
+      }
       // Fine aggregate, patches and lane wear are anchored to the road in world space.
       const row = Math.floor(a.z / 3);
       if (a.scale > 1 && b.y < h && a.y > h * .42) {
@@ -178,7 +198,7 @@ export class Renderer {
         }
       }
       if (a.z - this.player(state).z > 140) {
-        c.fillStyle = `rgba(203,183,165,${clamp((a.z - this.player(state).z - 140) / 1600, 0, .35)})`;
+        c.fillStyle = `rgba(${condition==='night'?'34,57,76':condition==='rain'?'130,154,164':condition==='day'?'185,218,220':'203,183,165'},${clamp((a.z - this.player(state).z - 140) / 1600, 0, .35)})`;
         c.fillRect(0, b.y, w, a.y - b.y + .1);
       }
       if (Math.abs(a.z - track.distance) < 18) {
@@ -327,13 +347,39 @@ export class Renderer {
       c.restore();
     }
   }
+  private atmosphere(state: RaceState) {
+    const condition=raceCondition(state.condition),c=this.ctx,w=this.w,h=this.h;
+    if(condition==='night') {
+      c.fillStyle='#08182e24';c.fillRect(0,0,w,h);
+      // Project a headlight pool entirely inside the roadway.
+      const me=this.player(state),a=this.project(me.z+4,me.x),b=this.project(me.z+95,me.x);
+      if(a&&b) {
+        const glow=c.createLinearGradient(0,b.y,0,a.y);glow.addColorStop(0,'#d5eac500');glow.addColorStop(.7,'#d5eac524');glow.addColorStop(1,'#d5eac500');
+        c.save();c.beginPath();c.moveTo(a.x-2.5*a.scale,a.y);c.lineTo(b.x-3*b.scale,b.y);c.lineTo(b.x+3*b.scale,b.y);c.lineTo(a.x+2.5*a.scale,a.y);c.closePath();c.fillStyle=glow;c.fill();c.restore();
+      }
+    }
+    if(condition!=='rain')return;
+    const time=this.reducedMotion?0:state.time,pace=this.player(state).speed/70;
+    c.strokeStyle='#deedf66b';c.lineWidth=1;
+    c.beginPath();
+    for(let i=0;i<(this.reducedMotion?35:100);i++) {
+      const x=(visualHash(i*79+1)*w-time*(30+pace*28)+w*1000)%w;
+      const y=(visualHash(i*47+5)*h+time*(340+visualHash(i)*260))%h;
+      const len=6+visualHash(i*7)*15;c.moveTo(x,y);c.lineTo(x-3-pace*4,y+len);
+    }
+    c.stroke();
+    // Small splashes on the visible shoulder; bounded work regardless of speed.
+    c.strokeStyle='#d2e8e946';c.beginPath();
+    for(let i=0;i<18;i++){const age=(time*1.7+visualHash(i*13))%1,x=visualHash(i*91)*w,y=h*(.6+visualHash(i*51)*.35);c.moveTo(x-age*4,y);c.lineTo(x+age*4,y);}
+    c.stroke();
+  }
   render(state: RaceState, menu = false, localId = 'player') {
     this.localId = localId;
-    const c = this.ctx, track = getTrack(state.trackId), player = this.player(state);
+    const c = this.ctx, track = conditionTrack(getTrack(state.trackId),state.condition), player = this.player(state);
     c.save();
     if (this.shake > .1 && !this.reducedMotion) { c.translate(this.w / 2, this.h / 2); c.scale(1.016, 1.016); c.translate(-this.w / 2, -this.h / 2); c.translate(Math.sin(state.tick * 8) * this.shake, Math.cos(state.tick * 7) * this.shake * .6); this.shake *= .83; }
     this.buildRoad(state);
-    this.background(track, player.z);
+    this.background(track, player.z, state);
     this.road(state, track); this.roadside(state);
     this.speedFlow(state, menu);
     const entities: { z: number; draw: () => void }[] = [];
@@ -357,9 +403,20 @@ export class Renderer {
         c.fillStyle = '#443f41'; c.fillRect(p.x - p.scale * .8, p.y - p.scale * .4, p.scale * .13, p.scale * .4); c.fillRect(p.x + p.scale * .7, p.y - p.scale * .4, p.scale * .13, p.scale * .4);
       }
     } });
+    const scenic=menu?null:scenicAppearance(state);
+    if(scenic)entities.push({z:scenic.z,draw:()=>{
+      const p=this.project(scenic.z,-25);if(!p || p.y>p.clip+8)return;
+      const size=p.scale*6.2,condition=raceCondition(state.condition);
+      c.save();c.beginPath();c.rect(0,0,this.w,p.clip);c.clip();
+      c.globalAlpha=clamp(scenic.age*2,0,1)*clamp((scenic.duration-scenic.age)*2,0,1);
+      const bob=this.reducedMotion?0:Math.sin(scenic.age*2.4)*size*.015;
+      if(condition==='night'){const g=c.createRadialGradient(p.x,p.y-size*.4,0,p.x,p.y-size*.4,size*.8);g.addColorStop(0,'#83f3e743');g.addColorStop(1,'#83f3e700');c.fillStyle=g;c.fillRect(p.x-size,p.y-size*1.3,size*2,size*2);}
+      c.drawImage(mermaidSprite(condition,this.reducedMotion?0:Math.floor(scenic.age*2)%3),p.x-size*96/88/2,p.y-size+bob,size*96/88,size);c.restore();
+    }});
     const target = nearestTarget(state, player, player.weapon ? 'weapon' : 'punch');
     for (const r of state.riders) if (r.z > player.z - 14 && r.z < player.z + 1900) entities.push({ z: r.z, draw: () => this.rider(r, state, target?.id) });
     entities.sort((a, b) => b.z - a.z).forEach(e => e.draw());
+    this.atmosphere(state);
     // Subtle raster texture, with a soft lower edge for the instruments.
     c.fillStyle = '#17243305'; for (let y = 0; y < this.h; y += 5) c.fillRect(0, y, this.w, 1);
     const vignette = c.createLinearGradient(0, this.h * .72, 0, this.h);

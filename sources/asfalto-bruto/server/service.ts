@@ -87,7 +87,7 @@ export function createGameServer(store: RoomStore, options: { origins?: string[]
           if (data.version !== NET_VERSION) throw new Error('Atualize a página para entrar nesta versão.');
           if (data.type === 'create') {
             const member = makeMember(data.name,now(),data.bikeId); let room: Room;
-            do { room = makeRoom(randomBytes(4).toString('hex').slice(0,6).toUpperCase(),data.trackId,member,now(),data.fillBots === true); } while (!await store.create(room));
+            do { room = makeRoom(randomBytes(4).toString('hex').slice(0,6).toUpperCase(),data.trackId,member,now(),data.fillBots === true,data.condition); } while (!await store.create(room));
             await attach(peer,room,member);
           } else {
             const code = String(data.code ?? '').toUpperCase();

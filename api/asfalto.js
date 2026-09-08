@@ -42,6 +42,36 @@ var import_node_crypto2 = require("node:crypto");
 var import_node_net = require("node:net");
 var import_ws = require("ws");
 
+// src/game/conditions.ts
+var CONDITIONS = [
+  { id: "day", name: "Dia", icon: "\u2600", description: "C\xE9u aberto e boa visibilidade." },
+  { id: "sunset", name: "Entardecer", icon: "\u25D2", description: "Luz dourada e a estrada de sempre." },
+  { id: "night", name: "Noite", icon: "\u263E", description: "Luar, far\xF3is e refletores pelo caminho." },
+  { id: "rain", name: "Chuva", icon: "\u2602", description: "Piso molhado. Freie antes e fa\xE7a curvas suaves." }
+];
+function raceCondition(value) {
+  return CONDITIONS.some((c) => c.id === value) ? value : "sunset";
+}
+var roadGrip = (value) => raceCondition(value) === "rain" ? 0.82 : 1;
+var brakeGrip = (value) => raceCondition(value) === "rain" ? 0.88 : 1;
+function decorHash(seed) {
+  let n = seed | 0;
+  n = Math.imul(n ^ n >>> 16, 73244475);
+  n = Math.imul(n ^ n >>> 16, 73244475);
+  return ((n ^ n >>> 16) >>> 0) / 4294967296;
+}
+function coastalEvent(trackId, seed) {
+  if (trackId !== "costa" || decorHash(seed ^ 119317776) >= 0.33) return void 0;
+  const sites = [440, 1540, 2910, 4180, 6170];
+  return { kind: "mermaid", z: sites[Math.floor(decorHash(seed ^ 24951378) * sites.length)], startedAt: null, duration: 8 };
+}
+function advanceScenicEvent(state) {
+  const event = state.scenicEvent;
+  if (!event || event.startedAt !== null || state.mode !== "racing") return;
+  const humans = state.riders.filter((r) => r.profile === "player" && !r.out && r.finishedAt === null);
+  if (humans.some((r) => r.z >= event.z - 180)) event.startedAt = state.time;
+}
+
 // src/game/content.ts
 var BIKES = [
   { id: "ferro", name: "Ferro 500", class: "STREET", style: "street", price: 0, speed: 64, acceleration: 13.2, handling: 1.1, armor: 1, color: "#dfff71", tagline: "Equilibrada para aprender a rua. Leve no bolso, firme na pista." },
@@ -90,11 +120,11 @@ function curveAt(z, trackId) {
 function cornerSpeed(curve, handling = 1.1) {
   return Math.sqrt(3e3 * handling / Math.max(0.01, Math.abs(curve)));
 }
-function cornerPace(z, trackId, handling = 1.1) {
+function cornerPace(z, trackId, handling = 1.1, condition = "sunset") {
   let speed = 120;
   for (let ahead = 0; ahead <= 240; ahead += 20) {
-    const safe = cornerSpeed(curveAt(z + ahead, trackId), handling);
-    speed = Math.min(speed, Math.sqrt(safe * safe + 2 * 19 * Math.max(0, ahead - 12)));
+    const safe = cornerSpeed(curveAt(z + ahead, trackId), handling * roadGrip(condition));
+    speed = Math.min(speed, Math.sqrt(safe * safe + 2 * 19 * brakeGrip(condition) * Math.max(0, ahead - 12)));
   }
   return speed;
 }
@@ -135,7 +165,7 @@ function stockBike(id) {
   const bike = getBike(id);
   return { bikeId: bike.id, maxSpeed: bike.speed, acceleration: bike.acceleration, handling: bike.handling, armor: bike.armor };
 }
-function createRace(trackId = "costa", save, seed = 88117) {
+function createRace(trackId = "costa", save, seed = 88117, condition = "sunset") {
   const bike = getBike(save?.bikeId);
   const up = save?.upgrades[bike.id] ?? { engine: 0, armor: 0, handling: 0 };
   const player = makeRider("player", "VOC\xCA", "player", bike.color, 1.7, 0);
@@ -150,7 +180,7 @@ function createRace(trackId = "costa", save, seed = 88117) {
     r.weapon = i === 1 || i === 3 || i === 6;
     return r;
   })];
-  const state = { version: 1, tick: 0, rng: seed || 1, trackId, mode: "countdown", countdown: 3.5, time: 0, riders, traffic: [], obstacles: [], events: [], collisions: {}, heat: 0, capture: 0, policeActive: false, result: null };
+  const state = { version: 1, condition: raceCondition(condition), scenicEvent: coastalEvent(trackId, seed), tick: 0, rng: seed || 1, trackId, mode: "countdown", countdown: 3.5, time: 0, riders, traffic: [], obstacles: [], events: [], collisions: {}, heat: 0, capture: 0, policeActive: false, result: null };
   const length = getTrack(trackId).distance;
   for (let z = 400, i = 0; z < length + 1800; z += 230 + random(state) * 160, i++) {
     const oncoming = i % 3 === 1;
@@ -220,9 +250,9 @@ function botCommand(state, rider) {
   const nearby = nearestTarget(state, rider, rider.weapon ? "weapon" : "punch");
   if (nearby && rider.cooldown === 0 && (rider.profile !== "careful" || state.tick % 80 < 8)) attack = rider.weapon ? "weapon" : rider.profile === "aggressive" ? "kick" : "punch";
   const curve = curveAt(rider.z, state.trackId);
-  const forces = cornerForces(rider.speed, rider.handling, curve, Math.abs(rider.x) > ROAD_HALF);
+  const forces = cornerForces(rider.speed, rider.handling * roadGrip(state.condition), curve, Math.abs(rider.x) > ROAD_HALF);
   const steering = clamp((target - rider.x) * 0.9 + forces.drift / forces.lateral, -1, 1);
-  const pace = cornerPace(rider.z, state.trackId, rider.handling) * (rider.profile === "careful" ? 0.92 : rider.profile === "fast" ? 1.03 : 0.98);
+  const pace = cornerPace(rider.z, state.trackId, rider.handling, state.condition) * (rider.profile === "careful" ? 0.92 : rider.profile === "fast" ? 1.03 : 0.98);
   brake = Math.max(brake, clamp((rider.speed - pace) * 0.3, 0, 1));
   if (police && rider.z > player.z + 7) brake = Math.max(brake, 0.42);
   return { throttle: rider.speed > pace - 0.6 || brake > 0.1 ? 0 : 1, brake, steer: steering, attack };
@@ -259,10 +289,10 @@ function applyCommand(state, rider, command) {
   const shoulderLimit = Math.abs(curve) > 0.8 ? 0.38 : 0.56;
   const max = rider.maxSpeed * (onShoulder ? shoulderLimit : 1) * (0.92 + rider.integrity / 1250);
   const acceleration = command.throttle * rider.acceleration * (onShoulder ? 0.55 : 1) * (1 - 0.35 * rider.speed / rider.maxSpeed);
-  rider.speed = clamp(rider.speed + (acceleration - command.brake * 29 - (command.throttle ? 1.2 : 3.6)) * STEP, 0, rider.maxSpeed);
+  rider.speed = clamp(rider.speed + (acceleration - command.brake * 29 * brakeGrip(state.condition) - (command.throttle ? 1.2 : 3.6)) * STEP, 0, rider.maxSpeed);
   if (rider.speed > max) rider.speed = Math.max(max, rider.speed - STEP * (onShoulder ? 34 : 4));
   const steering = clamp(command.steer, -1, 1);
-  const forces = cornerForces(rider.speed, rider.handling, curve, onShoulder);
+  const forces = cornerForces(rider.speed, rider.handling * roadGrip(state.condition), curve, onShoulder);
   rider.x = clamp(rider.x + (steering * forces.lateral - forces.drift) * STEP, -10.5, 10.5);
   rider.lean += (steering * 0.32 - rider.lean) * 0.12;
   rider.z += rider.speed * STEP;
@@ -343,9 +373,9 @@ function resolveCollisions(state, oldZ) {
     }
   }
 }
-function createMultiplayerRace(trackId, players, seed = 88117, fillBots = false) {
+function createMultiplayerRace(trackId, players, seed = 88117, fillBots = false, condition = "sunset") {
   if (players.length < 2 || players.length > 8 || new Set(players.map((p) => p.id)).size !== players.length) throw new Error("A corrida precisa de 2 a 8 pilotos distintos.");
-  const state = createRace(trackId, void 0, seed);
+  const state = createRace(trackId, void 0, seed, condition);
   const colors = ["#dcff74", "#d87bfa", "#6cdace", "#f28451", "#ebbc5c", "#a4bde2", "#ef6f8a", "#e7e6dc"];
   const base = state.riders[0];
   const bots = state.riders.slice(1);
@@ -457,6 +487,7 @@ function stepRace(state, commands = {}) {
     else if (r.capture >= 3) finishRider(state, r, "caught");
     else if (state.multiplayer && state.time >= 360) finishRider(state, r, "timeout");
   }
+  advanceScenicEvent(state);
   for (const [index, r] of ranking(state).entries()) if (index < oldOrder.indexOf(r.id)) state.events.push({ type: "pass", actor: r.id });
   if (state.tick % 600 === 0) {
     for (const key of Object.keys(state.collisions)) if (state.time - state.collisions[key] > 5) delete state.collisions[key];
@@ -464,7 +495,7 @@ function stepRace(state, commands = {}) {
 }
 
 // src/multiplayer/protocol.ts
-var NET_VERSION = 4;
+var NET_VERSION = 5;
 var MAX_PLAYERS = 8;
 var ROOM_WAIT_MS = 6e4;
 var READY_WAIT_MS = 5e3;
@@ -499,10 +530,12 @@ var secret = () => (0, import_node_crypto.randomBytes)(24).toString("base64url")
 function makeMember(name, now, bikeId) {
   return { id: `human-${(0, import_node_crypto.randomBytes)(8).toString("hex")}`, name: cleanName(name), bikeId: getBike(typeof bikeId === "string" ? bikeId : void 0).id, ready: false, connected: true, token: secret(), epoch: secret(), lastSeen: now };
 }
-function makeRoom(code, trackId, member, now, fillBots = false) {
+function makeRoom(code, trackId, member, now, fillBots = false, condition) {
   if (!TRACKS.some((t) => t.id === trackId)) throw new Error("Estrada inv\xE1lida.");
+  if (condition !== void 0 && !CONDITIONS.some((c) => c.id === condition)) throw new Error("Condi\xE7\xE3o inv\xE1lida.");
   return {
     code,
+    condition: raceCondition(condition),
     trackId,
     fillBots: fillBots === true,
     phase: "lobby",
@@ -521,6 +554,7 @@ function makeRoom(code, trackId, member, now, fillBots = false) {
 function viewRoom(room, now) {
   return {
     code: room.code,
+    condition: raceCondition(room.condition),
     trackId: room.trackId,
     fillBots: room.fillBots,
     phase: room.phase,
@@ -551,7 +585,7 @@ function lobbyClock(room, now) {
   if (room.deadline - now <= READY_WAIT_MS) room.locked = true;
   if (now < room.deadline) return;
   room.members = present;
-  room.race = createMultiplayerRace(room.trackId, present, (0, import_node_crypto.randomBytes)(4).readUInt32LE(), room.fillBots);
+  room.race = createMultiplayerRace(room.trackId, present, (0, import_node_crypto.randomBytes)(4).readUInt32LE(), room.fillBots, room.condition);
   room.race.mode = "racing";
   room.race.countdown = 0;
   room.phase = "racing";
@@ -717,7 +751,7 @@ var RedisStore = class {
     } else throw new Error("Configure o Redis do multiplayer no servidor.");
   }
   key(code, field) {
-    return `asfalto:online:v4:{${code}}:${field}`;
+    return `asfalto:online:v${NET_VERSION}:{${code}}:${field}`;
   }
   async create(room) {
     return await this.command("SET", this.key(room.code, "state"), JSON.stringify(room), "NX", "EX", 1800) === "OK";
@@ -919,7 +953,7 @@ function createGameServer(store, options = {}) {
             const member = makeMember(data.name, now(), data.bikeId);
             let room;
             do {
-              room = makeRoom((0, import_node_crypto2.randomBytes)(4).toString("hex").slice(0, 6).toUpperCase(), data.trackId, member, now(), data.fillBots === true);
+              room = makeRoom((0, import_node_crypto2.randomBytes)(4).toString("hex").slice(0, 6).toUpperCase(), data.trackId, member, now(), data.fillBots === true, data.condition);
             } while (!await store.create(room));
             await attach(peer, room, member);
           } else {

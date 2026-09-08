@@ -1,4 +1,5 @@
-import type { Bike, Track } from './types';
+import { brakeGrip, roadGrip } from './conditions';
+import type { Bike, Track, RaceCondition } from './types';
 
 export const BIKES: Bike[] = [
   { id: 'ferro', name: 'Ferro 500', class: 'STREET', style: 'street', price: 0, speed: 64, acceleration: 13.2, handling: 1.1, armor: 1, color: '#dfff71', tagline: 'Equilibrada para aprender a rua. Leve no bolso, firme na pista.' },
@@ -49,11 +50,11 @@ export function cornerSpeed(curve: number, handling = 1.1) {
 }
 // Braking envelope: account for the distance still available before each bend.
 // Used by AI and the HUD; movement itself never applies an automatic brake.
-export function cornerPace(z: number, trackId: string, handling = 1.1) {
+export function cornerPace(z: number, trackId: string, handling = 1.1, condition: RaceCondition = 'sunset') {
   let speed = 120;
   for (let ahead = 0; ahead <= 240; ahead += 20) {
-    const safe = cornerSpeed(curveAt(z + ahead, trackId), handling);
-    speed = Math.min(speed, Math.sqrt(safe * safe + 2 * 19 * Math.max(0, ahead - 12)));
+    const safe = cornerSpeed(curveAt(z + ahead, trackId), handling * roadGrip(condition));
+    speed = Math.min(speed, Math.sqrt(safe * safe + 2 * 19 * brakeGrip(condition) * Math.max(0, ahead - 12)));
   }
   return speed;
 }
@@ -66,9 +67,9 @@ export function cornerForces(speed: number, handling: number, curve: number, sho
     sliding: excess > .2,
   };
 }
-export function upcomingCorner(z: number, trackId: string, handling = 1.1) {
+export function upcomingCorner(z: number, trackId: string, handling = 1.1, condition: RaceCondition = 'sunset') {
   const c = trackCorners(trackId).find(c => c.end - 35 > z && c.start - z <= 240);
-  return c ? { direction: c.bend > 0 ? 'right' : 'left', distance: Math.max(0, Math.round(c.start - z)), speed: Math.floor(cornerSpeed(c.bend, handling) * 3.6 / 5) * 5, tight: Math.abs(c.bend) >= 2 } : null;
+  return c ? { direction: c.bend > 0 ? 'right' : 'left', distance: Math.max(0, Math.round(c.start - z)), speed: Math.floor(cornerSpeed(c.bend, handling * roadGrip(condition)) * 3.6 / 5) * 5, tight: Math.abs(c.bend) >= 2 } : null;
 }
 export function elevationAt(z: number, trackId: string) {
   const i = getTrack(trackId).index;
