@@ -93,3 +93,10 @@ Original prompt: Build a classic Snake game in this repo.
 - 14 pastas de jogos incluídas, com URLs curtas /<jogo>/; bibliotecas Phaser/Three locais. Site principal existente preservado por proxy ao Firebase fir-d4471.web.app, conforme pedido do usuário.
 - Branch de infraestrutura codex/vps-centralizacao em mauriciokj/vibe_jogos. Checkout original de Jogos e mudanças locais do River Raid não alterados.
 - Em validação: deploy real, HTTPS, navegadores, sala com 8 participantes e troca do DNS principal. Histórico do Rio de Aço permanece no Upstash, leitura bloqueada pela cota antiga.
+
+### VPS publicada e validada
+
+- Release 20260908T184536Z-2827421 ativa, branch codex/vps-centralizacao enviada ao GitHub. HTTPS Asfalto + catálogo /catalogo/ disponíveis.
+- 12 jogos do catálogo sem erros de carregamento; Enduro legado adicional corrigido e iniciado. Partida individual preservada, 2 navegadores + 6 bots e benchmark de 8 clientes concluídos. Detalhes em infra/vps/VALIDATION.md.
+- Arquivos da página inicial preservados byte a byte via proxy Firebase; fonte e Firestore não alterados.
+- Pendências externas: A de @ ainda 199.36.158.100; usuário recebeu instrução para 2.25.126.149. Verificar HTTPS principal depois da mudança. Histórico River Raid preso na cota Upstash, não apagado.
