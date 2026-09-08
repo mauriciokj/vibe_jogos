@@ -714,7 +714,7 @@ function createGameServer(store, options = {}) {
     res.setHeader("Cache-Control", "no-store");
     res.setHeader("Content-Type", "application/json");
     res.statusCode = 200;
-    res.end(JSON.stringify({ service: "asfalto-bruto", version: NET_VERSION, multiplayer: true, sharedRooms: store.shared }));
+    res.end(JSON.stringify({ service: "asfalto-bruto", version: NET_VERSION, multiplayer: true, sharedRooms: store.shared, region: process.env.VERCEL_REGION ?? "local" }));
   });
   const wss = new import_ws.WebSocketServer({ noServer: true, maxPayload: 4096, perMessageDeflate: false });
   server2.on("upgrade", (req, socket, head) => {

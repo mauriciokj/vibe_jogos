@@ -16,7 +16,7 @@ export function createGameServer(store: RoomStore, options: { origins?: string[]
   const limits = new Map<string,{ at: number; count: number }>();
   const server = createServer((req,res) => {
     res.setHeader('Cache-Control','no-store'); res.setHeader('Content-Type','application/json');
-    res.statusCode = 200; res.end(JSON.stringify({service:'asfalto-bruto',version:NET_VERSION,multiplayer:true,sharedRooms:store.shared}));
+    res.statusCode = 200; res.end(JSON.stringify({service:'asfalto-bruto',version:NET_VERSION,multiplayer:true,sharedRooms:store.shared,region:process.env.VERCEL_REGION ?? 'local'}));
   });
   const wss = new WebSocketServer({noServer:true,maxPayload:4096,perMessageDeflate:false});
   server.on('upgrade',(req,socket,head) => {

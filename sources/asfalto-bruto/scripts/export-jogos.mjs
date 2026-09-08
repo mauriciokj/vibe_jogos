@@ -24,7 +24,7 @@ const pkgPath=path.join(destination,'package.json'),pkg=JSON.parse(await fs.read
 const local=JSON.parse(await fs.readFile(path.join(source,'package.json'),'utf8'));
 pkg.dependencies={...pkg.dependencies,ws:local.dependencies.ws,ioredis:local.dependencies.ioredis};await fs.writeFile(pkgPath,JSON.stringify(pkg,null,2)+'\n');
 const configPath=path.join(destination,'vercel.json'),config=JSON.parse(await fs.readFile(configPath,'utf8'));
-config.functions={...config.functions,'api/asfalto.js':{maxDuration:300}};await fs.writeFile(configPath,JSON.stringify(config,null,2)+'\n');
+config.functions={...config.functions,'api/asfalto.js':{maxDuration:300,regions:['gru1']}};await fs.writeFile(configPath,JSON.stringify(config,null,2)+'\n');
 const ignores=path.join(destination,'.vercelignore');const ignore=await fs.readFile(ignores,'utf8');if(!ignore.includes('sources/asfalto-bruto'))await fs.appendFile(ignores,'\nsources/asfalto-bruto\n');
 const catalogPath=path.join(destination,'index.html');let catalog=await fs.readFile(catalogPath,'utf8');
 if(!catalog.includes('/games/asfalto-bruto/'))catalog=catalog.replace('<section class="grid">',`<section class="grid">\n        <a class="card" href="/games/asfalto-bruto/">\n          <h2>Asfalto Bruto</h2>\n          <p>Corrida e combate de motos. Jogue sozinho ou crie uma sala online para 2 a 8 pessoas.</p>\n          <span class="pill">Corrida · Multiplayer</span>\n        </a>\n`);

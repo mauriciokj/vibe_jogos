@@ -14,7 +14,10 @@
   "trailingSlash": true,
   "functions": {
     "api/asfalto.js": {
-      "maxDuration": 300
+      "maxDuration": 300,
+      "regions": [
+        "gru1"
+      ]
     }
   }
 }
