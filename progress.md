@@ -100,3 +100,11 @@ Original prompt: Build a classic Snake game in this repo.
 - 12 jogos do catálogo sem erros de carregamento; Enduro legado adicional corrigido e iniciado. Partida individual preservada, 2 navegadores + 6 bots e benchmark de 8 clientes concluídos. Detalhes em infra/vps/VALIDATION.md.
 - Arquivos da página inicial preservados byte a byte via proxy Firebase; fonte e Firestore não alterados.
 - Pendências externas: A de @ ainda 199.36.158.100; usuário recebeu instrução para 2.25.126.149. Verificar HTTPS principal depois da mudança. Histórico River Raid preso na cota Upstash, não apagado.
+
+### DNS principal e HTTPS concluídos — 2026-09-08
+
+- Usuário alterou A de @ para 2.25.126.149; Google/Cloudflare confirmaram. Certificados públicos de flowofdevelopment.com e www emitidos automaticamente às 19:02 UTC.
+- Homepage, arquivos e dados do Firebase preservados; catálogo e Xadrez verificados visualmente sem erros. HTML dos 13 pontos de entrada de jogos corresponde à release na VPS.
+- Corrida entre domínio principal e subdomínio com 2 navegadores + 6 bots, curvas e reconexão passou. Serviços não reiniciados.
+- Propagação ainda apresentava cache antigo na conexão local; testes apontaram temporariamente para a VPS mantendo a validação TLS. Nenhuma ação adicional de DNS necessária. Detalhes em infra/vps/VALIDATION.md.
+- Única pendência da migração de dados: recuperar placares históricos do Rio de Aço quando o Upstash permitir leitura.

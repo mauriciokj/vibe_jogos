@@ -6,7 +6,7 @@ O catálogo e os jogos versionados neste repositório podem ser publicados junto
 
 - VPS: `2.25.126.149`, Ubuntu 26.04, 1 vCPU e 4 GB de RAM.
 - `asfaltobruto.flowofdevelopment.com` abre o Asfalto Bruto em `/asfalto-bruto/`.
-- Catálogo inicial: `http://2.25.126.149/` ou `/catalogo/` no subdomínio.
+- Catálogo: `https://flowofdevelopment.com/catalogo/`; também disponível em `/catalogo/` no subdomínio e em `http://2.25.126.149/`.
 - `flowofdevelopment.com/<jogo>/`: cada jogo possui uma rota curta, por exemplo `/river-raid-3d/` e `/snake-classic/`. A página inicial, seus assets, login e rotas restantes continuam no Firebase por proxy para `fir-d4471.web.app`, preservando o site atual e suas futuras publicações. O catálogo está em `/catalogo/`.
 - `/srv/vibe-jogos/releases/<release>/public/`: apenas arquivos públicos. Código dos serviços fica em `services/`, fora da raiz web.
 - `/srv/vibe-jogos/current`: link para a release ativa; `previous` guarda a anterior.

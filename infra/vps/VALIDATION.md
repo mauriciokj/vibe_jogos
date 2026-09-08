@@ -12,9 +12,20 @@ Release em execução: `20260908T184536Z-2827421`, código `28274213245016aded76
 - Backup SQLite executado, integridade verificada e uma cópia trazida para a máquina local. Timer diário ativo; retenção de 14 dias no servidor.
 - A configuração do domínio principal foi testada usando seu cabeçalho Host através do HTTPS já disponível. HTML, JS, CSS e ícone da página inicial coincidem byte a byte com os arquivos atuais do Firebase. Não houve alteração no projeto `flowofdevelopment/game-platform` nem em sua base de usuários/jogos.
 
-## Pendente de ação externa
+## Domínio principal ativado — 2026-09-08, 19:02 UTC
 
-O A de `flowofdevelopment.com` ainda retornava `199.36.158.100` ao concluir os testes. Para ativar as rotas `/nome-do-jogo/` no domínio principal, trocar o A de `@` para `2.25.126.149`; `www` pode permanecer CNAME do domínio principal. Depois da propagação, validar certificado e as rotas públicas do domínio principal. O Asfalto e o catálogo no subdomínio já estão acessíveis.
+O usuário alterou o A de `@` para `2.25.126.149`. Google e Cloudflare confirmaram o novo endereço; `www` permanece CNAME do domínio principal. O Caddy emitiu certificados Let's Encrypt para `flowofdevelopment.com` às 19:02:06 UTC e `www.flowofdevelopment.com` às 19:02:09 UTC, sem reiniciar os serviços.
+
+- HTTPS dos dois hosts validado com verificação normal do certificado.
+- HTML, JS, CSS e ícone da página inicial comparados byte a byte com o Firebase através de cada host; conteúdo preservado.
+- HTML dos 13 pontos de entrada de jogos (12 do catálogo e Enduro legado) no domínio principal coincide com a release publicada. Catálogo, multiplayer e placares responderam corretamente nos dois hosts.
+- Página inicial com dados do Firebase, catálogo e Xadrez renderizados e screenshots inspecionados, sem erros JavaScript ou respostas HTTP de erro.
+- Partida cruzando os dois domínios: um navegador em `flowofdevelopment.com`, outro em `asfaltobruto.flowofdevelopment.com`, seis bots, início, curvas e reconexão validados.
+- A conexão local ainda recebia respostas DNS antigas durante a propagação. Os testes HTTP usaram `curl --resolve` e os testes Chromium um mapeamento temporário de resolução para a VPS; a validação TLS ficou habilitada. Nenhuma configuração DNS/hosts permanente da máquina foi alterada. Algumas redes podem continuar acessando o destino anterior até seus caches expirarem.
+
+Artefatos desta etapa em `road rash/output/domain-cutover/` e `road rash/output/vps/domain-http-check.json`.
+
+## Pendente: placares históricos
 
 Os placares históricos do Rio de Aço continuam no Upstash; a leitura permanece bloqueada pela cota. Nenhum registro antigo foi apagado. Importar esses dados quando o acesso for recuperado.
 

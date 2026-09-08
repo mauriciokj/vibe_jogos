@@ -5,9 +5,9 @@
 - Servidor: `root@2.25.126.149`.
 - Código: https://github.com/mauriciokj/vibe_jogos/tree/codex/vps-centralizacao
 - Asfalto Bruto: https://asfaltobruto.flowofdevelopment.com/
-- Outros jogos: `https://flowofdevelopment.com/<pasta-do-jogo>/` após o DNS principal apontar para a VPS.
+- Outros jogos: `https://flowofdevelopment.com/<pasta-do-jogo>/` (DNS e HTTPS ativados em 2026-09-08).
 - A página inicial atual é preservada por proxy para o Firebase, inclusive suas futuras atualizações.
-- Catálogo: `/catalogo/`; acesso inicial por IP: http://2.25.126.149/.
+- Catálogo: https://flowofdevelopment.com/catalogo/; acesso alternativo por IP: http://2.25.126.149/.
 
 A publicação na VPS é explícita: `npm run deploy:vps -- root@2.25.126.149` a partir de um checkout limpo. Consulte [infra/vps/README.md](infra/vps/README.md) para instalação, testes, backups, atualização e rollback. Push ao GitHub sozinho não atualiza a VPS.
 
