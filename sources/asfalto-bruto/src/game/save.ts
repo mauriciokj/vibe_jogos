@@ -1,3 +1,4 @@
+import { WEAPONS, equippedWeapon, getWeapon } from './weapons';
 import { CONDITIONS, raceCondition, recordKey } from './conditions';
 import { BIKES, TRACKS, clamp, getTrack } from './content';
 import { KNEE_PADS, NITRO_PRICE, equippedKneePad, getKneePad, nitroCount } from './equipment';
@@ -22,6 +23,8 @@ export function loadSave(): SaveData {
     valid.races = Number.isFinite(saved.races) ? Math.max(0, saved.races) : 0;
     valid.muted = saved.muted === true;
     valid.raceCondition = raceCondition(saved.raceCondition);
+    if(Array.isArray(saved.ownedWeapons))valid.ownedWeapons=WEAPONS.filter(w=>saved.ownedWeapons.includes(w.id)).map(w=>w.id);
+    const weapon=equippedWeapon({...valid,weaponId:saved.weaponId});if(weapon)valid.weaponId=weapon.id;
     if (Array.isArray(saved.ownedKneePads)) valid.ownedKneePads=KNEE_PADS.filter(p=>saved.ownedKneePads.includes(p.id)).map(p=>p.id);
     const pad=equippedKneePad({...valid,kneePadId:saved.kneePadId});if(pad)valid.kneePadId=pad.id;
     if(saved.nitro && typeof saved.nitro==='object')valid.nitro=Object.fromEntries(valid.owned.filter(id=>saved.nitro[id]!==undefined).map(id=>[id,nitroCount(id,saved.nitro[id])]));
@@ -42,6 +45,12 @@ export function persist(save: SaveData): boolean {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); return true; } catch { return false; }
 }
 export function repairCost(save: SaveData, bikeId = save.bikeId) { return Math.ceil((100 - (save.condition[bikeId] ?? 100)) * 4); }
+export function buyWeapon(save: SaveData, id: string): boolean {
+  const weapon=getWeapon(id);if(!weapon)return false;
+  const owned=save.ownedWeapons ?? [];
+  if(!owned.includes(id)){if(save.cash<weapon.price)return false;save.cash-=weapon.price;save.ownedWeapons=[...owned,id];}
+  save.weaponId=id;return true;
+}
 export function buyKneePad(save: SaveData, id: string): boolean {
   const pad=getKneePad(id);if(!pad)return false;
   const owned=save.ownedKneePads ?? [];

@@ -1,3 +1,4 @@
+import { jumpHeight, stunting } from './stunts';
 import { conditionTrack } from './conditions';
 import { clamp, curveAt, elevationAt, getBike, getTrack } from './content';
 import { MIRROR_RANGE, raceAwareness } from './awareness';
@@ -96,9 +97,9 @@ export class RaceInstruments {
         c.fillStyle='#293e48';c.fillRect(-size*.32,-size*.6,size*.64,size*.22);
         c.fillStyle=e.car.speed>=0?'#fff0b8':'#f78061';c.fillRect(-size*.4,-size*.28,size*.2,size*.1);c.fillRect(size*.2,-size*.28,size*.2,size*.1);
       }else if(e.r){
-        const r=e.r,support=kneeSupport(r,curveAt(r.z,state.trackId));c.rotate(r.crash?1.2:-(r.lean*(1-support)+support*(r.kneeSide ?? 0)*.59));
+        const r=e.r; c.translate(0,-jumpHeight(r)*p.scale); const support=kneeSupport(r,curveAt(r.z,state.trackId));c.rotate(r.crash?1.2:-(r.lean*(1-support)+support*(r.kneeSide ?? 0)*.59));
         const width=size*88/128;
-        c.drawImage(bikeFrontSprite(r.color,getBike(r.bikeId).style,r.attack?.kind ?? 'ride',r.attack?.side ?? 1,r.profile==='police',Math.floor(state.time*8)%3,getKneePad(r.kneePadId)?.color,support>.35?-(r.kneeSide ?? 0):0),-width/2,-size,width,size);
+        c.drawImage(bikeFrontSprite(r.color,getBike(r.bikeId).style,r.attack?.kind ?? 'ride',r.attack?.side ?? 1,r.profile==='police',Math.floor(state.time*8)%3,getKneePad(r.kneePadId)?.color,support>.35?-(r.kneeSide ?? 0):0,r.weaponId,stunting(r)),-width/2,-size,width,size);
       }
       c.restore();
     }

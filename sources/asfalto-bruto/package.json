@@ -19,7 +19,8 @@
     "test:tactics": "tsx tests/tactics-browser.ts",
     "test:bikes": "tsx tests/bikes-browser.ts",
     "test:conditions": "tsx tests/conditions-browser.ts",
-    "test:equipment": "tsx tests/equipment-browser.ts"
+    "test:equipment": "tsx tests/equipment-browser.ts",
+    "test:stunts": "tsx tests/stunts-weapons-browser.ts"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

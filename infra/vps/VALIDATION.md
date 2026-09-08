@@ -79,3 +79,12 @@ Artefatos locais estão em `road rash/output/vps/`: `live-check.json`, `eight.js
 - HTTPS público: compras pela garagem, limite de nitro, manobra individual e balão. Sala entre subdomínio e domínio principal com dois humanos e seis bots confirmou equipamentos, ações compartilhadas, restrição de chopper e consumo persistido após reconexão sem débito duplicado.
 - Os dois clientes saíram explicitamente. Nenhum erro JavaScript/console. Relatório `output/equipment/published-check.json`; capturas da garagem, manobra com balão e corrida online inspecionadas em `output/equipment/published-*.png` no projeto de origem.
 - O domínio principal usou mapeamento DNS temporário no Chromium mantendo validação TLS. Conteúdo dos demais jogos e homepage preservado. Este registro posterior à release não requer nova ativação.
+
+## Empinada e combate permanente — validação local
+
+- Empinada por toque duplo no acelerador (teclado/analógico), três ativações por corrida, salto automático sobre um carro na contramão. Vans/caminhões/segundo carro continuam colidindo; sem proteção geral. Protocolo v7 preserva ações e usos na reconexão.
+- Garagem Combate: garrafa $650/dano24, beisebol $1.500/dano38 e corrente $2.400/dano32, com alcance/cadência próprios. Equipamentos comprados permanecem salvos no v1 e não são roubados nem perdidos; disponíveis no individual e online.
+- 73 testes passaram, incluindo corridas completas secas/chuvosas. Nova cobertura de salto, aterrissagem, três usos, consumo/reconexão, colisões e prisão, propriedades/danos/alcances e normalização no servidor. Revisão da prévia de ataque no salto validada com 14 testes de manobra/rede.
+- Navegador: compras/persistência, três sprites de combate, empinada/salto/aterrissagem, pausa/reinício/exaustão, caminhão de teste, duplo gesto nativo no celular, dois humanos + seis bots, salto compartilhado e corrente a maior distância. Regressão de joelheiras/nitro/buzina/balões/analógicos também passou, sem erros JS/console.
+- Capturas inspecionadas em `output/stunts-weapons/`. O caminhão está preparado para a futura pista Porto Ferrugem; o tráfego atual continua carros/vans. A aparição decorativa do homem pendurado permanece no planejamento do Porto, conforme escopo comunicado.
+- A ativação e a verificação pública serão registradas após a publicação.

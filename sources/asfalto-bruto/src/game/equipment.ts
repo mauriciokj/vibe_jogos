@@ -25,7 +25,7 @@ const ramp = (value: number) => Math.max(0,Math.min(1,value));
 // Double-tap activates the technique; grip builds smoothly in the chosen bend.
 // Choppers, straights, shoulders and low speeds receive no knee bonus.
 export function kneeSupport(rider: Rider, curve: number) {
-  if(!getKneePad(rider.kneePadId) || !supportsKneeDown(rider.bikeId) || !(rider.kneeTime!>0) || rider.kneeSide!==Math.sign(curve) || rider.crash || rider.out || rider.finishedAt!==null || Math.abs(rider.x)>7)return 0;
+  if((rider.wheelieTime ?? 0)>0 || (rider.jumpTime ?? 0)>0 || !getKneePad(rider.kneePadId) || !supportsKneeDown(rider.bikeId) || !(rider.kneeTime!>0) || rider.kneeSide!==Math.sign(curve) || rider.crash || rider.out || rider.finishedAt!==null || Math.abs(rider.x)>7)return 0;
   return ramp((rider.speed-20)/10)*ramp((Math.abs(curve)-.15)/.5);
 }
 export function cornerHandling(rider: Rider, curve: number) {

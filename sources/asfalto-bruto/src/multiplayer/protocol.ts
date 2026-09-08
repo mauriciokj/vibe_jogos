@@ -1,14 +1,14 @@
 import type { AttackKind, Command, RaceState, RaceCondition, RiderAction } from '../game/types';
 
-export const NET_VERSION = 6;
+export const NET_VERSION = 7;
 export const MAX_PLAYERS = 8;
 export const ROOM_WAIT_MS = 60_000;
 export const READY_WAIT_MS = 5_000;
 export const RECONNECT_MS = 15_000;
-export interface MemberView { id: string; name: string; bikeId: string; kneePadId?: string; nitro?: number; ready: boolean; connected: boolean; }
+export interface MemberView { id: string; name: string; bikeId: string; weaponId?: string; kneePadId?: string; nitro?: number; ready: boolean; connected: boolean; }
 export interface AttackInput { seq: number; kind: AttackKind; }
 export interface ActionInput { seq: number; kind: RiderAction; }
-export interface Loadout { kneePadId?: string; nitro?: number; }
+export interface Loadout { weaponId?: string; kneePadId?: string; nitro?: number; }
 export interface RoomView {
   code: string; trackId: string; condition?: RaceCondition; fillBots: boolean; phase: 'lobby' | 'racing' | 'finished'; locked: boolean;
   deadline: number | null; serverNow: number; revision: number; members: MemberView[];
@@ -56,7 +56,7 @@ export function cleanActions(value: unknown): ActionInput[] | null {
   if(!Array.isArray(value) || value.length>8)return null;
   let previous=0;const actions:ActionInput[]=[];
   for(const a of value){
-    if(!a || !Number.isSafeInteger(a.seq) || a.seq<=previous || !['kneeLeft','kneeRight','nitro','horn','taunt'].includes(a.kind))return null;
+    if(!a || !Number.isSafeInteger(a.seq) || a.seq<=previous || !['kneeLeft','kneeRight','nitro','horn','taunt','wheelie'].includes(a.kind))return null;
     actions.push({seq:a.seq,kind:a.kind});previous=a.seq;
   }
   return actions;

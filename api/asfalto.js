@@ -42,6 +42,54 @@ var import_node_crypto2 = require("node:crypto");
 var import_node_net = require("node:net");
 var import_ws = require("ws");
 
+// src/game/weapons.ts
+var WEAPONS = [
+  { id: "bottle", name: "Garrafa", price: 650, damage: 24, reach: 2.7, longitudinal: 4.8, windup: 0.12, duration: 0.34, cooldown: 0.5, push: 0.35, action: "GARRAFADA", description: "R\xE1pida e de curto alcance. Boa para golpes seguidos." },
+  { id: "bat", name: "Bast\xE3o de beisebol", price: 1500, damage: 38, reach: 3.4, longitudinal: 5.7, windup: 0.23, duration: 0.5, cooldown: 0.78, push: 0.75, action: "BASTONADA", description: "O golpe mais forte. Exige chegar perto e acertar o tempo." },
+  { id: "chain", name: "Corrente", price: 2400, damage: 32, reach: 4.5, longitudinal: 6.2, windup: 0.3, duration: 0.64, cooldown: 0.94, push: 0.55, action: "CORRENTADA", description: "Maior alcance, com mais tempo entre os golpes." }
+];
+function getWeapon(id) {
+  return WEAPONS.find((w) => w.id === id);
+}
+function equippedWeapon(save) {
+  return save?.ownedWeapons?.includes(save.weaponId ?? "") ? getWeapon(save.weaponId) : void 0;
+}
+
+// src/game/stunts.ts
+var WHEELIE_USES = 3;
+var WHEELIE_DURATION = 2.4;
+var WHEELIE_MIN_SPEED = 20;
+var JUMP_DURATION = 1;
+var wheeliesLeft = (r) => r.wheeliesLeft ?? WHEELIE_USES;
+var stunting = (r) => (r.wheelieTime ?? 0) > 0 || (r.jumpTime ?? 0) > 0;
+function jumpHeight(r) {
+  return !(r.jumpTime > 0) || r.crash || r.out || r.finishedAt !== null ? 0 : Math.max(0, Math.sin(Math.PI * (1 - (r.jumpTime ?? 0) / JUMP_DURATION))) * 2.2;
+}
+function cancelStunt(r) {
+  r.wheelieTime = 0;
+  r.jumpTime = 0;
+  r.jumpTarget = void 0;
+}
+function advanceStunt(state, rider, command, dt) {
+  if (rider.jumpTime) {
+    rider.jumpTime = Math.max(0, rider.jumpTime - dt);
+    if (!rider.jumpTime) rider.jumpTarget = void 0;
+  }
+  if (!rider.wheelieTime) return;
+  rider.wheelieTime = Math.max(0, rider.wheelieTime - dt);
+  if (command.brake > 0.2 || rider.speed < WHEELIE_MIN_SPEED || Math.abs(rider.x) > 7) rider.wheelieTime = 0;
+  if (!rider.wheelieTime) return;
+  const target = state.traffic.filter((t) => t.kind === "car" && t.speed < 0 && Math.abs(t.x - rider.x) < 1.7).map((t) => ({ t, ttc: (t.z - rider.z) / (rider.speed - t.speed) })).filter(({ ttc }) => ttc >= 0.16 && ttc <= 0.38).sort((a, b) => a.ttc - b.ttc)[0]?.t;
+  if (!target) return;
+  rider.wheelieTime = 0;
+  rider.jumpTime = JUMP_DURATION;
+  rider.jumpTarget = target.id;
+  rider.attack = null;
+}
+function clearsCar(rider, traffic) {
+  return traffic.kind === "car" && traffic.speed < 0 && rider.jumpTarget === traffic.id && (rider.jumpTime ?? 0) > 0 && jumpHeight(rider) > 1.1;
+}
+
 // src/game/conditions.ts
 var CONDITIONS = [
   { id: "day", name: "Dia", icon: "\u2600", description: "C\xE9u aberto e boa visibilidade." },
@@ -109,7 +157,7 @@ function equippedKneePad(save) {
 }
 var ramp = (value) => Math.max(0, Math.min(1, value));
 function kneeSupport(rider, curve) {
-  if (!getKneePad(rider.kneePadId) || !supportsKneeDown(rider.bikeId) || !(rider.kneeTime > 0) || rider.kneeSide !== Math.sign(curve) || rider.crash || rider.out || rider.finishedAt !== null || Math.abs(rider.x) > 7) return 0;
+  if ((rider.wheelieTime ?? 0) > 0 || (rider.jumpTime ?? 0) > 0 || !getKneePad(rider.kneePadId) || !supportsKneeDown(rider.bikeId) || !(rider.kneeTime > 0) || rider.kneeSide !== Math.sign(curve) || rider.crash || rider.out || rider.finishedAt !== null || Math.abs(rider.x) > 7) return 0;
   return ramp((rider.speed - 20) / 10) * ramp((Math.abs(curve) - 0.15) / 0.5);
 }
 function cornerHandling(rider, curve) {
@@ -220,6 +268,9 @@ var ATTACKS = {
   kick: { windup: 0.25, duration: 0.52, cooldown: 0.8, reach: 2.6, longitudinal: 4.6, damage: 22, push: 1.1 },
   weapon: { windup: 0.21, duration: 0.48, cooldown: 0.72, reach: 3.6, longitudinal: 5.7, damage: 30, push: 0.55 }
 };
+function attackSpec(rider, kind) {
+  return kind === "weapon" ? getWeapon(rider.weaponId) ?? ATTACKS.weapon : ATTACKS[kind];
+}
 function random(state) {
   let n = state.rng;
   n ^= n << 13;
@@ -229,7 +280,7 @@ function random(state) {
   return state.rng / 4294967296;
 }
 function makeRider(id, name, profile, color, x, z) {
-  return { id, name, profile, color, bikeId: "ferro", x, z, speed: 0, lean: 0, health: 100, integrity: 100, maxSpeed: 55, acceleration: 10, handling: 1, armor: 1, weapon: false, attack: null, cooldown: 0, crash: 0, immune: 0, targetX: x, decisionAt: 0, finishedAt: null, hits: 0, falls: 0 };
+  return { id, name, profile, color, bikeId: "ferro", x, z, speed: 0, lean: 0, health: 100, integrity: 100, maxSpeed: 55, acceleration: 10, handling: 1, armor: 1, weapon: false, wheeliesLeft: WHEELIE_USES, attack: null, cooldown: 0, crash: 0, immune: 0, targetX: x, decisionAt: 0, finishedAt: null, hits: 0, falls: 0 };
 }
 function stockBike(id) {
   const bike = getBike(id);
@@ -239,6 +290,8 @@ function createRace(trackId = "costa", save, seed = 88117, condition = "sunset")
   const bike = getBike(save?.bikeId);
   const up = save?.upgrades[bike.id] ?? { engine: 0, armor: 0, handling: 0 };
   const player = makeRider("player", "VOC\xCA", "player", bike.color, 1.7, 0);
+  const weapon = equippedWeapon(save);
+  if (weapon) player.weaponId = weapon.id;
   const pad = equippedKneePad(save);
   if (pad) player.kneePadId = pad.id;
   const nitro = nitroCount(bike.id, save?.nitro?.[bike.id]);
@@ -275,8 +328,9 @@ function ranking(state) {
   });
 }
 function nearestTarget(state, rider, kind = "weapon") {
-  const info = ATTACKS[kind];
-  return state.riders.filter((r) => r.id !== rider.id && !r.out && !r.crash && !r.immune && r.finishedAt === null && Math.abs(r.z - rider.z) < info.longitudinal && Math.abs(r.x - rider.x) < info.reach).sort((a, b) => Math.abs(a.z - rider.z) + Math.abs(a.x - rider.x) - Math.abs(b.z - rider.z) - Math.abs(b.x - rider.x))[0];
+  if ((rider.jumpTime ?? 0) > 0) return void 0;
+  const info = attackSpec(rider, kind);
+  return state.riders.filter((r) => r.id !== rider.id && !(r.jumpTime > 0) && !r.out && !r.crash && !r.immune && r.finishedAt === null && Math.abs(r.z - rider.z) < info.longitudinal && Math.abs(r.x - rider.x) < info.reach).sort((a, b) => Math.abs(a.z - rider.z) + Math.abs(a.x - rider.x) - Math.abs(b.z - rider.z) - Math.abs(b.x - rider.x))[0];
 }
 function crashRider(state, rider, force = false) {
   if (rider.crash || rider.immune && !force) return;
@@ -287,12 +341,19 @@ function crashRider(state, rider, force = false) {
   rider.kneeTime = 0;
   rider.nitroTime = 0;
   rider.speech = void 0;
+  cancelStunt(rider);
   rider.falls++;
   state.events.push({ type: "crash", actor: rider.id, text: "NO CH\xC3O! \u2212TEMPO \xB7 \u2212MOTO" });
 }
 function performAction(state, rider, action) {
   if (state.mode !== "racing" || rider.out || rider.crash || rider.finishedAt !== null) return;
-  if (action === "kneeLeft" || action === "kneeRight") {
+  if (action === "wheelie") {
+    if (stunting(rider) || wheeliesLeft(rider) <= 0 || rider.speed < WHEELIE_MIN_SPEED || Math.abs(rider.x) > ROAD_HALF || rider.immune) return;
+    rider.wheeliesLeft = wheeliesLeft(rider) - 1;
+    rider.wheelieTime = WHEELIE_DURATION;
+    rider.kneeTime = 0;
+  } else if (action === "kneeLeft" || action === "kneeRight") {
+    if (stunting(rider)) return;
     if (!getKneePad(rider.kneePadId) || !supportsKneeDown(rider.bikeId) || rider.speed < 20 || Math.abs(rider.x) > ROAD_HALF) return;
     if (raceCondition(state.condition) === "rain") {
       crashRider(state, rider, true);
@@ -335,12 +396,12 @@ function botCommand(state, rider) {
   let target = rider.targetX;
   let brake = 0;
   const dangers = [...state.traffic, ...state.obstacles].filter((t) => t.z - rider.z > -7 && t.z - rider.z < 30 + rider.speed * 1.5);
-  if (dangers.some((t) => Math.min(Math.abs(t.x - rider.x), Math.abs(t.x - target)) < 2.8)) {
+  if (dangers.some((t) => Math.min(Math.abs(t.x - rider.x), Math.abs(t.x - target)) < (t.kind === "truck" ? 3.2 : 2.8))) {
     const candidates = [-5.25, -1.75, 1.75, 5.25];
-    const cost = (lane) => Math.abs(lane - rider.x) * 0.35 + dangers.reduce((sum, t) => sum + (Math.abs(t.x - lane) < 2.8 ? 30 - Math.max(0, t.z - rider.z) * 0.04 : 0), 0);
+    const cost = (lane) => Math.abs(lane - rider.x) * 0.35 + dangers.reduce((sum, t) => sum + (Math.abs(t.x - lane) < (t.kind === "truck" ? 3.2 : 2.8) ? 30 - Math.max(0, t.z - rider.z) * 0.04 : 0), 0);
     target = candidates.sort((a, b) => cost(a) - cost(b))[0];
     rider.targetX = target;
-    if (dangers.some((t) => t.z - rider.z < rider.speed * 0.4 && Math.abs(t.x - rider.x) < 2.5)) brake = 0.7;
+    if (dangers.some((t) => t.z - rider.z < rider.speed * 0.4 && Math.abs(t.x - rider.x) < (t.kind === "truck" ? 3.1 : 2.5))) brake = 0.7;
   }
   for (const other of state.riders) {
     if (other.id === rider.id) continue;
@@ -373,6 +434,7 @@ function applyCommand(state, rider, command) {
   if (rider.hornCooldown) rider.hornCooldown = Math.max(0, rider.hornCooldown - STEP);
   if (rider.kneeTime) rider.kneeTime = Math.max(0, rider.kneeTime - STEP);
   if (rider.nitroTime) rider.nitroTime = Math.max(0, rider.nitroTime - STEP);
+  advanceStunt(state, rider, command, STEP);
   if (command.action) performAction(state, rider, command.action);
   if (rider.finishedAt !== null) {
     rider.speed = Math.max(0, rider.speed - STEP * 12);
@@ -409,10 +471,10 @@ function applyCommand(state, rider, command) {
   if (Math.abs(rider.x) > 9.8 && rider.speed > 26 && !rider.immune) {
     rider.integrity -= STEP * 2.2;
   }
-  if (command.attack && !rider.attack && rider.cooldown === 0 && (command.attack !== "weapon" || rider.weapon)) {
+  if (command.attack && !(rider.jumpTime > 0) && !rider.attack && rider.cooldown === 0 && (command.attack !== "weapon" || rider.weapon)) {
     const target = nearestTarget(state, rider, command.attack);
     rider.attack = { kind: command.attack, age: 0, side: target ? Math.sign(target.x - rider.x) || 1 : Math.sign(steering) || 1, hit: false };
-    rider.cooldown = ATTACKS[command.attack].cooldown + (rider.profile === "player" ? 0 : 0.35);
+    rider.cooldown = attackSpec(rider, command.attack).cooldown + (rider.profile === "player" ? 0 : 0.35);
     state.events.push({ type: "attack", actor: rider.id });
   }
 }
@@ -420,7 +482,7 @@ function resolveAttacks(state) {
   for (const rider of state.riders) {
     const attack = rider.attack;
     if (!attack) continue;
-    const spec = ATTACKS[attack.kind];
+    const spec = attackSpec(rider, attack.kind);
     const telegraph = rider.profile === "player" ? 0 : 0.25;
     attack.age += STEP;
     if (attack.age >= spec.windup + telegraph && !attack.hit) {
@@ -429,10 +491,10 @@ function resolveAttacks(state) {
       if (target && (Math.sign(target.x - rider.x) === attack.side || Math.abs(target.x - rider.x) < 0.4)) {
         impact(state, target, spec.damage, attack.side * spec.push);
         rider.hits++;
-        const action = attack.kind === "kick" ? "CHUTE" : attack.kind === "weapon" ? "BASTONADA" : "SOCO";
+        const action = attack.kind === "kick" ? "CHUTE" : attack.kind === "weapon" ? getWeapon(rider.weaponId)?.action ?? "BASTONADA" : "SOCO";
         state.events.push({ type: "hit", actor: rider.id, target: target.id, text: target.id === "player" ? `VOC\xCA LEVOU ${action} \xB7 ${rider.name}` : `${target.name} \xB7 ${action}!` });
         if (rider.profile === "player") state.heat = clamp(state.heat + 12, 0, 100);
-        if (attack.kind === "punch" && target.weapon) {
+        if (attack.kind === "punch" && target.weapon && !getWeapon(target.weaponId)) {
           target.weapon = false;
           rider.weapon = true;
           state.events.push({ type: "steal", actor: rider.id, text: "BAST\xC3O TOMADO!" });
@@ -452,9 +514,10 @@ function resolveCollisions(state, oldZ) {
   for (const r of state.riders) {
     if (r.out || r.crash || r.immune || r.finishedAt !== null) continue;
     for (const t of state.traffic) {
+      if (clearsCar(r, t)) continue;
       const relBefore = t.z - t.speed * STEP - (oldZ.get(r.id) ?? r.z);
       const relNow = t.z - r.z;
-      if ((Math.abs(relNow) < 3.2 || relBefore * relNow < 0) && Math.abs(t.x - r.x) < 2.3 && mayCollide(state, r.id, t.id)) {
+      if ((Math.abs(relNow) < (t.kind === "truck" ? 5.5 : 3.2) || relBefore * relNow < 0) && Math.abs(t.x - r.x) < (t.kind === "truck" ? 2.7 : 2.3) && mayCollide(state, r.id, t.id)) {
         r.integrity = Math.max(0, r.integrity - (t.speed < 0 ? 22 : 14) / r.armor);
         crashRider(state, r);
       }
@@ -488,7 +551,7 @@ function createMultiplayerRace(trackId, players, seed = 88117, fillBots = false,
   const colors = ["#dcff74", "#d87bfa", "#6cdace", "#f28451", "#ebbc5c", "#a4bde2", "#ef6f8a", "#e7e6dc"];
   const base = state.riders[0];
   const bots = state.riders.slice(1);
-  state.riders = players.map((p, i) => ({ ...base, ...stockBike(p.bikeId), kneePadId: getKneePad(p.kneePadId)?.id, nitro: nitroCount(p.bikeId, p.nitro), id: p.id, name: p.name, color: colors[i], x: [-5.1, -1.7, 1.7, 5.1][i % 4], z: -(Math.floor(i / 4) * 8), profile: "player" }));
+  state.riders = players.map((p, i) => ({ ...base, ...stockBike(p.bikeId), weaponId: getWeapon(p.weaponId)?.id, kneePadId: getKneePad(p.kneePadId)?.id, nitro: nitroCount(p.bikeId, p.nitro), id: p.id, name: p.name, color: colors[i], x: [-5.1, -1.7, 1.7, 5.1][i % 4], z: -(Math.floor(i / 4) * 8), profile: "player" }));
   if (fillBots) for (let i = players.length; i < 8; i++) {
     const bot = bots[i - players.length];
     state.riders.push({ ...base, ...stockBike(BIKES[i % BIKES.length].id), id: `cpu-${i}`, name: `${bot.name} CPU`, profile: bot.profile, color: colors[i], x: [-5.1, -1.7, 1.7, 5.1][i % 4], targetX: [-5.1, -1.7, 1.7, 5.1][i % 4], z: -(Math.floor(i / 4) * 8) });
@@ -498,6 +561,8 @@ function createMultiplayerRace(trackId, players, seed = 88117, fillBots = false,
 }
 function finishRider(state, rider, reason, arrestCause) {
   if (state.multiplayer?.results[rider.id] || rider.out) return;
+  cancelStunt(rider);
+  rider.kneeTime = 0;
   if (reason !== "finish") {
     rider.out = reason;
     rider.attack = null;
@@ -605,7 +670,7 @@ function stepRace(state, commands = {}) {
 }
 
 // src/multiplayer/protocol.ts
-var NET_VERSION = 6;
+var NET_VERSION = 7;
 var MAX_PLAYERS = 8;
 var ROOM_WAIT_MS = 6e4;
 var READY_WAIT_MS = 5e3;
@@ -638,7 +703,7 @@ function cleanActions(value) {
   let previous = 0;
   const actions = [];
   for (const a of value) {
-    if (!a || !Number.isSafeInteger(a.seq) || a.seq <= previous || !["kneeLeft", "kneeRight", "nitro", "horn", "taunt"].includes(a.kind)) return null;
+    if (!a || !Number.isSafeInteger(a.seq) || a.seq <= previous || !["kneeLeft", "kneeRight", "nitro", "horn", "taunt", "wheelie"].includes(a.kind)) return null;
     actions.push({ seq: a.seq, kind: a.kind });
     previous = a.seq;
   }
@@ -651,7 +716,7 @@ var inputKey = (member) => `${member.id}:${member.epoch}`;
 var secret = () => (0, import_node_crypto.randomBytes)(24).toString("base64url");
 function makeMember(name, now, bikeId, loadout) {
   const bike = getBike(typeof bikeId === "string" ? bikeId : void 0);
-  return { id: `human-${(0, import_node_crypto.randomBytes)(8).toString("hex")}`, name: cleanName(name), bikeId: bike.id, kneePadId: getKneePad(loadout?.kneePadId)?.id, nitro: nitroCount(bike.id, loadout?.nitro), ready: false, connected: true, token: secret(), epoch: secret(), lastSeen: now };
+  return { id: `human-${(0, import_node_crypto.randomBytes)(8).toString("hex")}`, name: cleanName(name), bikeId: bike.id, weaponId: getWeapon(loadout?.weaponId)?.id, kneePadId: getKneePad(loadout?.kneePadId)?.id, nitro: nitroCount(bike.id, loadout?.nitro), ready: false, connected: true, token: secret(), epoch: secret(), lastSeen: now };
 }
 function makeRoom(code, trackId, member, now, fillBots = false, condition) {
   if (!TRACKS.some((t) => t.id === trackId)) throw new Error("Estrada inv\xE1lida.");
@@ -687,7 +752,7 @@ function viewRoom(room, now) {
     revision: room.revision,
     serverNow: now,
     simulationAt: room.updatedAt,
-    members: room.members.map(({ id, name, bikeId, kneePadId, nitro, ready, connected }) => ({ id, name, bikeId, kneePadId, nitro, ready, connected })),
+    members: room.members.map(({ id, name, bikeId, weaponId, kneePadId, nitro, ready, connected }) => ({ id, name, bikeId, weaponId, kneePadId, nitro, ready, connected })),
     race: room.race,
     ack: room.ack,
     attackAck: room.attackAck,
@@ -789,7 +854,7 @@ function pulseRoom(room, inputs, now) {
       }
       const action = latest.attacks?.find((a) => a.seq > (room.attackAck[m.id] ?? 0));
       if (!action) continue;
-      if (rider.out || rider.crash || rider.finishedAt !== null || action.kind === "weapon" && !rider.weapon) {
+      if (rider.out || rider.crash || (rider.jumpTime ?? 0) > 0 || rider.finishedAt !== null || action.kind === "weapon" && !rider.weapon) {
         room.attackAck[m.id] = action.seq;
         continue;
       }

@@ -1,8 +1,9 @@
+import { jumpHeight, stunting } from './stunts';
 import { conditionTrack, raceCondition, scenicAppearance, seaColors } from './conditions';
 import { mermaidSprite } from './mermaid';
 import { clamp, curveAt, elevationAt, getBike, getTrack } from './content';
 import { nearestTarget, ROAD_HALF } from './simulation';
-import { bikeSprite, carSprite } from './sprites';
+import { bikeSprite, carSprite, truckSprite } from './sprites';
 import { scenerySprite, visualHash } from './scenery';
 import { getKneePad, kneeSupport } from './equipment';
 import { TAUNTS } from './banter';
@@ -331,13 +332,14 @@ export class Renderer {
     c.save(); c.beginPath(); c.rect(0, 0, this.w, player ? this.h : p.clip); c.clip();
     c.fillStyle = '#15293670'; c.beginPath(); c.ellipse(p.x, p.y - 2, width * .4, height * .045, 0, 0, Math.PI * 2); c.fill();
     if (r.immune && Math.floor(state.time * 10) % 2) c.globalAlpha = .48;
-    c.translate(p.x, p.y);
+    const lift=jumpHeight(r)*p.scale;
+    c.translate(p.x, p.y-lift);
     if (r.crash) {
       c.rotate(1.25); c.translate(-height * .23, -width * .14);
       for (let i = 0; i < 8; i++) { c.fillStyle = i % 2 ? '#f9cd8b' : '#d2b78d'; c.fillRect(-width * .8 + Math.sin(state.time * 13 + i) * width, -height * .2 - i * 3, 4, 4); }
     } else { c.rotate(leanAngle); if (!this.reducedMotion) c.translate(0, Math.sin(r.z * 1.1) * Math.min(1, r.speed / 50) * height * .003); }
     const pose = r.attack && r.attack.age > .08 ? r.attack.kind : 'ride';
-    c.drawImage(bikeSprite(r.color, pose, r.attack?.side ?? 1, r.profile === 'police', r.speed > 8 ? Math.floor(r.z * 1.6) % 3 : 0, getBike(r.bikeId).style,getKneePad(r.kneePadId)?.color,kneeSide), -width / 2, -height, width, height);
+    c.drawImage(bikeSprite(r.color, pose, r.attack?.side ?? 1, r.profile === 'police', r.speed > 8 ? Math.floor(r.z * 1.6) % 3 : 0, getBike(r.bikeId).style,getKneePad(r.kneePadId)?.color,kneeSide,r.weaponId,stunting(r)), -width / 2, -height, width, height);
     if((r.nitroTime ?? 0)>0 && !r.crash){
       for(const side of [-1,1]){
         const x=side*width*.26,flicker=.8+Math.sin(state.time*45)*.2;
@@ -349,7 +351,7 @@ export class Renderer {
     if (!player && height > 58 && !r.crash && p.y < p.clip + 5) {
       c.save();
       c.font = `600 ${clamp(height * .13, 10, 13)}px monospace`; c.textAlign = 'center';
-      const y = p.y - height - 12;
+      const y = p.y - lift - height - 12;
       c.fillStyle = '#172c32b8'; const tw = c.measureText(r.name).width; c.fillRect(p.x - tw / 2 - 7, y - 13, tw + 14, 19);
       c.fillStyle = targetId === r.id ? '#dfff71' : '#f4edd8'; c.fillText(r.name, p.x, y);
       if (r.health < 98) { c.fillStyle = '#253e42'; c.fillRect(p.x - 21, y + 9, 42, 3); c.fillStyle = r.health < 30 ? '#ff826b' : r.color; c.fillRect(p.x - 21, y + 9, 42 * r.health / 100, 3); }
@@ -360,7 +362,7 @@ export class Renderer {
     if(r.speech && r.speech.until>state.time && !r.crash && !r.out && height>40) {
       const text=TAUNTS[r.speech.index];if(!text)return;
       c.save();c.font=`600 ${player?13:11}px 'Barlow',sans-serif`;c.textAlign='center';c.textBaseline='middle';
-      const headX=p.x+Math.sin(leanAngle)*height*.9,headY=p.y-Math.cos(leanAngle)*height;
+      const headX=p.x+Math.sin(leanAngle)*height*.9,headY=p.y-lift-Math.cos(leanAngle)*height;
       const bw=c.measureText(text).width+24,bh=29,bx=clamp(headX-bw/2,8,this.w-bw-8),by=Math.max(12,headY-42);
       c.fillStyle='#f0f1ddec';c.strokeStyle='#2b4d4e';c.lineWidth=1.5;c.beginPath();c.roundRect(bx,by,bw,bh,7);c.fill();c.stroke();
       const tip=clamp(headX,bx+12,bx+bw-12);c.beginPath();c.moveTo(tip-5,by+bh-1);c.lineTo(tip,by+bh+7);c.lineTo(tip+5,by+bh-1);c.fill();
@@ -408,9 +410,9 @@ export class Renderer {
     for (const t of state.traffic) if (t.z > player.z - 12 && t.z < player.z + 1900) entities.push({ z: t.z, draw: () => {
       const p = this.project(t.z, t.x); if (!p || p.y > p.clip + 35) return;
       c.save(); c.beginPath(); c.rect(0, 0, this.w, p.clip); c.clip();
-      const width = p.scale * 3.7, height = width * .94;
+      const width = p.scale * (t.kind==='truck'?4.5:3.7), height = width * (t.kind==='truck'?1.25:.94);
       c.fillStyle = '#233a4055'; c.beginPath(); c.ellipse(p.x, p.y, width * .5, height * .1, 0, 0, Math.PI * 2); c.fill();
-      c.drawImage(carSprite(t.color, t.speed < 0, t.kind === 'van'), p.x - width / 2, p.y - height, width, height); c.restore();
+      c.drawImage(t.kind==='truck'?truckSprite(t.color,t.speed<0):carSprite(t.color, t.speed < 0, t.kind === 'van'), p.x - width / 2, p.y - height, width, height); c.restore();
     } });
     for (const o of state.obstacles) if (o.z > player.z - 8 && o.z < player.z + 1700) entities.push({ z: o.z, draw: () => {
       const p = this.project(o.z, o.x); if (!p || p.y > p.clip + 4) return;

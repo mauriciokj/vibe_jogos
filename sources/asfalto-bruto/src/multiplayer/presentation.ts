@@ -1,4 +1,4 @@
-import { ATTACKS, predictMovement, STEP, nearestTarget } from '../game/simulation';
+import { attackSpec, predictMovement, STEP, nearestTarget } from '../game/simulation';
 import { clamp } from '../game/content';
 import { NITRO_MULTIPLIER } from '../game/equipment';
 import { EMPTY_COMMAND, type AttackKind, type Command, type RaceState, type Rider } from '../game/types';
@@ -28,13 +28,13 @@ export class RacePresentation {
   }
   canAttack(kind: AttackKind, now: number) {
     const r=this.view(now)?.riders.find(r=>r.id===this.id);
-    return !!r && now>=this.nextAttackAt && !r.out && !r.crash && r.finishedAt===null && (kind!=='weapon' || r.weapon);
+    return !!r && now>=this.nextAttackAt && !r.out && !r.crash && !(r.jumpTime!>0) && r.finishedAt===null && (kind!=='weapon' || r.weapon);
   }
   attack(kind: AttackKind, seq: number, now: number) {
     const view=this.view(now),r=view?.riders.find(r=>r.id===this.id);if(!r || !view)return;
     const target=nearestTarget(view,r,kind);
     this.swing={kind,seq,at:now,side:target?Math.sign(target.x-r.x)||1:Math.sign(this.controls.at(-1)?.command.steer ?? 0)||1};
-    this.lastSwing=seq;this.nextAttackAt=now+ATTACKS[kind].cooldown*1000;
+    this.lastSwing=seq;this.nextAttackAt=now+attackSpec(r,kind).cooldown*1000;
   }
   accept(room: RoomView, now: number, serverNow: number) {
     const before=this.view(now),previous=this.room;
@@ -82,11 +82,13 @@ export class RacePresentation {
       r.x=clamp(r.x+(velocity?.x ?? 0)*age,-10.5,10.5);
       r.speed=clamp(r.speed+acceleration*age,0,Math.max(r.speed,r.maxSpeed*((r.nitroTime ?? 0)>0?NITRO_MULTIPLIER:1)));
       if(r.kneeTime)r.kneeTime=Math.max(0,r.kneeTime-age);
+      if(r.wheelieTime)r.wheelieTime=Math.max(0,r.wheelieTime-age);
+      if(r.jumpTime)r.jumpTime=Math.max(0,r.jumpTime-age);
       if(r.nitroTime)r.nitroTime=Math.max(0,r.nitroTime-age);
     } else if(canMove && r.crash) r.z+=r.speed*(1-Math.pow(.975,age/STEP))*STEP/(1-.975);
     if(r.attack) {
       r.attack.age+=age;
-      if(r.attack.age>=ATTACKS[r.attack.kind].duration+(r.profile==='player'?0:.25))r.attack=null;
+      if(r.attack.age>=attackSpec(r,r.attack.kind).duration+(r.profile==='player'?0:.25))r.attack=null;
     }
     return r;
   }
@@ -103,9 +105,9 @@ export class RacePresentation {
       }
       if(r.id===this.id) {
         if(r.attack?.id && r.attack.id<=this.lastSwing)r.attack=null;
-        if(this.swing && !r.crash && !r.out && r.finishedAt===null) {
+        if(this.swing && !r.crash && !r.out && !(r.jumpTime!>0) && r.finishedAt===null) {
           const age=(now-this.swing.at)/1000;
-          if(age<ATTACKS[this.swing.kind].duration)r.attack={id:this.swing.seq,kind:this.swing.kind,side:this.swing.side,age,hit:false};
+          if(age<attackSpec(r,this.swing.kind).duration)r.attack={id:this.swing.seq,kind:this.swing.kind,side:this.swing.side,age,hit:false};
         }
       }
       return r;

@@ -1,3 +1,5 @@
+import { equippedWeapon, getWeapon } from './weapons';
+import { advanceStunt, cancelStunt, clearsCar, stunting, WHEELIE_DURATION, WHEELIE_MIN_SPEED, WHEELIE_USES, wheeliesLeft } from './stunts';
 import { advanceScenicEvent, brakeGrip, coastalEvent, raceCondition, roadGrip } from './conditions';
 import { BIKES, clamp, cornerForces, cornerPace, curveAt, getBike, getTrack } from './content';
 import { cornerHandling, equippedKneePad, getKneePad, KNEE_DURATION, NITRO_DURATION, NITRO_MULTIPLIER, nitroCount } from './equipment';
@@ -14,6 +16,10 @@ export const ATTACKS = {
   weapon: { windup: .21, duration: .48, cooldown: .72, reach: 3.6, longitudinal: 5.7, damage: 30, push: .55 },
 };
 
+export function attackSpec(rider: Rider, kind: AttackKind) {
+  return kind==='weapon' ? getWeapon(rider.weaponId) ?? ATTACKS.weapon : ATTACKS[kind];
+}
+
 export function random(state: RaceState) {
   let n = state.rng;
   n ^= n << 13; n ^= n >>> 17; n ^= n << 5;
@@ -22,7 +28,7 @@ export function random(state: RaceState) {
 }
 
 function makeRider(id: string, name: string, profile: Rider['profile'], color: string, x: number, z: number): Rider {
-  return { id, name, profile, color, bikeId: 'ferro', x, z, speed: 0, lean: 0, health: 100, integrity: 100, maxSpeed: 55, acceleration: 10, handling: 1, armor: 1, weapon: false, attack: null, cooldown: 0, crash: 0, immune: 0, targetX: x, decisionAt: 0, finishedAt: null, hits: 0, falls: 0 };
+  return { id, name, profile, color, bikeId: 'ferro', x, z, speed: 0, lean: 0, health: 100, integrity: 100, maxSpeed: 55, acceleration: 10, handling: 1, armor: 1, weapon: false, wheeliesLeft: WHEELIE_USES, attack: null, cooldown: 0, crash: 0, immune: 0, targetX: x, decisionAt: 0, finishedAt: null, hits: 0, falls: 0 };
 }
 
 export function stockBike(id?: string) {
@@ -34,6 +40,7 @@ export function createRace(trackId = 'costa', save?: SaveData, seed = 88117, con
   const bike = getBike(save?.bikeId);
   const up = save?.upgrades[bike.id] ?? { engine: 0, armor: 0, handling: 0 };
   const player = makeRider('player', 'VOCÊ', 'player', bike.color, 1.7, 0);
+  const weapon=equippedWeapon(save);if(weapon)player.weaponId=weapon.id;
   const pad=equippedKneePad(save);if(pad)player.kneePadId=pad.id;
   const nitro=nitroCount(bike.id,save?.nitro?.[bike.id]);if(nitro)player.nitro=nitro;
   Object.assign(player, { bikeId: bike.id, maxSpeed: bike.speed + up.engine * 2.5, acceleration: bike.acceleration + up.engine * .7, handling: bike.handling + up.handling * .1, armor: bike.armor + up.armor * .15, integrity: save?.condition[bike.id] ?? 100, weapon: true });
@@ -69,8 +76,9 @@ export function ranking(state: RaceState): Rider[] {
   });
 }
 export function nearestTarget(state: RaceState, rider: Rider, kind: AttackKind = 'weapon') {
-  const info = ATTACKS[kind];
-  return state.riders.filter(r => r.id !== rider.id && !r.out && !r.crash && !r.immune && r.finishedAt === null && Math.abs(r.z - rider.z) < info.longitudinal && Math.abs(r.x - rider.x) < info.reach)
+  if((rider.jumpTime ?? 0)>0)return undefined;
+  const info = attackSpec(rider,kind);
+  return state.riders.filter(r => r.id !== rider.id && !(r.jumpTime!>0) && !r.out && !r.crash && !r.immune && r.finishedAt === null && Math.abs(r.z - rider.z) < info.longitudinal && Math.abs(r.x - rider.x) < info.reach)
     .sort((a, b) => Math.abs(a.z - rider.z) + Math.abs(a.x - rider.x) - Math.abs(b.z - rider.z) - Math.abs(b.x - rider.x))[0];
 }
 
@@ -80,14 +88,18 @@ function crashRider(state: RaceState, rider: Rider, force = false) {
   rider.speed *= .17;
   rider.integrity = Math.max(0, rider.integrity - 13 / rider.armor);
   rider.attack = null;
-  rider.kneeTime=0;rider.nitroTime=0;rider.speech=undefined;
+  rider.kneeTime=0;rider.nitroTime=0;rider.speech=undefined;cancelStunt(rider);
   rider.falls++;
   state.events.push({ type: 'crash', actor: rider.id, text: 'NO CHÃO! −TEMPO · −MOTO' });
 }
 
 export function performAction(state: RaceState, rider: Rider, action: RiderAction) {
   if(state.mode!=='racing' || rider.out || rider.crash || rider.finishedAt!==null)return;
-  if(action==='kneeLeft' || action==='kneeRight') {
+  if(action==='wheelie') {
+    if(stunting(rider) || wheeliesLeft(rider)<=0 || rider.speed<WHEELIE_MIN_SPEED || Math.abs(rider.x)>ROAD_HALF || rider.immune)return;
+    rider.wheeliesLeft=wheeliesLeft(rider)-1;rider.wheelieTime=WHEELIE_DURATION;rider.kneeTime=0;
+  } else if(action==='kneeLeft' || action==='kneeRight') {
+    if(stunting(rider))return;
     if(!getKneePad(rider.kneePadId) || !supportsKneeDown(rider.bikeId) || rider.speed<20 || Math.abs(rider.x)>ROAD_HALF)return;
     if(raceCondition(state.condition)==='rain') {
       crashRider(state,rider,true);
@@ -128,12 +140,12 @@ export function botCommand(state: RaceState, rider: Rider): Command {
   let target = rider.targetX;
   let brake = 0;
   const dangers = [...state.traffic, ...state.obstacles].filter(t => t.z - rider.z > -7 && t.z - rider.z < 30 + rider.speed * 1.5);
-  if (dangers.some(t => Math.min(Math.abs(t.x - rider.x), Math.abs(t.x - target)) < 2.8)) {
+  if (dangers.some(t => Math.min(Math.abs(t.x - rider.x), Math.abs(t.x - target)) < (t.kind==='truck'?3.2:2.8))) {
     const candidates = [-5.25, -1.75, 1.75, 5.25];
-    const cost = (lane: number) => Math.abs(lane - rider.x) * .35 + dangers.reduce((sum, t) => sum + (Math.abs(t.x - lane) < 2.8 ? 30 - Math.max(0, t.z - rider.z) * .04 : 0), 0);
+    const cost = (lane: number) => Math.abs(lane - rider.x) * .35 + dangers.reduce((sum, t) => sum + (Math.abs(t.x - lane) < (t.kind==='truck'?3.2:2.8) ? 30 - Math.max(0, t.z - rider.z) * .04 : 0), 0);
     target = candidates.sort((a, b) => cost(a) - cost(b))[0];
     rider.targetX = target;
-    if (dangers.some(t => t.z - rider.z < rider.speed * .4 && Math.abs(t.x - rider.x) < 2.5)) brake = .7;
+    if (dangers.some(t => t.z - rider.z < rider.speed * .4 && Math.abs(t.x - rider.x) < (t.kind==='truck'?3.1:2.5))) brake = .7;
   }
   for (const other of state.riders) {
     if (other.id === rider.id) continue;
@@ -165,6 +177,7 @@ function applyCommand(state: RaceState, rider: Rider, command: Command) {
   if(rider.hornCooldown)rider.hornCooldown=Math.max(0,rider.hornCooldown-STEP);
   if(rider.kneeTime)rider.kneeTime=Math.max(0,rider.kneeTime-STEP);
   if(rider.nitroTime)rider.nitroTime=Math.max(0,rider.nitroTime-STEP);
+  advanceStunt(state,rider,command,STEP);
   if(command.action)performAction(state,rider,command.action);
   if (rider.finishedAt !== null) { rider.speed = Math.max(0, rider.speed - STEP * 12); return; }
   if (rider.crash > 0) {
@@ -198,10 +211,10 @@ function applyCommand(state: RaceState, rider: Rider, command: Command) {
   if (Math.abs(rider.x) > 9.8 && rider.speed > 26 && !rider.immune) {
     rider.integrity -= STEP * 2.2;
   }
-  if (command.attack && !rider.attack && rider.cooldown === 0 && (command.attack !== 'weapon' || rider.weapon)) {
+  if (command.attack && !(rider.jumpTime!>0) && !rider.attack && rider.cooldown === 0 && (command.attack !== 'weapon' || rider.weapon)) {
     const target = nearestTarget(state, rider, command.attack);
     rider.attack = { kind: command.attack, age: 0, side: target ? Math.sign(target.x - rider.x) || 1 : Math.sign(steering) || 1, hit: false };
-    rider.cooldown = ATTACKS[command.attack].cooldown + (rider.profile === 'player' ? 0 : .35);
+    rider.cooldown = attackSpec(rider,command.attack).cooldown + (rider.profile === 'player' ? 0 : .35);
     state.events.push({ type: 'attack', actor: rider.id });
   }
 }
@@ -210,7 +223,7 @@ function resolveAttacks(state: RaceState) {
   for (const rider of state.riders) {
     const attack = rider.attack;
     if (!attack) continue;
-    const spec = ATTACKS[attack.kind];
+    const spec = attackSpec(rider,attack.kind);
     const telegraph = rider.profile === 'player' ? 0 : .25;
     attack.age += STEP;
     if (attack.age >= spec.windup + telegraph && !attack.hit) {
@@ -219,10 +232,10 @@ function resolveAttacks(state: RaceState) {
       if (target && (Math.sign(target.x - rider.x) === attack.side || Math.abs(target.x - rider.x) < .4)) {
         impact(state, target, spec.damage, attack.side * spec.push);
         rider.hits++;
-        const action = attack.kind === 'kick' ? 'CHUTE' : attack.kind === 'weapon' ? 'BASTONADA' : 'SOCO';
+        const action = attack.kind === 'kick' ? 'CHUTE' : attack.kind === 'weapon' ? getWeapon(rider.weaponId)?.action ?? 'BASTONADA' : 'SOCO';
         state.events.push({ type: 'hit', actor: rider.id, target: target.id, text: target.id === 'player' ? `VOCÊ LEVOU ${action} · ${rider.name}` : `${target.name} · ${action}!` });
         if (rider.profile === 'player') state.heat = clamp(state.heat + 12, 0, 100);
-        if (attack.kind === 'punch' && target.weapon) {
+        if (attack.kind === 'punch' && target.weapon && !getWeapon(target.weaponId)) {
           target.weapon = false;
           rider.weapon = true;
           state.events.push({ type: 'steal', actor: rider.id, text: 'BASTÃO TOMADO!' });
@@ -243,9 +256,10 @@ function resolveCollisions(state: RaceState, oldZ: Map<string, number>) {
   for (const r of state.riders) {
     if (r.out || r.crash || r.immune || r.finishedAt !== null) continue;
     for (const t of state.traffic) {
+      if(clearsCar(r,t))continue;
       const relBefore = t.z - t.speed * STEP - (oldZ.get(r.id) ?? r.z);
       const relNow = t.z - r.z;
-      if ((Math.abs(relNow) < 3.2 || relBefore * relNow < 0) && Math.abs(t.x - r.x) < 2.3 && mayCollide(state, r.id, t.id)) {
+      if ((Math.abs(relNow) < (t.kind==='truck'?5.5:3.2) || relBefore * relNow < 0) && Math.abs(t.x - r.x) < (t.kind==='truck'?2.7:2.3) && mayCollide(state, r.id, t.id)) {
         r.integrity = Math.max(0, r.integrity - (t.speed < 0 ? 22 : 14) / r.armor);
         crashRider(state, r);
       }
@@ -268,13 +282,13 @@ function resolveCollisions(state: RaceState, oldZ: Map<string, number>) {
   }
 }
 
-export function createMultiplayerRace(trackId: string, players: { id: string; name: string; bikeId?: string; kneePadId?: string; nitro?: number }[], seed = 88117, fillBots = false, condition: RaceCondition = 'sunset'): RaceState {
+export function createMultiplayerRace(trackId: string, players: { id: string; name: string; bikeId?: string; kneePadId?: string; nitro?: number; weaponId?: string }[], seed = 88117, fillBots = false, condition: RaceCondition = 'sunset'): RaceState {
   if (players.length < 2 || players.length > 8 || new Set(players.map(p => p.id)).size !== players.length) throw new Error('A corrida precisa de 2 a 8 pilotos distintos.');
   const state = createRace(trackId, undefined, seed, condition);
   const colors = ['#dcff74', '#d87bfa', '#6cdace', '#f28451', '#ebbc5c', '#a4bde2', '#ef6f8a', '#e7e6dc'];
   const base = state.riders[0];
   const bots = state.riders.slice(1);
-  state.riders = players.map((p,i) => ({ ...base, ...stockBike(p.bikeId), kneePadId:getKneePad(p.kneePadId)?.id, nitro:nitroCount(p.bikeId,p.nitro), id: p.id, name: p.name, color: colors[i], x: [-5.1,-1.7,1.7,5.1][i%4], z: -(Math.floor(i/4)*8), profile: 'player' }));
+  state.riders = players.map((p,i) => ({ ...base, ...stockBike(p.bikeId), weaponId:getWeapon(p.weaponId)?.id, kneePadId:getKneePad(p.kneePadId)?.id, nitro:nitroCount(p.bikeId,p.nitro), id: p.id, name: p.name, color: colors[i], x: [-5.1,-1.7,1.7,5.1][i%4], z: -(Math.floor(i/4)*8), profile: 'player' }));
   if (fillBots) for (let i = players.length; i < 8; i++) {
     const bot = bots[i - players.length];
     state.riders.push({ ...base, ...stockBike(BIKES[i%BIKES.length].id), id: `cpu-${i}`, name: `${bot.name} CPU`, profile: bot.profile, color: colors[i], x: [-5.1,-1.7,1.7,5.1][i%4], targetX: [-5.1,-1.7,1.7,5.1][i%4], z: -(Math.floor(i/4)*8) });
@@ -285,6 +299,7 @@ export function createMultiplayerRace(trackId: string, players: { id: string; na
 
 export function finishRider(state: RaceState, rider: Rider, reason: RaceResult['reason'], arrestCause?: 'fall' | 'stopped') {
   if (state.multiplayer?.results[rider.id] || rider.out) return;
+  cancelStunt(rider);rider.kneeTime=0;
   if (reason !== 'finish') { rider.out = reason; rider.attack = null; }
   const place = ranking(state).findIndex(r => r.id === rider.id) + 1;
   const result: RaceResult = { reason, ...(reason === 'caught' ? { arrestCause: arrestCause ?? 'stopped' } : {}), place,

@@ -3,20 +3,20 @@ export type AttackKind = 'punch' | 'kick' | 'weapon';
 export type RaceMode = 'countdown' | 'racing' | 'finished';
 export type Profile = 'aggressive' | 'careful' | 'fast' | 'player' | 'police';
 export type BikeStyle = 'street' | 'sport' | 'muscle' | 'supermoto' | 'cruiser' | 'chopper' | 'cafe';
-export type RiderAction = 'kneeLeft' | 'kneeRight' | 'nitro' | 'horn' | 'taunt';
+export type RiderAction = 'kneeLeft' | 'kneeRight' | 'nitro' | 'horn' | 'taunt' | 'wheelie';
 export interface Command { throttle: number; brake: number; steer: number; attack: AttackKind | null; action?: RiderAction; }
 export interface Attack { kind: AttackKind; age: number; side: number; hit: boolean; id?: number; }
 export interface Rider {
   id: string; name: string; color: string; profile: Profile; bikeId?: string; kneePadId?: string;
   x: number; z: number; speed: number; lean: number;
   health: number; integrity: number; maxSpeed: number; acceleration: number; handling: number; armor: number;
-  weapon: boolean; attack: Attack | null; cooldown: number; crash: number; immune: number;
+  weapon: boolean; weaponId?: string; wheeliesLeft?: number; wheelieTime?: number; jumpTime?: number; jumpTarget?: string; attack: Attack | null; cooldown: number; crash: number; immune: number;
   targetX: number; decisionAt: number; finishedAt: number | null; hits: number; falls: number;
   out?: 'caught' | 'wrecked' | 'left' | 'timeout'; capture?: number;
   kneeSide?: number; kneeTime?: number; nitro?: number; nitroUsed?: number; nitroTime?: number; hornCooldown?: number;
   speech?: { index: number; until: number }; tauntReadyAt?: number; tauntSeq?: number;
 }
-export interface Traffic { id: string; x: number; z: number; speed: number; color: string; kind: 'car' | 'van'; }
+export interface Traffic { id: string; x: number; z: number; speed: number; color: string; kind: 'car' | 'van' | 'truck'; }
 export interface Obstacle { id: string; x: number; z: number; kind: 'oil' | 'barrier'; }
 export interface GameEvent { type: 'hit' | 'crash' | 'pass' | 'finish' | 'attack' | 'steal' | 'police' | 'horn' | 'nitro'; actor: string; target?: string; text?: string; tick?: number; }
 export interface RaceResult { reason: 'finish' | 'wrecked' | 'caught' | 'left' | 'timeout'; arrestCause?: 'fall' | 'stopped'; place: number; time: number; reward: number; hits: number; falls: number; }
@@ -30,6 +30,6 @@ export interface RaceState {
 }
 export interface Bike { id: string; name: string; class: string; style: BikeStyle; nitroCapacity: 2 | 3 | 5; price: number; speed: number; acceleration: number; handling: number; armor: number; color: string; tagline: string; }
 export interface Upgrade { engine: number; armor: number; handling: number; }
-export interface SaveData { version: 1; raceTrackId?: string; raceCondition?: RaceCondition; ownedKneePads?: string[]; kneePadId?: string; nitro?: Record<string, number>; nitroReceipts?: Record<string, number>; cash: number; owned: string[]; bikeId: string; upgrades: Record<string, Upgrade>; condition: Record<string, number>; unlocked: number; records: Record<string, { time: number; place: number }>; races: number; muted: boolean; }
+export interface SaveData { version: 1; raceTrackId?: string; raceCondition?: RaceCondition; ownedWeapons?: string[]; weaponId?: string; ownedKneePads?: string[]; kneePadId?: string; nitro?: Record<string, number>; nitroReceipts?: Record<string, number>; cash: number; owned: string[]; bikeId: string; upgrades: Record<string, Upgrade>; condition: Record<string, number>; unlocked: number; records: Record<string, { time: number; place: number }>; races: number; muted: boolean; }
 export interface Track { id: string; name: string; region: string; distance: number; difficulty: string; prize: number; index: number; sky: string[]; land: string[]; road: string[]; accent: string; }
 export const EMPTY_COMMAND: Command = { throttle: 0, brake: 0, steer: 0, attack: null };

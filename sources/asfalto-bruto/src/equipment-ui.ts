@@ -1,12 +1,21 @@
+import { WEAPONS, equippedWeapon } from './game/weapons';
+import { weaponArt } from './weapon-art';
 import { BIKES, getBike, supportsKneeDown } from './game/bikes';
 import { KNEE_PADS, NITRO_DURATION, NITRO_PRICE, equippedKneePad, kneeCornerSpeedBonus, nitroCount } from './game/equipment';
 import { money } from './game/content';
 import type { SaveData } from './game/types';
 
-export type GarageTab = 'bikes' | 'knees' | 'nitro';
-export const garageNav = (selected: GarageTab) => `<nav class="garage-nav" aria-label="Seções da garagem">${([['bikes','Motos'],['knees','Joelheiras'],['nitro','Nitro']] as const).map(([id,name])=>`<button class="secondary" data-garage-tab="${id}" aria-pressed="${id===selected}">${name}</button>`).join('')}</nav>`;
+export type GarageTab = 'bikes' | 'knees' | 'nitro' | 'weapons';
+export const garageNav = (selected: GarageTab) => `<nav class="garage-nav" aria-label="Seções da garagem">${([['bikes','Motos'],['weapons','Combate'],['knees','Joelheiras'],['nitro','Nitro']] as const).map(([id,name])=>`<button class="secondary" data-garage-tab="${id}" aria-pressed="${id===selected}">${name}</button>`).join('')}</nav>`;
 export function equipmentShop(save: SaveData, tab: GarageTab) {
   const bike=getBike(save.bikeId),pad=equippedKneePad(save);
+  if(tab==='weapons'){
+    const selected=equippedWeapon(save);
+    return `<section class="equipment-shop"><div class="shop-intro"><div class="eyebrow">SEU ESTILO DE COMBATE</div><h3>Escolha como dar o troco.</h3><p>Compre uma vez e leve para todas as corridas, individual ou online. <strong>Seu item não quebra, não é roubado e não se perde em quedas ou prisões.</strong> Use L ou o botão de combate no celular.</p></div><div class="shop-equipped">EQUIPAMENTO ATUAL<span>${selected?.name ?? 'Bastão básico'}${selected?'<button class="text-button" id="remove-weapon">USAR BÁSICO</button>':''}</span></div><div class="weapon-grid">${WEAPONS.map(w=>{
+      const owned=save.ownedWeapons?.includes(w.id),active=selected?.id===w.id;
+      return `<article class="weapon-card ${active?'equipped':''}">${weaponArt(w.id)}<small>COMPRA PERMANENTE</small><h4>${w.name}</h4><p>${w.description}</p><dl><div><dt>DANO</dt><dd>${w.damage}</dd></div><div><dt>ALCANCE LATERAL</dt><dd>${w.reach.toFixed(1)} m</dd></div><div><dt>ENTRE GOLPES</dt><dd>${w.cooldown.toFixed(2)} s</dd></div></dl><button class="secondary" data-weapon="${w.id}" ${active||(!owned && save.cash<w.price)?'disabled':''}>${active?'✓ EQUIPADO':owned?'EQUIPAR':`COMPRAR · ${money(w.price)}`}</button></article>`;
+    }).join('')}</div><p class="shop-note">Bastão básico: 30 de dano, alcance de 3,6 m e intervalo de 0,72 s. Continua disponível gratuitamente e pode ser tomado durante a corrida. Suas compras ficam guardadas ao escolher outro item.</p></section>`;
+  }
   if(tab==='knees')return `<section class="equipment-shop"><div class="shop-intro"><div class="eyebrow">APOIO EXTRA NAS CURVAS</div><h3>Escolha sua joelheira.</h3><p>Dois toques rápidos para o mesmo lado ativam a manobra por até 4 segundos, acima de 72 km/h. A joelheira ajuda a virar e sustentar mais velocidade enquanto o joelho está apoiado. <strong>Na chuva, tentar a manobra provoca uma queda.</strong></p><p>Compra permanente, válida para suas motos compatíveis. Choppers não fazem a manobra.</p></div><div class="shop-equipped">${supportsKneeDown(bike.id)?`MOTO ATUAL · ${bike.name}`:`${bike.name} · CHOPPER NÃO PERMITE APOIAR O JOELHO`}<span>${pad?`Joelheira ${pad.name} equipada`:'Sem joelheira'}${pad?'<button class="text-button" id="remove-knee">RETIRAR</button>':''}</span></div><div class="knee-grid">${KNEE_PADS.map(p=>{
     const owned=save.ownedKneePads?.includes(p.id),active=pad?.id===p.id;
     return `<article class="knee-card ${active?'equipped':''}" style="--pad-color:${p.color}"><div class="knee-art" aria-hidden="true"><i></i><b></b><i></i></div><small>JOELHEIRA</small><h4>${p.name}</h4><div class="equipment-benefits"><b>+${Math.round(p.grip*100)}% ADERÊNCIA</b><span>Até +${kneeCornerSpeedBonus(p.grip)}% de velocidade na curva</span></div><button class="secondary" data-knee-pad="${p.id}" ${active||(!owned && save.cash<p.price)?'disabled':''}>${active?'✓ EQUIPADA':owned?'EQUIPAR':`COMPRAR · ${money(p.price)}`}</button></article>`;

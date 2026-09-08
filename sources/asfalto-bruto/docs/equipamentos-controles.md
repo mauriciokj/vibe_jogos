@@ -1,6 +1,6 @@
 # Equipamentos e controles
 
-Implementação dos pedidos de setembro de 2026. A garagem tem seções Motos, Joelheiras e Nitro. A partida individual e o multiplayer opcional continuam disponíveis.
+Implementação dos pedidos de setembro de 2026. A garagem tem seções Motos, Combate, Joelheiras e Nitro. A partida individual e o multiplayer opcional continuam disponíveis.
 
 ## Joelheiras
 
@@ -46,6 +46,31 @@ O estoque é separado por moto e começa em zero. Comprar para uma moto exige po
 
 ## Rede e validação
 
-Protocolo v6: equipamentos limitados ao catálogo e à capacidade da moto; ações com sequência e ACK independentes dos golpes. O servidor controla a queda na chuva, o tempo de manobra, o nitro, a buzina e as falas. A previsão local reutiliza o movimento; nenhum novo serviço ou banco foi introduzido. Propriedade permanece no save local, conforme a garagem existente; não há autenticação de compras no servidor.
+Protocolo v7: equipamentos limitados ao catálogo e à capacidade da moto; ações com sequência e ACK independentes dos golpes. O servidor controla a queda na chuva, o tempo de manobra, o nitro, a buzina e as falas. A previsão local reutiliza o movimento; nenhum novo serviço ou banco foi introduzido. Propriedade permanece no save local, conforme a garagem existente; não há autenticação de compras no servidor.
 
 Testes específicos em `tests/equipment.test.ts` e `npm run test:equipment`, além dos testes anteriores de corrida/rede. A validação móvel usa eventos de toque nativos do Chromium, não substitui testes em todos os celulares físicos.
+
+
+## Empinada e salto
+
+- Dois toques distintos no acelerador em até 280ms (W/↑ ou duas deflexões do analógico direito do centro para cima), acima de 72 km/h e dentro da estrada.
+- Três ativações por piloto/corrida. Cada ativação gasta um uso mesmo sem saltar e permite até 2,4s de empinada. Não acumula ativações. Nova corrida repõe três; pausar ou reconectar à mesma corrida preserva o contador.
+- Salto automático ao se aproximar alinhado de um **carro na contramão**, com antecedência suficiente. Um salto por ativação, duração de 1s e arco de até 2,2m. Uma ativação tardia não impede a colisão.
+- Apenas o carro que iniciou o salto é transposto, durante a altura suficiente. Outro carro, vans, caminhões, tráfego no mesmo sentido e obstáculos continuam sujeitos às colisões normais. Não há proteção geral contra colisões.
+- Frear, reduzir abaixo de 72 km/h ou sair para o acostamento cancela a empinada; um salto iniciado segue até aterrissar. Queda ou eliminação cancela a manobra, sem devolver uso. A polícia continua prendendo quem cai perto dela.
+- Funciona nas sete motos, inclusive chopper, e na chuva. A manobra de joelho não pode ser combinada com empinada/salto. Golpes não começam nem acertam pilotos enquanto estão no ar.
+- O modelo de caminhão tem desenho e colisão preparados e validados em cenários de teste, mas ainda não foi incluído no tráfego das três pistas existentes. Sua introdução e o personagem decorativo pertencem ao Porto Ferrugem.
+
+## Combate permanente
+
+| Item | Preço | Dano | Alcance lateral | Intervalo entre golpes |
+| --- | ---: | ---: | ---: | ---: |
+| Garrafa | $650 | 24 | 2,7m | 0,50s |
+| Bastão de beisebol | $1.500 | 38 | 3,4m | 0,78s |
+| Corrente | $2.400 | 32 | 4,5m | 0,94s |
+
+Compra/equipamento pela aba **Combate**. Use **L** ou o botão L no celular. A garrafa é rápida; o beisebol tem maior dano; a corrente tem maior alcance. Cada ataque tem preparação e pode errar se o alvo sair do alcance.
+
+Os três são permanentes, inclusive a garrafa: não quebram, não são roubados e não se perdem em queda, prisão ou derrota. Reequipar um item comprado é gratuito. Usar o básico mantém as compras guardadas. O bastão básico continua gratuito, com 30 de dano, 3,6m de alcance e 0,72s de intervalo; pode ser tomado por soco. Quem já usa item permanente continua com ele ao tomar um bastão básico.
+
+O item equipado acompanha a pessoa no online. O servidor aceita apenas IDs do catálogo e define o dano/cadência/alcance. Propriedade permanece no save local, como os demais equipamentos; saves v1 sem esse campo continuam válidos. Animações locais e remotas usam as mesmas durações de cada arma.

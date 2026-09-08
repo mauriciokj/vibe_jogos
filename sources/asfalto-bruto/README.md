@@ -31,7 +31,8 @@ O terminal informa a URL da prévia. A pasta `dist/` contém a versão distribu�
 | Pilotar | A e D / ← e → |
 | Socar / tomar o bastão de um rival | J |
 | Chutar e empurrar o rival | K |
-| Usar o bastão equipado | L |
+| Usar o equipamento de combate | L |
+| Empinar / preparar salto automático | Dois toques rápidos em W / ↑ |
 | Apoiar o joelho (com joelheira, exceto choppers) | Dois toques rápidos em A/← ou D/→ |
 | Ativar nitro comprado | N |
 | Buzinar / provocar | B / Q |
@@ -55,7 +56,8 @@ Joelheira: dois toques rápidos em A/← ou D/→. Nitro: **N**. Buzina: **B**. 
 - Aparição rara de uma **sereia no mar da Costa**, com poses próprias por condição: cauda entre as ondas na chuva, brilho discreto à noite e pedra no entardecer. É apenas cenário, sem colisão, prêmio, dano ou aviso. Cada corrida tem 33% de chance, um local sorteado e uma janela de 8 segundos, iniciada quando o primeiro humano chega a 180m. No online, todos compartilham a mesma aparição.
 - Recordes por estrada e condição. Saves v1 continuam válidos; os recordes anteriores pertencem ao Entardecer.
 - Trânsito nos dois sentidos, carros e vans nas faixas, óleo, barreiras, ultrapassagens e colisões.
-- Socos, chutes, bastão, roubo de arma, quedas, recuperação e um breve período de proteção ao voltar à pista.
+- Socos, chutes e bastão básico que pode ser tomado. Garagem de combate com garrafa ($650 / 24 de dano), bastão de beisebol ($1.500 / 38) e corrente ($2.400 / 32), com alcance e cadência próprios. Compras são permanentes e não podem ser tomadas.
+- Empinada com dois toques no acelerador, acima de 72 km/h: três ativações por corrida, até 2,4s por ativação e salto automático sobre um carro alinhado na contramão. Vans e caminhões não são elegíveis. O contador é preservado na reconexão. Sem imunidade geral; quedas e polícia continuam valendo.
 - Resistência do piloto e integridade da moto separadas. Piloto sem resistência cai; moto sem integridade encerra a corrida.
 - Procura policial alimentada pela velocidade e pelos golpes. Depois de 1,3 km e 48 pontos de procura, um policial inicia a perseguição. Cair com um policial ativo a até **30 metros** causa **prisão imediata e derrota**, inclusive se ele se aproximar enquanto o piloto ainda estiver no chão. Também há captura após 3 segundos ao lado do policial, abaixo de 8 m/s (aproximadamente 29 km/h).
 - Largada, classificação por distância/tempo de chegada, resultados, recompensas, repetição da corrida, pausa automática ao sair da janela.
@@ -109,7 +111,7 @@ npx playwright install chromium
 npm run test:browser
 ```
 
-- **65 testes de simulação, salas e conexões:** pilotagem, frenagem, limites, alcance, roubo de arma, evasão, quedas, colisões, óleo, barreiras, classificação, polícia, economia, equipamentos, duplo toque, nitro, provocações, snapshots e consistência a 30/60/144 FPS.
+- **73 testes de simulação, salas e conexões:** pilotagem, frenagem, limites, alcance, roubo de arma, evasão, quedas, colisões, óleo, barreiras, classificação, polícia, economia, equipamentos, duplo toque, nitro, provocações, snapshots e consistência a 30/60/144 FPS.
 - Corridas completas nas três pistas, em piso seco e na chuva, com comandos dentro dos limites de controle do jogador.
 - Testes de navegador: teclado, tutorial, pausa, reinício, todos os golpes, queda/retorno, captura, corrida completa, resultados, desbloqueio, persistência, reparos, compras, todas as melhorias, seleção de moto, reset, áudio, tela cheia e toque.
 - `npm run test:online` verifica dois navegadores e seis conexões adicionais com 200ms de atraso de ida e volta. Inclui largada, combate, reconexão, prisão individual e retorno ao modo individual.
@@ -132,3 +134,5 @@ npm run test:browser
 ## Fontes e licenças
 
 Barlow e Barlow Condensed, de Jeremy Tribby, são distribuídas sob SIL Open Font License 1.1. As licenças estão em `public/fonts/`. A arte de pilotos, motos, veículos, paisagens e ícone foi criada neste projeto, sem assets da franquia de referência.
+
+`npm run test:stunts` valida compra e persistência de combate, poses dos três itens, empinada/salto/aterrissagem, três usos, colisão com caminhão de teste, controles nativos no celular e sala com dois humanos + seis bots, dano de corrente à distância e reconexão.

@@ -3,7 +3,7 @@
 Status: primeira etapa publicada e validada na VPS: quatro condições nas três pistas existentes e sereia na Costa. Terra Brava e demais pistas continuam planejadas.
 Data: 2026-09-08.
 
-Melhorias de pilotagem e combate solicitadas para depois, incluindo empinada com saltos limitados e equipamentos permanentes de garagem: [melhorias-futuras.md](melhorias-futuras.md).
+Registro de pilotagem e combate, incluindo empinada e equipamentos já implementados, além do easter egg futuro do Porto: [melhorias-futuras.md](melhorias-futuras.md).
 
 ## Objetivo
 
@@ -166,7 +166,7 @@ A resistência das motos pode ajudar a suportar impactos. Seus atributos de curv
 4. **Porto Ferrugem em quatro versões:** acrescentar tráfego pesado, obras e a aparição no porto.
 5. **Anel de Aço e expansão das outras pistas:** todas seguem os mesmos sistemas de condições e aparições.
 
-Essa ordem orienta as próximas etapas. A primeira entrega já foi publicada; os demais traçados e as melhorias futuras continuam no planejamento.
+Essa ordem orienta as próximas etapas. A primeira entrega já foi publicada; os demais traçados continuam no planejamento. Empinada/salto e combate permanente foram implementados antes da expansão de pistas.
 
 ### Porto Ferrugem: traçado de referência
 

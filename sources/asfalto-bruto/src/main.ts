@@ -1,4 +1,6 @@
 import './style.css';
+import { equippedWeapon, weaponName } from './game/weapons';
+import { jumpHeight, wheeliesLeft, stunting } from './game/stunts';
 import './multiplayer/style.css';
 import './menu.css';
 import './equipment.css';
@@ -20,7 +22,7 @@ import { RaceInstruments } from './game/instruments';
 import { Renderer } from './game/renderer';
 import { createRace, nearestTarget, ranking, restoreSnapshot, snapshot, STEP, stepRace } from './game/simulation';
 import { bikePortrait } from './game/sprites';
-import { buyBike, buyKneePad, buyNitro, spendNitro, recordOnlineNitro, buyUpgrade, freshSave, loadSave, persist, repair, repairCost, settleRace, upgradeCost } from './game/save';
+import { buyBike, buyWeapon, buyKneePad, buyNitro, spendNitro, recordOnlineNitro, buyUpgrade, freshSave, loadSave, persist, repair, repairCost, settleRace, upgradeCost } from './game/save';
 import type { Command, RaceState, RiderAction, Upgrade } from './game/types';
 
 const icons = {
@@ -59,7 +61,7 @@ root.innerHTML = `
       <div id="corner-warning" class="corner-warning" hidden><b id="corner-arrow">↱</b><div><strong id="corner-title"></strong><span id="corner-detail"></span></div></div><div class="rival-list" id="rival-list"></div><div class="race-message" id="race-message" aria-live="polite"></div>
       <div class="countdown" id="countdown"><strong id="count-number">3</strong><span>PREPARE-SE · SEGURE W OU ↑</span></div>
       <div class="crash-overlay" id="crash" hidden><strong>LEVANTA E VAI.</strong><small id="crash-time">VOLTANDO À PISTA...</small></div>
-      <div class="race-bottom"><div class="vitals"><div class="meter-label"><span>PILOTO</span><b id="health-value">100%</b></div><div class="meter-track"><i id="health-bar"></i></div><div class="meter-label"><span>MOTO</span><b id="integrity-value">100%</b></div><div class="meter-track bike"><i id="integrity-bar"></i></div><div class="weapon"><span class="weapon-icon">╱</span><span id="weapon-label">BASTÃO</span><kbd>L</kbd><small>J SOCO · K CHUTE</small></div><div class="equipment-hud"><span id="knee-indicator"></span><span id="nitro-indicator"></span></div></div>
+      <div class="race-bottom"><div class="vitals"><div class="meter-label"><span>PILOTO</span><b id="health-value">100%</b></div><div class="meter-track"><i id="health-bar"></i></div><div class="meter-label"><span>MOTO</span><b id="integrity-value">100%</b></div><div class="meter-track bike"><i id="integrity-bar"></i></div><div class="weapon"><span class="weapon-icon">╱</span><span id="weapon-label">BASTÃO</span><kbd>L</kbd><small>J SOCO · K CHUTE</small></div><div class="equipment-hud"><span id="knee-indicator"></span><span id="nitro-indicator"></span><span id="wheelie-indicator"></span></div></div>
         <div class="speedometer"><div class="speed-label">KM/H</div><div class="speed-number"><span id="speed">000</span></div><div class="gear" id="gear">N</div><div class="rev-strip" id="revs">${'<i></i>'.repeat(18)}</div></div>
       </div>
       <div class="race-progress"><small id="distance">0.0 KM</small><div class="distance-track"><i id="progress-bar"></i><b id="progress-dot"></b></div><small id="distance-total">8.4 KM <span>⚑</span></small></div>
@@ -69,9 +71,9 @@ root.innerHTML = `
   <dialog id="help-modal" aria-labelledby="help-title"><div class="dialog-header"><div><div class="eyebrow">ANTES DE DAR A PARTIDA</div><h2 id="help-title">Conheça as regras da rua.</h2></div><button class="close-btn" data-close="help-modal" aria-label="Fechar">×</button></div><div class="dialog-body"><div class="help-grid">
     <div class="control">Acelerar <span class="keys"><kbd>W</kbd><kbd>↑</kbd></span></div><div class="control">Frear <span class="keys"><kbd>S</kbd><kbd>↓</kbd></span></div>
     <div class="control">Pilotar <span class="keys"><kbd>A</kbd><kbd>D</kbd><kbd>←</kbd><kbd>→</kbd></span></div><div class="control">Soco rápido <span class="keys"><kbd>J</kbd></span></div>
-    <div class="control">Chute · empurra o rival <span class="keys"><kbd>K</kbd></span></div><div class="control">Usar bastão <span class="keys"><kbd>L</kbd></span></div>
+    <div class="control">Chute · empurra o rival <span class="keys"><kbd>K</kbd></span></div><div class="control">Usar equipamento <span class="keys"><kbd>L</kbd></span></div>
     <div class="control keyboard-only">Buzinar <span class="keys"><kbd>B</kbd></span></div><div class="control keyboard-only">Provocar <span class="keys"><kbd>Q</kbd></span></div><div class="control">Nitro <span class="keys"><kbd>N</kbd></span></div><div class="control">Pausar <span class="keys"><kbd>Esc</kbd></span></div><div class="control">Tela cheia / som <span class="keys"><kbd>F</kbd><kbd>M</kbd></span></div>
-  </div><div class="tip"><b>Chegue perto e acerte.</b> O rival ao alcance recebe uma marca verde. Um soco em um piloto armado toma o bastão dele. O sinal “!” avisa que um ataque está vindo.</div><div class="tip"><b>Joelho no chão.</b> Com joelheira equipada, dê dois toques rápidos para o mesmo lado acima de 72 km/h. A manobra dura até 4 segundos; inverter a direção ou ir para o acostamento cancela. Choppers não fazem a manobra. Na chuva, tentar provoca queda.</div><div class="tip"><b>Analógicos no celular.</b> O esquerdo vira; o direito acelera para cima e freia para baixo. Para apoiar o joelho, mova o analógico de direção duas vezes rapidamente para o mesmo lado, voltando ao centro entre os movimentos.</div><div class="tip"><b>Freie antes da curva.</b> O aviso mostra a direção, a distância e uma velocidade de referência. Entrar rápido demais faz a moto escorregar para fora. Solte W / ↑ ou freie com S / ↓, contorne e acelere na saída. Na chuva, a aderência e a frenagem diminuem: antecipe a redução. O mapa mostra as distâncias; o retrovisor revela os últimos 200 metros.</div><div class="tip"><b>Cuide de você e da moto.</b> Piloto sem resistência cai e volta à pista; moto sem integridade encerra a corrida. Fuja do acostamento, desvie do óleo e observe o trânsito na contramão.</div><div class="tip"><b>A polícia não dorme.</b> Velocidade e golpes aumentam a procura. Caiu com a polícia a até 30 metros? Prisão imediata e fim da corrida. Ficar abaixo de 29 km/h ao lado do policial por 3 segundos também causa prisão. Chegue entre os 5 primeiros para abrir a próxima estrada.</div><div class="help-footer"><span>Progresso salvo neste navegador. No celular, use os analógicos e os botões de combate.</span><button id="help-go" class="primary">ENTENDI. VAMOS CORRER ${icons.arrow}</button></div></div></dialog>
+  </div><div class="tip"><b>Chegue perto e acerte.</b> O rival ao alcance recebe uma marca verde. Um soco pode tomar o bastão básico de um rival. Equipamentos comprados são permanentes e não podem ser tomados. Use L para golpear com o item equipado. O sinal “!” avisa que um ataque está vindo.</div><div class="tip"><b>Empine e salte.</b> Acima de 72 km/h, dê dois toques rápidos no acelerador (W / ↑). No celular, mova o analógico direito do centro para cima duas vezes. Você tem 3 ativações por corrida; cada uma dura até 2,4 segundos e gasta um uso, mesmo sem saltar. Aproxime-se alinhado de um carro na contramão para saltar automaticamente. Caminhões, vans e veículos no mesmo sentido exigem desvio. Frear cancela a empinada.</div><div class="tip"><b>Joelho no chão.</b> Com joelheira equipada, dê dois toques rápidos para o mesmo lado acima de 72 km/h. A manobra dura até 4 segundos; inverter a direção ou ir para o acostamento cancela. Choppers não fazem a manobra. Na chuva, tentar provoca queda.</div><div class="tip"><b>Analógicos no celular.</b> O esquerdo vira; o direito acelera para cima e freia para baixo. Para apoiar o joelho, mova o analógico de direção duas vezes rapidamente para o mesmo lado, voltando ao centro entre os movimentos.</div><div class="tip"><b>Freie antes da curva.</b> O aviso mostra a direção, a distância e uma velocidade de referência. Entrar rápido demais faz a moto escorregar para fora. Solte W / ↑ ou freie com S / ↓, contorne e acelere na saída. Na chuva, a aderência e a frenagem diminuem: antecipe a redução. O mapa mostra as distâncias; o retrovisor revela os últimos 200 metros.</div><div class="tip"><b>Cuide de você e da moto.</b> Piloto sem resistência cai e volta à pista; moto sem integridade encerra a corrida. Fuja do acostamento, desvie do óleo e observe o trânsito na contramão.</div><div class="tip"><b>A polícia não dorme.</b> Velocidade e golpes aumentam a procura. Caiu com a polícia a até 30 metros? Prisão imediata e fim da corrida. Ficar abaixo de 29 km/h ao lado do policial por 3 segundos também causa prisão. Chegue entre os 5 primeiros para abrir a próxima estrada.</div><div class="help-footer"><span>Progresso salvo neste navegador. No celular, use os analógicos e os botões de combate.</span><button id="help-go" class="primary">ENTENDI. VAMOS CORRER ${icons.arrow}</button></div></div></dialog>
   <dialog id="pause-modal" class="pause-modal" aria-labelledby="pause-title"><div class="dialog-body"><div class="eyebrow" style="justify-content:center">UM RESPIRO NO ACOSTAMENTO</div><h2 id="pause-title">CORRIDA PAUSADA</h2><p>A estrada espera por você.</p><button class="primary" id="resume-btn">CONTINUAR ↗</button><button class="secondary" id="restart-btn">RECOMEÇAR CORRIDA</button><button class="text-button" id="menu-btn">VOLTAR AO MENU</button></div></dialog>
   <dialog id="garage-modal" aria-labelledby="garage-title"></dialog>
   <dialog id="result-modal" class="result-modal" aria-labelledby="result-title"></dialog>
@@ -82,7 +84,7 @@ root.innerHTML = `
       <div id="online-form"><label class="online-label" for="online-name">SEU APELIDO</label><input id="online-name" class="online-input" maxlength="18" placeholder="Como você quer ser chamado?" autocomplete="nickname" />
         <div class="online-bike-choice"><label class="online-label" for="online-bike">SUA MOTO · TODOS OS MODELOS LIBERADOS NO ONLINE</label><select id="online-bike" class="online-input">${BIKES.map(b=>`<option value="${b.id}">${b.name} · ${b.class}</option>`).join('')}</select><div id="online-bike-preview" class="online-bike-preview"></div><p id="online-loadout" class="online-loadout"></p></div><div class="online-choices"><div><h3>Criar uma sala</h3><label class="online-label" for="online-track">PISTA</label><select id="online-track" class="online-input">${TRACKS.map(t=>`<optgroup label="${t.name}">${RACE_ROUTES.filter(r=>r.track.id===t.id).map(r=>`<option value="${r.id}">${r.name}</option>`).join('')}</optgroup>`).join('')}</select><label class="bot-option"><input type="checkbox" id="online-bots" /><span>Completar com bots<small>Até 8 pilotos na largada · mínimo 2 pessoas</small></span></label><button class="primary" id="online-create">CRIAR SALA ↗</button></div>
         <div><h3>Entrar com amigos</h3><label class="online-label" for="online-code-input">CÓDIGO DA SALA</label><input id="online-code-input" class="online-input code-input" maxlength="6" placeholder="A1B2C3" autocapitalize="characters" autocomplete="off" spellcheck="false"/><button class="secondary" id="online-join">ENTRAR NA SALA ↗</button></div></div>
-        <p class="online-note">De 2 a 8 pessoas. Escolha seu estilo de pilotagem. No online, todos têm acesso às motos de fábrica, sem melhorias. A joelheira equipada e as cargas compradas na garagem acompanham você. O nitro usado é descontado do seu estoque.</p>
+        <p class="online-note">De 2 a 8 pessoas. Escolha seu estilo de pilotagem. No online, todos têm acesso às motos de fábrica, sem melhorias. O equipamento de combate, a joelheira equipada e as cargas compradas na garagem acompanham você. O nitro usado é descontado do seu estoque.</p>
       </div>
       <div id="online-lobby" hidden><div class="lobby-heading"><div><span class="online-label">CONVIDE PELO CÓDIGO</span><div class="room-code" id="online-code"></div><button class="text-button" id="online-copy">COPIAR CONVITE ↗</button></div><div class="lobby-clock"><strong id="online-clock">60</strong><span id="online-clock-label">SEGUNDOS PARA LARGAR</span></div></div>
         <div class="lobby-meta"><span id="online-track-name"></span><span id="online-count">1 / 8 PILOTOS</span></div><div id="online-members" class="lobby-members"></div>
@@ -117,6 +119,7 @@ let testMode = new URLSearchParams(location.search).has('test');
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
 const keys = new Set<string>();
 const doubleTap = new DoubleTap();
+const throttleTap = new DoubleTap();
 const analog = {steer:0,drive:0};
 const resetPointers: (()=>void)[]=[];
 let pendingActions: RiderAction[] = [], soloNitroSpent=0;
@@ -147,7 +150,7 @@ function openOnline() {
 function updateOnlineBikePreview() {
   const bike=getBike($<HTMLSelectElement>('online-bike').value);
   const pad=equippedKneePad(save);
-  $('online-loadout').textContent=`${pad&&supportsKneeDown(bike.id)?'Joelheira '+pad.name:!supportsKneeDown(bike.id)?'Chopper: sem manobra de joelho':'Sem joelheira'} · Nitro ${nitroCount(bike.id,save.nitro?.[bike.id])}/${bike.nitroCapacity}`;
+  $('online-loadout').textContent=`${equippedWeapon(save)?.name ?? 'Bastão básico'} · ${pad&&supportsKneeDown(bike.id)?'Joelheira '+pad.name:!supportsKneeDown(bike.id)?'Chopper: sem manobra de joelho':'Sem joelheira'} · Nitro ${nitroCount(bike.id,save.nitro?.[bike.id])}/${bike.nitroCapacity}`;
   $('online-bike-preview').innerHTML=`<img src="${bikePortrait(bike).toDataURL()}" alt="${bike.name} vista de lado"/><div><b>${bike.class} · ${Math.round(bike.speed*3.6)} KM/H</b><span>${handlingLabel(bike.handling)} · 0–100 EM ${zeroToHundred(bike).toFixed(1)}S</span><small>${bike.tagline}</small></div>`;
 }
 $<HTMLSelectElement>('online-bike').addEventListener('change',updateOnlineBikePreview);
@@ -157,7 +160,7 @@ function enterOnline(create: boolean) {
   try{localStorage.setItem('asfalto:nickname',name);}catch{}
   const route=routeFromId($<HTMLSelectElement>('online-track').value);
   const bikeId=$<HTMLSelectElement>('online-bike').value;
-  const loadout={kneePadId:equippedKneePad(save)?.id,nitro:nitroCount(bikeId,save.nitro?.[bikeId])};
+  const loadout={weaponId:equippedWeapon(save)?.id,kneePadId:equippedKneePad(save)?.id,nitro:nitroCount(bikeId,save.nitro?.[bikeId])};
   if(create)online.create(name,route.track.id,$<HTMLInputElement>('online-bots').checked,bikeId,route.condition.id,loadout);
   else online.join(name,$<HTMLInputElement>('online-code-input').value,bikeId,loadout);
   void audio.start();
@@ -309,7 +312,7 @@ function syncSoloNitro() {
   if(used>soloNitroSpent){spendNitro(save,p.bikeId ?? 'ferro',used-soloNitroSpent);soloNitroSpent=used;saveNow();}
 }
 function clearControls() {
-  keys.clear();pendingActions=[];doubleTap.reset();analog.steer=0;analog.drive=0;
+  keys.clear();pendingActions=[];doubleTap.reset();throttleTap.reset();analog.steer=0;analog.drive=0;
   resetPointers.forEach(reset=>reset());
   document.querySelectorAll<HTMLElement>('.analog-knob').forEach(k=>k.style.transform='translate(0px,0px)');
   document.querySelectorAll<HTMLElement>('.analog-stick').forEach(k=>k.setAttribute('aria-valuenow','0'));
@@ -322,8 +325,14 @@ function queueAction(action: RiderAction) {
     if(!getKneePad(p.kneePadId)){toast('Compre e equipe uma joelheira na garagem.');return;}
     if(p.speed<20){toast('A manobra exige pelo menos 72 km/h.');return;}
   }
+  if(action==='wheelie'){
+    if(wheeliesLeft(p)<=0){toast('Você já usou as 3 empinadas desta corrida.');return;}
+    if(p.speed<20){toast('Empine acima de 72 km/h.');return;}
+    if(stunting(p))return;
+  }
   if(onlineMode)online.action(action);else if(pendingActions.length<8)pendingActions.push(action);
 }
+function acceleratorTap(at: number) { if(throttleTap.press(1,at))queueAction('wheelie'); }
 function directionTap(side: number, at: number) {
   if(doubleTap.press(side,at))queueAction(side<0?'kneeLeft':'kneeRight');
 }
@@ -338,7 +347,10 @@ function updateHUD() {
   setText('speed', Math.round(p.speed * 3.6).toString().padStart(3, '0')); setText('gear', p.speed < 1 ? 'N' : String(Math.min(6, Math.floor(p.speed / 11) + 1)));
   setText('health-value', `${Math.ceil(p.health)}%`); setText('integrity-value', `${Math.max(0, Math.ceil(p.integrity))}%`);
   $('health-bar').style.width = `${p.health}%`; $('health-bar').style.background = p.health < 30 ? '#ffa281' : 'var(--acid)'; $('integrity-bar').style.width = `${Math.max(0, p.integrity)}%`;
-  setText('weapon-label', p.weapon ? 'BASTÃO' : 'SEM ARMA');
+  setText('weapon-label',weaponName(p).toUpperCase());
+  document.querySelector('[data-touch=KeyL]')?.setAttribute('aria-label',weaponName(p));
+  setText('wheelie-indicator',`${p.jumpTime!>0?'SALTO':p.wheelieTime!>0?'EMPINANDO':'EMPINADAS'} ${wheeliesLeft(p)}/3`);
+  $('wheelie-indicator').classList.toggle('active',stunting(p));
   const knee=kneeSupport(p,curveAt(p.z,race.trackId));
   setText('knee-indicator',p.crash||p.out?'':knee>.25?'JOELHO APOIADO':p.kneeTime!>0?'MANOBRA ATIVA':getKneePad(p.kneePadId)&&supportsKneeDown(p.bikeId)?'JOELHEIRA PRONTA':'');
   $('knee-indicator').classList.toggle('knee-active',knee>.25);
@@ -445,6 +457,7 @@ document.addEventListener('click', event => {
     if(route.track.index<=save.unlocked){selectedTrack=route.track.id;selectedCondition=route.condition.id;save.raceTrackId=selectedTrack;save.raceCondition=selectedCondition;saveNow();renderMenu();makeAttract();}
   }
   if(button.dataset.garageTab){garageTab=button.dataset.garageTab as GarageTab;renderGarage();return;}
+  if(button.dataset.weapon && buyWeapon(save,button.dataset.weapon)){saveNow();renderGarage();makeAttract();return;}
   if(button.dataset.kneePad && buyKneePad(save,button.dataset.kneePad)){saveNow();renderGarage();makeAttract();return;}
   if (button.dataset.bike && buyBike(save, button.dataset.bike)) { saveNow(); renderMenu(); renderGarage(); makeAttract(); }
   if (button.dataset.upgrade && ['engine', 'armor', 'handling'].includes(button.dataset.upgrade) && buyUpgrade(save, button.dataset.upgrade as keyof Upgrade)) { saveNow(); renderMenu(); renderGarage(); toast('Melhoria instalada. Hora de sentir a diferença.'); }
@@ -459,6 +472,7 @@ document.addEventListener('click', event => {
     case 'start-btn': requestStart(); break;
     case 'help-go': sessionStorage.setItem('asfalto-instructions', '1'); $<HTMLDialogElement>('help-modal').close(); if (helpStartsRace || screen === 'menu') startRace(); break;
     case 'buy-nitro': if(buyNitro(save)){saveNow();renderGarage();makeAttract();} break;
+    case 'remove-weapon': delete save.weaponId;saveNow();renderGarage();makeAttract();break;
     case 'remove-knee': delete save.kneePadId;saveNow();renderGarage();makeAttract();break;
     case 'touch-nitro': queueAction('nitro');break;
     case 'garage-workshop': $('garage-tools').scrollIntoView({block:'start'}); break;
@@ -490,6 +504,8 @@ window.addEventListener('keydown', e => {
   if (screen === 'race' && !paused) {
     const side=e.code==='KeyA'||e.code==='ArrowLeft'?-1:e.code==='KeyD'||e.code==='ArrowRight'?1:0;
     const alreadyHeld=side<0?keys.has('KeyA')||keys.has('ArrowLeft'):keys.has('KeyD')||keys.has('ArrowRight');
+    if((e.code==='KeyW'||e.code==='ArrowUp') && !e.repeat && !keys.has('KeyW') && !keys.has('ArrowUp'))acceleratorTap(e.timeStamp);
+    if((e.code==='KeyS'||e.code==='ArrowDown') && !e.repeat)throttleTap.reset();
     if(side && !e.repeat && !alreadyHeld)directionTap(side,e.timeStamp);
     if(!e.repeat){const action=({KeyB:'horn',KeyQ:'taunt',KeyN:'nitro'} as const)[e.code as 'KeyB'];if(action)queueAction(action);}
     keys.add(e.code);
@@ -518,6 +534,11 @@ for(const [id,axis] of [['steering-stick','steer'],['drive-stick','drive']] as c
     if(Math.abs(value)<.15)value=0;
     analog[axis]=value;stick.setAttribute('aria-valuenow',String(Math.round(value*100)));
     knob.style.transform=axis==='steer'?`translate(${value*radius}px,0px)`:`translate(0px,${-value*radius}px)`;
+    if(axis==='drive'){
+      if(value<.22)deflected=0;
+      if(value<-.22)throttleTap.reset();
+      if(value>.55 && !deflected){deflected=1;acceleratorTap(event.timeStamp);}
+    }
     if(axis==='steer'){
       if(Math.abs(value)<.22)deflected=0;
       if(Math.abs(value)>.55 && deflected!==Math.sign(value)){deflected=Math.sign(value);directionTap(deflected,event.timeStamp);}
@@ -543,7 +564,7 @@ declare global {
 }
 window.render_game_to_text = () => {
   const p = localRider(), target = nearestTarget(race, p, p.weapon ? 'weapon' : 'punch');
-  return JSON.stringify({ online: onlineMode?{status:online.status,id:online.id,code:online.code,phase:online.room?.phase,locked:online.room?.locked,deadline:online.room?.deadline,serverNow:online.serverNow(),members:online.room?.members,fillBots:online.room?.fillBots,condition:online.room?.condition}:null, screen, paused, modal: document.querySelector('dialog[open]')?.id ?? null, mode: race.mode, coordinates: 'x in metres: negative left, positive right; road ±7. z forward in metres. speed m/s.', tick: race.tick, time: +race.time.toFixed(2), countdown: +race.countdown.toFixed(2), track: race.trackId, condition:raceCondition(race.condition), scenic:scenicAppearance(race), length: getTrack(race.trackId).distance, player: { kneePadId:p.kneePadId??null,kneeTime:p.kneeTime??0,kneeSide:p.kneeSide??0,kneeSupport:kneeSupport(p,curveAt(p.z,race.trackId)),nitro:p.nitro??0,nitroTime:p.nitroTime??0,nitroUsed:p.nitroUsed??0,speech:p.speech&&p.speech.until>race.time?TAUNTS[p.speech.index]:null,bikeId:getBike(p.bikeId).id,bike:getBike(p.bikeId).name,handling:p.handling,armor:p.armor,out:p.out ?? null, x: +p.x.toFixed(2), z: +p.z.toFixed(1), speed: +p.speed.toFixed(2), health: +p.health.toFixed(1), integrity: +p.integrity.toFixed(1), weapon: p.weapon, attack: p.attack, cooldown: +p.cooldown.toFixed(2), crash: +p.crash.toFixed(2), immune: +p.immune.toFixed(2), hits: p.hits, falls: p.falls, place: ranking(onlineMode ? (online.room?.race ?? race) : race).findIndex(r => r.id === localId()) + 1 }, awareness:raceAwareness(race,localId()), corner:upcomingCorner(p.z,race.trackId,p.handling,race.condition,p.kneeTime!>0 && supportsKneeDown(p.bikeId)?p.kneePadId:undefined), curve: +curveAt(p.z, race.trackId).toFixed(2), target: target?.id ?? null, riders: race.riders.filter(r => r.id !== localId() && Math.abs(r.z - p.z) < 400).map(r => ({ id: r.id, name: r.name,kneePadId:r.kneePadId??null,kneeSupport:kneeSupport(r,curveAt(r.z,race.trackId)),speech:r.speech&&r.speech.until>race.time?TAUNTS[r.speech.index]:null, bikeId:getBike(r.bikeId).id, x: +r.x.toFixed(1), dz: +(r.z - p.z).toFixed(1), speed: +r.speed.toFixed(1), health: +r.health.toFixed(1), weapon: r.weapon, attack: r.attack, crash: +r.crash.toFixed(1) })), traffic: race.traffic.filter(t => t.z - p.z > -10 && t.z - p.z < 350).map(t => ({ x: t.x, dz: +(t.z - p.z).toFixed(1), direction: t.speed < 0 ? 'oncoming' : 'forward' })), obstacles: race.obstacles.filter(o => o.z - p.z > -10 && o.z - p.z < 200).map(o => ({ kind: o.kind, x: o.x, dz: +(o.z - p.z).toFixed(1) })), heat: +race.heat.toFixed(1), police: race.policeActive, capture: +race.capture.toFixed(2), result: onlineMode?(race.multiplayer?.results[online.id] ?? null):race.result, save: { ownedKneePads:save.ownedKneePads??[],kneePadId:save.kneePadId??null,nitro:save.nitro??{},cash: save.cash, bike: save.bikeId, unlocked: save.unlocked, races: save.races } });
+  return JSON.stringify({ online: onlineMode?{status:online.status,id:online.id,code:online.code,phase:online.room?.phase,locked:online.room?.locked,deadline:online.room?.deadline,serverNow:online.serverNow(),members:online.room?.members,fillBots:online.room?.fillBots,condition:online.room?.condition}:null, screen, paused, modal: document.querySelector('dialog[open]')?.id ?? null, mode: race.mode, coordinates: 'x in metres: negative left, positive right; road ±7. z forward in metres. speed m/s.', tick: race.tick, time: +race.time.toFixed(2), countdown: +race.countdown.toFixed(2), track: race.trackId, condition:raceCondition(race.condition), scenic:scenicAppearance(race), length: getTrack(race.trackId).distance, player: { weaponId:p.weaponId??null,weaponName:weaponName(p),wheeliesLeft:wheeliesLeft(p),wheelieTime:p.wheelieTime??0,jumpTime:p.jumpTime??0,jumpHeight:jumpHeight(p),jumpTarget:p.jumpTarget??null,kneePadId:p.kneePadId??null,kneeTime:p.kneeTime??0,kneeSide:p.kneeSide??0,kneeSupport:kneeSupport(p,curveAt(p.z,race.trackId)),nitro:p.nitro??0,nitroTime:p.nitroTime??0,nitroUsed:p.nitroUsed??0,speech:p.speech&&p.speech.until>race.time?TAUNTS[p.speech.index]:null,bikeId:getBike(p.bikeId).id,bike:getBike(p.bikeId).name,handling:p.handling,armor:p.armor,out:p.out ?? null, x: +p.x.toFixed(2), z: +p.z.toFixed(1), speed: +p.speed.toFixed(2), health: +p.health.toFixed(1), integrity: +p.integrity.toFixed(1), weapon: p.weapon, attack: p.attack, cooldown: +p.cooldown.toFixed(2), crash: +p.crash.toFixed(2), immune: +p.immune.toFixed(2), hits: p.hits, falls: p.falls, place: ranking(onlineMode ? (online.room?.race ?? race) : race).findIndex(r => r.id === localId()) + 1 }, awareness:raceAwareness(race,localId()), corner:upcomingCorner(p.z,race.trackId,p.handling,race.condition,p.kneeTime!>0 && supportsKneeDown(p.bikeId)?p.kneePadId:undefined), curve: +curveAt(p.z, race.trackId).toFixed(2), target: target?.id ?? null, riders: race.riders.filter(r => r.id !== localId() && Math.abs(r.z - p.z) < 400).map(r => ({ id: r.id, name: r.name,weaponId:r.weaponId??null,wheeliesLeft:wheeliesLeft(r),wheelieTime:r.wheelieTime??0,jumpTime:r.jumpTime??0,jumpHeight:jumpHeight(r),kneePadId:r.kneePadId??null,kneeSupport:kneeSupport(r,curveAt(r.z,race.trackId)),speech:r.speech&&r.speech.until>race.time?TAUNTS[r.speech.index]:null, bikeId:getBike(r.bikeId).id, x: +r.x.toFixed(1), dz: +(r.z - p.z).toFixed(1), speed: +r.speed.toFixed(1), health: +r.health.toFixed(1), weapon: r.weapon, attack: r.attack, crash: +r.crash.toFixed(1) })), traffic: race.traffic.filter(t => t.z - p.z > -10 && t.z - p.z < 350).map(t => ({ id:t.id,kind:t.kind,x: t.x, dz: +(t.z - p.z).toFixed(1), direction: t.speed < 0 ? 'oncoming' : 'forward' })), obstacles: race.obstacles.filter(o => o.z - p.z > -10 && o.z - p.z < 200).map(o => ({ kind: o.kind, x: o.x, dz: +(o.z - p.z).toFixed(1) })), heat: +race.heat.toFixed(1), police: race.policeActive, capture: +race.capture.toFixed(2), result: onlineMode?(race.multiplayer?.results[online.id] ?? null):race.result, save: { ownedWeapons:save.ownedWeapons??[],weaponId:save.weaponId??null,ownedKneePads:save.ownedKneePads??[],kneePadId:save.kneePadId??null,nitro:save.nitro??{},cash: save.cash, bike: save.bikeId, unlocked: save.unlocked, races: save.races } });
 };
 window.advanceTime = ms => { if(onlineMode){draw();return;} testMode = true; for (let i = 0; i < Math.round(ms / (STEP * 1000)); i++) update(); draw(); };
 if (testMode) window.__game = {
