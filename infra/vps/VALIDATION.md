@@ -106,3 +106,10 @@ Artefatos locais estão em `road rash/output/vps/`: `live-check.json`, `eight.js
 - HTTPS/WSS público entre os dois domínios: compra da Falcão por 10 mil e preço da Brutal de 100 mil, desbloqueio via recorde legado, corrida individual Porto/Noite, mundo comum Porto/Chuva, dois humanos + seis bots, golpes e reconexão. Nenhum erro JS/console; saída explícita. Relatório `output/porto/published-check.json`; capturas publicadas inspecionadas.
 - Comparação pública com oito conexões reais por sala, 5s de medição após largada: mediana dos intervalos 50,8–51,0ms na Costa e 50,7–50,8ms no Porto; confirmação de comandos 152,0–153,7ms e 157,1–157,9ms respectivamente. Estados com 9.418 bytes e 8.196 bytes medianos. São amostras da conexão de teste, sem garantia em redes externas. Relatórios `output/porto/network-costa.json` e `network-porto.json`.
 - Chromium usou resolução temporária do domínio principal para a VPS com TLS validado. Homepage, outros jogos e placares sem mudanças de conteúdo. Registro posterior à ativação; não requer novo deploy.
+
+### Avisos da joelheira removidos — 2026-09-08
+
+- Código `2f109cc`, release `20260908T224457Z-2f109cc` ativa; protocolo v8 e três serviços saudáveis.
+- A tentativa de manobra sem joelheira ou abaixo da velocidade mínima retorna silenciosamente. Requisitos da manobra e explicação na loja permanecem.
+- Build/export e verificação local/HTTPS passaram: duplo toque sem equipamento, com equipamento em baixa velocidade e ativação válida em velocidade. Nenhum toast nos dois casos recusados, sem erros JS. Imagens inspecionadas, relatórios em `output/quiet-knee/` no projeto de origem.
+- Ajuste publicado e conferido, sem pendências. Registro posterior à release, sem necessidade de nova ativação.
