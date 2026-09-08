@@ -7,6 +7,6 @@ if [[ -n "$(git status --porcelain)" ]]; then echo 'Registre as alteracoes em um
 npm run build:vps
 release_id="$(date -u +%Y%m%dT%H%M%SZ)-$(git rev-parse --short HEAD)"
 ssh "$vps_target" "install -d -m 755 /srv/vibe-jogos/releases/$release_id"
-COPYFILE_DISABLE=1 tar -czf "output/$release_id.tar.gz" -C output/vps-release .
+COPYFILE_DISABLE=1 tar --no-xattrs -czf "output/$release_id.tar.gz" -C output/vps-release .
 scp "output/$release_id.tar.gz" "$vps_target:/srv/vibe-jogos/releases/$release_id.tar.gz"
 ssh "$vps_target" "tar -xzf /srv/vibe-jogos/releases/$release_id.tar.gz -C /srv/vibe-jogos/releases/$release_id && chmod -R a+rX /srv/vibe-jogos/releases/$release_id && /usr/local/sbin/vibe-activate $release_id"

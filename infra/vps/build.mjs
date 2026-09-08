@@ -24,7 +24,9 @@ for(const file of ['index.html','style.css'])await fs.copyFile(path.join(repo,fi
 // Short URLs remain on /<game>/ while legacy /games/<game>/ URLs keep working.
 const publicRoot=path.join(destination,'public');
 for(const game of await fs.readdir(path.join(publicRoot,'games'))){
-  await fs.symlink(`games/${game}`,path.join(publicRoot,game));
+  if(await fs.access(path.join(publicRoot,'games',game,'index.html')).then(()=>true,()=>false)){
+    await fs.symlink(`games/${game}`,path.join(publicRoot,game));
+  }
 }
 for(const file of ['index.html','catalogo/index.html']){
   const filename=path.join(publicRoot,file);
@@ -35,6 +37,9 @@ await build({entryPoints:[path.join(repo,'sources/asfalto-bruto/server/dev.ts')]
 await build({entryPoints:[path.join(repo,'infra/vps/catalog-server.cjs')],outfile:path.join(destination,'services/catalog.cjs'),bundle:true,platform:'node',target:'node22',format:'cjs',external:['@vercel/kv']});
 const commit=execFileSync('git',['rev-parse','HEAD'],{cwd:repo,encoding:'utf8'}).trim();
 const dirty=!!execFileSync('git',['status','--porcelain'],{cwd:repo,encoding:'utf8'}).trim();
-const manifest={commit,dirty,builtAt:new Date().toISOString(),games:(await fs.readdir(path.join(destination,'public/games'))).sort()};
+const gameFolders=(await fs.readdir(path.join(publicRoot,'games'))).sort();
+const games=[];
+for(const game of gameFolders)if(await fs.access(path.join(publicRoot,'games',game,'index.html')).then(()=>true,()=>false))games.push(game);
+const manifest={commit,dirty,builtAt:new Date().toISOString(),games,gameFolders};
 await fs.writeFile(path.join(destination,'manifest.json'),JSON.stringify(manifest,null,2));
 console.log(JSON.stringify({directory:destination,...manifest},null,2));
