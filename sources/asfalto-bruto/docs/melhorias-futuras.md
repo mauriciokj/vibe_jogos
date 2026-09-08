@@ -1,6 +1,6 @@
 # Asfalto Bruto — melhorias futuras
 
-Ideias solicitadas pelo usuário em 2026-09-08. **Empinada/salto e equipamentos de combate implementados e validados localmente; publicação em preparação.** Porto Ferrugem continua planejado. Regras finais em [equipamentos-controles.md](equipamentos-controles.md).
+Ideias solicitadas pelo usuário em 2026-09-08. **Empinada/salto e equipamentos de combate publicados e validados na VPS em 2026-09-08**, release `20260908T220022Z-46feaaf`. Porto Ferrugem continua planejado. Regras finais em [equipamentos-controles.md](equipamentos-controles.md).
 
 O planejamento de cenários e traçados está em [planejamento-pistas.md](planejamento-pistas.md).
 

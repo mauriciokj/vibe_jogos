@@ -88,3 +88,11 @@ Artefatos locais estão em `road rash/output/vps/`: `live-check.json`, `eight.js
 - Navegador: compras/persistência, três sprites de combate, empinada/salto/aterrissagem, pausa/reinício/exaustão, caminhão de teste, duplo gesto nativo no celular, dois humanos + seis bots, salto compartilhado e corrente a maior distância. Regressão de joelheiras/nitro/buzina/balões/analógicos também passou, sem erros JS/console.
 - Capturas inspecionadas em `output/stunts-weapons/`. O caminhão está preparado para a futura pista Porto Ferrugem; o tráfego atual continua carros/vans. A aparição decorativa do homem pendurado permanece no planejamento do Porto, conforme escopo comunicado.
 - A ativação e a verificação pública serão registradas após a publicação.
+
+
+### Empinada e combate publicados
+
+- Commit `46feaaf`; release `20260908T220022Z-46feaaf` ativa. Asfalto/Catálogo/Caddy ativos; health v7. A guarda de corridas ativas foi respeitada.
+- HTTPS entre domínio principal e subdomínio: compras pela UI, salto e aterrissagem individual, dois humanos + seis bots, corrente causando dano, equipamentos distintos, empinada vista pelo outro cliente e reconexão mantendo identidade, três compras e dois usos restantes. Saída explícita dos dois clientes; nenhum erro JS/console.
+- Relatório `output/stunts-weapons/published-check.json` e capturas da garagem, salto e sala online inspecionadas no projeto de origem. DNS do domínio principal mapeado temporariamente no Chromium, com validação TLS preservada. Nenhum conteúdo dos outros jogos/homepage foi alterado.
+- Registro posterior à release; não requer nova ativação.
