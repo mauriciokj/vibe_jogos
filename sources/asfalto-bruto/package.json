@@ -13,7 +13,8 @@
     "start:server": "tsx server/dev.ts",
     "export:jogos": "node scripts/export-jogos.mjs",
     "test:online": "tsx tests/online-browser.ts",
-    "test:redis": "tsx tests/redis-online.ts"
+    "test:redis": "tsx tests/redis-online.ts",
+    "test:motion": "tsx tests/online-motion.ts"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

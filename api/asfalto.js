@@ -403,7 +403,7 @@ function stepRace(state, commands = {}) {
 }
 
 // src/multiplayer/protocol.ts
-var NET_VERSION = 1;
+var NET_VERSION = 2;
 var MAX_PLAYERS = 8;
 var ROOM_WAIT_MS = 6e4;
 var READY_WAIT_MS = 5e3;
@@ -417,6 +417,18 @@ function cleanCommand(value) {
   if (![c.throttle, c.brake, c.steer].every((n) => typeof n === "number" && Number.isFinite(n))) return null;
   if (c.attack !== null && !["punch", "kick", "weapon"].includes(c.attack)) return null;
   return { throttle: Math.max(0, Math.min(1, c.throttle)), brake: Math.max(0, Math.min(1, c.brake)), steer: Math.max(-1, Math.min(1, c.steer)), attack: c.attack };
+}
+function cleanAttacks(value) {
+  if (value === void 0) return [];
+  if (!Array.isArray(value) || value.length > 8) return null;
+  let previous = 0;
+  const attacks = [];
+  for (const a of value) {
+    if (!a || !Number.isSafeInteger(a.seq) || a.seq <= previous || !["punch", "kick", "weapon"].includes(a.kind)) return null;
+    attacks.push({ seq: a.seq, kind: a.kind });
+    previous = a.seq;
+  }
+  return attacks;
 }
 
 // server/room.ts
@@ -438,6 +450,7 @@ function makeRoom(code, trackId, member, now) {
     members: [member],
     race: null,
     ack: {},
+    attackAck: {},
     updatedAt: now,
     createdAt: now,
     finishedAt: null
@@ -452,9 +465,11 @@ function viewRoom(room, now) {
     deadline: room.deadline,
     revision: room.revision,
     serverNow: now,
+    simulationAt: room.updatedAt,
     members: room.members.map(({ id, name, ready, connected }) => ({ id, name, ready, connected })),
     race: room.race,
-    ack: room.ack
+    ack: room.ack,
+    attackAck: room.attackAck
   };
 }
 function lobbyClock(room, now) {
@@ -538,12 +553,32 @@ function pulseRoom(room, inputs, now) {
     commands[m.id] = m.connected && latest && now - latest.at < 500 ? latest.command : { ...EMPTY_COMMAND, brake: 1 };
     if (latest && steps > 0) room.ack[m.id] = latest.seq;
   }
-  const events = [];
+  const events = room.race.events.filter((e) => e.tick !== void 0 && e.tick > room.race.tick - 60);
   for (let i = 0; i < steps; i++) {
-    stepRace(room.race, commands);
-    events.push(...room.race.events);
+    const tickCommands = { ...commands };
+    const started = [];
+    for (const m of room.members) {
+      const latest = inputs[inputKey(m)], rider = room.race.riders.find((r) => r.id === m.id);
+      if (!latest || !m.connected || now - latest.at >= 500 || !rider) continue;
+      const action = latest.attacks?.find((a) => a.seq > (room.attackAck[m.id] ?? 0));
+      if (!action) continue;
+      if (rider.out || rider.crash || rider.finishedAt !== null || action.kind === "weapon" && !rider.weapon) {
+        room.attackAck[m.id] = action.seq;
+        continue;
+      }
+      if (rider.attack || rider.cooldown > STEP) continue;
+      tickCommands[m.id] = { ...commands[m.id], attack: action.kind };
+      room.attackAck[m.id] = action.seq;
+      started.push({ id: m.id, seq: action.seq });
+    }
+    stepRace(room.race, tickCommands);
+    for (const a of started) {
+      const rider = room.race.riders.find((r) => r.id === a.id);
+      if (rider?.attack) rider.attack.id = a.seq;
+    }
+    events.push(...room.race.events.map((e) => ({ ...e, tick: room.race.tick })));
   }
-  room.race.events = events;
+  room.race.events = events.filter((e) => (e.tick ?? 0) > room.race.tick - 60).slice(-128);
   room.updatedAt += steps * STEP * 1e3;
   if (now - room.updatedAt > 2e3) room.updatedAt = now;
   if (room.race.mode === "finished") {
@@ -616,7 +651,7 @@ var RedisStore = class {
     } else throw new Error("Configure o Redis do multiplayer no servidor.");
   }
   key(code, field) {
-    return `asfalto:online:v1:{${code}}:${field}`;
+    return `asfalto:online:v2:{${code}}:${field}`;
   }
   async create(room) {
     return await this.command("SET", this.key(room.code, "state"), JSON.stringify(room), "NX", "EX", 1800) === "OK";
@@ -780,10 +815,10 @@ function createGameServer(store, options = {}) {
         return;
       }
       if (data.type === "input") {
-        const command = cleanCommand(data.command);
-        if (!peer.code || !command || !Number.isSafeInteger(data.seq) || data.seq <= peer.seq) return;
+        const command = cleanCommand(data.command), attacks = cleanAttacks(data.attacks);
+        if (!peer.code || !command || !attacks || !Number.isSafeInteger(data.seq) || data.seq <= peer.seq) return;
         peer.seq = data.seq;
-        peer.pending = { seq: data.seq, command, at: now() };
+        peer.pending = { seq: data.seq, command, attacks, at: now() };
         return;
       }
       if (busy) return;

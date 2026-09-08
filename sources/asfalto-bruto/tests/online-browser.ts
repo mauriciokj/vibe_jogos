@@ -1,3 +1,4 @@
+import { NET_VERSION } from '../src/multiplayer/protocol';
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
@@ -33,7 +34,7 @@ const errors:string[]=[];for(const page of [a,b]){page.on('pageerror',e=>errors.
 const state=(page= a)=>page.evaluate(()=>JSON.parse(window.render_game_to_text()));
 const shots=(page: typeof a,name:string)=>page.screenshot({path:`${folder}/${name}.png`});
 const sockets:WebSocket[]=[];
-async function socketJoin(code:string,name:string){const ws=new WebSocket(backend);sockets.push(ws);await once(ws,'open');ws.send(JSON.stringify({type:'join',version:1,code,name}));const [raw]=await once(ws,'message');const welcome=JSON.parse(raw.toString());assert.equal(welcome.type,'welcome');return ws;}
+async function socketJoin(code:string,name:string){const ws=new WebSocket(backend);sockets.push(ws);await once(ws,'open');ws.send(JSON.stringify({type:'join',version:NET_VERSION,code,name}));const [raw]=await once(ws,'message');const welcome=JSON.parse(raw.toString());assert.equal(welcome.type,'welcome');return ws;}
 try {
   await a.goto('http://127.0.0.1:4352/?test');const offlineSave=(await state()).save;await shots(a,'01-menu');
   await a.click('#online-btn');await a.fill('#online-name','Ana');await shots(a,'02-online-form');await a.click('#online-create');

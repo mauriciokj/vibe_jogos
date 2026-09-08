@@ -1,22 +1,23 @@
-import type { Command, RaceState } from '../game/types';
+import type { AttackKind, Command, RaceState } from '../game/types';
 
-export const NET_VERSION = 1;
+export const NET_VERSION = 2;
 export const MAX_PLAYERS = 8;
 export const ROOM_WAIT_MS = 60_000;
 export const READY_WAIT_MS = 5_000;
 export const RECONNECT_MS = 15_000;
 export interface MemberView { id: string; name: string; ready: boolean; connected: boolean; }
+export interface AttackInput { seq: number; kind: AttackKind; }
 export interface RoomView {
   code: string; trackId: string; phase: 'lobby' | 'racing' | 'finished'; locked: boolean;
   deadline: number | null; serverNow: number; revision: number; members: MemberView[];
-  race: RaceState | null; ack: Record<string, number>;
+  race: RaceState | null; ack: Record<string, number>; attackAck: Record<string, number>; simulationAt: number;
 }
 export type ClientMessage =
   | { type: 'create'; version: number; name: string; trackId: string }
   | { type: 'join'; version: number; name: string; code: string }
   | { type: 'resume'; version: number; code: string; token: string }
   | { type: 'ready'; ready: boolean }
-  | { type: 'input'; seq: number; command: Command }
+  | { type: 'input'; seq: number; command: Command; attacks?: AttackInput[] }
   | { type: 'ping'; sentAt: number }
   | { type: 'leave' };
 export type ServerMessage =
@@ -35,4 +36,15 @@ export function cleanCommand(value: unknown): Command | null {
   if (![c.throttle,c.brake,c.steer].every(n => typeof n === 'number' && Number.isFinite(n))) return null;
   if (c.attack !== null && !['punch','kick','weapon'].includes(c.attack)) return null;
   return { throttle: Math.max(0,Math.min(1,c.throttle)), brake: Math.max(0,Math.min(1,c.brake)), steer: Math.max(-1,Math.min(1,c.steer)), attack: c.attack };
+}
+
+export function cleanAttacks(value: unknown): AttackInput[] | null {
+  if(value===undefined)return [];
+  if(!Array.isArray(value) || value.length>8)return null;
+  let previous=0;const attacks:AttackInput[]=[];
+  for(const a of value){
+    if(!a || !Number.isSafeInteger(a.seq) || a.seq<=previous || !['punch','kick','weapon'].includes(a.kind))return null;
+    attacks.push({seq:a.seq,kind:a.kind});previous=a.seq;
+  }
+  return attacks;
 }

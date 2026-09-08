@@ -50,7 +50,7 @@ export class RedisStore implements RoomStore {
       };
     } else throw new Error('Configure o Redis do multiplayer no servidor.');
   }
-  private key(code: string, field: string) { return `asfalto:online:v1:{${code}}:${field}`; }
+  private key(code: string, field: string) { return `asfalto:online:v2:{${code}}:${field}`; }
   async create(room: Room) { return await this.command('SET',this.key(room.code,'state'),JSON.stringify(room),'NX','EX',1800) === 'OK'; }
   async read(code: string) { const raw = await this.command('GET',this.key(code,'state')); return raw ? JSON.parse(raw as string) as Room : null; }
   async input(code: string, key: string, input: StoredInput) {

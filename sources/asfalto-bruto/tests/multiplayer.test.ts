@@ -6,7 +6,7 @@ import { makeMember, makeRoom, joinRoom, lobbyClock, setReady, depart, pulseRoom
 import { MemoryStore } from '../server/store';
 import { createGameServer } from '../server/service';
 import { createMultiplayerRace, createRace, stepRace, policeTarget, STEP } from '../src/game/simulation';
-import { cleanCommand, cleanName, type ServerMessage, type ClientMessage } from '../src/multiplayer/protocol';
+import { NET_VERSION, cleanCommand, cleanName, type ServerMessage, type ClientMessage } from '../src/multiplayer/protocol';
 import { EMPTY_COMMAND } from '../src/game/types';
 
 const at=100_000;
@@ -88,18 +88,18 @@ test('real sockets: eight joins, ninth rejection, ready start, authoritative inp
   const url=`ws://127.0.0.1:${(app.server.address() as {port:number}).port}/api/asfalto`;const clients:TestPeer[]=[];
   const connect=async()=>{const p=new TestPeer(url);clients.push(p);await once(p.ws,'open');return p;};
   try {
-    const owner=await connect();owner.send({type:'create',version:1,name:'Ana',trackId:'costa'});
+    const owner=await connect();owner.send({type:'create',version:NET_VERSION,name:'Ana',trackId:'costa'});
     const welcome=await owner.wait(m=>m.type==='welcome');assert.equal(welcome.type,'welcome');if(welcome.type!=='welcome')return;
     const code=welcome.room.code;
-    for(let i=1;i<8;i++){const p=await connect();p.send({type:'join',version:1,name:`Piloto ${i}`,code});await p.wait(m=>m.type==='welcome');}
-    const ninth=await connect();ninth.send({type:'join',version:1,name:'Nona',code});const rejected=await ninth.wait(m=>m.type==='error');assert.ok(rejected.type==='error' && rejected.message.includes('cheia'));
+    for(let i=1;i<8;i++){const p=await connect();p.send({type:'join',version:NET_VERSION,name:`Piloto ${i}`,code});await p.wait(m=>m.type==='welcome');}
+    const ninth=await connect();ninth.send({type:'join',version:NET_VERSION,name:'Nona',code});const rejected=await ninth.wait(m=>m.type==='error');assert.ok(rejected.type==='error' && rejected.message.includes('cheia'));
     clients.slice(0,8).forEach(p=>p.send({type:'ready',ready:true}));await owner.wait(m=>m.type==='state' && m.room.locked);
     clock+=5001;await owner.wait(m=>m.type==='state' && m.room.phase==='racing');
     owner.send({type:'input',seq:12,command:{...EMPTY_COMMAND,throttle:1}});await new Promise(r=>setTimeout(r,80));clock+=100;
     await owner.wait(m=>m.type==='state' && m.room.ack[welcome.id]===12 && (m.room.race?.tick ?? 0)>0);
     const before=await store.read(code);assert.ok(before!.race!.riders.find(r=>r.id===welcome.id)!.speed>0);
     owner.ws.close();await once(owner.ws,'close');await new Promise(r=>setTimeout(r,60));clock+=100;
-    const resume=await connect();resume.send({type:'resume',version:1,code,token:welcome.token});const resumed=await resume.wait(m=>m.type==='welcome');assert.ok(resumed.type==='welcome' && resumed.id===welcome.id);
+    const resume=await connect();resume.send({type:'resume',version:NET_VERSION,code,token:welcome.token});const resumed=await resume.wait(m=>m.type==='welcome');assert.ok(resumed.type==='welcome' && resumed.id===welcome.id);
     resume.send({type:'leave'});await resume.wait(m=>m.type==='left');const after=await store.read(code);assert.equal(after!.race!.multiplayer!.results[welcome.id].reason,'left');assert.equal(after!.race!.mode,'racing');
   } finally {clients.forEach(p=>p.ws.terminate());await app.close();}
 });

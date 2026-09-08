@@ -2,13 +2,13 @@ import { randomBytes } from 'node:crypto';
 import { createMultiplayerRace, finishRider, STEP, stepRace } from '../src/game/simulation';
 import { TRACKS } from '../src/game/content';
 import { EMPTY_COMMAND, type Command } from '../src/game/types';
-import { cleanName, MAX_PLAYERS, READY_WAIT_MS, RECONNECT_MS, ROOM_WAIT_MS, type MemberView, type RoomView } from '../src/multiplayer/protocol';
+import { cleanName, MAX_PLAYERS, READY_WAIT_MS, RECONNECT_MS, ROOM_WAIT_MS, type AttackInput, type MemberView, type RoomView } from '../src/multiplayer/protocol';
 
 export interface Member extends MemberView { token: string; epoch: string; lastSeen: number; }
-export interface Room extends Omit<RoomView,'members'|'serverNow'> {
+export interface Room extends Omit<RoomView,'members'|'serverNow'|'simulationAt'> {
   members: Member[]; updatedAt: number; createdAt: number; finishedAt: number | null;
 }
-export interface StoredInput { seq: number; command: Command; at: number; }
+export interface StoredInput { seq: number; command: Command; at: number; attacks?: AttackInput[]; }
 export type Inputs = Record<string, StoredInput>;
 export const inputKey = (member: Member) => `${member.id}:${member.epoch}`;
 export const secret = () => randomBytes(24).toString('base64url');
@@ -18,11 +18,11 @@ export function makeMember(name: unknown, now: number): Member {
 export function makeRoom(code: string, trackId: unknown, member: Member, now: number): Room {
   if (!TRACKS.some(t => t.id === trackId)) throw new Error('Estrada inválida.');
   return { code, trackId: trackId as string, phase: 'lobby', locked: false, deadline: now+ROOM_WAIT_MS, revision: 0,
-    members: [member], race: null, ack: {}, updatedAt: now, createdAt: now, finishedAt: null };
+    members: [member], race: null, ack: {}, attackAck: {}, updatedAt: now, createdAt: now, finishedAt: null };
 }
 export function viewRoom(room: Room, now: number): RoomView {
   return { code: room.code, trackId: room.trackId, phase: room.phase, locked: room.locked, deadline: room.deadline,
-    revision: room.revision, serverNow: now, members: room.members.map(({id,name,ready,connected}) => ({id,name,ready,connected})), race: room.race, ack: room.ack };
+    revision: room.revision, serverNow: now, simulationAt: room.updatedAt, members: room.members.map(({id,name,ready,connected}) => ({id,name,ready,connected})), race: room.race, ack: room.ack, attackAck: room.attackAck };
 }
 export function lobbyClock(room: Room, now: number) {
   if (room.phase !== 'lobby') return;
@@ -87,9 +87,26 @@ export function pulseRoom(room: Room, inputs: Inputs, now: number) {
     commands[m.id] = m.connected && latest && now-latest.at < 500 ? latest.command : { ...EMPTY_COMMAND, brake: 1 };
     if (latest && steps > 0) room.ack[m.id] = latest.seq;
   }
-  const events = [];
-  for (let i=0;i<steps;i++) { stepRace(room.race,commands); events.push(...room.race.events); }
-  room.race.events = events;
+  // Keep short taps until a simulation step can execute them. Input packets can
+  // be coalesced by the transport/store without dropping or repeating a swing.
+  const events = room.race.events.filter(e=>e.tick!==undefined && e.tick>room.race!.tick-60);
+  for (let i=0;i<steps;i++) {
+    const tickCommands={...commands};const started:{id:string;seq:number}[]=[];
+    for(const m of room.members) {
+      const latest=inputs[inputKey(m)],rider=room.race.riders.find(r=>r.id===m.id);
+      if(!latest || !m.connected || now-latest.at>=500 || !rider)continue;
+      const action=latest.attacks?.find(a=>a.seq>(room.attackAck[m.id] ?? 0));
+      if(!action)continue;
+      if(rider.out || rider.crash || rider.finishedAt!==null || (action.kind==='weapon' && !rider.weapon)) {room.attackAck[m.id]=action.seq;continue;}
+      if(rider.attack || rider.cooldown>STEP)continue;
+      tickCommands[m.id]={...commands[m.id],attack:action.kind};
+      room.attackAck[m.id]=action.seq;started.push({id:m.id,seq:action.seq});
+    }
+    stepRace(room.race,tickCommands);
+    for(const a of started){const rider=room.race.riders.find(r=>r.id===a.id);if(rider?.attack)rider.attack.id=a.seq;}
+    events.push(...room.race.events.map(e=>({...e,tick:room.race!.tick})));
+  }
+  room.race.events = events.filter(e=>(e.tick ?? 0)>room.race!.tick-60).slice(-128);
   room.updatedAt += steps*STEP*1000;
   // After a long service interruption resume from the saved position, without
   // fast-forwarding riders through several seconds of unseen collisions.

@@ -32,7 +32,9 @@ Em desenvolvimento, salas ficam em memória por padrão. Para testar armazenamen
 ASFALTO_REDIS_URL=redis://127.0.0.1:6398 npm run dev:server
 ```
 
-O navegador envia controles e sequências, nunca posição, vida ou resultados. O servidor limita valores e taxa de mensagens, rejeita sequências antigas e aplica um relógio próprio. A previsão local usa apenas movimento; combate, danos, prisão e classificação são confirmados pelo servidor. O cliente interpola movimento e reconecta automaticamente.
+O navegador envia controles e sequências, nunca posição, vida ou resultados. O servidor limita valores e taxa de mensagens, rejeita sequências antigas e aplica um relógio próprio. O protocolo v2 transmite o instante da simulação para desenhar todos os pilotos na mesma linha de tempo. As correções preservam a posição já desenhada e convergem gradualmente, com extrapolação limitada a 350ms. A classificação exibida vem do servidor.
+
+Toques de teclado e dos botões na tela geram ações numeradas, enviadas imediatamente e mantidas nos pacotes seguintes até a confirmação do servidor. Isso evita perder golpes curtos entre atualizações. O servidor respeita os intervalos entre golpes e executa cada ação apenas uma vez. Segurar o botão repete os golpes no intervalo permitido. A animação local começa imediatamente; acertos, danos, roubo de arma, prisão e resultados dependem da confirmação do servidor. Os eventos de impacto permanecem disponíveis por um segundo para chegar mesmo quando uma atualização é atrasada.
 
 ## Publicação no Vibe Jogos / Vercel
 
@@ -53,7 +55,7 @@ As conexões podem cair em instâncias diferentes. Por isso, produção exige Re
 | Redis TCP/TLS | `ASFALTO_REDIS_URL`, `REDIS_URL` ou `KV_URL` |
 | Redis REST / integração já usada pelo catálogo | `KV_REST_API_URL` + `KV_REST_API_TOKEN`, ou `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` |
 
-Configure as variáveis tanto em **Preview** quanto em **Production**. Nenhuma credencial é enviada ao navegador. As chaves ficam isoladas no prefixo `asfalto:online:v1`, com expiração de 30 minutos; o leaderboard existente não é acessado. Mutação com trava e verificação de posse impede que duas instâncias sobrescrevam a mesma sala. REST tem mais latência por operação que uma conexão Redis persistente: validar a região e a cadência em produção antes de ampliar o público.
+Configure as variáveis tanto em **Preview** quanto em **Production**. Nenhuma credencial é enviada ao navegador. As chaves ficam isoladas no prefixo `asfalto:online:v2`, com expiração de 30 minutos; o leaderboard existente não é acessado. O protocolo v2 exige atualizar as páginas e criar uma nova sala; salas v1 não são migradas. Mutação com trava e verificação de posse impede que duas instâncias sobrescrevam a mesma sala. REST tem mais latência por operação que uma conexão Redis persistente: validar a região e a cadência em produção antes de ampliar o público.
 
 Se o Redis não estiver configurado, a API retorna 503 e o cliente informa a indisponibilidade; o modo individual continua disponível. O endpoint HTTP permite verificar `multiplayer` e `sharedRooms`, sem retornar credenciais.
 
@@ -65,9 +67,10 @@ Fontes oficiais verificadas: [WebSockets no Vercel](https://vercel.com/docs/func
 npm test
 npm run test:browser
 npm run test:online
+npm run test:motion
 ASFALTO_TEST_REDIS_URL=redis://127.0.0.1:6398 npm run test:redis
 ```
 
-Os testes online usam um servidor isolado, duas páginas e seis conexões adicionais, com relay que adiciona 100ms em cada direção. Cobrem salas, prontidão, largada, oito vagas, câmeras independentes, combate, roubo de arma, pausa online, reconexão, prisão individual, resultados e retorno ao modo individual. Os testes Redis cobrem concorrência e duas instâncias. Artefatos visuais ficam em `output/online/`.
+Os testes online usam um servidor isolado, duas páginas e seis conexões adicionais, com relay que adiciona 100ms em cada direção. Cobrem salas, prontidão, largada, oito vagas, câmeras independentes, combate, roubo de arma, pausa online, reconexão, prisão individual, resultados e retorno ao modo individual. `test:motion` adiciona atraso variável de 65–170ms em cada sentido e 65ms no armazenamento; mede recuos e saltos de posição, testa direção em velocidade máxima e toques de 5ms para os três golpes, incluindo o botão na tela. Os testes Redis cobrem concorrência e duas instâncias. Artefatos visuais ficam em `output/online/` e `output/online-motion/`.
 
 O protocolo ainda não oferece contas, ranking online persistente, matchmaking público ou compensação histórica de golpes. A validação com atraso não substitui testes em celulares físicos e redes móveis. A implantação pública deve ser verificada com pelo menos dois dispositivos externos, incluindo retomada de conexões no limite da função.

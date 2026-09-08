@@ -2,7 +2,7 @@ import { createServer } from 'node:http';
 import { randomBytes } from 'node:crypto';
 import { WebSocket, WebSocketServer } from 'ws';
 import { finishRider } from '../src/game/simulation';
-import { cleanCommand, NET_VERSION, RECONNECT_MS, type ServerMessage } from '../src/multiplayer/protocol';
+import { cleanAttacks, cleanCommand, NET_VERSION, RECONNECT_MS, type ServerMessage } from '../src/multiplayer/protocol';
 import { depart, inputKey, joinRoom, lobbyClock, makeMember, makeRoom, pulseRoom, secret, setReady, viewRoom, type Member, type Room, type StoredInput } from './room';
 import { BusyRoom, MemoryStore, type RoomStore } from './store';
 
@@ -72,9 +72,9 @@ export function createGameServer(store: RoomStore, options: { origins?: string[]
       peer.lastSeen = now();
       if (data.type === 'ping') { send(peer,{type:'pong',sentAt:Number(data.sentAt)||0,serverNow:now()}); return; }
       if (data.type === 'input') {
-        const command = cleanCommand(data.command);
-        if (!peer.code || !command || !Number.isSafeInteger(data.seq) || data.seq <= peer.seq) return;
-        peer.seq = data.seq; peer.pending = {seq:data.seq,command,at:now()}; return;
+        const command = cleanCommand(data.command), attacks=cleanAttacks(data.attacks);
+        if (!peer.code || !command || !attacks || !Number.isSafeInteger(data.seq) || data.seq <= peer.seq) return;
+        peer.seq = data.seq; peer.pending = {seq:data.seq,command,attacks,at:now()}; return;
       }
       if (busy) return; busy = true;
       try {

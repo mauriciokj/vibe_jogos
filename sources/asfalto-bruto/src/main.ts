@@ -161,11 +161,11 @@ function receiveOnlineRoom(room: RoomView) {
     void audio.start();
   }
   if(room.race.tick>lastOnlineEventTick) {
-    lastOnlineEventTick=room.race.tick;
-    for(const event of room.race.events)if(event.actor===online.id || event.target===online.id || event.type==='police') {
+    for(const event of room.race.events)if((event.tick ?? room.race.tick)>lastOnlineEventTick && (event.actor===online.id || event.target===online.id || event.type==='police')) {
       audio.event(event);if(event.text){setText('race-message',event.text);messageUntil=race.time+1.6;}
       if(event.type==='hit' || event.type==='crash')renderer.hit();
     }
+    lastOnlineEventTick=room.race.tick;
   }
   if(room.race.multiplayer?.results[online.id])showOnlineResult(room);
 }
@@ -246,7 +246,9 @@ function input(): Command {
   return { throttle: keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0, brake: keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0, steer: (keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0), attack: keys.has('KeyL') ? 'weapon' : keys.has('KeyK') ? 'kick' : keys.has('KeyJ') ? 'punch' : null };
 }
 function updateHUD() {
-  const p = localRider(), order = ranking(race), place = order.findIndex(r => r.id === localId()) + 1;
+  const p = localRider(), standings=onlineMode?(online.room?.race ?? race):race;
+  const order = ranking(standings), place = order.findIndex(r => r.id === localId()) + 1;
+  const standingZ=standings.riders.find(r=>r.id===localId())?.z ?? p.z;
   setText('rider-total',String(order.length));
   $('online-hud').textContent=onlineMode?`SALA ${online.code} · ${online.status==='connected'?`${Math.round(online.rtt)} MS`:'RECONECTANDO…'}`:'';
   setText('position', String(place)); setText('race-time', clockString(race.time));
@@ -270,7 +272,7 @@ function updateHUD() {
   if (race.time > messageUntil) setText('race-message', Math.abs(p.x) > 7 && p.speed > 6 ? 'ACOSTAMENTO · MENOS ADERÊNCIA' : race.time < 5 && race.mode === 'racing' ? 'ACELERA. A ESTRADA É SUA.' : '');
   if (onlineMode || race.tick % 12 === 0 || inCountdown) {
     const start = clamp(place - 2, 0, 4);
-    $('rival-list').innerHTML = order.slice(start, start + 4).map((r, i) => `<div class="rival-entry ${r.id === localId() ? 'me' : ''}"><span>${start + i + 1}</span><span>${escapeHTML(r.name)}</span><span class="gap">${r.out==='caught'?'PRESO':r.out?'FORA':r.id === localId() ? '◂' : `${r.z >= p.z ? '+' : '−'}${Math.round(Math.abs(r.z - p.z))}m`}</span></div>`).join('');
+    $('rival-list').innerHTML = order.slice(start, start + 4).map((r, i) => `<div class="rival-entry ${r.id === localId() ? 'me' : ''}"><span>${start + i + 1}</span><span>${escapeHTML(r.name)}</span><span class="gap">${r.out==='caught'?'PRESO':r.out?'FORA':r.id === localId() ? '◂' : `${r.z >= standingZ ? '+' : '−'}${Math.round(Math.abs(r.z - standingZ))}m`}</span></div>`).join('');
   }
 }
 function renderGarage() {
@@ -363,13 +365,19 @@ window.addEventListener('keydown', e => {
   if (e.code === 'KeyF' && !e.repeat && !document.querySelector('dialog[open]')) { void fullscreen(); return; }
   if (document.querySelector('dialog[open]')) return;
   if (e.code === 'Enter' && screen === 'menu' && !e.repeat && (!(e.target instanceof HTMLButtonElement) || e.target.id === 'start-btn')) { e.preventDefault(); requestStart(); return; }
-  if (screen === 'race' && !paused) keys.add(e.code);
+  if (screen === 'race' && !paused) {
+    keys.add(e.code);
+    if(onlineMode && !e.repeat){const kind=({KeyJ:'punch',KeyK:'kick',KeyL:'weapon'} as const)[e.code as 'KeyJ'];if(kind)online.attack(kind);}
+  }
 });
 window.addEventListener('keyup', e => keys.delete(e.code));
 window.addEventListener('blur', () => { keys.clear(); if (!testMode) pauseGame(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden && !testMode) pauseGame(); });
 document.querySelectorAll<HTMLButtonElement>('[data-touch]').forEach(button => {
-  button.addEventListener('pointerdown', e => { e.preventDefault(); button.setPointerCapture(e.pointerId); keys.add(button.dataset.touch!); void audio.start(); });
+  button.addEventListener('pointerdown', e => {
+    e.preventDefault();button.setPointerCapture(e.pointerId);keys.add(button.dataset.touch!);void audio.start();
+    if(onlineMode && screen==='race' && !paused){const kind=({KeyJ:'punch',KeyK:'kick',KeyL:'weapon'} as const)[button.dataset.touch as 'KeyJ'];if(kind)online.attack(kind);}
+  });
   const release = () => keys.delete(button.dataset.touch!);
   button.addEventListener('pointerup', release); button.addEventListener('pointercancel', release); button.addEventListener('lostpointercapture', release);
 });
@@ -384,7 +392,7 @@ declare global {
 }
 window.render_game_to_text = () => {
   const p = localRider(), target = nearestTarget(race, p, p.weapon ? 'weapon' : 'punch');
-  return JSON.stringify({ online: onlineMode?{status:online.status,id:online.id,code:online.code,phase:online.room?.phase,locked:online.room?.locked,deadline:online.room?.deadline,serverNow:online.serverNow(),members:online.room?.members}:null, screen, paused, modal: document.querySelector('dialog[open]')?.id ?? null, mode: race.mode, coordinates: 'x in metres: negative left, positive right; road ±7. z forward in metres. speed m/s.', tick: race.tick, time: +race.time.toFixed(2), countdown: +race.countdown.toFixed(2), track: race.trackId, length: getTrack(race.trackId).distance, player: { out:p.out ?? null, x: +p.x.toFixed(2), z: +p.z.toFixed(1), speed: +p.speed.toFixed(2), health: +p.health.toFixed(1), integrity: +p.integrity.toFixed(1), weapon: p.weapon, attack: p.attack, cooldown: +p.cooldown.toFixed(2), crash: +p.crash.toFixed(2), immune: +p.immune.toFixed(2), hits: p.hits, falls: p.falls, place: ranking(race).findIndex(r => r.id === localId()) + 1 }, curve: +curveAt(p.z, race.trackId).toFixed(2), target: target?.id ?? null, riders: race.riders.filter(r => r.id !== localId() && Math.abs(r.z - p.z) < 400).map(r => ({ id: r.id, name: r.name, x: +r.x.toFixed(1), dz: +(r.z - p.z).toFixed(1), speed: +r.speed.toFixed(1), health: +r.health.toFixed(1), weapon: r.weapon, attack: r.attack, crash: +r.crash.toFixed(1) })), traffic: race.traffic.filter(t => t.z - p.z > -10 && t.z - p.z < 350).map(t => ({ x: t.x, dz: +(t.z - p.z).toFixed(1), direction: t.speed < 0 ? 'oncoming' : 'forward' })), obstacles: race.obstacles.filter(o => o.z - p.z > -10 && o.z - p.z < 200).map(o => ({ kind: o.kind, x: o.x, dz: +(o.z - p.z).toFixed(1) })), heat: +race.heat.toFixed(1), police: race.policeActive, capture: +race.capture.toFixed(2), result: onlineMode?(race.multiplayer?.results[online.id] ?? null):race.result, save: { cash: save.cash, bike: save.bikeId, unlocked: save.unlocked, races: save.races } });
+  return JSON.stringify({ online: onlineMode?{status:online.status,id:online.id,code:online.code,phase:online.room?.phase,locked:online.room?.locked,deadline:online.room?.deadline,serverNow:online.serverNow(),members:online.room?.members}:null, screen, paused, modal: document.querySelector('dialog[open]')?.id ?? null, mode: race.mode, coordinates: 'x in metres: negative left, positive right; road ±7. z forward in metres. speed m/s.', tick: race.tick, time: +race.time.toFixed(2), countdown: +race.countdown.toFixed(2), track: race.trackId, length: getTrack(race.trackId).distance, player: { out:p.out ?? null, x: +p.x.toFixed(2), z: +p.z.toFixed(1), speed: +p.speed.toFixed(2), health: +p.health.toFixed(1), integrity: +p.integrity.toFixed(1), weapon: p.weapon, attack: p.attack, cooldown: +p.cooldown.toFixed(2), crash: +p.crash.toFixed(2), immune: +p.immune.toFixed(2), hits: p.hits, falls: p.falls, place: ranking(onlineMode ? (online.room?.race ?? race) : race).findIndex(r => r.id === localId()) + 1 }, curve: +curveAt(p.z, race.trackId).toFixed(2), target: target?.id ?? null, riders: race.riders.filter(r => r.id !== localId() && Math.abs(r.z - p.z) < 400).map(r => ({ id: r.id, name: r.name, x: +r.x.toFixed(1), dz: +(r.z - p.z).toFixed(1), speed: +r.speed.toFixed(1), health: +r.health.toFixed(1), weapon: r.weapon, attack: r.attack, crash: +r.crash.toFixed(1) })), traffic: race.traffic.filter(t => t.z - p.z > -10 && t.z - p.z < 350).map(t => ({ x: t.x, dz: +(t.z - p.z).toFixed(1), direction: t.speed < 0 ? 'oncoming' : 'forward' })), obstacles: race.obstacles.filter(o => o.z - p.z > -10 && o.z - p.z < 200).map(o => ({ kind: o.kind, x: o.x, dz: +(o.z - p.z).toFixed(1) })), heat: +race.heat.toFixed(1), police: race.policeActive, capture: +race.capture.toFixed(2), result: onlineMode?(race.multiplayer?.results[online.id] ?? null):race.result, save: { cash: save.cash, bike: save.bikeId, unlocked: save.unlocked, races: save.races } });
 };
 window.advanceTime = ms => { if(onlineMode){draw();return;} testMode = true; for (let i = 0; i < Math.round(ms / (STEP * 1000)); i++) update(); draw(); };
 if (testMode) window.__game = {

@@ -2,7 +2,7 @@ export type AttackKind = 'punch' | 'kick' | 'weapon';
 export type RaceMode = 'countdown' | 'racing' | 'finished';
 export type Profile = 'aggressive' | 'careful' | 'fast' | 'player' | 'police';
 export interface Command { throttle: number; brake: number; steer: number; attack: AttackKind | null; }
-export interface Attack { kind: AttackKind; age: number; side: number; hit: boolean; }
+export interface Attack { kind: AttackKind; age: number; side: number; hit: boolean; id?: number; }
 export interface Rider {
   id: string; name: string; color: string; profile: Profile;
   x: number; z: number; speed: number; lean: number;
@@ -13,7 +13,7 @@ export interface Rider {
 }
 export interface Traffic { id: string; x: number; z: number; speed: number; color: string; kind: 'car' | 'van'; }
 export interface Obstacle { id: string; x: number; z: number; kind: 'oil' | 'barrier'; }
-export interface GameEvent { type: 'hit' | 'crash' | 'pass' | 'finish' | 'attack' | 'steal' | 'police'; actor: string; target?: string; text?: string; }
+export interface GameEvent { type: 'hit' | 'crash' | 'pass' | 'finish' | 'attack' | 'steal' | 'police'; actor: string; target?: string; text?: string; tick?: number; }
 export interface RaceResult { reason: 'finish' | 'wrecked' | 'caught' | 'left' | 'timeout'; arrestCause?: 'fall' | 'stopped'; place: number; time: number; reward: number; hits: number; falls: number; }
 export interface RaceState {
   version: 1; tick: number; rng: number; trackId: string; mode: RaceMode; countdown: number; time: number;
