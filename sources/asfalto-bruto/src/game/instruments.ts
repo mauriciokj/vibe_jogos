@@ -109,6 +109,6 @@ export class RaceInstruments {
     c.textAlign='center';c.font=`bold ${w<200?8:9}px monospace`;c.fillStyle='#d9e5ce';c.fillText('RETROVISOR · 200 M',w/2,11);
     const rear=raceAwareness(state,localId).rear.at(-1);
     c.fillStyle=rear?.closing?'#deff70':'#e5eada';
-    c.fillText(rear?`${rear.name.slice(0,w<200?11:18)} · ${Math.round(rear.distance)} M${rear.closing?' ↑':''}`:'PISTA LIVRE ATRÁS',w/2,h-5);
+    c.fillText(rear?`${rear.name.slice(0,w<200?11:18)} · ${Math.round(rear.distance)} M${rear.closing?' ↑':''}`:entities.some(e=>e.car)?'TRÂNSITO ATRÁS':'PISTA LIVRE ATRÁS',w/2,h-5);
   }
 }

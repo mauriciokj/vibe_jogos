@@ -7,6 +7,7 @@ const url=process.env.ASFALTO_BENCH_URL || 'wss://vibe-jogos-git-codex-asfalto-b
 const duration=Number(process.env.ASFALTO_BENCH_MS || 8000);
 const output=process.env.ASFALTO_BENCH_OUTPUT || 'output/latency/before.json';
 const count=Number(process.env.ASFALTO_BENCH_PLAYERS || 2);
+const fillBots=process.env.ASFALTO_BENCH_BOTS==='1';
 const delay=(ms:number)=>new Promise(r=>setTimeout(r,ms));
 const stats=(values:number[])=>{const v=values.slice().sort((a,b)=>a-b);return {count:v.length,min:v[0],p50:v[Math.floor(v.length*.5)],p95:v[Math.floor(v.length*.95)],max:v.at(-1)};};
 class Peer {
@@ -30,7 +31,7 @@ const peers:Peer[]=[];let timer:ReturnType<typeof setInterval>|undefined;
 try {
   for(let i=0;i<count;i++){
     const p=new Peer();peers.push(p);await once(p.ws,'open');
-    p.send(i?{type:'join',version:NET_VERSION,name:`Medição ${i+1}`,code:peers[0].room.code}:{type:'create',version:NET_VERSION,name:'Medição 1',trackId:'costa'});
+    p.send(i?{type:'join',version:NET_VERSION,name:`Medição ${i+1}`,code:peers[0].room.code}:{type:'create',version:NET_VERSION,name:'Medição 1',trackId:'costa',fillBots});
     await p.wait(()=>!!p.id);
   }
   for(const p of peers)p.send({type:'ready',ready:true});
@@ -39,6 +40,6 @@ try {
     seq++;for(const p of peers){p.sent.set(seq,performance.now());p.send({type:'input',seq,command:{throttle:1,brake:0,steer:0,attack:null},attacks:[]});if(seq%10===0)p.send({type:'ping',sentAt:performance.now()});}
   },50);
   await delay(duration);clearInterval(timer);
-  const result={url,players:count,durationMs:duration,peers:peers.map(p=>({snapshotGapMs:stats(p.gaps),snapshotAgeOnServerMs:stats(p.age),inputAckMs:stats(p.lag),rttMs:stats(p.rtt),snapshotBytes:stats(p.sizes)}))};
+  const result={url,players:count,bots:fillBots?Math.max(0,8-count):0,durationMs:duration,peers:peers.map(p=>({snapshotGapMs:stats(p.gaps),snapshotAgeOnServerMs:stats(p.age),inputAckMs:stats(p.lag),rttMs:stats(p.rtt),snapshotBytes:stats(p.sizes)}))};
   await fs.mkdir(output.slice(0,output.lastIndexOf('/')),{recursive:true});await fs.writeFile(output,JSON.stringify(result,null,2));console.log(JSON.stringify(result,null,2));
 }finally{clearInterval(timer);for(const p of peers){if(p.ws.readyState===WebSocket.OPEN)p.send({type:'leave'});p.ws.close();}}

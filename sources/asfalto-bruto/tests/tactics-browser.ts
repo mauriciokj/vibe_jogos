@@ -32,6 +32,9 @@ try {
   await a.setViewportSize({width:1440,height:900});
   await a.evaluate(()=>{const s=JSON.parse(window.__game!.snapshot());s.riders[0].speed=36;window.__game!.restore(JSON.stringify(s));});
   assert.equal(await a.locator('#corner-warning').evaluate(el=>el.classList.contains('braking')),false);await shot('04-controlled-corner');
+  // Position changes between periodic HUD refreshes must update both displays.
+  await a.evaluate(()=>{const s=JSON.parse(window.__game!.snapshot());s.tick=5;s.riders[0].z=1500;window.__game!.restore(JSON.stringify(s));});
+  assert.equal(await a.locator('.rival-entry.me > span').first().innerText(),await a.locator('#position').innerText());
   await a.goto('http://127.0.0.1:4354/?test');const save=(await state()).save;
   await a.click('#online-btn');assert.equal(await a.locator('#online-bots').isChecked(),false);await a.check('#online-bots');await a.fill('#online-name','Ana');await shot('05-bot-option');await a.click('#online-create');
   await a.waitForFunction(()=>JSON.parse(window.render_game_to_text()).online?.phase==='lobby');

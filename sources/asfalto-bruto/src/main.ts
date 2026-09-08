@@ -106,6 +106,7 @@ let testMode = new URLSearchParams(location.search).has('test');
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
 const keys = new Set<string>();
 const displayCache: Record<string, string> = {};
+let lastStandingsTick = -Infinity, lastStandingsPlace = 0;
 const setText = (id: string, value: string) => { if (displayCache[id] !== value) { $(id).textContent = value; displayCache[id] = value; } };
 
 const online = new OnlineClient({
@@ -283,7 +284,8 @@ function updateHUD() {
   $('crash').hidden = p.crash === 0 || !!p.out || race.mode === 'finished';
   if (p.crash) setText('crash-time', `DE VOLTA EM ${p.crash.toFixed(1)}s · SEGURE O ACELERADOR`);
   if (race.time > messageUntil) setText('race-message', Math.abs(p.x) > 7 && p.speed > 6 ? 'ACOSTAMENTO · MENOS ADERÊNCIA' : race.time < 5 && race.mode === 'racing' ? 'ACELERA. A ESTRADA É SUA.' : '');
-  if (race.tick % 6 === 0 || inCountdown) {
+  if (race.tick < lastStandingsTick || race.tick - lastStandingsTick >= 6 || place !== lastStandingsPlace || inCountdown) {
+    lastStandingsTick = race.tick; lastStandingsPlace = place;
     const start = clamp(place - 2, 0, 4);
     $('rival-list').innerHTML = order.slice(start, start + 4).map((r, i) => `<div class="rival-entry ${r.id === localId() ? 'me' : ''}"><span>${start + i + 1}</span><span>${escapeHTML(r.name)}</span><span class="gap">${r.out==='caught'?'PRESO':r.out?'FORA':r.id === localId() ? '◂' : `${r.z >= standingZ ? '+' : '−'}${Math.round(Math.abs(r.z - standingZ))}m`}</span></div>`).join('');
   }
