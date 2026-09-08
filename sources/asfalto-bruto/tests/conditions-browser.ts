@@ -20,11 +20,13 @@ const state=(p=a)=>p.evaluate(()=>JSON.parse(window.render_game_to_text()));
 const shot=(name:string,p=a)=>p.screenshot({path:`${folder}/${name}.png`});
 try{
   await a.goto(base+'?test');
+  assert.equal(await a.locator('[data-route]').count(),12);assert.equal(await a.locator('[data-route]:enabled').count(),4);assert.equal(await a.locator('[data-route]:disabled').count(),8);
   const old=freshSave();delete old.raceCondition;old.cash=8040;old.unlocked=2;old.records.costa={time:156,place:2};old.races=7;
   await a.evaluate(({key,save})=>localStorage.setItem(key,JSON.stringify(save)),{key:SAVE_KEY,save:old});await a.reload();
-  assert.equal((await state()).condition,'sunset');assert.equal((await state()).save.cash,8040);assert.match(await a.locator('#condition-description').innerText(),/RECORDE/);
+  assert.equal((await state()).condition,'sunset');assert.equal((await state()).save.cash,8040);assert.match(await a.locator('#route-detail').innerText(),/RECORDE/);
+  await a.click('[data-route="serra:night"]');await a.reload();assert.equal((await state()).track,'serra');assert.equal((await state()).condition,'night');assert.equal((await state()).save.cash,8040);await a.click('[data-route="costa:sunset"]');
   for(const track of TRACKS)for(const c of CONDITIONS){
-    await a.click(`[data-track=${track.id}]`);await a.click(`[data-condition=${c.id}]`);
+    await a.click(`[data-route="${track.id}:${c.id}"]`);
     assert.equal((await state()).condition,c.id);assert.equal((await state()).scenic,null);
     if(track.id==='costa')await shot(`menu-${c.id}`);
     await a.click('#start-btn');assert.equal((await state()).condition,c.id);
@@ -42,15 +44,20 @@ try{
     await a.click('#pause-btn');await a.click('#restart-btn');assert.equal((await state()).condition,c.id);
     await a.click('#pause-btn');await a.click('#menu-btn');
   }
-  await a.click('[data-track=costa]');await a.reload();assert.equal((await state()).condition,'rain');assert.equal((await state()).save.cash,8040);
-  for(const [name,width,height] of [['mobile',390,844],['small-phone',375,667],['landscape',844,390],['laptop',1280,720]] as const){
+  await a.click('[data-route="costa:rain"]');await a.reload();assert.equal((await state()).condition,'rain');assert.equal((await state()).save.cash,8040);
+  for(const [name,width,height] of [['mobile',390,844],['small-phone',375,667],['panel',681,620],['short-panel',681,420],['landscape',844,390],['laptop',1280,720]] as const){
     await a.setViewportSize({width,height});await a.waitForTimeout(120);await shot(`menu-${name}`);
-    const dock=await a.locator('.route-select').boundingBox(),hero=await a.locator('.menu-main').boundingBox();assert.ok(dock&&hero);assert.ok(dock.y>=0&&dock.x+dock.width<=width+1&&dock.y+dock.height<=height);assert.ok(hero.y+hero.height<=dock.y || hero.x+hero.width<=dock.x,'Menu sections must not overlap');
-    for(const c of CONDITIONS){const box=await a.locator(`[data-condition=${c.id}]`).boundingBox();assert.ok(box&&box.x>=0&&box.y>=0&&box.x+box.width<=width+1&&box.y+box.height<=height);}
+    const dock=await a.locator('.route-select').boundingBox(),hero=await a.locator('.menu-main').boundingBox();assert.ok(dock&&hero);assert.ok(dock.x>=0&&dock.x+dock.width<=width+1);assert.ok(hero.y+hero.height<=dock.y || hero.x+hero.width<=dock.x,'Menu sections must not overlap');
+    const list=await a.locator('#routes').boundingBox(),selected=await a.locator('.route.selected').boundingBox();assert.ok(list&&selected&&selected.x>=list.x-1&&selected.x+selected.width<=list.x+list.width+1,'Selected route remains visible after resize');
+    assert.equal(await a.locator('[data-route]').count(),12);assert.equal(await a.locator('#conditions').count(),0);
+    await a.click('#routes-next');await a.waitForTimeout(400);assert.ok(await a.locator('#routes').evaluate(el=>el.scrollLeft)>0);
+    await a.locator('[data-route="deserto:rain"]').click();assert.equal((await state()).track,'deserto');assert.equal((await state()).condition,'rain');
+    await a.locator('[data-route="costa:rain"]').click();
+
   }
   await a.setViewportSize({width:1440,height:900});
   const saveBefore=await a.evaluate(()=>window.__game!.save());
-  await a.click('#online-btn');assert.equal(await a.locator('#online-condition').inputValue(),'rain');await a.check('#online-bots');await a.fill('#online-name','Ana');await a.selectOption('#online-bike','lobo');await shot('online-create-rain');await a.click('#online-create');
+  await a.click('#online-btn');assert.equal(await a.locator('#online-track').inputValue(),'costa:rain');await a.check('#online-bots');await a.fill('#online-name','Ana');await a.selectOption('#online-bike','lobo');await shot('online-create-rain');await a.click('#online-create');
   await a.waitForFunction(()=>JSON.parse(window.render_game_to_text()).online?.phase==='lobby');const code=(await state()).online.code;assert.match(await a.locator('#online-track-name').innerText(),/CHUVA/);await a.click('#online-ready');await a.waitForTimeout(150);assert.equal((await state()).online.locked,false);
   await b.goto(`${base}?test&sala=${code}`);await b.fill('#online-name','Bia');await b.selectOption('#online-bike','falcao');await b.click('#online-join');await b.waitForFunction(()=>JSON.parse(window.render_game_to_text()).online?.phase==='lobby');assert.match(await b.locator('#online-track-name').innerText(),/CHUVA/);
   await b.click('#online-ready');await a.waitForFunction(()=>JSON.parse(window.render_game_to_text()).online?.locked);offset+=5001;
@@ -63,16 +70,19 @@ try{
   assert.equal((await state()).scenic.startedAt,(await state(b)).scenic.startedAt);assert.equal((await state()).scenic.z,(await state(b)).scenic.z);
   await shot('online-rain-a');await shot('online-rain-b',b);
   await a.keyboard.press('l');await a.waitForTimeout(550);const after=(await store.read(code))!;assert.ok((after.attackAck[aid]??0)>0);assert.ok(after.race!.riders.find(r=>r.id===bid)!.health<100,'Wet race combat must remain authoritative');
-  await b.reload();await b.waitForFunction(()=>JSON.parse(window.render_game_to_text()).screen==='race');assert.equal((await state(b)).online.id,bid);assert.equal((await state(b)).condition,'rain');assert.equal((await state(b)).scenic.startedAt,(await state()).scenic.startedAt);
+  await b.reload();await b.waitForFunction(()=>JSON.parse(window.render_game_to_text()).screen==='race');assert.equal((await state(b)).online.id,bid);assert.equal((await state(b)).condition,'rain');
+  // The decorative appearance may have ended while reloading; its saved timeline must survive.
+  const resumedEvent=await b.evaluate(()=>JSON.parse(window.__game!.snapshot()).scenicEvent);
+  assert.equal(resumedEvent.startedAt,after.race!.scenicEvent!.startedAt);assert.equal(resumedEvent.z,after.race!.scenicEvent!.z);
   assert.equal(await a.evaluate(()=>window.__game!.save()),saveBefore);
   for(const p of [a,b]){await p.click('#pause-btn');await p.click('#menu-btn');}
   await b.close();
   // Performance uses the ordinary animation loop and keyboard, without time hooks.
   const perf:Record<string,unknown>={};
   for(const condition of ['day','night','rain']){
-    await a.goto(base);await a.click(`[data-condition=${condition}]`);await a.click('#start-btn');await a.keyboard.down('w');await a.waitForTimeout(4100);
+    await a.goto(base);await a.click(`[data-route="costa:${condition}"]`);await a.click('#start-btn');await a.keyboard.down('w');await a.waitForTimeout(4100);
     perf[condition]=await a.evaluate(`(async()=>{const times=[];let before=0;await new Promise(resolve=>{function tick(now){if(before)times.push(now-before);before=now;if(times.length>=120)resolve();else requestAnimationFrame(tick);}requestAnimationFrame(tick);});times.sort((a,b)=>a-b);return{fps:1000/(times.reduce((a,b)=>a+b,0)/times.length),p95FrameMs:times[Math.floor(times.length*.95)]};})()`);
     await a.keyboard.up('w');await shot(`live-${condition}`);
   }
-  assert.deepEqual(errors,[]);await fs.writeFile(`${folder}/browser-check.json`,JSON.stringify({ok:true,checks:['12 visual variants','legacy save migration','persistent selection','pause and restart','responsive menu','room condition shared','2 humans + 6 bots','shared decorative timeline','authoritative combat in rain','reconnection','solo save untouched by online'],perf,errors},null,2));console.log(JSON.stringify({ok:true,perf,errors}));
+  assert.deepEqual(errors,[]);await fs.writeFile(`${folder}/browser-check.json`,JSON.stringify({ok:true,checks:['12 visual variants','legacy save migration','persistent selection','pause and restart','responsive menu and carousel across 7 sizes','persisted track and condition','room condition shared','2 humans + 6 bots','shared decorative timeline','authoritative combat in rain','reconnection','solo save untouched by online'],perf,errors},null,2));console.log(JSON.stringify({ok:true,perf,errors}));
 }finally{await browser.close();await app.close();vite.kill('SIGTERM');}

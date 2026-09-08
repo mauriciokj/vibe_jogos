@@ -48,3 +48,11 @@ Artefatos locais estão em `road rash/output/vps/`: `live-check.json`, `eight.js
 - Mediana do intervalo entre snapshots 48,8–50,2ms; mediana da confirmação de comandos 183–192ms. Medição de renderização com dois Chromium: 53,5 FPS, p95 33,4ms. O pico do segundo cliente inclui a atualização de página/reconexão.
 - Artefatos locais em `output/conditions/published-check.json`, `published-driving.json`, `published-corner.png` e `published-other-view.png`; imagens revisadas.
 - Apenas documentação atualizada depois da release; nenhuma nova ativação necessária. Terra Brava e Mata Fechada permanecem etapas futuras do planejamento.
+
+## Seleção unificada e correção de sobreposição — 2026-09-08
+
+- Cada combinação de estrada e condição agora é um cartão próprio, com navegação lateral; criação de salas usa uma única lista com as mesmas 12 opções. Menu em fluxo flex/grid e rolagem vertical em janelas baixas. Save v1 preserva também a pista selecionada; protocolo continua v5.
+- Build e 56 testes passaram. A migração de saves foi validada novamente após incluir cobertura da pista salva/ausente.
+- Teste de navegador passou nas 12 combinações, bloqueios, recordes, pausa/reinício, escolha persistente e sete tamanhos (1440×900, 1280×720, 681×620, 681×420, 390×844, 375×667 e 844×390). Screenshots revisados; controles sem sobreposição, setas visíveis e seleção inteiramente visível na lista.
+- Sala local com dois humanos e seis bots: chuva compartilhada, golpes autoritativos e reconexão preservando a linha do tempo decorativa, mesmo depois de sua aparição terminar. Nenhum erro de console. Relatório em `output/conditions/browser-check.json`.
+- Publicação e verificação pública serão registradas após a ativação.

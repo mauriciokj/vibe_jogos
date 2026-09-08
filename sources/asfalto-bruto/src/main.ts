@@ -1,10 +1,12 @@
 import './style.css';
 import './multiplayer/style.css';
+import './menu.css';
 import { OnlineClient } from './multiplayer/client';
 import type { RoomView } from './multiplayer/protocol';
 import { EMPTY_COMMAND } from './game/types';
 import { BIKES, clamp, clockString, cornerForces, cornerPace, curveAt, upcomingCorner, getBike, handlingLabel, zeroToHundred, getTrack, money, TRACKS } from './game/content';
-import { CONDITIONS, conditionName, raceCondition, recordKey, roadGrip, scenicAppearance } from './game/conditions';
+import { RACE_ROUTES, raceRoute, routeFromId } from './game/routes';
+import { conditionName, raceCondition, recordKey, roadGrip, scenicAppearance } from './game/conditions';
 import { raceAwareness } from './game/awareness';
 import { GameAudio } from './game/audio';
 import { RaceInstruments } from './game/instruments';
@@ -38,7 +40,7 @@ root.innerHTML = `
         <div class="start-row"><button class="primary" id="start-btn">JOGAR SOZINHO ${icons.arrow}</button><button class="secondary online-entry" id="online-btn">MULTIPLAYER <span>2–8 PILOTOS ↗</span></button></div>
         <div class="bike-line"><span>NA SUA GARAGEM</span><b id="current-bike"></b><button id="change-bike">TROCAR ↗</button></div>
       </div>
-      <div class="route-select"><div class="route-options"><div class="condition-select" id="conditions" role="group" aria-label="Condição da corrida"></div><p class="condition-description" id="condition-description"></p><div class="route-heading"><span>ESCOLHA A ESTRADA</span> / <span id="route-count">01 — 03</span></div><div class="routes" id="routes"></div></div><div class="menu-note"><b>INDIVIDUAL + ONLINE OPCIONAL</b><br>TRÂNSITO REAL. RIVAIS SEM PIEDADE.</div></div>
+      <div class="route-select"><div class="route-heading"><div><span>ESCOLHA A PISTA</span><span id="route-count"></span></div><div class="route-navigation"><button id="routes-prev" aria-label="Ver pistas anteriores" aria-controls="routes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M19 12H5m7-7-7 7 7 7"/></svg></button><button id="routes-next" aria-label="Ver próximas pistas" aria-controls="routes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 12h14m-7-7 7 7-7 7"/></svg></button></div></div><div class="routes" id="routes" role="group" aria-label="Pistas disponíveis"></div><p class="route-detail" id="route-detail"></p></div>
       <footer class="bottomline"><span>ESTRADAS ABERTAS. PUNHOS FECHADOS.</span><span><i class="live-dot"></i> PRONTO PARA A LARGADA</span></footer>
     </section>
     <section id="hud" hidden aria-label="Informações da corrida">
@@ -71,7 +73,7 @@ root.innerHTML = `
     <div class="dialog-header"><div><div class="eyebrow">CORRA COM OUTRAS PESSOAS</div><h2 id="online-title">Multiplayer</h2></div><button class="close-btn" id="online-close" aria-label="Voltar ao menu">×</button></div>
     <div class="dialog-body">
       <div id="online-form"><label class="online-label" for="online-name">SEU APELIDO</label><input id="online-name" class="online-input" maxlength="18" placeholder="Como você quer ser chamado?" autocomplete="nickname" />
-        <div class="online-bike-choice"><label class="online-label" for="online-bike">SUA MOTO · TODOS OS MODELOS LIBERADOS NO ONLINE</label><select id="online-bike" class="online-input">${BIKES.map(b=>`<option value="${b.id}">${b.name} · ${b.class}</option>`).join('')}</select><div id="online-bike-preview" class="online-bike-preview"></div></div><div class="online-choices"><div><h3>Criar uma sala</h3><label class="online-label" for="online-track">ESTRADA</label><select id="online-track" class="online-input">${TRACKS.map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}</select><label class="online-label condition-label" for="online-condition">CONDIÇÃO DA CORRIDA</label><select id="online-condition" class="online-input">${CONDITIONS.map(c=>`<option value="${c.id}">${c.name}${c.id==='rain'?' · piso molhado':''}</option>`).join('')}</select><label class="bot-option"><input type="checkbox" id="online-bots" /><span>Completar com bots<small>Até 8 pilotos na largada · mínimo 2 pessoas</small></span></label><button class="primary" id="online-create">CRIAR SALA ↗</button></div>
+        <div class="online-bike-choice"><label class="online-label" for="online-bike">SUA MOTO · TODOS OS MODELOS LIBERADOS NO ONLINE</label><select id="online-bike" class="online-input">${BIKES.map(b=>`<option value="${b.id}">${b.name} · ${b.class}</option>`).join('')}</select><div id="online-bike-preview" class="online-bike-preview"></div></div><div class="online-choices"><div><h3>Criar uma sala</h3><label class="online-label" for="online-track">PISTA</label><select id="online-track" class="online-input">${TRACKS.map(t=>`<optgroup label="${t.name}">${RACE_ROUTES.filter(r=>r.track.id===t.id).map(r=>`<option value="${r.id}">${r.name}</option>`).join('')}</optgroup>`).join('')}</select><label class="bot-option"><input type="checkbox" id="online-bots" /><span>Completar com bots<small>Até 8 pilotos na largada · mínimo 2 pessoas</small></span></label><button class="primary" id="online-create">CRIAR SALA ↗</button></div>
         <div><h3>Entrar com amigos</h3><label class="online-label" for="online-code-input">CÓDIGO DA SALA</label><input id="online-code-input" class="online-input code-input" maxlength="6" placeholder="A1B2C3" autocapitalize="characters" autocomplete="off" spellcheck="false"/><button class="secondary" id="online-join">ENTRAR NA SALA ↗</button></div></div>
         <p class="online-note">De 2 a 8 pessoas. Escolha seu estilo de pilotagem. No online, todos têm acesso às motos de fábrica, sem melhorias. Sua garagem e progresso individual ficam preservados.</p>
       </div>
@@ -89,7 +91,7 @@ const renderer = new Renderer($<HTMLCanvasElement>('game'));
 const instruments = new RaceInstruments($<HTMLCanvasElement>('rear-view'),$<HTMLCanvasElement>('race-map'));
 const audio = new GameAudio();
 let save = loadSave();
-let selectedTrack = 'costa';
+let selectedTrack = save.raceTrackId ?? 'costa';
 let selectedCondition = raceCondition(save.raceCondition);
 let race = createRace(selectedTrack, save, 88117, selectedCondition);
 let screen: 'menu' | 'race' | 'result' = 'menu';
@@ -125,8 +127,7 @@ function localRider() { return race.riders.find(r=>r.id===localId()) ?? race.rid
 const escapeHTML = (s: string) => s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
 function openOnline() {
   keys.clear();$('online-error').hidden=true;$('online-form').hidden=false;$('online-lobby').hidden=true;
-  $<HTMLSelectElement>('online-track').value=selectedTrack;
-  $<HTMLSelectElement>('online-condition').value=selectedCondition;
+  $<HTMLSelectElement>('online-track').value=raceRoute(selectedTrack,selectedCondition).id;
   $<HTMLSelectElement>('online-bike').value=save.bikeId; updateOnlineBikePreview();
   try{$<HTMLInputElement>('online-name').value=localStorage.getItem('asfalto:nickname') ?? '';}catch{}
   $<HTMLDialogElement>('online-modal').showModal();
@@ -140,7 +141,8 @@ function enterOnline(create: boolean) {
   onlineMode=true;onlineRaceStarted=false;lastOnlineEventTick=-1;$('online-error').hidden=true;
   const name=$<HTMLInputElement>('online-name').value.trim() || 'Piloto';
   try{localStorage.setItem('asfalto:nickname',name);}catch{}
-  if(create)online.create(name,$<HTMLSelectElement>('online-track').value,$<HTMLInputElement>('online-bots').checked,$<HTMLSelectElement>('online-bike').value,raceCondition($<HTMLSelectElement>('online-condition').value));
+  const route=routeFromId($<HTMLSelectElement>('online-track').value);
+  if(create)online.create(name,route.track.id,$<HTMLInputElement>('online-bots').checked,$<HTMLSelectElement>('online-bike').value,route.condition.id);
   else online.join(name,$<HTMLInputElement>('online-code-input').value,$<HTMLSelectElement>('online-bike').value);
   void audio.start();
 }
@@ -205,17 +207,36 @@ function syncSound() {
   document.querySelectorAll<HTMLButtonElement>('[data-action="mute"]').forEach(b => { b.innerHTML = save.muted ? icons.mute : icons.sound; b.setAttribute('aria-label', save.muted ? 'Ativar áudio (M)' : 'Silenciar áudio (M)'); b.setAttribute('aria-pressed', String(save.muted)); });
 }
 function toggleMute() { save.muted = !save.muted; syncSound(); saveNow(); void audio.start(); }
+function updateRouteNavigation() {
+  const list=$('routes');
+  $<HTMLButtonElement>('routes-prev').disabled=list.scrollLeft<2;
+  $<HTMLButtonElement>('routes-next').disabled=list.scrollLeft+list.clientWidth>=list.scrollWidth-2;
+}
+function revealSelectedRoute() {
+  const list=$('routes'),card=list.querySelector<HTMLElement>('[aria-pressed="true"]');
+  if(!card)return;
+  const a=list.getBoundingClientRect(),b=card.getBoundingClientRect();
+  if(b.left<a.left+6 || b.right>a.right-6)list.scrollLeft+=b.left-a.left-6;
+  updateRouteNavigation();
+}
+$('routes').addEventListener('scroll',updateRouteNavigation,{passive:true});
+window.addEventListener('resize',()=>requestAnimationFrame(revealSelectedRoute));
 function renderMenu() {
-  $('conditions').innerHTML=CONDITIONS.map(c=>`<button class="condition-button" data-condition="${c.id}" aria-pressed="${c.id===selectedCondition}"><span aria-hidden="true">${c.icon}</span>${c.name}</button>`).join('');
-  const best=save.records[recordKey(selectedTrack,selectedCondition)];
-  $('condition-description').textContent=CONDITIONS.find(c=>c.id===selectedCondition)!.description+(best ? ` · RECORDE ${clockString(best.time)}` : '');
-  $('wallet').textContent = money(save.cash);
-  $('current-bike').textContent = BIKES.find(b => b.id === save.bikeId)!.name;
-  $('route-count').textContent = `${String(getTrack(selectedTrack).index + 1).padStart(2, '0')} — 03`;
-  $('routes').innerHTML = TRACKS.map(t => {
-    const locked = t.index > save.unlocked;
-    return `<button class="route ${t.id === selectedTrack ? 'selected' : ''}" data-track="${t.id}" ${locked ? 'disabled' : ''} aria-pressed="${t.id === selectedTrack}" aria-label="${t.name}${locked ? ', termine a pista anterior entre os 5 primeiros para liberar' : ''}"><div class="route-top"><span>0${t.index + 1} / ${locked ? 'BLOQUEADA' : t.difficulty}</span>${locked ? icons.lock : '<span>↗</span>'}</div><strong>${t.name}</strong><small>${locked ? 'TOP 5 NA PISTA ANTERIOR' : `${(t.distance / 1000).toFixed(1)} KM &nbsp; · &nbsp; PRÊMIO ${money(t.prize)}`}</small></button>`;
+  const selected=raceRoute(selectedTrack,selectedCondition),best=save.records[recordKey(selectedTrack,selectedCondition)];
+  $('route-detail').textContent=`${selected.name} — ${selected.condition.description}`+(best ? ` · RECORDE ${clockString(best.time)}` : '');
+  $('wallet').textContent=money(save.cash);
+  $('current-bike').textContent=getBike(save.bikeId).name;
+  $('route-count').textContent=`${String(RACE_ROUTES.indexOf(selected)+1).padStart(2,'0')} / ${RACE_ROUTES.length} PISTAS`;
+  const focused=(document.activeElement as HTMLElement)?.dataset.route;
+  const list=$('routes'),left=list.scrollLeft;
+  list.innerHTML=RACE_ROUTES.map((r,i)=>{
+    const locked=r.track.index>save.unlocked,active=r.id===selected.id;
+    const tint={day:'#376875',sunset:'#765545',night:'#263c5a',rain:'#455a63'}[r.condition.id];
+    return `<button class="route ${active?'selected':''}" style="--route-tint:${tint}" data-route="${r.id}" data-track="${r.track.id}" data-condition="${r.condition.id}" ${locked?'disabled':''} aria-pressed="${active}" aria-label="${r.name}${locked?', termine a pista anterior entre os 5 primeiros para liberar':''}"><span class="route-top"><span>${String(i+1).padStart(2,'0')} / ${locked?'BLOQUEADA':r.track.difficulty}</span>${locked?icons.lock:'<span>↗</span>'}</span><strong>${r.track.name}</strong><span class="route-condition"><span aria-hidden="true">${r.condition.icon}</span>${r.condition.name}</span><small>${locked?'TOP 5 NA PISTA ANTERIOR':`${(r.track.distance/1000).toFixed(1)} KM · PRÊMIO ${money(r.track.prize)}`}</small></button>`;
   }).join('');
+  list.scrollLeft=left;
+  if(focused)list.querySelector<HTMLButtonElement>(`[data-route="${focused}"]`)?.focus({preventScroll:true});
+  requestAnimationFrame(revealSelectedRoute);
 }
 function makeAttract() {
   race = createRace(selectedTrack, save, 88117, selectedCondition);
@@ -363,11 +384,14 @@ document.addEventListener('click', event => {
   if (button.dataset.action === 'mute') toggleMute();
   if (button.dataset.action === 'fullscreen') void fullscreen();
   if (button.dataset.action === 'help') { helpStartsRace = false; $<HTMLDialogElement>('help-modal').showModal(); }
-  if (button.dataset.condition) { selectedCondition=raceCondition(button.dataset.condition); save.raceCondition=selectedCondition; saveNow(); renderMenu(); makeAttract(); }
-  if (button.dataset.track && getTrack(button.dataset.track).index <= save.unlocked) { selectedTrack = button.dataset.track; renderMenu(); makeAttract(); }
+  if (button.dataset.route) {
+    const route=routeFromId(button.dataset.route);
+    if(route.track.index<=save.unlocked){selectedTrack=route.track.id;selectedCondition=route.condition.id;save.raceTrackId=selectedTrack;save.raceCondition=selectedCondition;saveNow();renderMenu();makeAttract();}
+  }
   if (button.dataset.bike && buyBike(save, button.dataset.bike)) { saveNow(); renderMenu(); renderGarage(); makeAttract(); }
   if (button.dataset.upgrade && ['engine', 'armor', 'handling'].includes(button.dataset.upgrade) && buyUpgrade(save, button.dataset.upgrade as keyof Upgrade)) { saveNow(); renderMenu(); renderGarage(); toast('Melhoria instalada. Hora de sentir a diferença.'); }
   switch (button.id) {
+    case 'routes-prev': case 'routes-next': $('routes').scrollBy({left:(button.id==='routes-next'?1:-1)*$('routes').clientWidth*.8,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'}); break;
     case 'online-btn': openOnline(); break;
     case 'online-create': enterOnline(true); break;
     case 'online-join': enterOnline(false); break;

@@ -1,0 +1,78 @@
+/* Keep the menu in document flow: small windows scroll instead of overlapping. */
+#menu {
+  position:absolute; inset:0; display:flex; flex-direction:column; gap:22px;
+  overflow:auto; overflow-x:hidden; padding:0 clamp(20px,5vw,80px);
+  pointer-events:auto; overscroll-behavior:contain; scrollbar-color:#809775 #172b2d;
+}
+#menu .menu-shade { position:fixed; pointer-events:none; }
+#menu .topbar { position:relative; inset:auto; flex:none; padding:22px 0 0; gap:14px; }
+#menu .menu-main { position:relative; inset:auto; z-index:1; width:min(520px,100%); flex:1 0 auto; margin:10px 0 0; }
+#menu .menu-main h1 { font-size:clamp(72px,min(9vw,14dvh),128px); margin:22px 0; }
+#menu .menu-main p { font-size:14px; line-height:1.5; }
+#menu .start-row { margin-top:22px; flex-wrap:wrap; }
+#menu .bike-line { margin-top:14px; flex-wrap:wrap; }
+#menu .route-select { position:relative; inset:auto; z-index:1; display:block; max-width:none; min-width:0; flex:none; }
+#menu .route-heading { display:flex; align-items:center; justify-content:space-between; gap:14px; margin:0 0 9px; }
+#menu .route-heading>div:first-child { display:flex; align-items:center; flex-wrap:wrap; gap:14px; }
+#menu #route-count { color:#b8c4b8; font-size:9px; letter-spacing:1px; }
+.route-navigation { display:flex; gap:7px; flex:none; }
+.route-navigation button { display:grid; place-items:center; width:35px; height:30px; padding:0; border:1px solid #c6dd9c66; border-radius:3px; background:#162c2ce6; color:var(--acid); font-size:21px; }
+.route-navigation button:hover:not(:disabled) { background:#365044; }
+.route-navigation button:disabled { opacity:.3; }
+#menu .routes { display:flex; flex-direction:row; gap:10px; width:100%; overflow-x:auto; overflow-y:hidden; padding:6px 6px 12px; scroll-snap-type:x proximity; scrollbar-width:thin; scrollbar-color:#82966d #1e3435; }
+#menu .route { flex:0 0 211px; min-width:0; padding:12px 15px; scroll-snap-align:start; background:linear-gradient(130deg,#15292df5,var(--route-tint)); }
+#menu .route.selected { border-color:var(--acid); box-shadow:inset 0 -2px var(--acid); }
+#menu .route:hover:not(:disabled) { filter:brightness(1.15); }
+#menu .route:focus-visible { outline-offset:2px; }
+#menu .route-top { display:flex; margin-bottom:8px; font-size:9px; }
+#menu .route strong { font-size:24px; }
+#menu .route-condition { display:flex; align-items:center; gap:7px; color:#e0e8d3; font-size:12px; margin-top:7px; }
+#menu .route-condition>span { font-size:16px; line-height:1; }
+#menu .route small { display:block; font-size:9px; margin-top:10px; color:#c8d0c1; letter-spacing:.25px; }
+#menu .route-detail { margin:7px 6px 0; min-height:16px; color:#c5d2bd; font-size:11px; line-height:1.5; }
+#menu .bottomline { position:relative; inset:auto; flex:none; padding:0 0 17px; gap:15px; z-index:1; font-size:8px; }
+@media(max-height:740px) {
+  #menu { gap:18px; }
+  #menu .topbar { padding-top:18px; }
+  #menu .menu-main { margin-top:0; }
+  #menu .menu-main h1 { font-size:80px; margin:16px 0; }
+  #menu .menu-main p { display:none; }
+  #menu .start-row { margin-top:18px; }
+  #menu .bike-line { margin-top:10px; }
+}
+@media(max-width:700px) {
+  #menu { padding:0 20px; gap:22px; }
+  #menu .topbar { gap:8px; padding-top:18px; }
+  #menu .brand { font-size:20px; gap:5px; }
+  #menu .brand-separator { display:none; }
+  #menu .top-actions { gap:6px; min-width:0; }
+  #menu .wallet { font-size:11px; white-space:nowrap; margin:0; }
+  #menu .wallet>span { display:none; }
+  #menu .menu-main { margin-top:5px; width:100%; }
+  #menu .menu-main h1 { font-size:clamp(70px,23vw,105px); margin:20px 0; }
+  #menu .menu-main .eyebrow { font-size:9px; letter-spacing:1.5px; }
+  #menu .start-row { grid-template-columns:1fr 1fr; gap:9px; }
+  #menu .bike-line { font-size:10px; }
+  #menu .route-heading { font-size:9px; letter-spacing:1px; }
+  #menu .route-heading>div:first-child { gap:7px; }
+  #menu #route-count { font-size:8px; }
+  #menu .route { flex-basis:196px; padding:11px 13px; }
+  #menu .route strong { font-size:23px; }
+  #menu .route-detail { font-size:10px; }
+  #menu .bottomline { font-size:7px; letter-spacing:.8px; padding-bottom:14px; }
+}
+@media(max-width:700px) and (max-height:740px) {
+  #menu { gap:16px; }
+  #menu .menu-main h1 { font-size:76px; margin:16px 0; }
+}
+@media(min-width:701px) and (max-height:520px) {
+  #menu { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); grid-template-rows:auto 1fr auto; gap:16px 28px; padding:0 25px; }
+  #menu .topbar,#menu .bottomline { grid-column:1/-1; }
+  #menu .menu-main { width:100%; align-self:center; }
+  #menu .menu-main h1 { font-size:64px; margin:16px 0; }
+  #menu .menu-main .eyebrow { font-size:8px; letter-spacing:1px; }
+  #menu .route-select { align-self:center; }
+  #menu .route-heading { font-size:8px; letter-spacing:.8px; }
+  #menu .route-heading>div:first-child { gap:7px; }
+  #menu .route { flex-basis:195px; }
+}

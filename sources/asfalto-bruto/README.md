@@ -46,7 +46,7 @@ O som começa depois de uma interação. Em telas estreitas, há controles por t
 - Curvas alternadas com aviso de direção, distância e velocidade de referência. Excesso de velocidade reduz a aderência; frear antes da entrada e acelerar na saída permite ganhar terreno sem depender de acidentes.
 - Mapa de proximidade com 300m para cada lado, pilotos por cor e distâncias ao da frente e de trás. Retrovisor mostra motos e trânsito nos últimos 200m, com indicação de aproximação.
 - Três estradas com curvas, elevações e cenários próprios: **Costa do Sol** (8,4 km), **Serra da Fumaça** (9,2 km) e **Vale Vermelho** (10,2 km).
-- **Dia, Entardecer, Noite e Chuva** nas três estradas: 12 combinações. A escolha muda o cenário e fica salva; na chuva, a aderência equivale a 82% da dirigibilidade e a frenagem a 88% da força original. Dia/noite mantêm a física seca. Os avisos de curva e os bots consideram o piso molhado.
+- **Dia, Entardecer, Noite e Chuva** nas três estradas: 12 combinações. Cada combinação aparece como uma pista própria na seleção (por exemplo, Costa do Sol · Dia), em cartões com navegação lateral. A criação de salas usa a mesma lista combinada. A escolha completa muda o cenário e fica salva; na chuva, a aderência equivale a 82% da dirigibilidade e a frenagem a 88% da força original. Dia/noite mantêm a física seca. Os avisos de curva e os bots consideram o piso molhado.
 - Aparição rara de uma **sereia no mar da Costa**, com poses próprias por condição: cauda entre as ondas na chuva, brilho discreto à noite e pedra no entardecer. É apenas cenário, sem colisão, prêmio, dano ou aviso. Cada corrida tem 33% de chance, um local sorteado e uma janela de 8 segundos, iniciada quando o primeiro humano chega a 180m. No online, todos compartilham a mesma aparição.
 - Recordes por estrada e condição. Saves v1 continuam válidos; os recordes anteriores pertencem ao Entardecer.
 - Trânsito nos dois sentidos, carros e vans nas faixas, óleo, barreiras, ultrapassagens e colisões.
@@ -77,6 +77,7 @@ O som começa depois de uma interação. Em telas estreitas, há controles por t
 | `src/game/scenery.ts` | Vegetação, rochas e construções originais em cache, com aleatoriedade apenas visual |
 | `src/game/audio.ts` | Motor e efeitos sonoros, sem influência na simulação |
 | `src/game/save.ts` | Progressão, compras, reparos e persistência no navegador |
+| `src/game/routes.ts` / `src/menu.css` | Combinações de pista/condição e menu em fluxo responsivo, com rolagem em janelas baixas |
 | `src/main.ts` | Entradas, ciclo de execução, HUD, menus e integração |
 | `src/multiplayer/` | Protocolo, conexão, previsão de movimento e estilos das salas |
 | `server/` | Regras de salas, simulação autoritativa, conexões e armazenamento em memória/Redis |
@@ -102,7 +103,7 @@ npm run test:browser
 - Corridas completas nas três pistas, em piso seco e na chuva, com comandos dentro dos limites de controle do jogador.
 - Testes de navegador: teclado, tutorial, pausa, reinício, todos os golpes, queda/retorno, captura, corrida completa, resultados, desbloqueio, persistência, reparos, compras, todas as melhorias, seleção de moto, reset, áudio, tela cheia e toque.
 - `npm run test:online` verifica dois navegadores e seis conexões adicionais com 200ms de atraso de ida e volta. Inclui largada, combate, reconexão, prisão individual e retorno ao modo individual.
-- `npm run test:conditions` verifica as 12 combinações visuais, seleção persistente, saves anteriores, pausa/reinício, menu em três tamanhos, sala com duas pessoas e seis bots, condição e aparição compartilhadas, golpes na chuva e reconexão. Artefatos em `output/conditions/`.
+- `npm run test:conditions` verifica as 12 combinações visuais, seleção persistente, saves anteriores, pausa/reinício, cartões, navegação lateral e menu em sete tamanhos, sala com duas pessoas e seis bots, condição e aparição compartilhadas, golpes na chuva e reconexão. Artefatos em `output/conditions/`.
 - `npm run test:bikes` verifica os sete modelos na garagem e na corrida, compras, melhorias, preservação do save, seleção online móvel, atributos de fábrica e reconexão entre modelos diferentes.
 - `npm run test:tactics` verifica a opção de bots, corrida com duas pessoas e seis CPUs, frenagem compartilhada, reconexão, resultados, mapa/retrovisor no desktop e celular, além da cadência de uma corrida com os instrumentos.
 - `npm run test:motion` verifica estabilidade de movimento com atraso variável de rede e armazenamento, direção e golpes com toques de 5ms em alta velocidade.

@@ -26,6 +26,6 @@ export interface RaceState {
 }
 export interface Bike { id: string; name: string; class: string; style: BikeStyle; price: number; speed: number; acceleration: number; handling: number; armor: number; color: string; tagline: string; }
 export interface Upgrade { engine: number; armor: number; handling: number; }
-export interface SaveData { version: 1; raceCondition?: RaceCondition; cash: number; owned: string[]; bikeId: string; upgrades: Record<string, Upgrade>; condition: Record<string, number>; unlocked: number; records: Record<string, { time: number; place: number }>; races: number; muted: boolean; }
+export interface SaveData { version: 1; raceTrackId?: string; raceCondition?: RaceCondition; cash: number; owned: string[]; bikeId: string; upgrades: Record<string, Upgrade>; condition: Record<string, number>; unlocked: number; records: Record<string, { time: number; place: number }>; races: number; muted: boolean; }
 export interface Track { id: string; name: string; region: string; distance: number; difficulty: string; prize: number; index: number; sky: string[]; land: string[]; road: string[]; accent: string; }
 export const EMPTY_COMMAND: Command = { throttle: 0, brake: 0, steer: 0, attack: null };

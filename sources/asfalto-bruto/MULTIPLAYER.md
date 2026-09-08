@@ -4,7 +4,7 @@ O modo individual continua local, com garagem, melhorias e progressão existente
 
 ## Regras da sala
 
-- A primeira pessoa cria a sala, escolhe uma das três estradas e uma condição (Dia, Entardecer, Noite ou Chuva), e recebe um código/convite.
+- A primeira pessoa cria a sala, escolhe uma das 12 opções combinadas, como **Costa do Sol · Dia** ou **Serra da Fumaça · Chuva**, e recebe um código/convite.
 - A condição é fixa para toda a sala e aparece na espera, corrida e resultados. A previsão local usa a mesma aderência e frenagem de chuva do servidor; bots também antecipam as curvas.
 - A sereia da Costa é apenas cenário. O servidor sorteia local e ocorrência fora do gerador aleatório da física e compartilha o início da aparição. Reconectar não reinicia o evento.
 - Ao criar, **Completar com bots** é opcional e vem desmarcado. Quando marcado, vagas livres são preenchidas por pilotos **CPU** somente na largada, até um total de 8. Todas as vagas continuam disponíveis para pessoas durante a espera. Bots não contam como prontos nem substituem o mínimo de 2 pessoas reais.

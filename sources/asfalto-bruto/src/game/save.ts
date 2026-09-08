@@ -4,7 +4,7 @@ import type { RaceState, SaveData, Upgrade } from './types';
 
 export const SAVE_KEY = 'asfalto-bruto:v1';
 export function freshSave(): SaveData {
-  return { version: 1, raceCondition: 'sunset', cash: 650, owned: ['ferro'], bikeId: 'ferro', upgrades: { ferro: { engine: 0, armor: 0, handling: 0 } }, condition: { ferro: 100 }, unlocked: 0, records: {}, races: 0, muted: false };
+  return { version: 1, raceTrackId: 'costa', raceCondition: 'sunset', cash: 650, owned: ['ferro'], bikeId: 'ferro', upgrades: { ferro: { engine: 0, armor: 0, handling: 0 } }, condition: { ferro: 100 }, unlocked: 0, records: {}, races: 0, muted: false };
 }
 export function loadSave(): SaveData {
   try {
@@ -17,6 +17,7 @@ export function loadSave(): SaveData {
     if (!valid.owned.includes('ferro')) valid.owned.unshift('ferro');
     valid.bikeId = valid.owned.includes(saved.bikeId) ? saved.bikeId : 'ferro';
     valid.unlocked = Number.isInteger(saved.unlocked) ? clamp(saved.unlocked, 0, 2) : 0;
+    valid.raceTrackId=TRACKS.find(t=>t.id===saved.raceTrackId && t.index<=valid.unlocked)?.id ?? 'costa';
     valid.races = Number.isFinite(saved.races) ? Math.max(0, saved.races) : 0;
     valid.muted = saved.muted === true;
     valid.raceCondition = raceCondition(saved.raceCondition);

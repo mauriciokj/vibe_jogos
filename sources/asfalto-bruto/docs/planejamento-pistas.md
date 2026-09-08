@@ -59,7 +59,7 @@ A tabela indica uma versão que apresenta bem a identidade de cada pista. **Toda
 | Noite | Lua, faróis, refletores e iluminação própria do lugar | Reflexos no mar, vaga-lumes na Mata, janelas de fazendas ao longe e cidade iluminada no Anel. |
 | Chuva | Céu encoberto, chuva e resposta do piso adequada ao ambiente | Mar agitado na Costa, água escorrendo das folhas na Mata, lama na terra, reflexos urbanos e enxurradas rasas no deserto. |
 
-Primeira versão do seletor: **Pista + Condição**, tanto no individual quanto na criação da sala. A versão Chuva começa durante o dia, com céu encoberto. Horário e precipitação serão parâmetros separados internamente, permitindo combinar noite e chuva futuramente. Não acrescentar essas combinações extras ao escopo inicial.
+Apresentação ajustada a pedido do usuário: **cada combinação aparece como uma opção de pista**, como Costa do Sol · Dia e Costa do Sol · Chuva. No individual, usar cartões com navegação lateral; ao criar sala, uma lista combinada. O menu usa fluxo normal e rolagem em janelas baixas para impedir sobreposição dos controles. Internamente, os IDs de pista e condição continuam separados para preservar saves, recordes e regras da sala. A versão Chuva começa durante o dia, com céu encoberto. Horário e precipitação serão parâmetros separados internamente, permitindo combinar noite e chuva futuramente. Não acrescentar essas combinações extras ao escopo inicial.
 
 Três pistas com quatro condições resultam em **12 combinações jogáveis**. A lista de planejamento agora contém 12 traçados candidatos contando os três existentes, portanto poderia chegar a **48 combinações** se todos forem construídos. A multiplicação reaproveita o traçado; cada condição recebe cenário, efeitos e balanceamento adequados.
 
