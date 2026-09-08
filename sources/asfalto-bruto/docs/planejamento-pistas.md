@@ -3,6 +3,8 @@
 Status: primeira etapa publicada e validada na VPS: quatro condições nas três pistas existentes e sereia na Costa. Terra Brava e demais pistas continuam planejadas.
 Data: 2026-09-08.
 
+Melhorias de pilotagem e combate solicitadas para depois, incluindo empinada com saltos limitados e equipamentos permanentes de garagem: [melhorias-futuras.md](melhorias-futuras.md).
+
 ## Objetivo
 
 Criar pistas com traçados, horários, clima e obstáculos reconhecíveis. Cada uma deve exigir decisões de frenagem, trajetória e ultrapassagem que permitam recuperar posições pela pilotagem. As diferentes motos precisam continuar competitivas, com vantagens em trechos específicos. Todas as pistas devem funcionar no individual e no multiplayer opcional. Cada traçado terá quatro versões selecionáveis e aparições decorativas raras que reforçam sua identidade.
@@ -13,6 +15,7 @@ Criar pistas com traçados, horários, clima e obstáculos reconhecíveis. Cada 
 - Cada pista deve ter easter eggs ligados ao ambiente, apenas visuais, sem interferir na corrida ou na dirigibilidade.
 - Costa do Sol: uma sereia pode aparecer eventualmente no mar.
 - Mata Fechada: um macaco pode aparecer entre as árvores.
+- Porto Ferrugem: personagem pendurado em um caminhão na contramão, em referência ao meme indicado pelo usuário; apenas visual. Detalhes em [melhorias-futuras.md](melhorias-futuras.md).
 - Adicionar uma pista de terra no interior, com muitas subidas, descidas e curvas; usar aparições inspiradas no folclore brasileiro.
 - As condições devem mudar detalhes característicos da pista, além da iluminação.
 
@@ -23,7 +26,7 @@ Criar pistas com traçados, horários, clima e obstáculos reconhecíveis. Cada 
 - Vale Vermelho: deserto, 10,2 km, brutal.
 - Curvas e elevações já influenciam a pilotagem. O traçado atual deriva de uma sequência comum, ajustada por dificuldade.
 - Trânsito: carros e vans. Obstáculos: óleo e barreiras.
-- Céu e cenário têm paletas por pista; chuva, neve, vento lateral e aderência por superfície ainda não estão implementados.
+- As três pistas já oferecem Dia, Entardecer, Noite e Chuva, com aderência e frenagem menores na chuva. Neve, vento lateral e aderência localizada por superfície continuam planejados.
 
 ## Ideias de pistas novas
 
@@ -71,7 +74,7 @@ As aparições são raras e breves, ligadas ao ambiente da pista. As sugestões 
 | Costa do Sol | Sereia no mar: cabeça entre as ondas, cauda ou silhueta sobre uma pedra distante. |
 | Serra da Fumaça | Trem fantasma atravessando um viaduto distante, visível por poucos segundos entre as nuvens. |
 | Vale Vermelho | Pequeno OVNI sobre uma formação rochosa. |
-| Porto Ferrugem | Tentáculo de um polvo gigante aparecendo entre navios, longe da pista. |
+| Porto Ferrugem | Personagem pendurado em um caminhão que vem na contramão, em referência ao meme indicado pelo usuário. Decoração sem efeito sobre o veículo ou as colisões. |
 | Mata Fechada | Macaco espiando ou saltando de um galho para outro. |
 | Estrada das Fazendas | Capivara de chapéu descansando numa rede perto de uma casa. |
 | Rota das Dunas | Caravana de silhuetas surgindo como miragem no horizonte. |
@@ -89,7 +92,7 @@ As aparições são raras e breves, ligadas ao ambiente da pista. As sugestões 
 | Mata Fechada | Macaco pula entre galhos | Macaco observa os pilotos contra a luz do céu | Sua silhueta passa diante de um trecho iluminado pela lua | Macaco se abriga sob uma folha grande |
 | Terra Brava | Saci aparece sentado numa cerca distante | Um redemoinho de folhas revela seu gorro por um instante | Boitatá desenha uma linha de luz num morro distante | Saci observa a estrada debaixo de uma árvore |
 
-As demais pistas seguem a mesma lógica: variar pose, iluminação ou situação da aparição. Por exemplo, o gato do Anel toma sol de dia e espia atrás de um letreiro à noite; no porto, a água e a iluminação dos navios mudam como o tentáculo fica visível. Não é necessário criar quatro criaturas diferentes por pista.
+As demais pistas seguem a mesma lógica: variar pose, iluminação ou situação da aparição. Por exemplo, o gato do Anel toma sol de dia e espia atrás de um letreiro à noite; no porto, luz do dia, faróis e iluminação dos galpões mudam como o personagem pendurado no caminhão fica visível. Não é necessário criar quatro personagens diferentes por pista.
 
 ### Regras das aparições
 
@@ -101,6 +104,7 @@ As demais pistas seguem a mesma lógica: variar pose, iluminação ou situação
 6. No multiplayer, sorteio, local e instante são comuns à sala. Quem estiver passando pelo local naquele momento poderá ver a aparição; não precisa aparecer na câmera de todos ao mesmo tempo.
 7. Usar animações leves, com sprites em cache e poucos quadros; manter legibilidade sem gerar travamentos. Qualidade reduzida pode simplificar o desenho.
 8. O sorteio decorativo deve ser independente do gerador aleatório da física/IA. Desativar o desenho de uma aparição não pode mudar nenhum resultado da corrida.
+9. Uma aparição pode acompanhar um veículo físico, como o caminhão do Porto Ferrugem. Nesse caso, apenas o personagem decorativo não tem colisão; o veículo mantém seu comportamento normal e continua sendo um obstáculo.
 
 ## Terra Brava: proposta da pista de terra
 
@@ -162,7 +166,7 @@ A resistência das motos pode ajudar a suportar impactos. Seus atributos de curv
 4. **Porto Ferrugem em quatro versões:** acrescentar tráfego pesado, obras e a aparição no porto.
 5. **Anel de Aço e expansão das outras pistas:** todas seguem os mesmos sistemas de condições e aparições.
 
-Essa ordem é uma sugestão atualizada para discussão. Não há implementação aprovada nesta etapa de planejamento.
+Essa ordem orienta as próximas etapas. A primeira entrega já foi publicada; os demais traçados e as melhorias futuras continuam no planejamento.
 
 ### Porto Ferrugem: traçado de referência
 
