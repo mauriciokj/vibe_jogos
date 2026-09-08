@@ -72,3 +72,10 @@ Artefatos locais estão em `road rash/output/vps/`: `live-check.json`, `eight.js
 - Build passou; 56 testes anteriores e nove novos passaram. Teste de navegador cobriu lojas, saves, cinco joelheiras, manobra, chuva, chopper, potência/consumo/pausa/reinício do nitro, som/evento de buzina, balões, multiplayer e reconexão.
 - Toques simultâneos nativos via Chromium: direção e acelerador, dupla deflexão para a esquerda, liberação e pausa limpando dedos capturados; retrato e paisagem. O detector usa o timestamp do evento para não depender do atraso de processamento do navegador.
 - Capturas de gameplay/loja foram inspecionadas. Balões acompanham a cabeça inclinada; texto de queda não sobrepõe o aviso principal. Relatório `output/equipment/browser-check.json`, sem erros JavaScript/console. A verificação pública será registrada após ativar a release.
+
+### Equipamentos publicados e verificados
+
+- Código `8730918`, release `20260908T212701Z-8730918` ativa. Asfalto, catálogo e Caddy ativos; health confirmou protocolo v6. Ativação respeitou a verificação de corridas ativas.
+- HTTPS público: compras pela garagem, limite de nitro, manobra individual e balão. Sala entre subdomínio e domínio principal com dois humanos e seis bots confirmou equipamentos, ações compartilhadas, restrição de chopper e consumo persistido após reconexão sem débito duplicado.
+- Os dois clientes saíram explicitamente. Nenhum erro JavaScript/console. Relatório `output/equipment/published-check.json`; capturas da garagem, manobra com balão e corrida online inspecionadas em `output/equipment/published-*.png` no projeto de origem.
+- O domínio principal usou mapeamento DNS temporário no Chromium mantendo validação TLS. Conteúdo dos demais jogos e homepage preservado. Este registro posterior à release não requer nova ativação.
