@@ -323,8 +323,7 @@ function queueAction(action: RiderAction) {
   const p=localRider();
   if(action==='kneeLeft' || action==='kneeRight') {
     if(!supportsKneeDown(p.bikeId)){toast('Choppers não fazem a manobra de joelho.');return;}
-    if(!getKneePad(p.kneePadId)){toast('Compre e equipe uma joelheira na garagem.');return;}
-    if(p.speed<20){toast('A manobra exige pelo menos 72 km/h.');return;}
+    if(!getKneePad(p.kneePadId) || p.speed<20)return;
   }
   if(action==='wheelie'){
     if(wheeliesLeft(p)<=0){toast('Você já usou as 3 empinadas desta corrida.');return;}
