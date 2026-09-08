@@ -1,6 +1,6 @@
 # Asfalto Bruto — planejamento de novas pistas
 
-Status: primeira etapa implementada e validada localmente: quatro condições nas três pistas existentes e sereia na Costa. Terra Brava e demais pistas continuam planejadas.
+Status: primeira etapa publicada e validada na VPS: quatro condições nas três pistas existentes e sereia na Costa. Terra Brava e demais pistas continuam planejadas.
 Data: 2026-09-08.
 
 ## Objetivo

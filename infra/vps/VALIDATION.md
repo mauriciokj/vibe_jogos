@@ -40,3 +40,11 @@ Artefatos locais estão em `road rash/output/vps/`: `live-check.json`, `eight.js
 - Cadência local de 120 quadros por condição: dia 59,0 FPS (p95 16,8ms), noite 60,0 FPS (p95 16,8ms), chuva 56,7 FPS (p95 33,3ms). Medição em Chromium automatizado, sem extrapolar para todos os dispositivos.
 - Cliente original da skill executado com ações curtas; screenshot e estado revisados. Relatório local: `output/conditions/browser-check.json`, junto às imagens.
 - Sete testes do catálogo/SQLite passaram. A publicação e a verificação HTTPS/WSS serão registradas abaixo após a ativação.
+
+### Publicação confirmada
+
+- Commit do jogo `8bd0b85`; release `20260908T201141Z-8bd0b85` ativa na VPS. Asfalto, catálogo e Caddy saudáveis. API pública em protocolo 5, `storage: memory`.
+- HTTPS/WSS verificado entre o subdomínio Asfalto e o domínio principal na mesma sala: duas pessoas em Lobo/Falcão e seis bots, condição Chuva, controles reais atravessando a primeira curva, reconexão com mesma identidade/moto/condição e saída explícita. Nenhum erro de console.
+- Mediana do intervalo entre snapshots 48,8–50,2ms; mediana da confirmação de comandos 183–192ms. Medição de renderização com dois Chromium: 53,5 FPS, p95 33,4ms. O pico do segundo cliente inclui a atualização de página/reconexão.
+- Artefatos locais em `output/conditions/published-check.json`, `published-driving.json`, `published-corner.png` e `published-other-view.png`; imagens revisadas.
+- Apenas documentação atualizada depois da release; nenhuma nova ativação necessária. Terra Brava e Mata Fechada permanecem etapas futuras do planejamento.
