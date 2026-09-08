@@ -1,3 +1,4 @@
+import { portObstacles, portTraffic, portPassengerEvent } from './port';
 import { equippedWeapon, getWeapon } from './weapons';
 import { advanceStunt, cancelStunt, clearsCar, stunting, WHEELIE_DURATION, WHEELIE_MIN_SPEED, WHEELIE_USES, wheeliesLeft } from './stunts';
 import { advanceScenicEvent, brakeGrip, coastalEvent, raceCondition, roadGrip } from './conditions';
@@ -50,7 +51,7 @@ export function createRace(trackId = 'costa', save?: SaveData, seed = 88117, con
   const riders = [player, ...names.map((name, i) => {
     const r = makeRider(`rival-${i}`, name, profiles[i], colors[i], i % 2 ? -1.5 : 3.8, 7 + i * 9);
     Object.assign(r,stockBike(BIKES[(i+1)%BIKES.length].id));
-    r.maxSpeed *= .92 + getTrack(trackId).index * .025;
+    r.maxSpeed *= .92 + getTrack(trackId).level * .025;
     r.weapon = i === 1 || i === 3 || i === 6;
     return r;
   })];
@@ -60,9 +61,10 @@ export function createRace(trackId = 'costa', save?: SaveData, seed = 88117, con
     const oncoming = i % 3 === 1;
     state.traffic.push({ id: `traffic-${i}`, x: (oncoming ? -1 : 1) * (i % 2 ? 1.75 : 5.25), z, speed: oncoming ? -18 - random(state) * 6 : 19 + random(state) * 9, color: ['#cdbc9b', '#a8b7c0', '#de785f', '#dcd7bb', '#679d9d'][i % 5], kind: i % 4 === 2 ? 'van' : 'car' });
   }
-  for (let z = 1150, i = 0; z < length - 180; z += 630 - getTrack(trackId).index * 70, i++) {
+  for (let z = 1150, i = 0; z < length - 180; z += 630 - getTrack(trackId).level * 70, i++) {
     state.obstacles.push({ id: `obstacle-${i}`, x: i % 3 === 0 ? 4.8 : i % 3 === 1 ? -3.2 : 6.2, z, kind: i % 3 === 1 ? 'barrier' : 'oil' });
   }
+  if(trackId==='porto'){state.traffic=portTraffic(()=>random(state));state.obstacles=portObstacles();state.scenicEvent=portPassengerEvent(seed,state.traffic);}
   return state;
 }
 
@@ -265,8 +267,9 @@ function resolveCollisions(state: RaceState, oldZ: Map<string, number>) {
       }
     }
     for (const o of state.obstacles) {
-      if (Math.abs(o.z - r.z) < 2 && Math.abs(o.x - r.x) < 1 && mayCollide(state, r.id, o.id, 3)) {
-        if (o.kind === 'oil') { impact(state, r, 23, r.x < 0 ? -.8 : .8); r.speed *= .64; state.events.push({ type: 'hit', actor: o.id, text: 'ÓLEO · SEM ADERÊNCIA' }); }
+      if (Math.abs(o.z - r.z) < 2 && Math.abs(o.x - r.x) < (o.kind==='cone'?.55:1) && mayCollide(state, r.id, o.id, 3)) {
+        if(o.kind==='cone'){r.speed*=.9;r.health=Math.max(1,r.health-4);state.events.push({type:'hit',actor:o.id,text:'CONE · PERDEU VELOCIDADE'});}
+        else if (o.kind === 'oil') { impact(state, r, 23, r.x < 0 ? -.8 : .8); r.speed *= .64; state.events.push({ type: 'hit', actor: o.id, text: 'ÓLEO · SEM ADERÊNCIA' }); }
         else { r.integrity -= 15 / r.armor; crashRider(state, r); }
       }
     }
@@ -357,7 +360,7 @@ export function stepRace(state: RaceState, commands: Record<string, Command> = {
   const front = active.slice().sort((a,b) => b.z-a.z)[0];
   if (!state.policeActive && state.heat >= 48 && front && front.z > 1300) {
     const police = makeRider('police','POLÍCIA','police','#e7e9e5',front.x+1.5,front.z-100);
-    police.bikeId = 'estradeira'; police.speed = 58; police.maxSpeed = 71+getTrack(state.trackId).index*2; police.acceleration = 12.5; police.weapon = true;
+    police.bikeId = 'estradeira'; police.speed = 58; police.maxSpeed = 71+getTrack(state.trackId).level*2; police.acceleration = 12.5; police.weapon = true;
     state.riders.push(police); state.policeActive = true;
     state.events.push({ type: 'police', actor: 'police', text: 'POLÍCIA NA ESTRADA · CUIDADO!' });
   }

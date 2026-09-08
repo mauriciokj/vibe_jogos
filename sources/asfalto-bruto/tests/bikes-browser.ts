@@ -16,7 +16,7 @@ const state=(p=a)=>p.evaluate(()=>JSON.parse(window.render_game_to_text()));
 const shot=(name:string)=>a.screenshot({path:`${folder}/${name}.png`});
 try{
  await a.goto('http://127.0.0.1:4355/?test');await a.click('#garage-btn');assert.equal(await a.locator('.bike-card').count(),7);assert.ok(await a.locator('[data-bike="lobo"]').isDisabled());
- await a.evaluate(()=>{const s=JSON.parse(window.__game!.save());s.cash=40000;localStorage.setItem('asfalto-bruto:v1',JSON.stringify(s));});await a.reload();await a.click('#garage-btn');
+ await a.evaluate(()=>{const s=JSON.parse(window.__game!.save());s.cash=1000000;localStorage.setItem('asfalto-bruto:v1',JSON.stringify(s));});await a.reload();await a.click('#garage-btn');
  const races=[];
  for(const bike of BIKES){
   if(bike.id!=='ferro')await a.click(`[data-bike="${bike.id}"]`);

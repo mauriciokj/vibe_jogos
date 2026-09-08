@@ -11,7 +11,7 @@ import { inputKey, joinRoom, lobbyClock, makeMember, makeRoom, pulseRoom, viewRo
 import { cleanActions } from '../src/multiplayer/protocol';
 
 function solo(condition: RaceCondition='day',bikeId='ferro',pad='gold') {
-  const save=freshSave();save.cash=100000;buyBike(save,bikeId);buyKneePad(save,pad);buyNitro(save);buyNitro(save);
+  const save=freshSave();save.cash=1000000;buyBike(save,bikeId);buyKneePad(save,pad);buyNitro(save);buyNitro(save);
   const s=createRace('costa',save,321,condition);s.mode='racing';s.riders=s.riders.slice(0,1);s.traffic=[];s.obstacles=[];
   Object.assign(s.riders[0],{x:0,z:1320,speed:43});return s;
 }
@@ -23,7 +23,7 @@ test('kneepads require ownership, persist without duplicate charges, and migrate
   const descriptor=Object.getOwnPropertyDescriptor(globalThis,'localStorage'),data=new Map<string,string>();
   Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:(key:string)=>data.get(key)??null,setItem:(key:string,value:string)=>data.set(key,value)}});
   try{
-    const save=freshSave();save.cash=100000;persist(save);assert.deepEqual(loadSave(),save);
+    const save=freshSave();save.cash=1000000;persist(save);assert.deepEqual(loadSave(),save);
     assert.equal(createRace('costa',{...save,kneePadId:'gold'}).riders[0].kneePadId,undefined);
     for(const pad of KNEE_PADS){assert.ok(buyKneePad(save,pad.id));const balance=save.cash;assert.ok(buyKneePad(save,pad.id));assert.equal(save.cash,balance);}
     buyNitro(save);persist(save);assert.deepEqual(loadSave(),save);assert.equal(JSON.parse(data.get(SAVE_KEY)!).version,1);
@@ -52,7 +52,7 @@ test('the knee maneuver causes an actual fall in rain, can lead to arrest, and d
   const heavy=solo('rain','lobo');performAction(heavy,heavy.riders[0],'kneeLeft');assert.equal(heavy.riders[0].falls,0);
 });
 test('nitro respects per-bike capacities, costs per charge, never stacks, and temporarily raises real performance',()=>{
-  for(const bike of BIKES){const save=freshSave();save.cash=100000;buyBike(save,bike.id);const balance=save.cash;
+  for(const bike of BIKES){const save=freshSave();save.cash=1000000;buyBike(save,bike.id);const balance=save.cash;
     for(let i=0;i<bike.nitroCapacity;i++)assert.ok(buyNitro(save));assert.equal(buyNitro(save),false);assert.equal(save.nitro![bike.id],bike.nitroCapacity);assert.equal(save.cash,balance-bike.nitroCapacity*NITRO_PRICE);
   }
   assert.equal(BIKES.filter(b=>b.nitroCapacity===5).map(b=>b.id).join(),'brutal');
@@ -81,7 +81,7 @@ test('reliable actions survive coalesced packets once and server clamps equipmen
   assert.equal(cleanActions([{seq:1,kind:'teleport'}]),null);assert.equal(cleanActions([{seq:1,kind:'nitro'},{seq:1,kind:'nitro'}]),null);assert.equal(cleanActions(Array.from({length:9},(_,i)=>({seq:i+1,kind:'nitro'}))),null);
 });
 test('online nitro receipts debit each used charge once across repeated snapshots and reconnects',()=>{
-  const save=freshSave();save.cash=100000;buyNitro(save);buyNitro(save);
+  const save=freshSave();save.cash=1000000;buyNitro(save);buyNitro(save);
   const r=createMultiplayerRace('costa',[{id:'human-0123456789abcdef',name:'A',nitro:2},{id:'b',name:'B'}]).riders[0];r.nitroUsed=1;
   assert.ok(recordOnlineNitro(save,r));assert.equal(save.nitro!.ferro,1);assert.equal(recordOnlineNitro(save,r),false);
   const copy=JSON.parse(JSON.stringify(save));assert.equal(recordOnlineNitro(copy,r),false);r.nitroUsed=2;assert.ok(recordOnlineNitro(copy,r));assert.equal(copy.nitro.ferro,0);

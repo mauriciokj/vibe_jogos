@@ -2,7 +2,7 @@ import { jumpHeight, stunting } from './stunts';
 import { conditionTrack } from './conditions';
 import { clamp, curveAt, elevationAt, getBike, getTrack } from './content';
 import { MIRROR_RANGE, raceAwareness } from './awareness';
-import { bikeFrontSprite } from './sprites';
+import { bikeFrontSprite, truckSprite } from './sprites';
 import { getKneePad, kneeSupport } from './equipment';
 import type { RaceState } from './types';
 
@@ -92,7 +92,9 @@ export class RaceInstruments {
       const p=project(me.z-e.z,e.x);if(p.y>p.clip+12)continue;
       const size=Math.min(h*.68,p.scale*(e.car?3.3:3.5));
       c.save();c.beginPath();c.rect(0,0,w,Math.min(h,p.clip+12));c.clip();c.translate(p.x,p.y);
-      if(e.car){
+      if(e.car?.kind==='truck'){
+        const width=Math.min(h*.68,p.scale*4.5);c.drawImage(truckSprite(e.car.color,e.car.speed>=0),-width/2,-width*1.25,width,width*1.25);
+      }else if(e.car){
         c.fillStyle=e.car.color;c.fillRect(-size*.5,-size*.65,size,size*.55);
         c.fillStyle='#293e48';c.fillRect(-size*.32,-size*.6,size*.64,size*.22);
         c.fillStyle=e.car.speed>=0?'#fff0b8':'#f78061';c.fillRect(-size*.4,-size*.28,size*.2,size*.1);c.fillRect(size*.2,-size*.28,size*.2,size*.1);

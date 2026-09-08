@@ -42,6 +42,87 @@ var import_node_crypto2 = require("node:crypto");
 var import_node_net = require("node:net");
 var import_ws = require("ws");
 
+// src/game/conditions.ts
+var CONDITIONS = [
+  { id: "day", name: "Dia", icon: "\u2600", description: "C\xE9u aberto e boa visibilidade." },
+  { id: "sunset", name: "Entardecer", icon: "\u25D2", description: "Luz dourada e a estrada de sempre." },
+  { id: "night", name: "Noite", icon: "\u263E", description: "Luar, far\xF3is e refletores pelo caminho." },
+  { id: "rain", name: "Chuva", icon: "\u2602", description: "Piso molhado. Freie antes e fa\xE7a curvas suaves." }
+];
+function raceCondition(value) {
+  return CONDITIONS.some((c) => c.id === value) ? value : "sunset";
+}
+var roadGrip = (value) => raceCondition(value) === "rain" ? 0.82 : 1;
+var brakeGrip = (value) => raceCondition(value) === "rain" ? 0.88 : 1;
+function decorHash(seed) {
+  let n = seed | 0;
+  n = Math.imul(n ^ n >>> 16, 73244475);
+  n = Math.imul(n ^ n >>> 16, 73244475);
+  return ((n ^ n >>> 16) >>> 0) / 4294967296;
+}
+function coastalEvent(trackId, seed) {
+  if (trackId !== "costa" || decorHash(seed ^ 119317776) >= 0.33) return void 0;
+  const sites = [440, 1540, 2910, 4180, 6170];
+  return { kind: "mermaid", z: sites[Math.floor(decorHash(seed ^ 24951378) * sites.length)], startedAt: null, duration: 8 };
+}
+function advanceScenicEvent(state) {
+  const event = state.scenicEvent;
+  if (!event || event.startedAt !== null || state.mode !== "racing") return;
+  const humans = state.riders.filter((r) => r.profile === "player" && !r.out && r.finishedAt === null);
+  if (event.kind === "truckPassenger") {
+    const truck = state.traffic.find((t) => t.id === event.trafficId);
+    if (truck && humans.some((r) => truck.z >= r.z - 8 && truck.z - r.z <= 180)) event.startedAt = state.time;
+  } else if (humans.some((r) => r.z >= event.z - 180)) event.startedAt = state.time;
+}
+
+// src/game/port.ts
+var PORT_CORNERS = [
+  { start: 800, end: 1550, bend: 1.15, ramp: 110 },
+  { start: 1740, end: 2020, bend: -0.9, ramp: 90 },
+  { start: 2450, end: 2710, bend: 1.95, ramp: 85 },
+  { start: 2800, end: 3070, bend: -2.1, ramp: 85 },
+  { start: 3440, end: 3710, bend: 1.6, ramp: 90 },
+  { start: 3920, end: 4180, bend: -2.15, ramp: 85 },
+  { start: 4360, end: 4680, bend: 1.5, ramp: 90 },
+  { start: 5120, end: 5580, bend: -0.9, ramp: 110 },
+  { start: 5860, end: 6210, bend: 1.1, ramp: 100 },
+  { start: 6550, end: 6870, bend: -1.75, ramp: 90 },
+  { start: 7080, end: 7420, bend: 2.15, ramp: 90 }
+];
+var PORT_WORKS = [
+  { start: 2260, end: 2400, side: 1 },
+  { start: 2910, end: 3050, side: -1 },
+  { start: 6370, end: 6490, side: 1 }
+];
+function portObstacles() {
+  return PORT_WORKS.flatMap((work, i) => [
+    ...[0, 30, 60, 100, 140].map((offset, n) => ({ id: `port-cone-${i}-${n}`, kind: "cone", x: work.side * (n === 0 ? 6.3 : n === 1 ? 5.7 : 4.5), z: work.start + offset })),
+    ...[65, 110].map((offset, n) => ({ id: `port-block-${i}-${n}`, kind: "concrete", x: work.side * 5.8, z: work.start + offset }))
+  ]);
+}
+function portTraffic(random2) {
+  const traffic = [];
+  for (let z = 900, i = 0; z < 9600; z += 560 + random2() * 110, i++) {
+    const oncoming = i % 4 === 1, truck = oncoming || i % 4 === 2;
+    traffic.push({
+      id: `port-traffic-${i}`,
+      kind: truck ? "truck" : i % 3 === 0 ? "van" : "car",
+      x: oncoming ? -1.75 : 1.75,
+      z,
+      speed: oncoming ? -13 - random2() * 4 : truck ? 14 + random2() * 4 : 19 + random2() * 6,
+      color: ["#bf704f", "#8babb2", "#d4ba80", "#548e88"][i % 4]
+    });
+  }
+  return traffic;
+}
+function portPassengerEvent(seed, traffic) {
+  if (decorHash(seed ^ 7402257) >= 0.33) return void 0;
+  const trucks = traffic.filter((t) => t.kind === "truck" && t.speed < 0);
+  if (!trucks.length) return void 0;
+  const truck = trucks[Math.floor(decorHash(seed ^ 3250839) * trucks.length)];
+  return { kind: "truckPassenger", trafficId: truck.id, z: truck.z, startedAt: null, duration: 8 };
+}
+
 // src/game/weapons.ts
 var WEAPONS = [
   { id: "bottle", name: "Garrafa", price: 650, damage: 24, reach: 2.7, longitudinal: 4.8, windup: 0.12, duration: 0.34, cooldown: 0.5, push: 0.35, action: "GARRAFADA", description: "R\xE1pida e de curto alcance. Boa para golpes seguidos." },
@@ -90,45 +171,15 @@ function clearsCar(rider, traffic) {
   return traffic.kind === "car" && traffic.speed < 0 && rider.jumpTarget === traffic.id && (rider.jumpTime ?? 0) > 0 && jumpHeight(rider) > 1.1;
 }
 
-// src/game/conditions.ts
-var CONDITIONS = [
-  { id: "day", name: "Dia", icon: "\u2600", description: "C\xE9u aberto e boa visibilidade." },
-  { id: "sunset", name: "Entardecer", icon: "\u25D2", description: "Luz dourada e a estrada de sempre." },
-  { id: "night", name: "Noite", icon: "\u263E", description: "Luar, far\xF3is e refletores pelo caminho." },
-  { id: "rain", name: "Chuva", icon: "\u2602", description: "Piso molhado. Freie antes e fa\xE7a curvas suaves." }
-];
-function raceCondition(value) {
-  return CONDITIONS.some((c) => c.id === value) ? value : "sunset";
-}
-var roadGrip = (value) => raceCondition(value) === "rain" ? 0.82 : 1;
-var brakeGrip = (value) => raceCondition(value) === "rain" ? 0.88 : 1;
-function decorHash(seed) {
-  let n = seed | 0;
-  n = Math.imul(n ^ n >>> 16, 73244475);
-  n = Math.imul(n ^ n >>> 16, 73244475);
-  return ((n ^ n >>> 16) >>> 0) / 4294967296;
-}
-function coastalEvent(trackId, seed) {
-  if (trackId !== "costa" || decorHash(seed ^ 119317776) >= 0.33) return void 0;
-  const sites = [440, 1540, 2910, 4180, 6170];
-  return { kind: "mermaid", z: sites[Math.floor(decorHash(seed ^ 24951378) * sites.length)], startedAt: null, duration: 8 };
-}
-function advanceScenicEvent(state) {
-  const event = state.scenicEvent;
-  if (!event || event.startedAt !== null || state.mode !== "racing") return;
-  const humans = state.riders.filter((r) => r.profile === "player" && !r.out && r.finishedAt === null);
-  if (humans.some((r) => r.z >= event.z - 180)) event.startedAt = state.time;
-}
-
 // src/game/bikes.ts
 var BIKES = [
   { id: "ferro", nitroCapacity: 2, name: "Ferro 500", class: "STREET", style: "street", price: 0, speed: 64, acceleration: 13.2, handling: 1.1, armor: 1, color: "#dfff71", tagline: "Equilibrada para aprender a rua. Leve no bolso, firme na pista." },
-  { id: "veneno", nitroCapacity: 3, name: "Veneno 750", class: "ESPORTIVA", style: "sport", price: 2800, speed: 73, acceleration: 15, handling: 1.2, armor: 0.95, color: "#ee734d", tagline: "Carenagem afiada e motor forte. Acelera muito, exige cuidado no contato." },
-  { id: "brutal", nitroCapacity: 5, name: "Brutal 1000", class: "MUSCLE", style: "muscle", price: 4800, speed: 78, acceleration: 12.5, handling: 0.95, armor: 1.4, color: "#b6a1fb", tagline: "Pneu largo e a maior final. Freie cedo para domar o peso nas curvas." },
-  { id: "falcao", nitroCapacity: 2, name: "Falc\xE3o 450", class: "SUPERMOTO", style: "supermoto", price: 1800, speed: 60, acceleration: 15.6, handling: 1.6, armor: 0.82, color: "#74dfe9", tagline: "Alta, estreita e muito \xE1gil. Contorna r\xE1pido, perde nas retas e no impacto." },
-  { id: "estradeira", nitroCapacity: 2, name: "Estradeira 900", class: "CRUISER", style: "cruiser", price: 2400, speed: 66, acceleration: 12.4, handling: 1, armor: 1.55, color: "#e6b965", tagline: "Custom de banco baixo, cromados e alforjes. Aguenta a briga, pede uma curva mais aberta." },
-  { id: "lobo", nitroCapacity: 3, name: "Lobo 1200", class: "CHOPPER", style: "chopper", price: 3500, speed: 71, acceleration: 11.4, handling: 0.82, armor: 1.7, color: "#c57566", tagline: "Garfo longo, guid\xE3o alto e muito metal. A mais resistente; prepare bem a frenagem." },
-  { id: "agulha", nitroCapacity: 3, name: "Agulha 600", class: "CAF\xC9 RACER", style: "cafe", price: 3900, speed: 69, acceleration: 14.5, handling: 1.42, armor: 0.9, color: "#91b897", tagline: "Tanque cl\xE1ssico, banco de couro e dire\xE7\xE3o precisa. Boa sa\xEDda de curva, pouca prote\xE7\xE3o." }
+  { id: "veneno", nitroCapacity: 3, name: "Veneno 750", class: "ESPORTIVA", style: "sport", price: 3e4, speed: 73, acceleration: 15, handling: 1.2, armor: 0.95, color: "#ee734d", tagline: "Carenagem afiada e motor forte. Acelera muito, exige cuidado no contato." },
+  { id: "brutal", nitroCapacity: 5, name: "Brutal 1000", class: "MUSCLE", style: "muscle", price: 1e5, speed: 78, acceleration: 12.5, handling: 0.95, armor: 1.4, color: "#b6a1fb", tagline: "Pneu largo e a maior final. Freie cedo para domar o peso nas curvas." },
+  { id: "falcao", nitroCapacity: 2, name: "Falc\xE3o 450", class: "SUPERMOTO", style: "supermoto", price: 1e4, speed: 60, acceleration: 15.6, handling: 1.6, armor: 0.82, color: "#74dfe9", tagline: "Alta, estreita e muito \xE1gil. Contorna r\xE1pido, perde nas retas e no impacto." },
+  { id: "estradeira", nitroCapacity: 2, name: "Estradeira 900", class: "CRUISER", style: "cruiser", price: 18e3, speed: 66, acceleration: 12.4, handling: 1, armor: 1.55, color: "#e6b965", tagline: "Custom de banco baixo, cromados e alforjes. Aguenta a briga, pede uma curva mais aberta." },
+  { id: "lobo", nitroCapacity: 3, name: "Lobo 1200", class: "CHOPPER", style: "chopper", price: 45e3, speed: 71, acceleration: 11.4, handling: 0.82, armor: 1.7, color: "#c57566", tagline: "Garfo longo, guid\xE3o alto e muito metal. A mais resistente; prepare bem a frenagem." },
+  { id: "agulha", nitroCapacity: 3, name: "Agulha 600", class: "CAF\xC9 RACER", style: "cafe", price: 65e3, speed: 69, acceleration: 14.5, handling: 1.42, armor: 0.9, color: "#91b897", tagline: "Tanque cl\xE1ssico, banco de couro e dire\xE7\xE3o precisa. Boa sa\xEDda de curva, pouca prote\xE7\xE3o." }
 ];
 function getBike(id) {
   return BIKES.find((b) => b.id === id) ?? BIKES[0];
@@ -169,9 +220,10 @@ function plannedCornerHandling(handling, kneePadId) {
 
 // src/game/content.ts
 var TRACKS = [
-  { id: "costa", name: "Costa do Sol", region: "RODOVIA LITOR\xC2NEA", distance: 8400, difficulty: "NORMAL", prize: 1400, index: 0, sky: ["#567d9b", "#e0a6aa", "#fbd4ad"], land: ["#779b77", "#699271"], road: ["#555a5b", "#505557"], accent: "#deff70" },
-  { id: "serra", name: "Serra da Fuma\xE7a", region: "ESTRADA DA MONTANHA", distance: 9200, difficulty: "DIF\xCDCIL", prize: 1850, index: 1, sky: ["#555f83", "#b794b1", "#f2c2b5"], land: ["#728b70", "#637e67"], road: ["#555962", "#50545c"], accent: "#b9a0f8" },
-  { id: "deserto", name: "Vale Vermelho", region: "FRONTEIRA DO DESERTO", distance: 10200, difficulty: "BRUTAL", prize: 2300, index: 2, sky: ["#69678d", "#e2908b", "#ffcb95"], land: ["#bc8165", "#b3785d"], road: ["#5c5356", "#564e51"], accent: "#ffac6f" }
+  { id: "costa", name: "Costa do Sol", region: "RODOVIA LITOR\xC2NEA", distance: 8400, difficulty: "NORMAL", prize: 1400, index: 0, level: 0, theme: "coast", sky: ["#567d9b", "#e0a6aa", "#fbd4ad"], land: ["#779b77", "#699271"], road: ["#555a5b", "#505557"], accent: "#deff70" },
+  { id: "serra", name: "Serra da Fuma\xE7a", region: "ESTRADA DA MONTANHA", distance: 9200, difficulty: "DIF\xCDCIL", prize: 1850, index: 1, level: 1, theme: "mountain", sky: ["#555f83", "#b794b1", "#f2c2b5"], land: ["#728b70", "#637e67"], road: ["#555962", "#50545c"], accent: "#b9a0f8" },
+  { id: "deserto", name: "Vale Vermelho", region: "FRONTEIRA DO DESERTO", distance: 10200, difficulty: "BRUTAL", prize: 2300, index: 2, level: 2, theme: "desert", sky: ["#69678d", "#e2908b", "#ffcb95"], land: ["#bc8165", "#b3785d"], road: ["#5c5356", "#564e51"], accent: "#ffac6f" },
+  { id: "porto", name: "Porto Ferrugem", region: "DISTRITO PORTU\xC1RIO", distance: 7800, difficulty: "T\xC9CNICA", prize: 2200, index: 3, level: 1, theme: "port", sky: ["#52697b", "#c58c79", "#f2cc98"], land: ["#797d76", "#70766f"], road: ["#535f62", "#4b575b"], accent: "#ffc16a" }
 ];
 function getTrack(id) {
   return TRACKS.find((t) => t.id === id) ?? TRACKS[0];
@@ -183,13 +235,14 @@ var cornerCache = /* @__PURE__ */ new Map();
 function trackCorners(trackId) {
   const track = getTrack(trackId), cached = cornerCache.get(track.id);
   if (cached) return cached;
+  if (track.theme === "port") return PORT_CORNERS;
   const corners = [];
   const strengths = [1.65, 2.3, 1.4, 2.05, 2.6, 1.75];
   let start = 650;
   for (let i = 0; start < track.distance - 500; i++) {
     const length = [300, 270, 330, 260][i % 4];
-    corners.push({ start, end: start + length, bend: (i % 2 ? -1 : 1) * strengths[i % strengths.length] * (1 + track.index * 0.12), ramp: 85 });
-    start += length + [270, 180, 320, 220][i % 4] - track.index * 35;
+    corners.push({ start, end: start + length, bend: (i % 2 ? -1 : 1) * strengths[i % strengths.length] * (1 + track.level * 0.12), ramp: 85 });
+    start += length + [270, 180, 320, 220][i % 4] - track.level * 35;
   }
   cornerCache.set(track.id, corners);
   return corners;
@@ -303,7 +356,7 @@ function createRace(trackId = "costa", save, seed = 88117, condition = "sunset")
   const riders = [player, ...names.map((name, i) => {
     const r = makeRider(`rival-${i}`, name, profiles[i], colors[i], i % 2 ? -1.5 : 3.8, 7 + i * 9);
     Object.assign(r, stockBike(BIKES[(i + 1) % BIKES.length].id));
-    r.maxSpeed *= 0.92 + getTrack(trackId).index * 0.025;
+    r.maxSpeed *= 0.92 + getTrack(trackId).level * 0.025;
     r.weapon = i === 1 || i === 3 || i === 6;
     return r;
   })];
@@ -313,8 +366,13 @@ function createRace(trackId = "costa", save, seed = 88117, condition = "sunset")
     const oncoming = i % 3 === 1;
     state.traffic.push({ id: `traffic-${i}`, x: (oncoming ? -1 : 1) * (i % 2 ? 1.75 : 5.25), z, speed: oncoming ? -18 - random(state) * 6 : 19 + random(state) * 9, color: ["#cdbc9b", "#a8b7c0", "#de785f", "#dcd7bb", "#679d9d"][i % 5], kind: i % 4 === 2 ? "van" : "car" });
   }
-  for (let z = 1150, i = 0; z < length - 180; z += 630 - getTrack(trackId).index * 70, i++) {
+  for (let z = 1150, i = 0; z < length - 180; z += 630 - getTrack(trackId).level * 70, i++) {
     state.obstacles.push({ id: `obstacle-${i}`, x: i % 3 === 0 ? 4.8 : i % 3 === 1 ? -3.2 : 6.2, z, kind: i % 3 === 1 ? "barrier" : "oil" });
+  }
+  if (trackId === "porto") {
+    state.traffic = portTraffic(() => random(state));
+    state.obstacles = portObstacles();
+    state.scenicEvent = portPassengerEvent(seed, state.traffic);
   }
   return state;
 }
@@ -523,8 +581,12 @@ function resolveCollisions(state, oldZ) {
       }
     }
     for (const o of state.obstacles) {
-      if (Math.abs(o.z - r.z) < 2 && Math.abs(o.x - r.x) < 1 && mayCollide(state, r.id, o.id, 3)) {
-        if (o.kind === "oil") {
+      if (Math.abs(o.z - r.z) < 2 && Math.abs(o.x - r.x) < (o.kind === "cone" ? 0.55 : 1) && mayCollide(state, r.id, o.id, 3)) {
+        if (o.kind === "cone") {
+          r.speed *= 0.9;
+          r.health = Math.max(1, r.health - 4);
+          state.events.push({ type: "hit", actor: o.id, text: "CONE \xB7 PERDEU VELOCIDADE" });
+        } else if (o.kind === "oil") {
           impact(state, r, 23, r.x < 0 ? -0.8 : 0.8);
           r.speed *= 0.64;
           state.events.push({ type: "hit", actor: o.id, text: "\xD3LEO \xB7 SEM ADER\xCANCIA" });
@@ -637,7 +699,7 @@ function stepRace(state, commands = {}) {
     const police = makeRider("police", "POL\xCDCIA", "police", "#e7e9e5", front.x + 1.5, front.z - 100);
     police.bikeId = "estradeira";
     police.speed = 58;
-    police.maxSpeed = 71 + getTrack(state.trackId).index * 2;
+    police.maxSpeed = 71 + getTrack(state.trackId).level * 2;
     police.acceleration = 12.5;
     police.weapon = true;
     state.riders.push(police);
@@ -670,7 +732,7 @@ function stepRace(state, commands = {}) {
 }
 
 // src/multiplayer/protocol.ts
-var NET_VERSION = 7;
+var NET_VERSION = 8;
 var MAX_PLAYERS = 8;
 var ROOM_WAIT_MS = 6e4;
 var READY_WAIT_MS = 5e3;

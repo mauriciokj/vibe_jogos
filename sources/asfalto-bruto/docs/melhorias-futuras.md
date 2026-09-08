@@ -1,6 +1,6 @@
 # Asfalto Bruto — melhorias futuras
 
-Ideias solicitadas pelo usuário em 2026-09-08. **Empinada/salto e equipamentos de combate publicados e validados na VPS em 2026-09-08**, release `20260908T220022Z-46feaaf`. Porto Ferrugem continua planejado. Regras finais em [equipamentos-controles.md](equipamentos-controles.md).
+Ideias solicitadas pelo usuário em 2026-09-08. **Empinada/salto e equipamentos de combate publicados e validados na VPS em 2026-09-08**, release `20260908T220022Z-46feaaf`. Porto Ferrugem implementado na expansão seguinte, com quatro condições, tráfego pesado, obras e passageiro decorativo. Regras finais em [equipamentos-controles.md](equipamentos-controles.md).
 
 O planejamento de cenários e traçados está em [planejamento-pistas.md](planejamento-pistas.md).
 
@@ -29,7 +29,7 @@ Implementado: consumo ao ativar, janela de 280ms, mínimo de 72 km/h, empinada a
 - Exibir os usos restantes e devolver as três cargas ao iniciar uma nova corrida. Reconectar à mesma corrida não deve recarregá-las.
 - Compartilhar estado, consumo de carga e colisões no multiplayer, com validação pelo servidor e animação em ambos os clientes. Preservar o modo individual.
 
-## Porto Ferrugem: passageiro pendurado no caminhão
+## Porto Ferrugem: passageiro pendurado no caminhão — implementado
 
 ### Referência solicitada pelo usuário
 

@@ -1,12 +1,14 @@
+import { PORT_CORNERS } from './port';
 import { brakeGrip, roadGrip } from './conditions';
 import { plannedCornerHandling } from './equipment';
 import type { Track, RaceCondition } from './types';
 
 export { BIKES, getBike, handlingLabel, zeroToHundred } from './bikes';
 export const TRACKS: Track[] = [
-  { id: 'costa', name: 'Costa do Sol', region: 'RODOVIA LITORÂNEA', distance: 8400, difficulty: 'NORMAL', prize: 1400, index: 0, sky: ['#567d9b', '#e0a6aa', '#fbd4ad'], land: ['#779b77', '#699271'], road: ['#555a5b', '#505557'], accent: '#deff70' },
-  { id: 'serra', name: 'Serra da Fumaça', region: 'ESTRADA DA MONTANHA', distance: 9200, difficulty: 'DIFÍCIL', prize: 1850, index: 1, sky: ['#555f83', '#b794b1', '#f2c2b5'], land: ['#728b70', '#637e67'], road: ['#555962', '#50545c'], accent: '#b9a0f8' },
-  { id: 'deserto', name: 'Vale Vermelho', region: 'FRONTEIRA DO DESERTO', distance: 10200, difficulty: 'BRUTAL', prize: 2300, index: 2, sky: ['#69678d', '#e2908b', '#ffcb95'], land: ['#bc8165', '#b3785d'], road: ['#5c5356', '#564e51'], accent: '#ffac6f' },
+  { id: 'costa', name: 'Costa do Sol', region: 'RODOVIA LITORÂNEA', distance: 8400, difficulty: 'NORMAL', prize: 1400, index: 0, level: 0, theme: 'coast', sky: ['#567d9b', '#e0a6aa', '#fbd4ad'], land: ['#779b77', '#699271'], road: ['#555a5b', '#505557'], accent: '#deff70' },
+  { id: 'serra', name: 'Serra da Fumaça', region: 'ESTRADA DA MONTANHA', distance: 9200, difficulty: 'DIFÍCIL', prize: 1850, index: 1, level: 1, theme: 'mountain', sky: ['#555f83', '#b794b1', '#f2c2b5'], land: ['#728b70', '#637e67'], road: ['#555962', '#50545c'], accent: '#b9a0f8' },
+  { id: 'deserto', name: 'Vale Vermelho', region: 'FRONTEIRA DO DESERTO', distance: 10200, difficulty: 'BRUTAL', prize: 2300, index: 2, level: 2, theme: 'desert', sky: ['#69678d', '#e2908b', '#ffcb95'], land: ['#bc8165', '#b3785d'], road: ['#5c5356', '#564e51'], accent: '#ffac6f' },
+  { id: 'porto', name: 'Porto Ferrugem', region: 'DISTRITO PORTUÁRIO', distance: 7800, difficulty: 'TÉCNICA', prize: 2200, index: 3, level: 1, theme: 'port', sky: ['#52697b','#c58c79','#f2cc98'], land: ['#797d76','#70766f'], road: ['#535f62','#4b575b'], accent: '#ffc16a' },
 ];
 export function getTrack(id: string): Track { return TRACKS.find(t => t.id === id) ?? TRACKS[0]; }
 export function clamp(v: number, min: number, max: number) { return Math.min(max, Math.max(min, v)); }
@@ -15,13 +17,14 @@ const cornerCache = new Map<string, Corner[]>();
 export function trackCorners(trackId: string): Corner[] {
   const track = getTrack(trackId), cached = cornerCache.get(track.id);
   if (cached) return cached;
+  if(track.theme==='port')return PORT_CORNERS;
   const corners: Corner[] = [];
   const strengths = [1.65, 2.3, 1.4, 2.05, 2.6, 1.75];
   let start = 650;
   for (let i = 0; start < track.distance - 500; i++) {
     const length = [300, 270, 330, 260][i % 4];
-    corners.push({ start, end: start + length, bend: (i % 2 ? -1 : 1) * strengths[i % strengths.length] * (1 + track.index * .12), ramp: 85 });
-    start += length + [270, 180, 320, 220][i % 4] - track.index * 35;
+    corners.push({ start, end: start + length, bend: (i % 2 ? -1 : 1) * strengths[i % strengths.length] * (1 + track.level * .12), ramp: 85 });
+    start += length + [270, 180, 320, 220][i % 4] - track.level * 35;
   }
   cornerCache.set(track.id, corners);
   return corners;
@@ -59,7 +62,9 @@ export function upcomingCorner(z: number, trackId: string, handling = 1.1, condi
   return c ? { direction: c.bend > 0 ? 'right' : 'left', distance: Math.max(0, Math.round(c.start - z)), speed: Math.floor(cornerSpeed(c.bend, plannedCornerHandling(handling,kneePadId) * roadGrip(condition)) * 3.6 / 5) * 5, tight: Math.abs(c.bend) >= 2 } : null;
 }
 export function elevationAt(z: number, trackId: string) {
-  const i = getTrack(trackId).index;
+  const track=getTrack(trackId);
+  if(track.theme==='port')return Math.sin(z/900)*2.5+Math.sin(z/260)*.6;
+  const i = track.level;
   return (Math.sin(z / 640) * 17 + Math.sin(z / 265) * 3.5) * (i === 1 ? 2.5 : 1);
 }
 export function clockString(time: number) {

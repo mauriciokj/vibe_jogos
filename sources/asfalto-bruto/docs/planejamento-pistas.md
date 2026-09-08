@@ -1,9 +1,9 @@
 # Asfalto Bruto — planejamento de novas pistas
 
-Status: primeira etapa publicada e validada na VPS: quatro condições nas três pistas existentes e sereia na Costa. Terra Brava e demais pistas continuam planejadas.
+Status: quatro condições nas quatro pistas, incluindo Porto Ferrugem, com sereia na Costa e passageiro decorativo no porto. Terra Brava, Mata e demais expansões continuam planejadas.
 Data: 2026-09-08.
 
-Registro de pilotagem e combate, incluindo empinada e equipamentos já implementados, além do easter egg futuro do Porto: [melhorias-futuras.md](melhorias-futuras.md).
+Registro de pilotagem e combate, incluindo empinada e equipamentos já implementados, além do easter egg do Porto: [melhorias-futuras.md](melhorias-futuras.md).
 
 ## Objetivo
 
@@ -24,9 +24,10 @@ Criar pistas com traçados, horários, clima e obstáculos reconhecíveis. Cada 
 - Costa do Sol: litoral, 8,4 km, dificuldade normal.
 - Serra da Fumaça: montanha, 9,2 km, difícil.
 - Vale Vermelho: deserto, 10,2 km, brutal.
-- Curvas e elevações já influenciam a pilotagem. O traçado atual deriva de uma sequência comum, ajustada por dificuldade.
-- Trânsito: carros e vans. Obstáculos: óleo e barreiras.
-- As três pistas já oferecem Dia, Entardecer, Noite e Chuva, com aderência e frenagem menores na chuva. Neve, vento lateral e aderência localizada por superfície continuam planejados.
+- Porto Ferrugem: porto industrial, 7,8 km, técnico, com traçado manual.
+- Curvas e elevações já influenciam a pilotagem. As três pistas originais derivam de uma sequência comum, ajustada por dificuldade.
+- Trânsito: carros, vans e caminhões no porto. Obstáculos: óleo, barreiras, cones e blocos de concreto.
+- As quatro pistas oferecem Dia, Entardecer, Noite e Chuva, com aderência e frenagem menores na chuva. Neve, vento lateral e aderência localizada por superfície continuam planejados.
 
 ## Ideias de pistas novas
 
@@ -238,3 +239,15 @@ As diretrizes de quatro condições, easter eggs puramente visuais e pista de te
 - Mar/iluminação, pose com pedra no entardecer, brilho noturno e cauda durante a chuva. Sem colisão, recompensa, alerta ou mudança de câmera.
 - Saves e garagem v1 preservados. Recordes anteriores são do Entardecer; os demais ficam separados por condição.
 - Terra Brava, relevo mais acentuado, folclore do interior e Mata Fechada serão etapas seguintes. Esta entrega não adiciona esses traçados nem obstáculos novos.
+
+## Atualização — Porto Ferrugem implementado em 2026-09-08
+
+O usuário priorizou Porto após o aumento dos preços das motos. A pista de 7,8 km passa a ser a quarta da campanha, com Dia, Entardecer, Noite e Chuva: agora são 16 opções. Terra Brava, Mata e Anel continuam planejados. A ordem histórica acima fica como registro das ideias anteriores.
+
+- Traçado manual em seis regiões, 11 curvas, 800m iniciais e 380m finais sem curva; dificuldade e tema separados da ordem de desbloqueio. As três estradas anteriores mantêm sua geometria, IA e obstáculos.
+- Caminhões nos dois sentidos, carros/vans nas faixas internas e três áreas de obras em faixas externas. Cones tiram 10% da velocidade e 4 de resistência; blocos derrubam. Placas e aviso no HUD antecipam os desvios.
+- Armazéns, contêineres, navios, guindastes e iluminação industrial são sprites originais em Canvas, reutilizados por condição. Chuva aplica o piso molhado já existente; chapas com física própria ficam para uma expansão posterior.
+- Passageiro pendurado na frente de um caminhão da contramão: sorteio decorativo independente (33%), 8s após aproximação de um humano, linha do tempo comum e preservada na reconexão. Não altera física, tráfego, IA, recompensa ou colisão do caminhão.
+- Top 5 no Vale Vermelho libera Porto. Saves anteriores com esse recorde em qualquer condição recebem o desbloqueio; dinheiro, equipamentos e motos compradas são mantidos.
+- Preços: Falcão 10 mil, Estradeira 18 mil, Veneno 30 mil, Lobo 45 mil, Agulha 65 mil e Brutal 100 mil. A Ferro continua sendo a moto inicial.
+- Validação: sete motos completaram o percurso seco e molhado com comandos limitados de aceleração, freio e direção; menu, reinício, celular, duas pessoas + seis bots, golpes e reconexão verificados no navegador.

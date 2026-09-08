@@ -30,7 +30,7 @@ try{
   await a.goto(base+'?test');await a.click('#garage-btn');await a.click('[data-garage-tab="knees"]');
   assert.equal(await a.locator('[data-knee-pad]').count(),5);assert.ok(await a.locator('[data-knee-pad="blue"]').isDisabled());
   await a.click('[data-knee-pad="white"]');assert.equal((await state()).save.cash,200);await a.reload();assert.equal((await state()).save.kneePadId,'white');
-  const rich=freshSave();rich.cash=100000;rich.races=1;for(const bike of BIKES)buyBike(rich,bike.id);buyBike(rich,'ferro');
+  const rich=freshSave();rich.cash=1000000;rich.races=1;for(const bike of BIKES)buyBike(rich,bike.id);buyBike(rich,'ferro');
   await a.evaluate(({key,save})=>localStorage.setItem(key,JSON.stringify(save)),{key:SAVE_KEY,save:rich});await a.reload();
   await a.click('#garage-btn');await a.click('[data-garage-tab="knees"]');
   for(const pad of KNEE_PADS)await a.click(`[data-knee-pad="${pad.id}"]`);
@@ -77,7 +77,7 @@ try{
   await mobile.setViewportSize({width:844,height:390});await shot('mobile-landscape',mobile);await mobile.close();
   // Purchased loadouts in a real room; actions and consumption survive reload.
   await a.click('[data-route="costa:day"]');await a.click('#online-btn');await a.fill('#online-name','Ana');await a.check('#online-bots');await a.click('#online-create');await a.waitForFunction(()=>JSON.parse(window.render_game_to_text()).online?.phase==='lobby');const code=(await state()).online.code;
-  const blue=freshSave();blue.cash=10000;buyBike(blue,'falcao');buyKneePad(blue,'blue');buyNitro(blue);
+  const blue=freshSave();blue.cash=100000;buyBike(blue,'falcao');buyKneePad(blue,'blue');buyNitro(blue);
   await b.goto(base+'?test');await b.evaluate(({key,save})=>localStorage.setItem(key,JSON.stringify(save)),{key:SAVE_KEY,save:blue});await b.goto(base+`?test&sala=${code}`);await b.fill('#online-name','Bia');await b.click('#online-join');await b.waitForFunction(()=>JSON.parse(window.render_game_to_text()).online?.phase==='lobby');
   await a.click('#online-ready');await b.click('#online-ready');await a.waitForFunction(()=>JSON.parse(window.render_game_to_text()).online?.locked);offset+=5001;
   for(const p of [a,b])await p.waitForFunction(()=>JSON.parse(window.render_game_to_text()).screen==='race');

@@ -98,7 +98,7 @@ test('garage purchases, upgrades, repair costs and starter recovery preserve a p
   const save = freshSave(); assert.equal(buyBike(save, 'veneno'), false); assert.equal(save.cash, 650);
   assert.equal(buyUpgrade(save, 'engine'), true); assert.equal(save.cash, 200); assert.equal(save.upgrades.ferro.engine, 1);
   save.condition.ferro = 90; assert.equal(repairCost(save), 40); assert.equal(repair(save), true); assert.equal(save.cash, 160);
-  save.cash = 6000; assert.equal(buyBike(save, 'veneno'), true); assert.equal(save.cash, 3200); assert.equal(save.bikeId, 'veneno');
+  save.cash = 33200; assert.equal(buyBike(save, 'veneno'), true); assert.equal(save.cash, 3200); assert.equal(save.bikeId, 'veneno');
   const s = isolated(); s.riders[0].integrity = 0; run(s, 1); settleRace(save, s); assert.equal(save.races, 1); assert.ok(save.cash > 3200); assert.ok(save.condition.ferro >= 55);
   assert.ok(createRace('costa', save).riders[0].maxSpeed >= BIKES[1].speed);
 });

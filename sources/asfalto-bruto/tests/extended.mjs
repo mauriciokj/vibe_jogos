@@ -13,7 +13,7 @@ const advance = ms => page.evaluate(ms => window.advanceTime(ms), ms);
 try {
   await page.goto('http://127.0.0.1:4317/?test');
   // Isolated fixture to exercise paid features without grinding credits in UI tests.
-  await page.evaluate(() => { const save = JSON.parse(window.__game.save()); save.cash = 18000; save.unlocked = 2; save.races = 1; localStorage.setItem('asfalto-bruto:v1', JSON.stringify(save)); }); await page.reload();
+  await page.evaluate(() => { const save = JSON.parse(window.__game.save()); save.cash = 1000000; save.unlocked = 2; save.races = 1; localStorage.setItem('asfalto-bruto:v1', JSON.stringify(save)); }); await page.reload();
   await page.locator('#garage-btn').focus(); await page.keyboard.press('Enter'); assert.equal((await state()).modal, 'garage-modal');
   await page.click('[data-bike="veneno"]'); let save = await page.evaluate(() => JSON.parse(window.__game.save())); assert.equal(save.bikeId, 'veneno'); assert.equal(save.cash, 15200);
   await page.click('[data-bike="brutal"]'); save = await page.evaluate(() => JSON.parse(window.__game.save())); assert.equal(save.bikeId, 'brutal'); assert.equal(save.cash, 10400);

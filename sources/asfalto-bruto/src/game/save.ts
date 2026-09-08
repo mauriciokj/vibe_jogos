@@ -18,8 +18,7 @@ export function loadSave(): SaveData {
     valid.owned = Array.isArray(saved.owned) ? BIKES.filter(b => saved.owned.includes(b.id)).map(b => b.id) : ['ferro'];
     if (!valid.owned.includes('ferro')) valid.owned.unshift('ferro');
     valid.bikeId = valid.owned.includes(saved.bikeId) ? saved.bikeId : 'ferro';
-    valid.unlocked = Number.isInteger(saved.unlocked) ? clamp(saved.unlocked, 0, 2) : 0;
-    valid.raceTrackId=TRACKS.find(t=>t.id===saved.raceTrackId && t.index<=valid.unlocked)?.id ?? 'costa';
+    valid.unlocked = Number.isInteger(saved.unlocked) ? clamp(saved.unlocked, 0, TRACKS.length-1) : 0;
     valid.races = Number.isFinite(saved.races) ? Math.max(0, saved.races) : 0;
     valid.muted = saved.muted === true;
     valid.raceCondition = raceCondition(saved.raceCondition);
@@ -38,6 +37,9 @@ export function loadSave(): SaveData {
       const r = saved.records?.[id];
       if (r && Number.isFinite(r.time) && r.time > 0 && Number.isInteger(r.place) && r.place >= 1 && r.place <= 8) valid.records[id] = { time: r.time, place: r.place };
     }
+    // An existing top-five record on the former last track unlocks the expansion.
+    for(const track of TRACKS)if(CONDITIONS.some(c=>(valid.records[recordKey(track.id,c.id)]?.place ?? 99)<=5))valid.unlocked=Math.max(valid.unlocked,Math.min(TRACKS.length-1,track.index+1));
+    valid.raceTrackId=TRACKS.find(t=>t.id===saved.raceTrackId && t.index<=valid.unlocked)?.id ?? 'costa';
     return valid;
   } catch { return freshSave(); }
 }
@@ -106,7 +108,7 @@ export function settleRace(save: SaveData, state: RaceState) {
     const key = recordKey(state.trackId,state.condition);
     const old = save.records[key];
     save.records[key] = { time: Math.min(old?.time ?? Infinity, result.time), place: Math.min(old?.place ?? 8, result.place) };
-    if (result.place <= 5) save.unlocked = Math.max(save.unlocked, Math.min(2, getTrack(state.trackId).index + 1));
+    if (result.place <= 5) save.unlocked = Math.max(save.unlocked, Math.min(TRACKS.length-1, getTrack(state.trackId).index + 1));
   }
   // A sponsor restores the starter bike to a safe minimum, so failure never locks out play.
   if ((save.condition.ferro ?? 100) < 55) save.condition.ferro = 55;

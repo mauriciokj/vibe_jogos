@@ -1,3 +1,5 @@
+import { portSprite, portHorizon, type PortProp } from './port-art';
+import { PORT_WORKS } from './port';
 import { jumpHeight, stunting } from './stunts';
 import { conditionTrack, raceCondition, scenicAppearance, seaColors } from './conditions';
 import { mermaidSprite } from './mermaid';
@@ -76,13 +78,14 @@ export class Renderer {
       for(let x=w;x>=-24;x-=24)cloud.push(x,h*(.1+layer*.065)+Math.sin(x*.006+layer*2)*h*.025+Math.sin(x*.017+layer)*h*.014);
       this.polygon(cloud,layer?'#314a5724':'#20394635');
     }
-    const mountains=condition==='night'?['#293952','#304559','#375559']:condition==='rain'?['#6b828e','#5e7884','#58777a']:condition==='day'?['#84acb7','#6b9b9b',track.index===2?'#b48b70':'#527e72']:['#827c97','#73768b',track.index===2?'#aa796f':'#667e7f'];
+    if(track.theme==='port'){portHorizon(c,w,h,horizon,parallax,condition);return;}
+    const mountains=condition==='night'?['#293952','#304559','#375559']:condition==='rain'?['#6b828e','#5e7884','#58777a']:condition==='day'?['#84acb7','#6b9b9b',track.theme==='desert'?'#b48b70':'#527e72']:['#827c97','#73768b',track.theme==='desert'?'#aa796f':'#667e7f'];
     for (let layer = 0; layer < 3; layer++) {
       const coords = [-50, horizon + 45];
       for (let x = -50; x <= w + 70; x += 16) {
         const p = x + parallax * (layer + 1);
         let mountain = (Math.sin(p * .006 + layer) * .45 + Math.sin(p * .012 + layer * 2) * .28 + Math.sin(p * .023) * .1 + .6);
-        if (track.index === 0) mountain *= clamp((x / w - .2) * 2, .07, 1);
+        if (track.theme === 'coast') mountain *= clamp((x / w - .2) * 2, .07, 1);
         const y = horizon - mountain * (h * .14 - layer * h * .027) + layer * 13;
         coords.push(x, Math.round(y / 3) * 3);
       }
@@ -98,7 +101,7 @@ export class Renderer {
       }
       c.restore();
     }
-    if (track.index === 0) {
+    if (track.theme === 'coast') {
       c.fillStyle = sea.water; c.fillRect(0, horizon, w * .62, h * .21);
       c.fillStyle = sea.foam;
       for (let y = horizon + 4; y < h * .55; y += 9) { c.fillRect(0, y, w * (.44 + Math.sin(y * .03 + state.time*.3) * .06), 1); }
@@ -154,9 +157,13 @@ export class Renderer {
       const aw = ROAD_HALF * a.scale, bw = ROAD_HALF * b.scale;
       c.save(); c.beginPath(); c.rect(0, 0, w, a.clip); c.clip();
       this.polygon([0, a.y, w, a.y, w, b.y, 0, b.y], track.land[alt ? 0 : 1]);
-      if (track.index === 0) {
+      if (track.theme === 'coast') {
         this.polygon([0, a.y, a.x - aw * 2.7, a.y, b.x - bw * 2.7, b.y, 0, b.y], sea.water);
         this.polygon([a.x - aw * 2.7, a.y, a.x - aw * 2.2, a.y, b.x - bw * 2.2, b.y, b.x - bw * 2.7, b.y], sea.sand);
+      }
+      if(track.theme==='port'){
+        this.polygon([0,a.y,a.x-aw*2,a.y,b.x-bw*2,b.y,0,b.y],sea.water);
+        this.polygon([a.x-aw*2,a.y,a.x-aw*1.88,a.y,b.x-bw*1.88,b.y,b.x-bw*2,b.y],alt?'#bca06c':'#43545b');
       }
       this.polygon([a.x - aw * 1.13, a.y, a.x + aw * 1.13, a.y, b.x + bw * 1.13, b.y, b.x - bw * 1.13, b.y], condition==='night' ? '#636e6d' : alt ? '#c2b9a0' : '#bab39b');
       this.polygon([a.x - aw, a.y + 1, a.x + aw, a.y + 1, b.x + bw, b.y - .5, b.x - bw, b.y - .5], track.road[alt ? 0 : 1]);
@@ -190,7 +197,7 @@ export class Renderer {
       }
       for (const sign of [-1, 1]) {
         const curbA = aw * sign, curbB = bw * sign;
-        this.polygon([a.x + curbA * 1.02,a.y,a.x + curbA * 1.065,a.y,b.x + curbB * 1.065,b.y,b.x + curbB * 1.02,b.y], stripe ? '#dbd2b6' : '#b97864');
+        this.polygon([a.x + curbA * 1.02,a.y,a.x + curbA * 1.065,a.y,b.x + curbB * 1.065,b.y,b.x + curbB * 1.02,b.y], track.theme==='port'?(stripe?'#d9b264':'#344951'):stripe ? '#dbd2b6' : '#b97864');
         const edge = .97 * sign;
         this.polygon([a.x + aw * edge - a.scale * .065, a.y, a.x + aw * edge + a.scale * .065, a.y, b.x + bw * edge + b.scale * .065, b.y, b.x + bw * edge - b.scale * .065, b.y], '#e1dac1');
         const center = .12 * sign;
@@ -228,13 +235,25 @@ export class Renderer {
     return { x: road + lateral * scale, y: this.camera.horizon - (elevationAt(z, this.camera.trackId) - this.camera.y) * scale, scale, road, clip: a.clip };
   }
   private scenery(state: RaceState, track: Track, z: number, i: number) {
+    if(track.theme==='port'){
+      let kind:PortProp, lateral:number, width:number,height:number;
+      if(i%17===0){kind='ship';lateral=-44;width=55;height=30;}
+      else if(i%7===0){kind='crane';lateral=-26;width=25;height=22;}
+      else if(i%7===3){kind='warehouse';lateral=24;width=23;height=16;}
+      else if(i%3===0){kind='containers';lateral=i%2?-20:18;width=13;height=10;}
+      else if(i%2===0){kind='lamp';lateral=8.6;width=10;height=9;}
+      else return;
+      const p=this.project(z,lateral);if(!p || p.y>p.clip+20 || p.scale<.16)return;
+      const c=this.ctx;c.save();c.beginPath();c.rect(0,0,this.w,p.clip);c.clip();
+      c.drawImage(portSprite(kind,raceCondition(state.condition),i),p.x-p.scale*width/2,p.y-p.scale*height,p.scale*width,p.scale*height);c.restore();return;
+    }
     const side = i % 2 ? 1 : -1;
     const lateral = side * (9.2 + visualHash(i * 13) * 5);
     const p = this.project(z, lateral);
     if (!p || p.y > p.clip + 20 || p.y < 0 || p.scale < .16) return;
     const c = this.ctx;
     c.save(); c.beginPath(); c.rect(0, 0, this.w, p.clip); c.clip();
-    const kind = i % 17 === 6 && side > 0 ? 'building' : track.index === 0 ? 'palm' : track.index === 1 ? 'pine' : 'cactus';
+    const kind = i % 17 === 6 && side > 0 ? 'building' : track.theme === 'coast' ? 'palm' : track.theme === 'mountain' ? 'pine' : 'cactus';
     const height = p.scale * (kind === 'palm' ? 13.5 : kind === 'pine' ? 12 : kind === 'building' ? 7.5 : 7);
     const width = height * 192 / 224;
     c.fillStyle = '#263e3628'; c.beginPath(); c.ellipse(p.x + width * .15, p.y, width * .34, p.scale * .24, -.1, 0, Math.PI * 2); c.fill();
@@ -249,7 +268,7 @@ export class Renderer {
       for (const side of [-1, 1]) {
         const p = this.project(z, side * 7.75); if (!p || p.y > p.clip + 2 || p.y < 0) continue;
         const next = this.project(z + 8, side * 7.75);
-        if (next && (state.trackId === 'serra' || (state.trackId === 'costa' && side < 0))) {
+        if (next && (state.trackId === 'serra' || (['costa','porto'].includes(state.trackId) && side < 0))) {
           c.save(); c.beginPath(); c.rect(0, 0, this.w, p.clip); c.clip();
           this.polygon([p.x,p.y-p.scale*.65,p.x,p.y-p.scale*.92,next.x,next.y-next.scale*.92,next.x,next.y-next.scale*.65], '#a3aaa1');
           c.strokeStyle = '#e4dfc0'; c.lineWidth = Math.max(.5,p.scale*.025); c.beginPath(); c.moveTo(p.x,p.y-p.scale*.91); c.lineTo(next.x,next.y-next.scale*.91); c.stroke(); c.restore();
@@ -260,7 +279,7 @@ export class Renderer {
     }
     // Crop the transparent sprite padding: these are full-sized roadside shrubs,
     // close enough to cross the edge of the view as the player passes them.
-    for (let i = Math.floor(pz / 8) + 55; i >= Math.floor((pz - 12) / 8); i--) {
+    if(state.trackId!=='porto')for (let i = Math.floor(pz / 8) + 55; i >= Math.floor((pz - 12) / 8); i--) {
       for (const side of [-1, 1]) {
         const p = this.project(i*8+4,side*(8.1+visualHash(i*71+side)*2.5));
         if (!p || p.y > p.clip + 3 || p.scale < .7) continue;
@@ -270,6 +289,11 @@ export class Renderer {
         c.drawImage(scenerySprite(kind,i),0,kind==='rock'?140:168,192,kind==='rock'?84:56,p.x-w/2,p.y-h,w,h);
         c.restore();
       }
+    }
+    if(state.trackId==='porto')for(const work of PORT_WORKS){
+      const p=this.project(work.start-180,work.side*8.5);if(!p || p.y>p.clip+3)continue;
+      c.save();c.beginPath();c.rect(0,0,this.w,p.clip);c.clip();
+      c.drawImage(portSprite('works',raceCondition(state.condition)),p.x-p.scale*2.6,p.y-p.scale*4.6,p.scale*5.2,p.scale*4.6);c.restore();
     }
     // Curves are signposted ahead, using the actual track curvature.
     for (let i = Math.floor(pz/160); i < Math.floor(pz/160)+8; i++) {
@@ -407,26 +431,34 @@ export class Renderer {
     const entities: { z: number; draw: () => void }[] = [];
     const first = Math.floor((player.z - 12) / 28);
     for (let i = first; i < first + 55; i++) entities.push({ z: i * 28 + 12, draw: () => this.scenery(state, track, i * 28 + 12, i) });
+    const scenic=menu?null:scenicAppearance(state);
     for (const t of state.traffic) if (t.z > player.z - 12 && t.z < player.z + 1900) entities.push({ z: t.z, draw: () => {
       const p = this.project(t.z, t.x); if (!p || p.y > p.clip + 35) return;
       c.save(); c.beginPath(); c.rect(0, 0, this.w, p.clip); c.clip();
       const width = p.scale * (t.kind==='truck'?4.5:3.7), height = width * (t.kind==='truck'?1.25:.94);
       c.fillStyle = '#233a4055'; c.beginPath(); c.ellipse(p.x, p.y, width * .5, height * .1, 0, 0, Math.PI * 2); c.fill();
-      c.drawImage(t.kind==='truck'?truckSprite(t.color,t.speed<0):carSprite(t.color, t.speed < 0, t.kind === 'van'), p.x - width / 2, p.y - height, width, height); c.restore();
+      c.drawImage(t.kind==='truck'?truckSprite(t.color,t.speed<0,scenic?.kind==='truckPassenger'&&scenic.trafficId===t.id,Math.floor(state.time*4)%2):carSprite(t.color, t.speed < 0, t.kind === 'van'), p.x - width / 2, p.y - height, width, height); c.restore();
     } });
     for (const o of state.obstacles) if (o.z > player.z - 8 && o.z < player.z + 1700) entities.push({ z: o.z, draw: () => {
       const p = this.project(o.z, o.x); if (!p || p.y > p.clip + 4) return;
       if (o.kind === 'oil') {
         c.fillStyle = '#293642'; c.beginPath(); c.ellipse(p.x, p.y, p.scale * 1.1, p.scale * .3, -.1, 0, Math.PI * 2); c.fill();
         c.fillStyle = '#71768b'; c.fillRect(p.x - p.scale * .5, p.y - 1, p.scale * .7, 2);
+      } else if(o.kind==='cone'){
+        const s=p.scale;this.polygon([p.x-s*.65,p.y,p.x+s*.65,p.y,p.x+s*.5,p.y-s*.2,p.x-s*.5,p.y-s*.2],'#34464b');
+        this.polygon([p.x-s*.45,p.y-s*.15,p.x+s*.45,p.y-s*.15,p.x+s*.12,p.y-s*1.35,p.x-s*.12,p.y-s*1.35],'#fa9a50');
+        this.polygon([p.x-s*.3,p.y-s*.65,p.x+s*.3,p.y-s*.65,p.x+s*.22,p.y-s*.96,p.x-s*.22,p.y-s*.96],'#f4e8c3');
+      } else if(o.kind==='concrete'){
+        const s=p.scale;this.polygon([p.x-s,p.y,p.x+s,p.y,p.x+s*.75,p.y-s*1.6,p.x-s*.75,p.y-s*1.6],'#9ba7a0');
+        c.fillStyle='#d9b566';c.fillRect(p.x-s*.7,p.y-s*1.35,s*1.4,s*.5);
+        for(let n=-.6;n<.7;n+=.45)this.polygon([p.x+s*n,p.y-s*.85,p.x+s*(n+.2),p.y-s*.85,p.x+s*(n+.42),p.y-s*1.35,p.x+s*(n+.22),p.y-s*1.35],'#384951');
       } else {
         c.fillStyle = '#e1bf8c'; c.fillRect(p.x - p.scale, p.y - p.scale * 1.2, p.scale * 2, p.scale * .8);
         c.fillStyle = '#d77956'; for (let n = -1; n < 1; n += .5) c.fillRect(p.x + p.scale * n, p.y - p.scale * 1.2, p.scale * .23, p.scale * .8);
         c.fillStyle = '#443f41'; c.fillRect(p.x - p.scale * .8, p.y - p.scale * .4, p.scale * .13, p.scale * .4); c.fillRect(p.x + p.scale * .7, p.y - p.scale * .4, p.scale * .13, p.scale * .4);
       }
     } });
-    const scenic=menu?null:scenicAppearance(state);
-    if(scenic)entities.push({z:scenic.z,draw:()=>{
+    if(scenic?.kind==='mermaid')entities.push({z:scenic.z,draw:()=>{
       const p=this.project(scenic.z,-25);if(!p || p.y>p.clip+8)return;
       const size=p.scale*6.2,condition=raceCondition(state.condition);
       c.save();c.beginPath();c.rect(0,0,this.w,p.clip);c.clip();

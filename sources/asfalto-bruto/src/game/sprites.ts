@@ -279,13 +279,19 @@ function drawWheelieBody(c: CanvasRenderingContext2D, color: string, style: Bike
   line([55,39,64,29,73,29],'#a3b8b5',4);line([64,28,73,28],'#24313a',5);
   line([23,92,42,91],color,8);line([25,93,37,93],'#ff8565',4);
 }
-export function truckSprite(color: string, front: boolean): HTMLCanvasElement {
-  const key=`truck/${color}/${front}`;if(cache.has(key))return cache.get(key)!;
+export function truckSprite(color: string, front: boolean, passenger=false, frame=0): HTMLCanvasElement {
+  const key=`truck/${color}/${front}/${passenger}/${passenger?frame:0}`;if(cache.has(key))return cache.get(key)!;
   const canvas=document.createElement('canvas');canvas.width=100;canvas.height=125;const c=canvas.getContext('2d')!;
   const r=(x:number,y:number,w:number,h:number,col:string)=>{c.fillStyle=col;c.fillRect(x,y,w,h);};
   r(6,90,16,34,'#18252c');r(78,90,16,34,'#18252c');r(10,4,80,94,'#bfc7be');r(13,7,74,86,'#80979b');
   if(front){r(10,35,80,77,color);r(17,42,66,29,'#263f4a');r(20,44,27,4,'#9dcbcf');r(48,42,4,29,'#607e88');r(7,84,86,26,'#50606a');for(let y=86;y<103;y+=5)r(29,y,42,2,'#c9d4c7');r(11,88,14,10,'#fff2c2');r(75,88,14,10,'#fff2c2');}
   else {r(16,12,68,83,'#bfc7be');r(48,12,3,83,'#687d80');for(const x of [26,70])r(x,22,3,66,'#71868c');r(11,98,15,7,'#f38b62');r(74,98,15,7,'#f38b62');}
   r(7,109,86,6,'#b6c6c3');r(42,111,16,7,'#ede1bb');r(1,45,8,18,'#2b414b');r(91,45,8,18,'#2b414b');
+  if(front&&passenger){
+    // The passenger is paint on the cab: never a collider or a separate vehicle.
+    r(52,75,10,20,'#edcc58');r(55,80,6,15,'#4c8c60');r(53,70,9,9,'#c69770');r(53,69,9,3,'#584c43');
+    r(49,64,4,22,'#c69770');r(63,64,4,22,'#c69770');r(48,63,6,4,'#c69770');r(62,63,6,4,'#c69770');
+    r(52,94,5,15+frame,'#406b8a');r(59,94,5,12-frame,'#406b8a');r(49,108+frame,8,4,'#293c47');r(59,104-frame,8,4,'#293c47');
+  }
   cache.set(key,canvas);return canvas;
 }

@@ -1,3 +1,4 @@
+import { upcomingWorks } from './game/port';
 import './style.css';
 import { equippedWeapon, weaponName } from './game/weapons';
 import { jumpHeight, wheeliesLeft, stunting } from './game/stunts';
@@ -370,6 +371,12 @@ function updateHUD() {
     setText('corner-title',sliding ? 'SEM ADERÊNCIA · FREIE' : fast ? 'FREIE ANTES DA CURVA' : corner.tight ? 'CURVA FECHADA' : 'CURVA À FRENTE');
     setText('corner-detail',`${corner.distance > 0 ? `${corner.distance} M · ` : ''}${corner.speed} KM/H · ${corner.direction === 'right' ? 'DIREITA' : 'ESQUERDA'}`);
   }
+  const works=race.trackId==='porto'?upcomingWorks(p.z):null;
+  if(works && !p.out && race.mode==='racing' && (!corner || (!corner.tight && works.distance<corner.distance))){
+    $('corner-warning').hidden=false;$('corner-warning').classList.remove('braking');
+    setText('corner-arrow',works.side>0?'←':'→');setText('corner-title','OBRAS NA PISTA');
+    setText('corner-detail',`${works.distance?works.distance+' M · ':''}DESVIE PELA ${works.side>0?'ESQUERDA':'DIREITA'}`);
+  }
   const bars = Math.round(p.speed / p.maxSpeed * 18);
   $('revs').querySelectorAll('i').forEach((n, i) => n.classList.toggle('on', i < bars));
   $('heat-dots').querySelectorAll('i').forEach((n, i) => n.classList.toggle('on', i < Math.ceil(race.heat / 12.5)));
@@ -407,7 +414,7 @@ function showResult() {
   settled = true; settleRace(save, race); saveNow(); screen = 'result'; clearControls();
   const r = race.result;
   const title = r.reason === 'caught' ? 'FIM DA <span>LINHA.</span>' : r.reason === 'wrecked' ? 'MOTOR <span>APAGADO.</span>' : r.place === 1 ? 'A RUA É <span>SUA.</span>' : `${r.place}º NA <span>CHEGADA.</span>`;
-  const subtitle = r.reason === 'finish' ? r.place <= 5 && getTrack(race.trackId).index < 2 ? 'Top 5 conquistado. A próxima estrada está liberada.' : 'Dinheiro no bolso. Mais uma história no asfalto.' : r.reason === 'caught' ? r.arrestCause === 'fall' ? 'Você caiu perto da polícia. Prisão imediata: corrida perdida.' : 'O policial ficou perto por 3 segundos enquanto você estava devagar.' : 'A integridade da moto chegou a zero. A Ferro 500 te leva de volta à pista.';
+  const subtitle = r.reason === 'finish' ? r.place <= 5 && getTrack(race.trackId).index < TRACKS.length-1 ? 'Top 5 conquistado. A próxima estrada está liberada.' : 'Dinheiro no bolso. Mais uma história no asfalto.' : r.reason === 'caught' ? r.arrestCause === 'fall' ? 'Você caiu perto da polícia. Prisão imediata: corrida perdida.' : 'O policial ficou perto por 3 segundos enquanto você estava devagar.' : 'A integridade da moto chegou a zero. A Ferro 500 te leva de volta à pista.';
   $('result-modal').innerHTML = `<div class="result-top"><div class="eyebrow">${getTrack(race.trackId).name.toUpperCase()} · ${conditionName(race.condition).toUpperCase()} / ${r.reason === 'finish' ? 'CORRIDA CONCLUÍDA' : r.reason === 'caught' ? 'CAPTURADO' : 'MOTO DESTRUÍDA'}</div><h2 class="result-title" id="result-title">${title}</h2><div class="result-sub">${subtitle}</div></div><div class="result-stats"><div><small>SEU TEMPO</small><b>${clockString(r.time)}</b></div><div><small>GOLPES / QUEDAS</small><b>${r.hits} / ${r.falls}</b></div><div><small>${r.reason === 'finish' ? 'RECOMPENSA' : 'AJUDA DA OFICINA'}</small><b class="prize">+ ${money(r.reward)}</b></div></div><div class="result-table">${ranking(race).map((rider, i) => `<div class="result-rider ${rider.id === localId() ? 'me' : ''}"><span>${rider.id === localId() && r.reason !== 'finish' ? '—' : i + 1}. ${rider.name}</span><span>${rider.id === localId() && r.reason !== 'finish' ? r.reason === 'caught' ? 'PRESO' : 'FORA DA CORRIDA' : rider.finishedAt !== null ? clockString(rider.finishedAt) : rider.out==='caught'?'PRESO':rider.out?'FORA DA CORRIDA':'NA PISTA'}</span></div>`).join('')}</div><div class="result-actions"><button class="primary" id="again-btn">CORRER DE NOVO ${icons.arrow}</button><button class="secondary" id="result-menu-btn">ESTRADAS & GARAGEM</button></div>`;
   $<HTMLDialogElement>('result-modal').showModal(); audio.update(0, false, false, 0);
 }
