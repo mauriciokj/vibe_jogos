@@ -98,11 +98,17 @@ export class RedisStore implements RoomStore {
   }
   async close() { this.redis?.disconnect(); }
 }
-export function storeFromEnvironment(): RoomStore {
-  const url = unquote(process.env.ASFALTO_REDIS_URL || process.env.REDIS_URL || process.env.KV_URL);
-  const restUrl = unquote(process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL);
-  const token = unquote(process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN);
+export function storeFromEnvironment(env: NodeJS.ProcessEnv = process.env): RoomStore {
+  const mode = unquote(env.ASFALTO_STORE).toLowerCase();
+  if (mode && mode !== 'memory' && mode !== 'redis') throw new Error('ASFALTO_STORE deve ser memory ou redis.');
+  if (mode === 'memory') {
+    if (env.VERCEL) throw new Error('O modo memory exige um único servidor persistente, fora do Vercel.');
+    return new MemoryStore();
+  }
+  const url = unquote(env.ASFALTO_REDIS_URL || env.REDIS_URL || env.KV_URL);
+  const restUrl = unquote(env.KV_REST_API_URL || env.UPSTASH_REDIS_REST_URL);
+  const token = unquote(env.KV_REST_API_TOKEN || env.UPSTASH_REDIS_REST_TOKEN);
   if (url || (restUrl && token)) return new RedisStore({url,restUrl,token});
-  if (process.env.VERCEL || process.env.NODE_ENV === 'production') throw new Error('O multiplayer precisa do Redis configurado.');
+  if (mode === 'redis' || env.VERCEL || env.NODE_ENV === 'production') throw new Error('Configure o Redis ou selecione ASFALTO_STORE=memory em uma VPS com um único processo.');
   return new MemoryStore();
 }

@@ -1,4 +1,4 @@
-import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+import * as THREE from '/vendor/three-0.160.0/three.module.js';
 import { PlayerCar } from './PlayerCar.js';
 import { Road } from './Road.js';
 import { Spawner } from './Spawner.js';

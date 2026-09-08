@@ -84,3 +84,12 @@ Original prompt: Build a classic Snake game in this repo.
 - Ruptura: movimento usa substeps e resolução iterativa de contatos para impedir tunneling e deslizar em quinas; inclui degrau automático, rampas caminháveis e declive íngreme com escorregamento.
 - Ruptura: testes Playwright validaram movimento contra obstáculo (parada em x=6,28), automática, projétil carregado, escopeta de 9 pellets, ADS, estados de recarga, painel F1 e ausência de erros de console.
 - Artefatos de QA do Ruptura salvos em `output/web-game/ruptura-clean`, `output/web-game/ruptura-debug.png` e execuções auxiliares `ruptura-*`.
+
+## 2026-09-08 — Centralização na VPS
+
+- VPS 2.25.126.149: Ubuntu, Node 22, Caddy, firewall e usuários isolados. Publicação por releases atômicas, verificação de saúde, rollback e recusa durante corridas ativas.
+- Asfalto em processo único com estado em memória explícito em produção; Vercel continua exigindo Redis. Health informa armazenamento e corridas ativas. Proxy confiável limitado ao loopback.
+- Placares Snake/Rio de Aço em SQLite com escritas serializadas, persistência e backup diário. 50 testes do jogo e 7 testes de API/SQLite passaram; build passou.
+- 14 pastas de jogos incluídas, com URLs curtas /<jogo>/; bibliotecas Phaser/Three locais. Site principal existente preservado por proxy ao Firebase fir-d4471.web.app, conforme pedido do usuário.
+- Branch de infraestrutura codex/vps-centralizacao em mauriciokj/vibe_jogos. Checkout original de Jogos e mudanças locais do River Raid não alterados.
+- Em validação: deploy real, HTTPS, navegadores, sala com 8 participantes e troca do DNS principal. Histórico do Rio de Aço permanece no Upstash, leitura bloqueada pela cota antiga.

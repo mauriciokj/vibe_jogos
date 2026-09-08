@@ -39,6 +39,7 @@ var import_node_http2 = require("node:http");
 // server/service.ts
 var import_node_http = require("node:http");
 var import_node_crypto2 = require("node:crypto");
+var import_node_net = require("node:net");
 var import_ws = require("ws");
 
 // src/game/content.ts
@@ -771,12 +772,18 @@ var RedisStore = class {
     this.redis?.disconnect();
   }
 };
-function storeFromEnvironment() {
-  const url = unquote(process.env.ASFALTO_REDIS_URL || process.env.REDIS_URL || process.env.KV_URL);
-  const restUrl = unquote(process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL);
-  const token = unquote(process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN);
+function storeFromEnvironment(env = process.env) {
+  const mode = unquote(env.ASFALTO_STORE).toLowerCase();
+  if (mode && mode !== "memory" && mode !== "redis") throw new Error("ASFALTO_STORE deve ser memory ou redis.");
+  if (mode === "memory") {
+    if (env.VERCEL) throw new Error("O modo memory exige um \xFAnico servidor persistente, fora do Vercel.");
+    return new MemoryStore();
+  }
+  const url = unquote(env.ASFALTO_REDIS_URL || env.REDIS_URL || env.KV_URL);
+  const restUrl = unquote(env.KV_REST_API_URL || env.UPSTASH_REDIS_REST_URL);
+  const token = unquote(env.KV_REST_API_TOKEN || env.UPSTASH_REDIS_REST_TOKEN);
   if (url || restUrl && token) return new RedisStore({ url, restUrl, token });
-  if (process.env.VERCEL || process.env.NODE_ENV === "production") throw new Error("O multiplayer precisa do Redis configurado.");
+  if (mode === "redis" || env.VERCEL || env.NODE_ENV === "production") throw new Error("Configure o Redis ou selecione ASFALTO_STORE=memory em uma VPS com um \xFAnico processo.");
   return new MemoryStore();
 }
 
@@ -792,7 +799,7 @@ function createGameServer(store, options = {}) {
     res.setHeader("Cache-Control", "no-store");
     res.setHeader("Content-Type", "application/json");
     res.statusCode = 200;
-    res.end(JSON.stringify({ service: "asfalto-bruto", version: NET_VERSION, multiplayer: true, sharedRooms: store.shared, region: process.env.VERCEL_REGION ?? "local" }));
+    res.end(JSON.stringify({ service: "asfalto-bruto", version: NET_VERSION, multiplayer: true, sharedRooms: store.shared, storage: store.shared ? "redis" : "memory", region: process.env.VERCEL_REGION ?? "local", activeRaces: [...latest.values()].filter((r) => r.phase === "racing" && [...peers].some((p) => p.code === r.code)).length }));
   });
   const wss = new import_ws.WebSocketServer({ noServer: true, maxPayload: 4096, perMessageDeflate: false });
   server2.on("upgrade", (req, socket, head) => {
@@ -804,7 +811,9 @@ function createGameServer(store, options = {}) {
       socket.destroy();
       return;
     }
-    const ip = req.socket.remoteAddress ?? "unknown";
+    const remote = req.socket.remoteAddress ?? "unknown", forwarded = req.headers["x-real-ip"];
+    const localProxy = options.trustLoopbackProxy && ["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(remote);
+    const ip = localProxy && typeof forwarded === "string" && (0, import_node_net.isIP)(forwarded) ? forwarded : remote;
     const limit = limits.get(ip) ?? { at: now(), count: 0 };
     if (now() - limit.at > 6e4) {
       limit.at = now();

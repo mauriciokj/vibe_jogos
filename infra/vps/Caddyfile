@@ -1,0 +1,61 @@
+(game-api) {
+  root * /srv/vibe-jogos/current/public
+  encode zstd gzip
+  header X-Content-Type-Options nosniff
+  header /games/asfalto-bruto/assets/* Cache-Control "public, max-age=31536000, immutable"
+  @asfalto path /api/asfalto /api/asfalto/*
+  handle @asfalto {
+    reverse_proxy 127.0.0.1:4318 {
+      header_up X-Real-IP {remote_host}
+    }
+  }
+  @leaderboard path /api/leaderboard /api/leaderboard/
+  handle @leaderboard {
+    reverse_proxy 127.0.0.1:4320
+  }
+  handle /healthz {
+    rewrite * /health
+    reverse_proxy 127.0.0.1:4320
+  }
+  handle /_vercel/insights/* {
+    header Content-Type application/javascript
+    respond "/* Analytics desativado nesta hospedagem. */" 200
+  }
+  handle /api/* {
+    respond "Endpoint nao encontrado" 404
+  }
+}
+(firebase-home) {
+  reverse_proxy https://fir-d4471.web.app {
+    header_up Host fir-d4471.web.app
+  }
+}
+http://2.25.126.149 {
+  import game-api
+  handle {
+    file_server
+  }
+}
+asfaltobruto.flowofdevelopment.com {
+  @home path /
+  redir @home /asfalto-bruto/ 302
+  import game-api
+  handle {
+    file_server
+  }
+}
+flowofdevelopment.com, www.flowofdevelopment.com {
+  import game-api
+  # Keep the existing Firebase homepage, its assets, auth helpers and SPA routes.
+  @homepage path / /index.html /assets/* /vite.svg /__/*
+  handle @homepage {
+    import firebase-home
+  }
+  @local file {path} {path}/index.html
+  handle @local {
+    file_server
+  }
+  handle {
+    import firebase-home
+  }
+}

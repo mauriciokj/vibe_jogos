@@ -1962,10 +1962,10 @@
         platformOverrides.externalFullscreen === true || platformId === 'crazygames'
       );
       const usesBundledApi =
-        window.location.protocol !== 'file:' && window.location.hostname.endsWith('.vercel.app');
+        window.location.protocol !== 'file:' && (window.location.hostname.endsWith('.vercel.app') || window.location.hostname === '2.25.126.149' || ['asfaltobruto.flowofdevelopment.com', 'flowofdevelopment.com', 'www.flowofdevelopment.com'].includes(window.location.hostname));
       const defaultLeaderboardApiUrl = usesBundledApi
         ? '/api/leaderboard'
-        : 'https://vibe-jogos.vercel.app/api/leaderboard/';
+        : 'https://asfaltobruto.flowofdevelopment.com/api/leaderboard/';
       const PLATFORM_CONFIG = Object.freeze({
         id: platformId,
         locale: GAME_LANGUAGE,

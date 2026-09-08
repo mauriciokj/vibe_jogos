@@ -1,0 +1,6 @@
+[Unit]
+Description=Backup of Vibe Jogos leaderboards and service configuration
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/vibe-backup
+UMask=0077

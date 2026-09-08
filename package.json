@@ -4,7 +4,15 @@
   "type": "commonjs",
   "dependencies": {
     "@vercel/kv": "^2.0.0",
-    "ws": "^8.21.3",
-    "ioredis": "^6.0.0"
+    "ioredis": "^6.0.0",
+    "ws": "^8.21.3"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  },
+  "scripts": {
+    "build:vps": "node infra/vps/build.mjs",
+    "deploy:vps": "bash infra/vps/deploy.sh",
+    "test:vps": "node --test infra/vps/*.test.cjs api/leaderboard.test.cjs"
   }
 }

@@ -1,5 +1,6 @@
 import { createServer } from 'node:http';
 import { randomBytes } from 'node:crypto';
+import { isIP } from 'node:net';
 import { WebSocket, WebSocketServer } from 'ws';
 import { finishRider } from '../src/game/simulation';
 import { cleanAttacks, cleanCommand, NET_VERSION, RECONNECT_MS, type ServerMessage } from '../src/multiplayer/protocol';
@@ -7,7 +8,7 @@ import { depart, inputKey, joinRoom, lobbyClock, makeMember, makeRoom, pulseRoom
 import { BusyRoom, MemoryStore, type RoomStore } from './store';
 
 interface Peer { ws: WebSocket; code: string; id: string; epoch: string; seq: number; pending?: StoredInput; latestInput?: StoredInput; writing: boolean; lastSeen: number; alive: boolean; }
-export function createGameServer(store: RoomStore, options: { origins?: string[]; now?: () => number } = {}) {
+export function createGameServer(store: RoomStore, options: { origins?: string[]; now?: () => number; trustLoopbackProxy?: boolean } = {}) {
   const now = options.now ?? Date.now;
   const peers = new Set<Peer>();
   const revisions = new Map<string,number>();
@@ -16,7 +17,7 @@ export function createGameServer(store: RoomStore, options: { origins?: string[]
   const limits = new Map<string,{ at: number; count: number }>();
   const server = createServer((req,res) => {
     res.setHeader('Cache-Control','no-store'); res.setHeader('Content-Type','application/json');
-    res.statusCode = 200; res.end(JSON.stringify({service:'asfalto-bruto',version:NET_VERSION,multiplayer:true,sharedRooms:store.shared,region:process.env.VERCEL_REGION ?? 'local'}));
+    res.statusCode = 200; res.end(JSON.stringify({service:'asfalto-bruto',version:NET_VERSION,multiplayer:true,sharedRooms:store.shared,storage:store.shared?'redis':'memory',region:process.env.VERCEL_REGION ?? 'local',activeRaces:[...latest.values()].filter(r=>r.phase==='racing' && [...peers].some(p=>p.code===r.code)).length}));
   });
   const wss = new WebSocketServer({noServer:true,maxPayload:4096,perMessageDeflate:false});
   server.on('upgrade',(req,socket,head) => {
@@ -24,7 +25,9 @@ export function createGameServer(store: RoomStore, options: { origins?: string[]
     const host = req.headers['x-forwarded-host'] || req.headers.host;
     const allowed = !origin || origin === `https://${host}` || origin === `http://${host}` || options.origins?.includes(origin);
     if (!allowed || peers.size >= 256) { socket.write('HTTP/1.1 403 Forbidden\r\n\r\n'); socket.destroy(); return; }
-    const ip = req.socket.remoteAddress ?? 'unknown';
+    const remote = req.socket.remoteAddress ?? 'unknown', forwarded = req.headers['x-real-ip'];
+    const localProxy = options.trustLoopbackProxy && ['127.0.0.1','::1','::ffff:127.0.0.1'].includes(remote);
+    const ip = localProxy && typeof forwarded === 'string' && isIP(forwarded) ? forwarded : remote;
     const limit = limits.get(ip) ?? {at:now(),count:0};
     if (now()-limit.at > 60_000) { limit.at = now(); limit.count = 0; }
     limits.set(ip,limit);

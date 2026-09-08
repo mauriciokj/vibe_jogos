@@ -1,0 +1,32 @@
+[Unit]
+Description=Vibe Jogos - Asfalto Bruto multiplayer
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=vibe-asfalto
+Group=vibe-asfalto
+WorkingDirectory=/srv/vibe-jogos/current/services
+EnvironmentFile=/etc/vibe-jogos/asfalto.env
+ExecStart=/usr/bin/node /srv/vibe-jogos/current/services/asfalto.cjs
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=15
+MemoryMax=1G
+LimitNOFILE=8192
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+LockPersonality=true
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
