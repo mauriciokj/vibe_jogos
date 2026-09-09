@@ -14,3 +14,6 @@ export function raceRoute(trackId: string, condition: unknown) {
 export function routeFromId(id: string) {
   return RACE_ROUTES.find(r=>r.id===id) ?? RACE_ROUTES[1];
 }
+export function nextRaceRoute(trackId: string, condition: unknown) {
+  return RACE_ROUTES[RACE_ROUTES.indexOf(raceRoute(trackId,condition))+1] ?? null;
+}

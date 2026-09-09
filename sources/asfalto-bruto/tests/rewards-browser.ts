@@ -59,7 +59,7 @@ try{
     for(const [track,condition] of [['costa','rain'],['serra','day']] as const){view=await finish(p,170,1,track,condition);assert.equal(view.payout.recordBonus,0);await advance(p,5000);await p.click('#again-btn');}
     view=await finish(p,180,1,'costa','day',true);assert.equal(view.payout.recordBonus,0);assert.equal(view.screen,'result');assert.equal(await p.locator('.record-bonus').count(),0);
     await p.click('#result-menu-btn');view=await finish(p,180);assert.equal(view.payout.recordBonus,420);await p.click('#finish-skip');
-    await p.click('#next-race-btn');assert.equal((await state(p)).payout,null);assert.equal((await state(p)).track,'serra');
+    await p.click('#next-race-btn');assert.equal((await state(p)).payout,null);assert.equal((await state(p)).track,'costa');assert.equal((await state(p)).condition,'sunset');
     await context.close();
   }
   assert.deepEqual(errors,[]);await fs.writeFile(`${folder}/report.json`,JSON.stringify({ok:true,checks:['30% of track prize in second place','total and bonus visible','four viewports','first/equal/slower times excluded','track and condition separation','failure excluded','cash paid once during finish camera','reload preserves record and cash','next race clears payout'],errors},null,2));console.log('Record bonus browser checks passed');

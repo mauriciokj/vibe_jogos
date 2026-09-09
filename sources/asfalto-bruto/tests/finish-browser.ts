@@ -7,7 +7,7 @@ import { createGameServer } from '../server/service';
 import { MemoryStore } from '../server/store';
 import { createRace, finishRider } from '../src/game/simulation';
 import { getTrack } from '../src/game/content';
-import { EMPTY_COMMAND } from '../src/game/types';
+import { EMPTY_COMMAND, type RaceCondition } from '../src/game/types';
 
 const live=process.env.PUBLIC_URL,folder=process.env.FINISH_OUTPUT ?? 'output/finish';await fs.mkdir(folder,{recursive:true});
 let offset=0;const store=new MemoryStore(),app=live?null:createGameServer(store,{now:()=>Date.now()+offset});
@@ -26,7 +26,7 @@ async function setup(p:Page){
   await p.addInitScript(()=>sessionStorage.setItem('asfalto-instructions','1'));
   await p.goto(base+'?test',{waitUntil:'domcontentloaded'});await p.waitForFunction(()=>!!window.__game);await p.evaluate(()=>document.fonts.ready);
 }
-function fixture(track='costa',rivalWon=false,condition:'day'|'rain'|'night'='day'){
+function fixture(track='costa',rivalWon=false,condition:RaceCondition='day'){
   const s=createRace(track,undefined,77,condition),end=getTrack(track).distance;s.mode='racing';s.time=120;s.tick=7200;s.countdown=0;s.traffic=[];s.obstacles=[];
   s.riders.forEach((r,i)=>Object.assign(r,{z:end-35-i*30,x:i%2?-2.7:2.7,speed:50,crash:0,immune:0}));
   if(rivalWon)Object.assign(s.riders[1],{z:end,finishedAt:112,speed:0});
@@ -47,7 +47,7 @@ try{
     await advance(p,2600);view=await state(p);assert.equal(view.screen,'result');assert.equal(view.finish.pullback,1);assert.equal(await p.evaluate(()=>window.__game!.snapshot()),frozen);assert.equal(view.save.cash,cash);
     await shot(p,`${name}-results`);assert.ok(await p.locator('#next-race-btn').isVisible());
     const dialog=await p.locator('#result-modal').boundingBox();assert.ok(dialog&&dialog.x>=0&&dialog.y>=0&&dialog.x+dialog.width<=width+1&&dialog.y+dialog.height<=height+1);
-    await p.click('#next-race-btn');assert.equal((await state(p)).track,'serra');assert.equal((await state(p)).condition,'day');assert.equal((await state(p)).mode,'countdown');assert.equal((await state(p)).finish.stage,'none');
+    await p.click('#next-race-btn');assert.equal((await state(p)).track,'costa');assert.equal((await state(p)).condition,'sunset');assert.equal((await state(p)).mode,'countdown');assert.equal((await state(p)).finish.stage,'none');
     await p.click('#pause-btn');await p.click('#menu-btn');await p.click('#start-btn');
     const second=fixture('porto',true,'rain');second.riders[0].bikeId='lobo';await restore(p,second);assert.equal((await state(p)).finish.winnerId,'rival-0');await shot(p,`${name}-rival-waiting`);
     await p.keyboard.down('w');await advance(p,1100);await p.keyboard.up('w');assert.equal((await state(p)).result.place,2);assert.equal((await state(p)).screen,'finish');
@@ -63,9 +63,23 @@ try{
   }
   const locked=await browser.newPage({viewport:{width:1280,height:800}});await setup(locked);
   for(const track of ['costa','terra']){
-    const s=fixture(track);s.riders.slice(1,6).forEach((r,i)=>Object.assign(r,{z:getTrack(track).distance,finishedAt:110+i}));
+    const s=fixture(track,false,'rain');s.riders.slice(1,6).forEach((r,i)=>Object.assign(r,{z:getTrack(track).distance,finishedAt:110+i}));
     await restore(locked,s);await locked.keyboard.down('w');await advance(locked,1100);await locked.keyboard.up('w');await locked.click('#finish-skip');
     assert.equal((await state(locked)).result.place,6);assert.equal(await locked.locator('#next-race-btn').count(),0);
+  }
+  // Follow the same numbered variants as the menu, including the base-track boundary.
+  for(const [track,condition,nextTrack,nextCondition] of [
+    ['costa','day','costa','sunset'],['costa','sunset','costa','night'],
+    ['costa','night','costa','rain'],['costa','rain','serra','day'],
+    ['terra','day','terra','sunset'],['terra','night','terra','rain'],
+  ] as const){
+    await restore(locked,fixture(track,false,condition));await locked.keyboard.down('w');await advance(locked,1100);await locked.keyboard.up('w');await locked.click('#finish-skip');
+    await locked.click('#next-race-btn');const view=await state(locked);assert.equal(view.track,nextTrack);assert.equal(view.condition,nextCondition);
+    const saved=JSON.parse(await locked.evaluate(()=>window.__game!.save()));assert.equal(saved.raceTrackId,nextTrack);assert.equal(saved.raceCondition,nextCondition);
+    await locked.click('#pause-btn');await locked.click('#menu-btn');
+    assert.equal(await locked.getAttribute(`#routes [data-route="${nextTrack}:${nextCondition}"]`,'aria-pressed'),'true');
+    if(track==='costa')assert.match(await locked.locator('#route-count').innerText(),new RegExp(`0${nextCondition==='sunset'?2:nextCondition==='night'?3:nextCondition==='rain'?4:5}`));
+    await shot(locked,`sequence-${track}-${condition}`);
   }
   await locked.close();
   // Keep the authoritative multiplayer clock running during one person's camera.
@@ -80,7 +94,7 @@ try{
     await host.keyboard.down('w');await guest.keyboard.down('w');await host.waitForFunction(()=>JSON.parse(window.render_game_to_text()).screen==='finish');await host.keyboard.up('w');
     const z=(await state(guest)).player.z;await guest.waitForTimeout(700);assert.ok((await state(guest)).player.z>z);assert.equal((await state(guest)).screen,'race');assert.equal((await state(guest)).finish.winnerId,hostId);
     await shot(host,'online-winner');await advance(host,5000);assert.equal((await state(host)).screen,'result');assert.match(await host.locator('#online-result-status').innerText(),/1 \/ 2/);await shot(host,'online-result');
-    await host.click('#online-next-btn');assert.equal(await host.locator('#online-modal').isVisible(),true);assert.equal(await host.inputValue('#online-track'),'serra:night');assert.equal((await state(host)).online,null);
+    await host.click('#online-next-btn');assert.equal(await host.locator('#online-modal').isVisible(),true);assert.equal(await host.inputValue('#online-track'),'costa:rain');assert.equal((await state(host)).online,null);
     assert.equal((await state(guest)).online.id,guestId);assert.equal((await state(guest)).screen,'race');
     await guest.keyboard.up('w');await guest.click('#pause-btn');await guest.click('#menu-btn');await host.close();await guest.close();
   }

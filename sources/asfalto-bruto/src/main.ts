@@ -26,7 +26,7 @@ import { PublicRoomBrowser } from './multiplayer/discovery';
 import type { RoomView } from './multiplayer/protocol';
 import { EMPTY_COMMAND } from './game/types';
 import { BIKES, clamp, clockString, cornerForces, cornerPace, curveAt, upcomingCorner, getBike, handlingLabel, zeroToHundred, getTrack, money, TRACKS } from './game/content';
-import { RACE_ROUTES, raceRoute, routeFromId } from './game/routes';
+import { RACE_ROUTES, raceRoute, routeFromId, nextRaceRoute } from './game/routes';
 import { conditionName, raceCondition, recordKey, scenicAppearance } from './game/conditions';
 import { raceAwareness } from './game/awareness';
 import { GameAudio, jumpSoundKey, guardRailSoundSide } from './game/audio';
@@ -247,7 +247,7 @@ function showOnlineResult(room: RoomView) {
     const title=result.reason==='finish'?`${result.place}º NA <span>CHEGADA.</span>`:result.reason==='caught'?'FIM DA <span>LINHA.</span>':'FIM DE <span>CORRIDA.</span>';
     $('result-modal').innerHTML=`<div class="result-top"><div class="eyebrow">MULTIPLAYER / ${conditionName(room.condition).toUpperCase()} / SALA ${room.code}</div><h2 id="result-title" class="result-title">${title}</h2><p class="result-sub">${result.reason==='caught'?'Você foi preso e perdeu a corrida.':result.reason==='wrecked'?'Sua moto ficou sem integridade.':result.reason==='left'?'Você saiu da corrida.':result.reason==='timeout'?'O tempo máximo da corrida terminou.':'Você cruzou a linha de chegada.'}</p><p id="online-result-status" class="online-note"></p></div><div id="online-result-table" class="result-table"></div><div class="result-actions"><button id="online-menu-btn" class="primary">VOLTAR AO MENU ↗</button></div>`;
     if(result.reason==='finish'){
-      $('result-modal').querySelector('.result-actions')!.innerHTML=resultButtons(true,!!TRACKS[getTrack(room.trackId).index+1]);
+      $('result-modal').querySelector('.result-actions')!.innerHTML=resultButtons(true,!!nextRaceRoute(room.trackId,room.condition));
       $('result-modal').querySelector('.result-actions')!.insertAdjacentHTML('beforebegin','<p class="finish-room-hint">Para correr outra vez, crie ou entre em uma nova sala.</p>');
     }
     beginResult(result.reason==='finish',result.place);
@@ -499,8 +499,8 @@ function showResult() {
     $('result-modal').querySelector('.prize')!.previousElementSibling!.textContent='RECOMPENSA TOTAL';
     $('result-modal').querySelector('.result-table')!.insertAdjacentHTML('beforebegin',`<div class="record-bonus"><div><strong>RECORDE PESSOAL BATIDO</strong><small>${clockString(resultPayout.previousRecord!)} → ${clockString(r.time)} · Bônus de 30% do prêmio da pista</small></div><b>+ ${money(resultPayout.recordBonus)}</b></div>`);
   }
-  const next=TRACKS[getTrack(race.trackId).index+1];
-  $('result-modal').querySelector('.result-actions')!.innerHTML=resultButtons(false,r.reason==='finish' && !!next && next.index<=save.unlocked);
+  const next=nextRaceRoute(race.trackId,race.condition);
+  $('result-modal').querySelector('.result-actions')!.innerHTML=resultButtons(false,r.reason==='finish' && !!next && next.track.index<=save.unlocked);
   beginResult(r.reason==='finish',r.place);
 }
 function resultButtons(multiplayer: boolean, hasNext: boolean) {
@@ -530,14 +530,14 @@ function advanceFinish(dt: number) {
   if(finishElapsed>=FINISH_SECONDS)revealResult();
 }
 function nextSoloRace() {
-  const next=TRACKS[getTrack(race.trackId).index+1];
-  if(!race.result || race.result.reason!=='finish' || !next || next.index>save.unlocked)return;
-  selectedTrack=next.id;selectedCondition=raceCondition(race.condition);save.raceTrackId=selectedTrack;save.raceCondition=selectedCondition;saveNow();void startRace();
+  const next=nextRaceRoute(race.trackId,race.condition);
+  if(!race.result || race.result.reason!=='finish' || !next || next.track.index>save.unlocked)return;
+  selectedTrack=next.track.id;selectedCondition=next.condition.id;save.raceTrackId=selectedTrack;save.raceCondition=selectedCondition;saveNow();void startRace();
 }
 function nextOnlineRace(advance: boolean) {
   const room=online.room;if(!room)return;
-  const track=advance?TRACKS[getTrack(room.trackId).index+1]:getTrack(room.trackId);if(!track)return;
-  const route=raceRoute(track.id,room.condition),bots=room.fillBots,isPublic=room.public,bike=localRider().bikeId;
+  const route=advance?nextRaceRoute(room.trackId,room.condition):raceRoute(room.trackId,room.condition);if(!route)return;
+  const bots=room.fillBots,isPublic=room.public,bike=localRider().bikeId;
   online.leave();openOnline();
   $<HTMLSelectElement>('online-track').value=route.id;$<HTMLInputElement>('online-bots').checked=bots;$<HTMLInputElement>('online-public').checked=!!isPublic;
   $<HTMLSelectElement>('online-bike').value=getBike(bike).id;updateOnlineBikePreview();
