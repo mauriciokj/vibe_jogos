@@ -1,3 +1,4 @@
+import { normalizeChampionship } from './championship';
 import { HELMETS, HELMET_COLORS, equippedHelmet, getHelmetColor, ownsHelmet } from './helmets';
 import { WEAPONS, equippedWeapon, getWeapon } from './weapons';
 import { CONDITIONS, raceCondition, recordKey } from './conditions';
@@ -49,6 +50,7 @@ export function normalizeSave(saved: any): SaveData {
     // An existing top-five record on the former last track unlocks the expansion.
     for(const track of TRACKS)if(CONDITIONS.some(c=>(valid.records[recordKey(track.id,c.id)]?.place ?? 99)<=5))valid.unlocked=Math.max(valid.unlocked,Math.min(TRACKS.length-1,track.index+1));
     valid.raceTrackId=TRACKS.find(t=>t.id===saved.raceTrackId && t.index<=valid.unlocked)?.id ?? 'costa';
+    const championship=normalizeChampionship(saved.championship,normalizeSave);if(championship)valid.championship=championship;
     return valid;
   } catch { return freshSave(); }
 }
@@ -120,11 +122,11 @@ export function buyUpgrade(save: SaveData, key: keyof Upgrade): boolean {
   const cost = upgradeCost(save, key); if (save.cash < cost) return false;
   up[key]++; save.cash -= cost; return true;
 }
-export function settleRace(save: SaveData, state: RaceState) {
+export function settleRace(save: SaveData, state: RaceState, options: {starterRepair?:boolean} = {}) {
   if (!state.result || state.multiplayer) return;
   const payout = racePayout(state.trackId, state.result, save.records[recordKey(state.trackId,state.condition)]?.time);
   save.cash += payout.total; save.races++;
-  save.condition[save.bikeId] = clamp(state.riders[0].integrity, 0, 100);
+  save.condition[state.riders[0].bikeId ?? save.bikeId] = clamp(state.riders[0].integrity, 0, 100);
   const result = state.result;
   if (result.reason === 'finish') {
     const key = recordKey(state.trackId,state.condition);
@@ -133,6 +135,6 @@ export function settleRace(save: SaveData, state: RaceState) {
     if (result.place <= 5) save.unlocked = Math.max(save.unlocked, Math.min(TRACKS.length-1, getTrack(state.trackId).index + 1));
   }
   // A sponsor restores the starter bike to a safe minimum, so failure never locks out play.
-  if ((save.condition.ferro ?? 100) < 55) save.condition.ferro = 55;
+  if (options.starterRepair!==false && (save.condition.ferro ?? 100) < 55) save.condition.ferro = 55;
   return payout;
 }

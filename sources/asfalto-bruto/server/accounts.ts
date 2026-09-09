@@ -63,7 +63,7 @@ export class AccountService {
       const csrf=route==='/login'?login?.csrf:identity?.csrf;
       if(!csrf || req.headers['x-asfalto-csrf']!==csrf)fail(403,'Atualize a conta para continuar.');
       let bytes=0;const chunks:Buffer[]=[];
-      for await(const chunk of req){bytes+=chunk.length;if(bytes>(route==='/finish'?4_000_000:32_000))fail(413,'Envio muito grande.');chunks.push(chunk);}
+      for await(const chunk of req){bytes+=chunk.length;if(bytes>(route==='/finish'?4_000_000:route==='/save'?128_000:32_000))fail(413,'Envio muito grande.');chunks.push(chunk);}
       let body:any;try{body=JSON.parse(Buffer.concat(chunks).toString());}catch{fail(400,'Dados inválidos.');}
       if(!body || typeof body!=='object')fail(400,'Dados inválidos.');
       if(route==='/login') {
