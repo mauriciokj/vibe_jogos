@@ -132,3 +132,12 @@ Artefatos locais estão em `road rash/output/vps/`: `live-check.json`, `eight.js
 - Build/export e nove testes do catálogo passaram: placares preservados, concorrência, cookies, dois domínios, reinício, restrições HTTP e limite de novos IDs. Navegador local confirmou primeiro acesso, recargas/abas, dois navegadores, três tamanhos móveis, ausência de sobreposição, largada/aceleração/pausa e resposta inválida sem bloquear o jogo.
 - HTTPS nos dois domínios confirmou contador e data, celular e corrida individual/pausa, sem erros JS/console. QA público fez apenas GET via `?test`, sem cookies nem visitantes artificiais (total 0 nas verificações). Uma navegação inicial expirou; repetição com resolução temporária dos dois domínios para a VPS e TLS validado passou.
 - Cliente da skill com o backend nativo já documentado passou no HTTPS público, aceleração/direção, estado e imagem revisados. Capturas locais/publicadas e relatórios em `output/visitors/` no projeto de origem, inspecionados. Concluído; documentação posterior não requer redeploy.
+
+
+### Áudio de salto publicado — 2026-09-08
+
+- Código `dace3a5`, release `20260909T020844Z-dace3a5` ativa. Serviços Asfalto/Catálogo/Caddy ativos, protocolo v9. Ativação respeitou a guarda de corridas ativas.
+- Salto sobre carro toca impacto metálico curto uma vez e aumenta giro/brilho/volume do motor enquanto está no ar. Aterrissagem retoma o som normal. Fatores de timbre por moto preservados, integração individual/online sem mudança de física, manobra ou rede.
+- Build/export e oito testes de manobra/armas passaram. Chromium local e HTTPS público verificaram nós Web Audio reais: frequência do motor cerca de 130Hz no chão, 275Hz no ar e 85Hz após aterrissagem na fixture; retorno suave, quatro ressonâncias de metal, uma ativação por salto, pausa/mute, snapshots repetidos, caminhão sem salto e reinício. Sem erros JS/console. Trata-se de verificação instrumental, não de avaliação auditiva subjetiva.
+- Capturas de salto/pouso inspecionadas em output/jump-audio; relatórios local.json e published.json. QA público usou ?test sem aumentar visitantes. Cliente da skill com backend nativo já documentado executou largada/aceleração no HTTPS; imagem/estado inspecionados.
+- Concluído, publicado e enviado ao GitHub. Registro posterior não exige nova ativação.
