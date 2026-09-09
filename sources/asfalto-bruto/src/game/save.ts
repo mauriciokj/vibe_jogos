@@ -12,8 +12,12 @@ export function freshSave(): SaveData {
 export function loadSave(): SaveData {
   try {
     const raw = localStorage.getItem(SAVE_KEY); if (!raw) return freshSave();
-    const saved = JSON.parse(raw);
-    if (saved.version !== 1) return freshSave();
+    return normalizeSave(JSON.parse(raw));
+  } catch { return freshSave(); }
+}
+export function normalizeSave(saved: any): SaveData {
+  try {
+    if (!saved || saved.version !== 1) return freshSave();
     const valid = freshSave();
     valid.cash = Number.isFinite(saved.cash) ? clamp(saved.cash, 0, 1e8) : 650;
     valid.owned = Array.isArray(saved.owned) ? BIKES.filter(b => saved.owned.includes(b.id)).map(b => b.id) : ['ferro'];

@@ -5,7 +5,8 @@
   "dependencies": {
     "@vercel/kv": "^2.0.0",
     "ioredis": "^6.0.0",
-    "ws": "^8.21.3"
+    "ws": "^8.21.3",
+    "jose": "^6.2.12"
   },
   "devDependencies": {
     "esbuild": "0.28.2"

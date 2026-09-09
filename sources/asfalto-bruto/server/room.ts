@@ -8,7 +8,7 @@ import { getKneePad, nitroCount } from '../src/game/equipment';
 import { EMPTY_COMMAND, type Command } from '../src/game/types';
 import { cleanName, MAX_PLAYERS, READY_WAIT_MS, RECONNECT_MS, ROOM_WAIT_MS, PUBLIC_ROOM_WAIT_MS, type PublicRoomView, type AttackInput, type ActionInput, type Loadout, type MemberView, type RoomView } from '../src/multiplayer/protocol';
 
-export interface Member extends MemberView { token: string; epoch: string; lastSeen: number; }
+export interface Member extends MemberView { token: string; epoch: string; lastSeen: number; accountId?: string; }
 export interface Room extends Omit<RoomView,'members'|'serverNow'|'simulationAt'> {
   members: Member[]; updatedAt: number; createdAt: number; finishedAt: number | null;
 }
@@ -62,6 +62,7 @@ export function joinRoom(room: Room, member: Member, now: number) {
   if (room.phase !== 'lobby' || room.locked) throw new Error('A largada já foi fechada. Entre em outra sala.');
   room.members = room.members.filter(p => p.connected);
   if (room.members.length >= MAX_PLAYERS) throw new Error('Sala cheia: o limite é de 8 pessoas.');
+  if(member.accountId && room.members.some(m=>m.accountId===member.accountId))throw new Error('Esta conta já está na sala.');
   room.members.push(member); lobbyClock(room,now);
 }
 export function setReady(room: Room, id: string, epoch: string, ready: boolean, now: number) {

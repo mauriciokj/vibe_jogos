@@ -8,9 +8,10 @@ for service_user in vibe-asfalto vibe-catalog; do
 done
 install -d -m 755 /srv/vibe-jogos/releases /etc/vibe-jogos /var/lib/vibe-jogos
 install -d -m 700 -o vibe-catalog -g vibe-catalog /var/lib/vibe-jogos/catalog
+install -d -m 700 -o vibe-asfalto -g vibe-asfalto /var/lib/vibe-jogos/asfalto
 install -d -m 700 /var/backups/vibe-jogos
 if [[ -f /etc/caddy/Caddyfile ]]; then cp -p /etc/caddy/Caddyfile "/var/backups/vibe-jogos/Caddyfile-before-$(date -u +%Y%m%dT%H%M%SZ)";fi
-install -m 600 asfalto.env /etc/vibe-jogos/asfalto.env
+if [[ ! -f /etc/vibe-jogos/asfalto.env ]]; then install -m 600 asfalto.env /etc/vibe-jogos/asfalto.env;fi
 for file in vibe-asfalto.service vibe-catalog.service vibe-backup.service vibe-backup.timer; do install -m 644 "$file" "/etc/systemd/system/$file";done
 install -m 755 activate.sh /usr/local/sbin/vibe-activate
 install -m 755 backup.sh /usr/local/sbin/vibe-backup

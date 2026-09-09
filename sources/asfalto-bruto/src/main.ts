@@ -1,3 +1,6 @@
+import { pendingResults, queueResult, removeResult } from './account/pending-results';
+import { AccountClient, SoloRecorder, ApiError } from './account/client';
+import { accountUI } from './account/ui';
 import { roadHalf, surfaceGrip } from './game/road-profile';
 import { equippedHelmet, getHelmet, getHelmetColor } from './game/helmets';
 import { upcomingWorks } from './game/port';
@@ -27,7 +30,7 @@ import { RaceInstruments } from './game/instruments';
 import { Renderer } from './game/renderer';
 import { createRace, nearestTarget, ranking, restoreSnapshot, snapshot, STEP, stepRace } from './game/simulation';
 import { bikePortrait } from './game/sprites';
-import { buyHelmet, paintHelmet, buyBike, buyWeapon, buyKneePad, buyNitro, spendNitro, recordOnlineNitro, buyUpgrade, freshSave, loadSave, persist, repair, repairCost, settleRace, upgradeCost } from './game/save';
+import { buyHelmet, paintHelmet, buyBike, buyWeapon, buyKneePad, buyNitro, spendNitro, recordOnlineNitro, buyUpgrade, freshSave, repair, repairCost, settleRace, upgradeCost } from './game/save';
 import type { Command, RaceState, RiderAction, Upgrade } from './game/types';
 
 const icons = {
@@ -79,11 +82,11 @@ root.innerHTML = `
     <div class="control">Pilotar <span class="keys"><kbd>A</kbd><kbd>D</kbd><kbd>←</kbd><kbd>→</kbd></span></div><div class="control">Soco rápido <span class="keys"><kbd>J</kbd></span></div>
     <div class="control">Chute · empurra o rival <span class="keys"><kbd>K</kbd></span></div><div class="control">Usar equipamento <span class="keys"><kbd>L</kbd></span></div>
     <div class="control keyboard-only">Buzinar <span class="keys"><kbd>B</kbd></span></div><div class="control keyboard-only">Provocar <span class="keys"><kbd>Q</kbd></span></div><div class="control">Nitro <span class="keys"><kbd>N</kbd></span></div><div class="control">Pausar <span class="keys"><kbd>Esc</kbd></span></div><div class="control">Tela cheia / som <span class="keys"><kbd>F</kbd><kbd>M</kbd></span></div>
-  </div><div class="tip"><b>Chegue perto e acerte.</b> O rival ao alcance recebe uma marca verde. Um soco pode tomar o bastão básico de um rival. Equipamentos comprados são permanentes e não podem ser tomados. Use L para golpear com o item equipado. O sinal “!” avisa que um ataque está vindo.</div><div class="tip"><b>Empine e salte.</b> Acima de 72 km/h, dê dois toques rápidos no acelerador (W / ↑). No celular, mova o analógico direito do centro para cima duas vezes. Você tem 3 ativações por corrida; cada uma dura até 2,4 segundos e gasta um uso, mesmo sem saltar. Aproxime-se alinhado de um carro na contramão para saltar automaticamente. Caminhões, vans e veículos no mesmo sentido exigem desvio. Frear cancela a empinada.</div><div class="tip"><b>Joelho no chão.</b> Com joelheira equipada, dê dois toques rápidos para o mesmo lado acima de 72 km/h. A manobra dura até 4 segundos; inverter a direção ou ir para o acostamento cancela. Choppers não fazem a manobra. Na chuva, mais de 2 segundos seguidos de joelho apoiado provocam queda. Ao tirar o joelho, a contagem zera.</div><div class="tip"><b>Analógicos no celular.</b> O esquerdo vira; o direito acelera para cima e freia para baixo. Para apoiar o joelho, mova o analógico de direção duas vezes rapidamente para o mesmo lado, voltando ao centro entre os movimentos.</div><div class="tip"><b>Freie antes da curva.</b> O aviso mostra a direção, a distância e uma velocidade de referência. Entrar rápido demais faz a moto escorregar para fora. Solte W / ↑ ou freie com S / ↓, contorne e acelere na saída. Na chuva, a aderência e a frenagem diminuem: antecipe a redução. O mapa mostra as distâncias; o retrovisor revela os últimos 200 metros.</div><div class="tip"><b>Cuide de você e da moto.</b> Piloto sem resistência cai e volta à pista; moto sem integridade encerra a corrida. Fuja do acostamento, desvie do óleo e observe o trânsito na contramão.</div><div class="tip"><b>A polícia não dorme.</b> Velocidade e golpes aumentam a procura. Caiu com a polícia a até 30 metros? Prisão imediata e fim da corrida. Ficar abaixo de 29 km/h ao lado do policial por 3 segundos também causa prisão. Chegue entre os 5 primeiros para abrir a próxima estrada.</div><div class="help-footer"><span>Progresso salvo neste navegador. No celular, use os analógicos e os botões de combate.</span><button id="help-go" class="primary">ENTENDI. VAMOS CORRER ${icons.arrow}</button></div></div></dialog>
+  </div><div class="tip"><b>Chegue perto e acerte.</b> O rival ao alcance recebe uma marca verde. Um soco pode tomar o bastão básico de um rival. Equipamentos comprados são permanentes e não podem ser tomados. Use L para golpear com o item equipado. O sinal “!” avisa que um ataque está vindo.</div><div class="tip"><b>Empine e salte.</b> Acima de 72 km/h, dê dois toques rápidos no acelerador (W / ↑). No celular, mova o analógico direito do centro para cima duas vezes. Você tem 3 ativações por corrida; cada uma dura até 2,4 segundos e gasta um uso, mesmo sem saltar. Aproxime-se alinhado de um carro na contramão para saltar automaticamente. Caminhões, vans e veículos no mesmo sentido exigem desvio. Frear cancela a empinada.</div><div class="tip"><b>Joelho no chão.</b> Com joelheira equipada, dê dois toques rápidos para o mesmo lado acima de 72 km/h. A manobra dura até 4 segundos; inverter a direção ou ir para o acostamento cancela. Choppers não fazem a manobra. Na chuva, mais de 2 segundos seguidos de joelho apoiado provocam queda. Ao tirar o joelho, a contagem zera.</div><div class="tip"><b>Analógicos no celular.</b> O esquerdo vira; o direito acelera para cima e freia para baixo. Para apoiar o joelho, mova o analógico de direção duas vezes rapidamente para o mesmo lado, voltando ao centro entre os movimentos.</div><div class="tip"><b>Freie antes da curva.</b> O aviso mostra a direção, a distância e uma velocidade de referência. Entrar rápido demais faz a moto escorregar para fora. Solte W / ↑ ou freie com S / ↓, contorne e acelere na saída. Na chuva, a aderência e a frenagem diminuem: antecipe a redução. O mapa mostra as distâncias; o retrovisor revela os últimos 200 metros.</div><div class="tip"><b>Cuide de você e da moto.</b> Piloto sem resistência cai e volta à pista; moto sem integridade encerra a corrida. Fuja do acostamento, desvie do óleo e observe o trânsito na contramão.</div><div class="tip"><b>A polícia não dorme.</b> Velocidade e golpes aumentam a procura. Caiu com a polícia a até 30 metros? Prisão imediata e fim da corrida. Ficar abaixo de 29 km/h ao lado do policial por 3 segundos também causa prisão. Chegue entre os 5 primeiros para abrir a próxima estrada.</div><div class="help-footer"><span>Jogue como convidado ou conecte sua conta Google para sincronizar a garagem. No celular, use os analógicos e os botões de combate.</span><button id="help-go" class="primary">ENTENDI. VAMOS CORRER ${icons.arrow}</button></div></div></dialog>
   <dialog id="pause-modal" class="pause-modal" aria-labelledby="pause-title"><div class="dialog-body"><div class="eyebrow" style="justify-content:center">UM RESPIRO NO ACOSTAMENTO</div><h2 id="pause-title">CORRIDA PAUSADA</h2><p>A estrada espera por você.</p><button class="primary" id="resume-btn">CONTINUAR ↗</button><button class="secondary" id="restart-btn">RECOMEÇAR CORRIDA</button><button class="text-button" id="menu-btn">VOLTAR AO MENU</button></div></dialog>
   <dialog id="garage-modal" aria-labelledby="garage-title"></dialog>
   <dialog id="result-modal" class="result-modal" aria-labelledby="result-title"></dialog>
-  <dialog id="reset-modal" class="pause-modal" aria-labelledby="reset-title"><div class="dialog-body"><h2 id="reset-title">COMEÇAR DO ZERO?</h2><p>Isso apaga créditos, motos, melhorias e recordes salvos neste navegador.</p><button class="secondary" data-close="reset-modal">MANTER MEU PROGRESSO</button><button class="text-button danger" id="confirm-reset">APAGAR PROGRESSO</button></div></dialog>
+  <dialog id="reset-modal" class="pause-modal" aria-labelledby="reset-title"><div class="dialog-body"><h2 id="reset-title">COMEÇAR DO ZERO?</h2><p>Isso reinicia créditos, motos, melhorias e recordes da garagem atual. Se estiver conectado, a mudança também será salva na conta. O ranking permanente permanece.</p><button class="secondary" data-close="reset-modal">MANTER MEU PROGRESSO</button><button class="text-button danger" id="confirm-reset">APAGAR PROGRESSO</button></div></dialog>
   <dialog id="online-modal" class="online-modal" aria-labelledby="online-title">
     <div class="dialog-header"><div><div class="eyebrow">CORRA COM OUTRAS PESSOAS</div><h2 id="online-title">Multiplayer</h2></div><button class="close-btn" id="online-close" aria-label="Voltar ao menu">×</button></div>
     <div class="dialog-body">
@@ -105,7 +108,13 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getEleme
 const renderer = new Renderer($<HTMLCanvasElement>('game'));
 const instruments = new RaceInstruments($<HTMLCanvasElement>('rear-view'),$<HTMLCanvasElement>('race-map'));
 const audio = new GameAudio();
-let save = loadSave();
+const accounts = new AccountClient(next=>{
+  save=structuredClone(next);selectedTrack=save.raceTrackId ?? 'costa';selectedCondition=raceCondition(save.raceCondition);
+  syncSound();renderMenu();makeAttract();
+},()=>screen==='menu' && !online.active && !startingRace && !document.querySelector('dialog[open]:not(#account-modal)'));
+let save = accounts.initialSave();
+let soloRecorder:SoloRecorder|null=null;
+let startingRace=false;
 let selectedTrack = save.raceTrackId ?? 'costa';
 let selectedCondition = raceCondition(save.raceCondition);
 let race = createRace(selectedTrack, save, 88117, selectedCondition);
@@ -232,7 +241,7 @@ function showOnlineResult(room: RoomView) {
 }
 
 function toast(message: string) { clearTimeout(toastTimer); $('toast').textContent = message; $('toast').hidden = false; toastTimer = setTimeout(() => $('toast').hidden = true, 3000); }
-function saveNow() { if (!persist(save)) toast('O navegador não permitiu salvar. O progresso vale para esta sessão.'); }
+function saveNow() { if (!accounts.save(save)) toast('O navegador não permitiu salvar. O progresso vale para esta sessão.'); }
 function syncSound() {
   audio.setMuted(save.muted);
   document.querySelectorAll<HTMLButtonElement>('[data-action="mute"]').forEach(b => { b.innerHTML = save.muted ? icons.mute : icons.sound; b.setAttribute('aria-label', save.muted ? 'Ativar áudio (M)' : 'Silenciar áudio (M)'); b.setAttribute('aria-pressed', String(save.muted)); });
@@ -278,6 +287,7 @@ function makeAttract() {
   menuTime = 0;
 }
 function showMenu() {
+  soloRecorder=null;
   if(onlineMode){online.leave();return;}
   clearTimeout(toastTimer);$('toast').hidden=true;
   $('online-hud').hidden=true;
@@ -286,14 +296,21 @@ function showMenu() {
   renderMenu(); makeAttract(); audio.update(0, false, false, 0);
 }
 function closeDialogs() { document.querySelectorAll<HTMLDialogElement>('dialog[open]').forEach(d => d.close()); }
-function startRace() {
+async function startRace() {
+  if(startingRace)return;startingRace=true;
+  soloRecorder=null;
   if(onlineMode)online.leave();
   clearTimeout(toastTimer);$('toast').hidden=true;
   $('online-hud').hidden=true;
   closeDialogs(); clearControls();
   if ((save.condition[save.bikeId] ?? 100) < 20) { save.bikeId = 'ferro'; save.condition.ferro = Math.max(55, save.condition.ferro); saveNow(); toast('Ferro 500 pronta: reparo básico gratuito para continuar.'); }
   soloNitroSpent=0;audio.resetRace();
-  race = createRace(selectedTrack, save, testMode ? 88117 : crypto.getRandomValues(new Uint32Array(1))[0], selectedCondition);
+  $('start-btn').textContent='PREPARANDO…';
+  const run=testMode || !accounts.session?.account?null:await accounts.startRun(selectedTrack,selectedCondition);
+  if(run)soloRecorder=new SoloRecorder(run,accounts.cache!.account.id);
+  race = createRace(selectedTrack, run?.save ?? save, run?.seed ?? (testMode ? 88117 : crypto.getRandomValues(new Uint32Array(1))[0]), selectedCondition);
+  startingRace=false;$('start-btn').innerHTML=`JOGAR SOZINHO ${icons.arrow}`;
+  if(!testMode && accounts.cache && !run)toast('Corrida local: o progresso será salvo. Ranking indisponível nesta largada.');
   screen = 'race'; paused = false; settled = false; messageUntil = 0; lastCount = 4;
   $('menu').hidden = true; $('hud').hidden = false;
   setText('race-track', getTrack(selectedTrack).name.toUpperCase()); setText('race-region', getTrack(selectedTrack).region);
@@ -418,8 +435,37 @@ function renderGarage() {
   }).join('')}</div><div class="repair-panel"><h3>MOTO EM ${Math.round(save.condition[save.bikeId])}%</h3><p>A Ferro 500 recebe reparos gratuitos até 55% após cada corrida. Você sempre pode voltar à estrada.</p><button class="secondary" id="repair-btn" ${repairCost(save) === 0 || save.cash < repairCost(save) ? 'disabled' : ''}>${repairCost(save) === 0 ? '✓ NENHUM REPARO NECESSÁRIO' : `REPARAR 100% · ${money(repairCost(save))}`}</button></div></div><div class="garage-footer"><span>SALDO <b>${money(save.cash)}</b></span><button class="text-button danger" id="reset-btn">Reiniciar progresso</button></div></div>`;
 }
 function showGarage() { renderGarage(); $<HTMLDialogElement>('garage-modal').showModal(); }
+
+let retryingRanking=false;
+async function retryRankedResults() {
+  if(retryingRanking || !accounts.session?.account)return;
+  retryingRanking=true;
+  const accountId=accounts.session.account.id;
+  try {
+    const pending=await pendingResults(accountId);
+    for(const entry of pending){
+      if(accounts.session?.account?.id!==accountId)break;
+      try{await accounts.api('/finish',{id:entry.id,segments:entry.segments},45_000);}
+      catch(e){if(!(e instanceof ApiError) || ![400,404,413].includes(e.status))break;toast('Esta corrida ficou nos seus recordes pessoais; o ranking não confirmou o resultado.');}
+      await removeResult(entry.id);
+    }
+  }catch{}finally{retryingRanking=false;}
+}
+async function submitSoloResult(){
+  const recorder=soloRecorder;soloRecorder=null;
+  if(!recorder || race.result?.reason!=='finish')return;
+  const payload=recorder.payload();if(!payload)return;
+  try{
+    await queueResult({...payload,account:recorder.accountId,created:Date.now()});
+  }catch{toast('Sem espaço neste aparelho para guardar o envio ao ranking.');return;}
+  await retryRankedResults();
+}
+window.addEventListener('online',()=>void accounts.refresh().then(()=>retryRankedResults()));
+window.addEventListener('focus',()=>{if(screen==='menu')void retryRankedResults();});
+
 function showResult() {
   if (!race.result || settled) return;
+  void submitSoloResult();
   settled = true; settleRace(save, race); saveNow(); screen = 'result'; clearControls();
   const r = race.result;
   const title = r.reason === 'caught' ? 'FIM DA <span>LINHA.</span>' : r.reason === 'wrecked' ? 'MOTOR <span>APAGADO.</span>' : r.place === 1 ? 'A RUA É <span>SUA.</span>' : `${r.place}º NA <span>CHEGADA.</span>`;
@@ -437,7 +483,8 @@ function update() {
     return;
   }
   if (screen !== 'race' || paused) return;
-  stepRace(race, { player: input() });
+  const command=input();soloRecorder?.add(command);
+  stepRace(race, { player: command });
   syncSoloNitro();
   const count = Math.ceil(race.countdown - .5);
   if (race.mode === 'countdown' && count !== lastCount) { lastCount = count; audio.tone(count <= 0 ? 880 : 440, .15, .16, 'sine'); }
@@ -464,6 +511,7 @@ async function fullscreen() { try { if (document.fullscreenElement) await docume
 
 document.addEventListener('click', event => {
   const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button'); if (!button || button.disabled) return;
+  if(startingRace){event.preventDefault();event.stopImmediatePropagation();return;}
   if (button.dataset.close) { $<HTMLDialogElement>(button.dataset.close).close(); return; }
   if (button.dataset.action === 'mute') toggleMute();
   if (button.dataset.action === 'fullscreen') void fullscreen();
@@ -586,7 +634,7 @@ declare global {
 }
 window.render_game_to_text = () => {
   const p = localRider(), target = nearestTarget(race, p, p.weapon ? 'weapon' : 'punch');
-  return JSON.stringify({ online: onlineMode?{status:online.status,syncing:online.syncing,id:online.id,code:online.code,phase:online.room?.phase,locked:online.room?.locked,deadline:online.room?.deadline,serverNow:online.serverNow(),members:online.room?.members,fillBots:online.room?.fillBots,public:online.room?.public,condition:online.room?.condition}:null, screen, paused, modal: document.querySelector('dialog[open]')?.id ?? null, mode: race.mode, coordinates: `x in metres: negative left, positive right; road ±${roadHalf(race.trackId)}. z forward in metres. speed m/s.`, road:{lanes:race.trackId==='terra'?2:4,halfWidth:roadHalf(race.trackId),surface:race.trackId==='terra'?'dirt':'asphalt'}, tick: race.tick, time: +race.time.toFixed(2), countdown: +race.countdown.toFixed(2), track: race.trackId, condition:raceCondition(race.condition), scenic:scenicAppearance(race), length: getTrack(race.trackId).distance, player: { helmetId:getHelmet(p.helmetId).id,helmetColorId:getHelmetColor(p.helmetColorId).id,weaponId:p.weaponId??null,weaponName:weaponName(p),wheeliesLeft:wheeliesLeft(p),wheelieTime:p.wheelieTime??0,jumpTime:p.jumpTime??0,jumpHeight:jumpHeight(p),jumpTarget:p.jumpTarget??null,kneePadId:p.kneePadId??null,kneeTime:p.kneeTime??0,wetKneeTime:(p.wetKneeTicks??0)*STEP,kneeSide:p.kneeSide??0,kneeSupport:kneeSupport(p,curveAt(p.z,race.trackId),race.trackId),nitro:p.nitro??0,nitroTime:p.nitroTime??0,nitroUsed:p.nitroUsed??0,speech:p.speech&&p.speech.until>race.time?TAUNTS[p.speech.index]:null,bikeId:getBike(p.bikeId).id,bike:getBike(p.bikeId).name,handling:p.handling,armor:p.armor,out:p.out ?? null, x: +p.x.toFixed(2), z: +p.z.toFixed(1), speed: +p.speed.toFixed(2), health: +p.health.toFixed(1), integrity: +p.integrity.toFixed(1), weapon: p.weapon, attack: p.attack, cooldown: +p.cooldown.toFixed(2), crash: +p.crash.toFixed(2), immune: +p.immune.toFixed(2), hits: p.hits, falls: p.falls, place: ranking(onlineMode ? (online.room?.race ?? race) : race).findIndex(r => r.id === localId()) + 1 }, awareness:raceAwareness(race,localId()), corner:upcomingCorner(p.z,race.trackId,p.handling,race.condition,p.kneeTime!>0 && supportsKneeDown(p.bikeId)?p.kneePadId:undefined), curve: +curveAt(p.z, race.trackId).toFixed(2), target: target?.id ?? null, riders: race.riders.filter(r => r.id !== localId() && Math.abs(r.z - p.z) < 400).map(r => ({ id: r.id, name: r.name,helmetId:getHelmet(r.helmetId).id,helmetColorId:getHelmetColor(r.helmetColorId).id,weaponId:r.weaponId??null,wheeliesLeft:wheeliesLeft(r),wheelieTime:r.wheelieTime??0,jumpTime:r.jumpTime??0,jumpHeight:jumpHeight(r),kneePadId:r.kneePadId??null,kneeSupport:kneeSupport(r,curveAt(r.z,race.trackId),race.trackId),speech:r.speech&&r.speech.until>race.time?TAUNTS[r.speech.index]:null, bikeId:getBike(r.bikeId).id, x: +r.x.toFixed(1), dz: +(r.z - p.z).toFixed(1), speed: +r.speed.toFixed(1), health: +r.health.toFixed(1), weapon: r.weapon, attack: r.attack, crash: +r.crash.toFixed(1) })), traffic: race.traffic.filter(t => t.z - p.z > -10 && t.z - p.z < 350).map(t => ({ id:t.id,kind:t.kind,x: t.x, dz: +(t.z - p.z).toFixed(1), direction: t.speed < 0 ? 'oncoming' : 'forward' })), obstacles: race.obstacles.filter(o => o.z - p.z > -10 && o.z - p.z < 200).map(o => ({ kind: o.kind, x: o.x, dz: +(o.z - p.z).toFixed(1) })), heat: +race.heat.toFixed(1), police: race.policeActive, capture: +race.capture.toFixed(2), result: onlineMode?(race.multiplayer?.results[online.id] ?? null):race.result, save: { ownedHelmets:save.ownedHelmets??['integral'],helmetId:equippedHelmet(save).id,helmetColorId:getHelmetColor(save.helmetColorId).id,ownedWeapons:save.ownedWeapons??[],weaponId:save.weaponId??null,ownedKneePads:save.ownedKneePads??[],kneePadId:save.kneePadId??null,nitro:save.nitro??{},cash: save.cash, bike: save.bikeId, unlocked: save.unlocked, races: save.races } });
+  return JSON.stringify({ account:{signedIn:!!accounts.session?.account,status:accounts.status,pending:accounts.cache?.dirty ?? false,conflict:!!accounts.conflict,rankedRace:!!soloRecorder}, online: onlineMode?{status:online.status,syncing:online.syncing,id:online.id,code:online.code,phase:online.room?.phase,locked:online.room?.locked,deadline:online.room?.deadline,serverNow:online.serverNow(),members:online.room?.members,fillBots:online.room?.fillBots,public:online.room?.public,condition:online.room?.condition}:null, screen, paused, modal: document.querySelector('dialog[open]')?.id ?? null, mode: race.mode, coordinates: `x in metres: negative left, positive right; road ±${roadHalf(race.trackId)}. z forward in metres. speed m/s.`, road:{lanes:race.trackId==='terra'?2:4,halfWidth:roadHalf(race.trackId),surface:race.trackId==='terra'?'dirt':'asphalt'}, tick: race.tick, time: +race.time.toFixed(2), countdown: +race.countdown.toFixed(2), track: race.trackId, condition:raceCondition(race.condition), scenic:scenicAppearance(race), length: getTrack(race.trackId).distance, player: { helmetId:getHelmet(p.helmetId).id,helmetColorId:getHelmetColor(p.helmetColorId).id,weaponId:p.weaponId??null,weaponName:weaponName(p),wheeliesLeft:wheeliesLeft(p),wheelieTime:p.wheelieTime??0,jumpTime:p.jumpTime??0,jumpHeight:jumpHeight(p),jumpTarget:p.jumpTarget??null,kneePadId:p.kneePadId??null,kneeTime:p.kneeTime??0,wetKneeTime:(p.wetKneeTicks??0)*STEP,kneeSide:p.kneeSide??0,kneeSupport:kneeSupport(p,curveAt(p.z,race.trackId),race.trackId),nitro:p.nitro??0,nitroTime:p.nitroTime??0,nitroUsed:p.nitroUsed??0,speech:p.speech&&p.speech.until>race.time?TAUNTS[p.speech.index]:null,bikeId:getBike(p.bikeId).id,bike:getBike(p.bikeId).name,handling:p.handling,armor:p.armor,out:p.out ?? null, x: +p.x.toFixed(2), z: +p.z.toFixed(1), speed: +p.speed.toFixed(2), health: +p.health.toFixed(1), integrity: +p.integrity.toFixed(1), weapon: p.weapon, attack: p.attack, cooldown: +p.cooldown.toFixed(2), crash: +p.crash.toFixed(2), immune: +p.immune.toFixed(2), hits: p.hits, falls: p.falls, place: ranking(onlineMode ? (online.room?.race ?? race) : race).findIndex(r => r.id === localId()) + 1 }, awareness:raceAwareness(race,localId()), corner:upcomingCorner(p.z,race.trackId,p.handling,race.condition,p.kneeTime!>0 && supportsKneeDown(p.bikeId)?p.kneePadId:undefined), curve: +curveAt(p.z, race.trackId).toFixed(2), target: target?.id ?? null, riders: race.riders.filter(r => r.id !== localId() && Math.abs(r.z - p.z) < 400).map(r => ({ id: r.id, name: r.name,helmetId:getHelmet(r.helmetId).id,helmetColorId:getHelmetColor(r.helmetColorId).id,weaponId:r.weaponId??null,wheeliesLeft:wheeliesLeft(r),wheelieTime:r.wheelieTime??0,jumpTime:r.jumpTime??0,jumpHeight:jumpHeight(r),kneePadId:r.kneePadId??null,kneeSupport:kneeSupport(r,curveAt(r.z,race.trackId),race.trackId),speech:r.speech&&r.speech.until>race.time?TAUNTS[r.speech.index]:null, bikeId:getBike(r.bikeId).id, x: +r.x.toFixed(1), dz: +(r.z - p.z).toFixed(1), speed: +r.speed.toFixed(1), health: +r.health.toFixed(1), weapon: r.weapon, attack: r.attack, crash: +r.crash.toFixed(1) })), traffic: race.traffic.filter(t => t.z - p.z > -10 && t.z - p.z < 350).map(t => ({ id:t.id,kind:t.kind,x: t.x, dz: +(t.z - p.z).toFixed(1), direction: t.speed < 0 ? 'oncoming' : 'forward' })), obstacles: race.obstacles.filter(o => o.z - p.z > -10 && o.z - p.z < 200).map(o => ({ kind: o.kind, x: o.x, dz: +(o.z - p.z).toFixed(1) })), heat: +race.heat.toFixed(1), police: race.policeActive, capture: +race.capture.toFixed(2), result: onlineMode?(race.multiplayer?.results[online.id] ?? null):race.result, save: { ownedHelmets:save.ownedHelmets??['integral'],helmetId:equippedHelmet(save).id,helmetColorId:getHelmetColor(save.helmetColorId).id,ownedWeapons:save.ownedWeapons??[],weaponId:save.weaponId??null,ownedKneePads:save.ownedKneePads??[],kneePadId:save.kneePadId??null,nitro:save.nitro??{},cash: save.cash, bike: save.bikeId, unlocked: save.unlocked, races: save.races } });
 };
 window.advanceTime = ms => { if(onlineMode){draw();return;} testMode = true; for (let i = 0; i < Math.round(ms / (STEP * 1000)); i++) update(); draw(); };
 if (testMode) window.__game = {
@@ -596,6 +644,9 @@ if (testMode) window.__game = {
   save: () => JSON.stringify(save),
   command: (cmd, frames) => { for (let i = 0; i < frames; i++) stepRace(race, { player: cmd }); syncSoloNitro();if (race.mode === 'finished') showResult(); draw(); },
 };
+document.addEventListener('click',e=>{if(startingRace){e.preventDefault();e.stopImmediatePropagation();}},true);
+accountUI(accounts,()=>screen==='menu' && !online.active && !startingRace);
+void accounts.refresh().then(()=>retryRankedResults());
 syncSound(); renderMenu(); makeAttract(); draw(); requestAnimationFrame(frame);
 void showVisitorCount($('visitor-count'), testMode);
 if (testMode && new URLSearchParams(location.search).has('race')) startRace();

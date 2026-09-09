@@ -1,3 +1,4 @@
+import type { AccountService } from './accounts';
 import { createServer } from 'node:http';
 import { randomBytes } from 'node:crypto';
 import { isIP } from 'node:net';
@@ -8,7 +9,7 @@ import { depart, inputKey, joinRoom, lobbyClock, makeMember, makeRoom, publicRoo
 import { BusyRoom, MemoryStore, type RoomStore } from './store';
 
 interface Peer { ws: WebSocket; code: string; id: string; epoch: string; seq: number; pending?: StoredInput; latestInput?: StoredInput; writing: boolean; lastSeen: number; alive: boolean; }
-export function createGameServer(store: RoomStore, options: { origins?: string[]; now?: () => number; trustLoopbackProxy?: boolean } = {}) {
+export function createGameServer(store: RoomStore, options: { origins?: string[]; now?: () => number; trustLoopbackProxy?: boolean; accounts?: AccountService } = {}) {
   const now = options.now ?? Date.now;
   const peers = new Set<Peer>();
   const revisions = new Map<string,number>();
@@ -18,6 +19,7 @@ export function createGameServer(store: RoomStore, options: { origins?: string[]
   let discovery: {at:number; pending: ReturnType<RoomStore['publicRooms']>} | undefined;
   const server = createServer(async (req,res) => {
     res.setHeader('Cache-Control','no-store'); res.setHeader('Content-Type','application/json');
+    if(options.accounts && await options.accounts.handle(req,res))return;
     const query=(req.url ?? '').split('?').slice(1).join('?');
     if (new URLSearchParams(query).get('op') === 'rooms') {
       if(req.method!=='GET'){res.writeHead(405,{Allow:'GET'});res.end(JSON.stringify({error:'Use GET para encontrar salas.'}));return;}
@@ -55,6 +57,7 @@ export function createGameServer(store: RoomStore, options: { origins?: string[]
   }
   function broadcast(room: Room) {
     latest.set(room.code,room);
+    try{options.accounts?.recordRoom(room);}catch{console.error('Falha ao gravar resultado no ranking; será tentado novamente.');}
     if ((revisions.get(room.code) ?? -1) >= room.revision) return;
     revisions.set(room.code,room.revision);
     const message: ServerMessage = {type:'state',room:viewRoom(room,now())};
@@ -76,7 +79,7 @@ export function createGameServer(store: RoomStore, options: { origins?: string[]
     peer.code = room.code; peer.id = member.id; peer.epoch = member.epoch; peer.seq = room.ack[member.id] ?? 0;
     send(peer,{type:'welcome',id:member.id,token:member.token,room:viewRoom(room,now())}); broadcast(room);
   }
-  wss.on('connection',ws => {
+  wss.on('connection',(ws,req) => {
     const peer: Peer = {ws,code:'',id:'',epoch:'',seq:0,writing:false,lastSeen:now(),alive:true}; peers.add(peer);
     let busy = false, messages = 0, windowStart = now();
     ws.on('pong',()=> { peer.alive = true; peer.lastSeen = now(); });
@@ -100,13 +103,13 @@ export function createGameServer(store: RoomStore, options: { origins?: string[]
           if (peer.code) throw new Error('Você já está em uma sala.');
           if (data.version !== NET_VERSION) throw new Error('Atualize a página para entrar nesta versão.');
           if (data.type === 'create') {
-            const member = makeMember(data.name,now(),data.bikeId,data.loadout); let room: Room;
+            const member = makeMember(data.name,now(),data.bikeId,data.loadout); member.accountId=options.accounts?.identity(req)?.account.id; let room: Room;
             do { room = makeRoom(randomBytes(4).toString('hex').slice(0,6).toUpperCase(),data.trackId,member,now(),data.fillBots === true,data.condition,data.public === true); } while (!await store.create(room));
             await attach(peer,room,member);
           } else {
             const code = String(data.code ?? '').toUpperCase();
             if (!/^[A-F0-9]{6}$/.test(code)) throw new Error('Digite o código de 6 caracteres da sala.');
-            let member = makeMember(data.name,now(),data.bikeId,data.loadout);
+            let member = makeMember(data.name,now(),data.bikeId,data.loadout); member.accountId=options.accounts?.identity(req)?.account.id;
             const room = await store.mutate(code,r => {
               if (data.type === 'join') {
                 if(data.publicOnly === true && !publicRoomView(r,now()))throw new Error('Esta sala não está mais disponível. Atualize a lista e escolha outra.');
@@ -114,6 +117,7 @@ export function createGameServer(store: RoomStore, options: { origins?: string[]
               }
               else {
                 const found = r.members.find(m => typeof data.token === 'string' && m.token === data.token);
+                if (found?.accountId && found.accountId!==options.accounts?.identity(req)?.account.id)throw new Error('Entre na mesma conta para retomar esta corrida.');
                 if (!found || (now()-found.lastSeen > RECONNECT_MS && r.phase === 'lobby')) throw new Error('Sua vaga expirou. Entre novamente.');
                 if(r.race && now()-found.lastSeen > RECONNECT_MS) {
                   const rider=r.race.riders.find(p=>p.id===found.id);if(rider)finishRider(r.race,rider,'left');

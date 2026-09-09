@@ -1,7 +1,11 @@
+import { AccountsDB } from './accounts-db';
+import { AccountService } from './accounts';
 import { createGameServer } from './service';
 import { storeFromEnvironment } from './store';
 const port = Number(process.env.PORT || 4318);
 const origins = (process.env.ASFALTO_ORIGINS || 'http://127.0.0.1:4317,http://localhost:4317').split(',');
-const game = createGameServer(storeFromEnvironment(),{origins,trustLoopbackProxy:process.env.ASFALTO_TRUST_PROXY==='loopback'});
+const db=process.env.ASFALTO_DB_PATH ? new AccountsDB(process.env.ASFALTO_DB_PATH) : undefined;
+const accounts=db ? new AccountService({db,clientId:process.env.GOOGLE_CLIENT_ID ?? '',origins,secure:process.env.ASFALTO_COOKIE_SECURE!=='false'}) : undefined;
+const game = createGameServer(storeFromEnvironment(),{origins,accounts,trustLoopbackProxy:process.env.ASFALTO_TRUST_PROXY==='loopback'});
 game.server.listen(port,process.env.HOST || '127.0.0.1',()=>console.log(`Multiplayer: http://127.0.0.1:${port}`));
-for (const signal of ['SIGINT','SIGTERM']) process.on(signal,()=>void game.close().then(()=>process.exit(0)));
+for (const signal of ['SIGINT','SIGTERM']) process.on(signal,()=>void game.close().then(()=>{db?.close();process.exit(0);}));

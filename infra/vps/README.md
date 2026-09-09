@@ -65,3 +65,9 @@ O menu do jogo consulta o total estimado de navegadores únicos desde a ativaç�
 Cookie anônimo HttpOnly, SameSite=Lax e Secure em HTTPS, válido até 400 dias e compartilhado em flowofdevelopment.com. Recargas/abas e acesso pelo outro subdomínio não duplicam um cookie já emitido. Outro navegador, dispositivo, modo anônimo ou apagar/expirar cookies pode contar novamente; portanto não se trata de pessoas identificadas. O banco guarda só o hash do identificador e o primeiro acesso, sem nome, IP ou histórico. O limite de 30 novos visitantes/minuto/IP usa memória temporária e não impede leitura nem visitantes já registrados. O modo `?test` e navegador sem cookies só consultam.
 
 Mudanças em `Caddyfile` precisam ser enviadas separadamente do deploy do jogo: preserve a configuração atual, valide com `caddy validate --config <arquivo>` e recarregue apenas após o novo serviço estar saudável. Para instalar este contador, inclua `/api/visitors` no encaminhamento do catálogo. O endpoint de analytics Vercel legado permanece desativado.
+
+### Contas e ranking do Asfalto Bruto
+
+O serviço Asfalto também usa SQLite persistente em `/var/lib/vibe-jogos/asfalto/accounts.sqlite`. Esse diretório deve ter proprietário `vibe-asfalto:vibe-asfalto`, modo 700, e constar em `ReadWritePaths` do service. Configurar `ASFALTO_DB_PATH` no ambiente. `GOOGLE_CLIENT_ID` habilita o login e contém apenas o ID público OAuth Web. Nunca colocar segredo Google no frontend.
+
+O backup diário inclui `accounts-*.sqlite` com `.backup` e integridade verificada. A base fica fora das releases e não é apagada por deploy/rollback. O backup é local à VPS, sem cópia externa automática. Ver `sources/asfalto-bruto/docs/conta-e-ranking.md` para configuração Google, preservação do progresso, limites da migração e validação dos rankings.

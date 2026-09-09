@@ -1031,6 +1031,7 @@ function joinRoom(room, member, now) {
   if (room.phase !== "lobby" || room.locked) throw new Error("A largada j\xE1 foi fechada. Entre em outra sala.");
   room.members = room.members.filter((p) => p.connected);
   if (room.members.length >= MAX_PLAYERS) throw new Error("Sala cheia: o limite \xE9 de 8 pessoas.");
+  if (member.accountId && room.members.some((m) => m.accountId === member.accountId)) throw new Error("Esta conta j\xE1 est\xE1 na sala.");
   room.members.push(member);
   lobbyClock(room, now);
 }
@@ -1299,6 +1300,7 @@ function createGameServer(store, options = {}) {
   const server2 = (0, import_node_http.createServer)(async (req, res) => {
     res.setHeader("Cache-Control", "no-store");
     res.setHeader("Content-Type", "application/json");
+    if (options.accounts && await options.accounts.handle(req, res)) return;
     const query = (req.url ?? "").split("?").slice(1).join("?");
     if (new URLSearchParams(query).get("op") === "rooms") {
       if (req.method !== "GET") {
@@ -1361,6 +1363,11 @@ function createGameServer(store, options = {}) {
   }
   function broadcast(room) {
     latest.set(room.code, room);
+    try {
+      options.accounts?.recordRoom(room);
+    } catch {
+      console.error("Falha ao gravar resultado no ranking; ser\xE1 tentado novamente.");
+    }
     if ((revisions.get(room.code) ?? -1) >= room.revision) return;
     revisions.set(room.code, room.revision);
     const message = { type: "state", room: viewRoom(room, now()) };
@@ -1395,7 +1402,7 @@ function createGameServer(store, options = {}) {
     send(peer, { type: "welcome", id: member.id, token: member.token, room: viewRoom(room, now()) });
     broadcast(room);
   }
-  wss.on("connection", (ws) => {
+  wss.on("connection", (ws, req) => {
     const peer = { ws, code: "", id: "", epoch: "", seq: 0, writing: false, lastSeen: now(), alive: true };
     peers.add(peer);
     let busy = false, messages = 0, windowStart = now();
@@ -1441,6 +1448,7 @@ function createGameServer(store, options = {}) {
           if (data.version !== NET_VERSION) throw new Error("Atualize a p\xE1gina para entrar nesta vers\xE3o.");
           if (data.type === "create") {
             const member = makeMember(data.name, now(), data.bikeId, data.loadout);
+            member.accountId = options.accounts?.identity(req)?.account.id;
             let room;
             do {
               room = makeRoom((0, import_node_crypto2.randomBytes)(4).toString("hex").slice(0, 6).toUpperCase(), data.trackId, member, now(), data.fillBots === true, data.condition, data.public === true);
@@ -1450,12 +1458,14 @@ function createGameServer(store, options = {}) {
             const code = String(data.code ?? "").toUpperCase();
             if (!/^[A-F0-9]{6}$/.test(code)) throw new Error("Digite o c\xF3digo de 6 caracteres da sala.");
             let member = makeMember(data.name, now(), data.bikeId, data.loadout);
+            member.accountId = options.accounts?.identity(req)?.account.id;
             const room = await store.mutate(code, (r) => {
               if (data.type === "join") {
                 if (data.publicOnly === true && !publicRoomView(r, now())) throw new Error("Esta sala n\xE3o est\xE1 mais dispon\xEDvel. Atualize a lista e escolha outra.");
                 joinRoom(r, member, now());
               } else {
                 const found = r.members.find((m) => typeof data.token === "string" && m.token === data.token);
+                if (found?.accountId && found.accountId !== options.accounts?.identity(req)?.account.id) throw new Error("Entre na mesma conta para retomar esta corrida.");
                 if (!found || now() - found.lastSeen > RECONNECT_MS && r.phase === "lobby") throw new Error("Sua vaga expirou. Entre novamente.");
                 if (r.race && now() - found.lastSeen > RECONNECT_MS) {
                   const rider = r.race.riders.find((p) => p.id === found.id);
