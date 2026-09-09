@@ -29,7 +29,7 @@ const scene=async(condition:RaceCondition)=>{
 };
 try{
   await a.goto(base+'?test',{waitUntil:'domcontentloaded'});await a.evaluate(({key,save})=>localStorage.setItem(key,JSON.stringify(save)),{key:SAVE_KEY,save});await a.reload({waitUntil:'domcontentloaded'});await a.click('#start-btn');
-  const start=await raw();assert.equal(start.riders.filter((r:any)=>r.profile!=='player'&&r.kneePadId).length,3);assert.equal(start.riders[0].kneePadId,'gold');assert.equal(start.riders[0].maxSpeed,64);assert.equal(start.riders[1].maxSpeed,73*.95);
+  const start=await raw();assert.equal(start.riders.filter((r:any)=>r.profile!=='player'&&r.kneePadId).length,3);assert.equal(start.riders[0].kneePadId,'gold');assert.equal(start.riders[0].maxSpeed,64);assert.equal(start.riders[1].maxSpeed,73*.98);
   const botId=await scene('day');await a.evaluate(()=>window.advanceTime(150));const rival=(await raw()).riders.find((r:any)=>r.id===botId);assert.ok(rival.kneeTime>3);assert.equal(rival.kneePadId,'green');assert.ok((await state()).riders.find((r:any)=>r.id===botId).kneeSupport>.35);
   await a.keyboard.press('a');await a.waitForTimeout(60);await a.keyboard.down('a');await a.evaluate(()=>window.advanceTime(120));await a.keyboard.up('a');assert.ok((await state()).player.kneeTime>3);assert.equal((await state()).player.kneePadId,'gold');assert.equal((await state()).save.cash,9123);await shot('dry-knees');
   await a.click('#pause-btn');const frozen=await a.evaluate(()=>window.__game!.snapshot());await a.evaluate(()=>window.advanceTime(500));assert.equal(await a.evaluate(()=>window.__game!.snapshot()),frozen);await a.click('#resume-btn');

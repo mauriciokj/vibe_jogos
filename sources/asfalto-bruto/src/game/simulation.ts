@@ -64,7 +64,7 @@ export function createRace(trackId = 'costa', save?: SaveData, seed = 88117, con
     const r = makeRider(`rival-${i}`, name, profiles[i], colors[i], i % 2 ? -1.5 : 3.8, 7 + i * 9);
     r.helmetId=HELMETS[i%HELMETS.length].id;r.helmetColorId=HELMET_COLORS[(i+2)%HELMET_COLORS.length].id;
     Object.assign(r,stockBike(BIKES[(i+1)%BIKES.length].id));
-    r.maxSpeed *= .95 + getTrack(trackId).level * .02;
+    r.maxSpeed *= .98 + getTrack(trackId).level * .01;
     const pad=rivalKneePad(r.bikeId,r.profile,getTrack(trackId).level);if(pad)r.kneePadId=pad;
     r.weapon = i === 1 || i === 3 || i === 6;
     return r;
@@ -183,7 +183,7 @@ export function botCommand(state: RaceState, rider: Rider): Command {
   const canLean=kneeCapable && steering*Math.sign(curve)>=-.2 && Math.abs(rider.x)<=roadHalf(state.trackId) && !stunting(rider);
   const action=canLean && !(rider.kneeTime!>0) && rider.speed>=24 && Math.abs(curve)>.5
     ? curve>0?'kneeRight':'kneeLeft' : undefined;
-  const pace = cornerPace(rider.z, state.trackId, rider.handling, state.condition, canLean?rider.kneePadId:undefined) * (rider.profile === 'careful' ? .94 : rider.profile === 'fast' ? 1.03 : .98);
+  const pace = cornerPace(rider.z, state.trackId, rider.handling, state.condition, canLean?rider.kneePadId:undefined) * (police ? .98 : rider.profile === 'careful' ? .95 : rider.profile === 'fast' ? 1.04 : .99);
   brake = Math.max(brake, clamp((rider.speed - pace) * .3, 0, 1));
   if (police && rider.z > player.z + 7) brake = Math.max(brake, .42);
   return { throttle: rider.speed > pace - .6 || brake > .1 ? 0 : 1, brake, steer: steering, attack, ...(action?{action}: {}) };
@@ -220,7 +220,7 @@ function applyCommand(state: RaceState, rider: Rider, command: Command) {
   const onShoulder = Math.abs(rider.x) > roadHalf(state.trackId);
   if(rider.kneeTime && (onShoulder || rider.speed<20 || command.steer*(rider.kneeSide ?? 0)<-.2))rider.kneeTime=0;
   const curve = curveAt(rider.z, state.trackId);
-  // Integer simulation ticks make exactly three seconds safe. New taps do not
+  // Integer simulation ticks make exactly two seconds safe. New taps do not
   // reset continuous contact; lifting the knee does. Prediction keeps the timer,
   // while only stepRace confirms the fall and damage.
   rider.wetKneeTicks=raceCondition(state.condition)==='rain' && kneeContact(rider,curve,state.trackId) ? (rider.wetKneeTicks ?? 0)+1 : 0;

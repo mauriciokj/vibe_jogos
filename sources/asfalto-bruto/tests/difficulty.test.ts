@@ -13,7 +13,7 @@ test('cornering specialists equip visible shop pads; factory limits, choppers an
     assert.equal(s.riders.filter(r=>r.profile!=='player' && r.kneePadId).length,3);
     for(const r of s.riders.slice(1)){
       const bike=getBike(r.bikeId);assert.equal(r.handling,bike.handling);assert.equal(r.acceleration,bike.acceleration);assert.equal(r.armor,bike.armor);
-      assert.ok(r.maxSpeed>=bike.speed*.95 && r.maxSpeed<=bike.speed);
+      assert.ok(r.maxSpeed>=bike.speed*.98 && r.maxSpeed<=bike.speed);
       if(r.profile==='aggressive' || !supportsKneeDown(r.bikeId))assert.equal(r.kneePadId,undefined);
       else assert.equal(r.kneePadId,r.profile==='fast'&&track.level>=2?'purple':track.level>=1?'blue':'green');
     }

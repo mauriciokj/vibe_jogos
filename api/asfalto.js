@@ -496,7 +496,7 @@ function createRace(trackId = "costa", save, seed = 88117, condition = "sunset")
     r.helmetId = HELMETS[i % HELMETS.length].id;
     r.helmetColorId = HELMET_COLORS[(i + 2) % HELMET_COLORS.length].id;
     Object.assign(r, stockBike(BIKES[(i + 1) % BIKES.length].id));
-    r.maxSpeed *= 0.95 + getTrack(trackId).level * 0.02;
+    r.maxSpeed *= 0.98 + getTrack(trackId).level * 0.01;
     const pad2 = rivalKneePad(r.bikeId, r.profile, getTrack(trackId).level);
     if (pad2) r.kneePadId = pad2;
     r.weapon = i === 1 || i === 3 || i === 6;
@@ -627,7 +627,7 @@ function botCommand(state, rider) {
   const steering = clamp((target - rider.x) * 0.9 + forces.drift / forces.lateral, -1, 1);
   const canLean = kneeCapable && steering * Math.sign(curve) >= -0.2 && Math.abs(rider.x) <= roadHalf(state.trackId) && !stunting(rider);
   const action = canLean && !(rider.kneeTime > 0) && rider.speed >= 24 && Math.abs(curve) > 0.5 ? curve > 0 ? "kneeRight" : "kneeLeft" : void 0;
-  const pace = cornerPace(rider.z, state.trackId, rider.handling, state.condition, canLean ? rider.kneePadId : void 0) * (rider.profile === "careful" ? 0.94 : rider.profile === "fast" ? 1.03 : 0.98);
+  const pace = cornerPace(rider.z, state.trackId, rider.handling, state.condition, canLean ? rider.kneePadId : void 0) * (police ? 0.98 : rider.profile === "careful" ? 0.95 : rider.profile === "fast" ? 1.04 : 0.99);
   brake = Math.max(brake, clamp((rider.speed - pace) * 0.3, 0, 1));
   if (police && rider.z > player.z + 7) brake = Math.max(brake, 0.42);
   return { throttle: rider.speed > pace - 0.6 || brake > 0.1 ? 0 : 1, brake, steer: steering, attack, ...action ? { action } : {} };
