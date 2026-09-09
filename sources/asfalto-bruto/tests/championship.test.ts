@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { newChampionship, championshipPoints, championshipStandings, championshipRoute, championshipGarageOpen, startChampionshipRace, nextChampionshipStage, checkpointChampionship, championshipRemainder, advanceChampionshipRemainder, recordChampionshipHeat, type ChampHeat } from '../src/game/championship';
 import { createRace, finishRider, stepRace, snapshot } from '../src/game/simulation';
-import { freshSave, normalizeSave, repair, settleRace } from '../src/game/save';
+import { freshSave, normalizeSave, repair, repairChampionshipBike, settleRace } from '../src/game/save';
+import { championshipBikeState } from '../src/game/championship';
 import { TRACKS } from '../src/game/content';
 import { CONDITIONS } from '../src/game/conditions';
 import type { RaceState } from '../src/game/types';
@@ -23,6 +24,40 @@ test('championship scores 10/6/4/3/2/1; seventh, eighth and every DNF score zero
  const save=freshSave();save.championship=newChampionship(6);
  const s=finishHeat(startChampionshipRace(save)!,1,true);assert.ok(recordChampionshipHeat(save.championship,s));
  const me=championshipStandings(save.championship.heats).find(r=>r.id==='player')!;assert.equal(me.points,0);assert.equal(me.finishes[0].place,null);assert.equal(save.championship.status,'standings');
+});
+test('a broken bike cannot consume a championship heat or lock a new stage loadout',()=>{
+ const save=freshSave();save.championship=newChampionship(7);save.condition.ferro=0;
+ const before=JSON.stringify(save);assert.equal(startChampionshipRace(save),null);assert.equal(JSON.stringify(save),before);
+});
+test('low integrity warns below 20; only exact zero unlocks repairs during a stage',()=>{
+ const save=freshSave();save.cash=2000;save.championship=newChampionship(8);
+ recordChampionshipHeat(save.championship,finishHeat(startChampionshipRace(save)!));
+ for(const integrity of [20,19.9,15,1,.1,0]){
+  save.championship.damage.player=integrity;save.championship.entry!.condition.ferro=integrity;
+  const status=championshipBikeState(save);assert.equal(status.low,integrity<20);assert.equal(status.blocked,integrity===0);assert.equal(status.canRepair,integrity===0);
+  const before=JSON.stringify(save);if(integrity>0){assert.equal(repairChampionshipBike(save),false);assert.equal(JSON.stringify(save),before);}
+ }
+});
+test('repairing the entered bike costs once and preserves results, gear, nitro and opponent damage across reload',()=>{
+ const save=freshSave();save.cash=399;save.nitro={ferro:2};save.championship=newChampionship(9);
+ const first=startChampionshipRace(save)!;first.riders[0].nitro=0;checkpointChampionship(save.championship,first);
+ const result=finishHeat(first,1,true);result.riders[0].integrity=0;recordChampionshipHeat(save.championship,result);
+ const scored=JSON.stringify(save.championship.heats),before=JSON.stringify(save);assert.equal(repairChampionshipBike(save),false);assert.equal(JSON.stringify(save),before);
+ // A different bike and repairs/purchases in the free-race garage cannot change
+ // the stage's bike, equipment, nitro or the actual repair price.
+ save.owned.push('brutal');save.bikeId='brutal';save.condition.brutal=70;save.condition.ferro=100;save.nitro.ferro=2;save.upgrades.ferro.engine=3;save.cash=1400;
+ assert.equal(championshipBikeState(save).bikeId,'ferro');assert.equal(repairChampionshipBike(save),true);assert.equal(save.cash,1000);
+ assert.equal(repairChampionshipBike(save),false);assert.equal(save.cash,1000);assert.equal(save.bikeId,'brutal');assert.equal(save.condition.brutal,70);assert.equal(JSON.stringify(save.championship.heats),scored);
+ const restored=normalizeSave(JSON.parse(JSON.stringify(save))),next=startChampionshipRace(restored)!;
+ assert.equal(next.condition,'sunset');assert.equal(next.riders[0].integrity,100);assert.equal(next.riders[1].integrity,60);assert.equal(next.riders[0].nitro??0,0);assert.equal(next.riders[0].maxSpeed,createRace().riders[0].maxSpeed);
+ const db=new AccountsDB(':memory:');try{const a=db.login('repair-champ');db.save(a.id,0,restored,'repaired-championship-01');assert.equal(snapshot(startChampionshipRace(db.cloud(a.id).save!)!),snapshot(next));}finally{db.close();}
+});
+test('old zero-integrity countdowns can be repaired, while pending results must settle before repairing',()=>{
+ const save=freshSave();save.cash=800;save.championship=newChampionship(10);const race=startChampionshipRace(save)!;
+ race.riders[0].integrity=0;race.tick=120;race.countdown=1;checkpointChampionship(save.championship,race);
+ assert.equal(startChampionshipRace(save),null);assert.ok(repairChampionshipBike(save));assert.equal(startChampionshipRace(save)!.tick,120);assert.equal(startChampionshipRace(save)!.riders[0].integrity,100);
+ race.mode='finished';race.result={reason:'wrecked',place:8,time:10,reward:120,hits:0,falls:1};race.riders[0].out='wrecked';checkpointChampionship(save.championship,race);
+ assert.equal(championshipBikeState(save).blocked,false);assert.equal(repairChampionshipBike(save),false);assert.equal(snapshot(startChampionshipRace(save)!),snapshot(race));
 });
 test('five stages each run day/sunset/night/rain, require top three, reset points and finish on Terra',()=>{
  const save=freshSave();save.championship=newChampionship(678);const c=save.championship;

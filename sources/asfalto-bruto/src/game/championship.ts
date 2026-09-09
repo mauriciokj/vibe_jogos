@@ -30,12 +30,24 @@ export function championshipStandings(heats:ChampHeat[]){
 }
 export const championshipRoute=(c:Championship)=>({track:TRACKS[c.stage],condition:CONDITIONS[Math.min(c.heats.length,3)]});
 export const championshipGarageOpen=(c:Championship)=>!c.entry || c.status==='service' || c.status==='eliminated' || c.status==='complete';
+// Read the entered bike while a stage is locked, even if the free-race garage
+// now has another bike selected or has repaired its own copy of the condition.
+export function championshipBikeState(save:SaveData,c=save.championship){
+ const locked=!!c?.entry && !championshipGarageOpen(c);
+ const bikeId=locked?c!.entry!.bikeId:save.bikeId;
+ const integrity=clamp(locked?(c!.checkpoint?.riders[0].integrity ?? c!.damage.player ?? c!.entry!.condition[bikeId] ?? 100):(save.condition[bikeId] ?? 100),0,100);
+ const pendingResult=c?.status==='racing' && c.checkpoint?.mode==='finished';
+ const beforeRace=!c || c.status!=='racing' || c.checkpoint?.mode==='countdown';
+ return {bikeId,integrity,locked,pendingResult,low:integrity<20&&!pendingResult,
+  blocked:integrity===0&&!pendingResult,canRepair:integrity===0&&!pendingResult&&beforeRace};
+}
 export function nextChampionshipStage(c:Championship){
  if(c.status!=='service' || c.stage>=TRACKS.length-1)return false;
  c.stage++;c.heats=[];c.status='ready';c.damage={};delete c.entry;delete c.checkpoint;return true;
 }
 export function startChampionshipRace(save:SaveData):RaceState|null {
  const c=save.championship;if(!c)return null;
+ if(championshipBikeState(save).blocked)return null;
  if(c.status==='racing' && c.checkpoint)return structuredClone(c.checkpoint);
  if(!['ready','standings'].includes(c.status) || c.heats.length>=4)return null;
  if(!c.entry){const {championship:_,...garage}=save;c.entry=structuredClone(garage);}

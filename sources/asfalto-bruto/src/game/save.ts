@@ -1,4 +1,4 @@
-import { normalizeChampionship } from './championship';
+import { championshipBikeState, normalizeChampionship } from './championship';
 import { HELMETS, HELMET_COLORS, equippedHelmet, getHelmetColor, ownsHelmet } from './helmets';
 import { WEAPONS, equippedWeapon, getWeapon } from './weapons';
 import { CONDITIONS, raceCondition, recordKey } from './conditions';
@@ -57,7 +57,19 @@ export function normalizeSave(saved: any): SaveData {
 export function persist(save: SaveData): boolean {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); return true; } catch { return false; }
 }
-export function repairCost(save: SaveData, bikeId = save.bikeId) { return Math.ceil((100 - (save.condition[bikeId] ?? 100)) * 4); }
+export function repairCost(save: SaveData, bikeId = save.bikeId, integrity = save.condition[bikeId] ?? 100) { return Math.ceil((100 - integrity) * 4); }
+export function repairChampionshipBike(save:SaveData):boolean {
+  const bike=championshipBikeState(save);if(!bike.canRepair)return false;
+  const cost=repairCost(save,bike.bikeId,bike.integrity);if(save.cash<cost)return false;
+  save.cash-=cost;save.condition[bike.bikeId]=100;
+  // Only restore integrity: no new equipment, nitro, points or race retry.
+  const c=save.championship;
+  if(bike.locked && c?.entry){
+    c.entry.condition[bike.bikeId]=100;c.damage.player=100;
+    if(c.checkpoint)c.checkpoint.riders[0].integrity=100;
+  }
+  return true;
+}
 export function buyHelmet(save: SaveData, id: string): boolean {
   const helmet=HELMETS.find(h=>h.id===id);if(!helmet)return false;
   if(!ownsHelmet(save,id)){

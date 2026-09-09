@@ -42,12 +42,30 @@ try{
  const conditions=['day','sunset','night','rain'];
  for(let stage=0;stage<5;stage++){
   for(let heat=0;heat<4;heat++){
-   const race=await state();assert.equal(race.track,TRACKS[stage].id);assert.equal(race.condition,conditions[heat]);await finish(1,67-heat*9);const c=(await state()).championship;assert.equal(c.heats,heat+1);assert.equal(c.standings.find((r:any)=>r.id==='player').points,(heat+1)*10);assert.equal(c.garageOpen,heat===3);
+   const race=await state();assert.equal(race.track,TRACKS[stage].id);assert.equal(race.condition,conditions[heat]);
+   const broken=stage===0&&heat===3 || stage===1&&heat===0,low=stage===1&&heat===1;
+   let carried=broken?0:low?15:67-heat*9;
+   await finish(1,carried,broken?'wrecked':'finish');const c=(await state()).championship;assert.equal(c.heats,heat+1);
+   assert.equal(c.standings.find((r:any)=>r.id==='player').points,stage===0&&heat===3?30:stage===1?heat*10:(heat+1)*10);assert.equal(c.garageOpen,heat===3);
+   if(stage===1&&heat===0){
+    assert.equal(c.bike.canRepair,true);assert.ok(await page.locator('dialog[open] #champ-start').isDisabled());assert.equal(await page.locator('dialog[open] #champ-garage').count(),0);
+    const cash=(await persisted()).cash,heats=JSON.stringify((await persisted()).championship.heats);await page.reload({waitUntil:'domcontentloaded'});await page.click('#championship-btn');
+    assert.equal((await state()).championship.stage,1);assert.equal((await state()).championship.heats,1);await shot('broken-inside-stage');await page.click('dialog[open] #champ-repair');
+    assert.equal((await persisted()).cash,cash-400);assert.equal(JSON.stringify((await persisted()).championship.heats),heats);assert.equal(await page.locator('dialog[open] #champ-repair').count(),0);assert.equal((await state()).championship.bike.integrity,100);carried=100;
+   }
+   if(low){assert.ok(await page.locator('dialog[open] .champ-integrity-alert').isVisible());assert.equal(await page.locator('dialog[open] #champ-repair').count(),0);assert.ok(await page.locator('dialog[open] #champ-start').isEnabled());await shot('low-integrity');}
+   if(stage===0&&heat===3){
+    assert.ok(await page.locator('#result-modal #champ-start').isDisabled());const saved=JSON.stringify((await persisted()).championship),races=(await persisted()).races;
+    await page.locator('#result-modal #champ-start').evaluate(b=>{b.removeAttribute('disabled');(b as HTMLButtonElement).click();});
+    assert.equal(JSON.stringify((await persisted()).championship),saved);assert.equal((await persisted()).races,races);assert.equal((await state()).championship.stage,0);assert.equal((await state()).championship.heats,4);
+    for(const width of [1440,390,320]){await page.setViewportSize({width,height:width===1440?900:width===390?844:568});await page.locator('#championship-modal').evaluate(d=>d.scrollTop=0);await layout();await shot(`blocked-next-stage-${width}`);}
+    await page.setViewportSize({width:1440,height:900});
+   }
    if(stage===0){await shot(`costa-round-${heat+1}`);await layout();const cash=(await persisted()).cash;await advance(2000);assert.equal((await persisted()).cash,cash,'result never pays twice');}
-   if(heat<3){assert.equal(await page.locator('#result-modal #champ-garage').count(),0);await page.click('#result-modal #champ-start');assert.equal((await state()).player.integrity,67-heat*9);}
+   if(heat<3){assert.equal(await page.locator('dialog[open] #champ-garage').count(),0);await page.click('dialog[open] #champ-start');assert.equal((await state()).player.integrity,carried);if(low){await advance(100);assert.match(await page.locator('#toast').textContent()??'',/15% de integridade/);}}
   }
   if(stage<4){
-   assert.equal((await state()).championship.status,'service');await page.click('#result-modal #champ-garage');assert.ok(await page.locator('#garage-modal').isVisible());await page.locator('#repair-btn').scrollIntoViewIfNeeded();await page.click('#repair-btn');assert.equal((await persisted()).condition.ferro,100);await page.locator('[data-close="garage-modal"]').click();await page.click('#championship-modal #champ-start');assert.equal((await state()).championship.stage,stage+1);assert.equal((await state()).player.integrity,100);assert.ok((await state()).championship.standings.every((r:any)=>r.points===0));
+   assert.equal((await state()).championship.status,'service');await page.click('dialog[open] #champ-garage');assert.ok(await page.locator('#garage-modal').isVisible());await page.locator('#repair-btn').scrollIntoViewIfNeeded();await page.click('#repair-btn');assert.equal((await persisted()).condition.ferro,100);await page.locator('[data-close="garage-modal"]').click();await page.click('#championship-modal #champ-start');assert.equal((await state()).championship.stage,stage+1);assert.equal((await state()).player.integrity,100);assert.ok((await state()).championship.standings.every((r:any)=>r.points===0));
   }
  }
  assert.equal((await state()).championship.status,'complete');assert.equal((await persisted()).championship.history.length,5);await shot('complete');
@@ -56,7 +74,7 @@ try{
  for(let heat=0;heat<4;heat++){await finish(4,62);if(heat<3)await page.click('#result-modal #champ-start');}
  assert.equal((await state()).championship.status,'eliminated');assert.equal((await state()).championship.standings.find((r:any)=>r.id==='player').rank,4);assert.equal(await page.locator('#result-modal #champ-start').count(),0);await shot('eliminated');
  const cash=(await persisted()).cash;await page.click('#result-modal #champ-restart');assert.equal((await persisted()).cash,cash);await page.click('#championship-modal #champ-start');
- for(const [i,reason] of ['caught','wrecked','timeout','left'].entries()){await finish(1,i===1?0:30,reason);assert.equal((await state()).championship.standings.find((r:any)=>r.id==='player').points,0);if(i<3)await page.click('#result-modal #champ-start');}
+ for(const [i,reason] of ['caught','wrecked','timeout','left'].entries()){await finish(1,i===1?0:30,reason);assert.equal((await state()).championship.standings.find((r:any)=>r.id==='player').points,0);if(i<3){if((await state()).championship.bike.canRepair)await page.click('dialog[open] #champ-repair');await page.click('dialog[open] #champ-start');}}
  assert.equal((await state()).championship.status,'eliminated');await shot('all-dnf');
  await page.click('#result-modal #champ-restart');await page.click('#championship-modal #champ-start');await page.click('#pause-btn');await page.click('#menu-btn');await page.waitForFunction(()=>!JSON.parse(window.render_game_to_text()).championship.settling);assert.equal((await state()).championship.heats,1);assert.equal((await persisted()).championship.heats[0].reason,'left');await shot('abandoned');
  await page.click('#result-modal #champ-menu');const c=structuredClone((await persisted()).championship);await page.click('#start-btn');await advance(4000);assert.equal((await state()).championship.active,false);assert.deepEqual((await persisted()).championship,c);await page.click('#pause-btn');assert.ok(await page.locator('#restart-btn').isVisible());await page.click('#menu-btn');await page.click('#online-btn');assert.ok(await page.locator('#online-create').isVisible());await page.click('#online-close');
@@ -65,5 +83,5 @@ try{
   const bounds=await page.locator('#championship-btn').boundingBox();assert.ok(bounds&&bounds.x>=0&&bounds.x+bounds.width<=viewport.width&&bounds.y>=0&&bounds.y+bounds.height<=viewport.height);
   await page.click('#championship-btn');await layout();await shot(`board-${viewport.width}`);await page.locator('#championship-modal #champ-start').scrollIntoViewIfNeeded();await shot(`board-${viewport.width}-actions`);await page.click('#championship-modal #champ-close');
  }
- assert.deepEqual(errors,[]);const report={ok:true,stages:5,races:20,qualification:true,elimination:true,allDnfReasons:true,noRepairBetweenHeats:true,garageBetweenStages:true,checkpointReload:true,classicPreserved:true,mobileWidths:[390,320],errors};await fs.writeFile(`${folder}/report.json`,JSON.stringify(report,null,2));console.log(report);
+ assert.deepEqual(errors,[]);const report={ok:true,stages:5,races:20,qualification:true,elimination:true,allDnfReasons:true,zeroOnlyEmergencyRepair:true,blockedBrokenStarts:true,lowIntegrityWarning:true,garageBetweenStages:true,checkpointReload:true,classicPreserved:true,mobileWidths:[390,320],errors};await fs.writeFile(`${folder}/report.json`,JSON.stringify(report,null,2));console.log(report);
 }finally{await browser.close();vite?.kill('SIGTERM');await app?.close();}

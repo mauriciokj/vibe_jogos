@@ -1,4 +1,4 @@
-import { newChampionship, championshipRoute, championshipGarageOpen, championshipStandings, startChampionshipRace, nextChampionshipStage, checkpointChampionship, finishChampionshipSimulation, recordChampionshipHeat } from './game/championship';
+import { newChampionship, championshipRoute, championshipGarageOpen, championshipBikeState, championshipStandings, startChampionshipRace, nextChampionshipStage, checkpointChampionship, finishChampionshipSimulation, recordChampionshipHeat } from './game/championship';
 import { championshipMarkup } from './championship-ui';
 import { pendingResults, queueResult, removeResult } from './account/pending-results';
 import { AccountClient, SoloRecorder, ApiError } from './account/client';
@@ -37,7 +37,7 @@ import { RaceInstruments } from './game/instruments';
 import { Renderer } from './game/renderer';
 import { createRace, finishRider, nearestTarget, ranking, restoreSnapshot, snapshot, STEP, stepRace } from './game/simulation';
 import { bikePortrait } from './game/sprites';
-import { buyHelmet, paintHelmet, buyBike, buyWeapon, buyKneePad, buyNitro, spendNitro, recordOnlineNitro, buyUpgrade, freshSave, repair, repairCost, settleRace, upgradeCost } from './game/save';
+import { buyHelmet, paintHelmet, buyBike, buyWeapon, buyKneePad, buyNitro, spendNitro, recordOnlineNitro, buyUpgrade, freshSave, repair, repairChampionshipBike, repairCost, settleRace, upgradeCost } from './game/save';
 import type { Command, RaceState, RiderAction, Upgrade } from './game/types';
 
 const icons = {
@@ -144,6 +144,7 @@ let resultPayout: RacePayout | null = null;
 let paused = false;
 let onlineMode = false;
 let championshipMode=false,champSettling=false,champGarageReturn=false,champCheckpointAt=0;
+let lowIntegrityWarned=false;
 let onlineRaceStarted = false;
 let lastOnlineEventTick = -1;
 let helpStartsRace = false;
@@ -331,7 +332,9 @@ function showMenu() {
 }
 function closeDialogs() { document.querySelectorAll<HTMLDialogElement>('dialog[open]').forEach(d => d.close()); }
 async function startRace(championship=false) {
-  if(startingRace || champSettling)return;startingRace=true;
+  if(startingRace || champSettling)return;
+  if(championship && championshipBikeState(save).blocked){showChampionship();return;}
+  startingRace=true;
   resetFinish();
   soloRecorder=null;
   if(onlineMode)online.leave();
@@ -339,7 +342,7 @@ async function startRace(championship=false) {
   $('online-hud').hidden=true;
   closeDialogs(); clearControls();
   if (!championship && (save.condition[save.bikeId] ?? 100) < 20) { save.bikeId = 'ferro'; save.condition.ferro = Math.max(55, save.condition.ferro); saveNow(); toast('Ferro 500 pronta: reparo básico gratuito para continuar.'); }
-  soloNitroSpent=0;audio.resetRace();
+  soloNitroSpent=0;lowIntegrityWarned=false;audio.resetRace();
   $('start-btn').textContent='PREPARANDO…';
   championshipMode=championship;
   const run=championship || testMode || !accounts.session?.account?null:await accounts.startRun(selectedTrack,selectedCondition);
@@ -474,7 +477,7 @@ function renderGarage() {
   }).join('')}</div><div class="garage-tools" id="garage-tools"><div><h3>MELHORIAS · ${BIKES.find(b => b.id === save.bikeId)!.name.toUpperCase()}</h3>${(['engine', 'armor', 'handling'] as const).map(k => {
     const level = save.upgrades[save.bikeId][k], label = { engine: 'Motor', armor: 'Resistência', handling: 'Dirigibilidade' }[k];
     return `<div class="upgrade"><span>${label}<span class="levels">${'▰'.repeat(level)}${'▱'.repeat(3 - level)}</span></span><button class="secondary" data-upgrade="${k}" ${level >= 3 || save.cash < upgradeCost(save, k) ? 'disabled' : ''}>${level >= 3 ? 'MÁXIMO' : `+ ${money(upgradeCost(save, k))}`}</button></div>`;
-  }).join('')}</div><div class="repair-panel"><h3>MOTO EM ${Math.round(save.condition[save.bikeId])}%</h3><p>Nas corridas livres, a Ferro 500 recebe reparos gratuitos até 55% após cada corrida. No campeonato, os reparos ficam entre as etapas.</p><button class="secondary" id="repair-btn" ${repairCost(save) === 0 || save.cash < repairCost(save) ? 'disabled' : ''}>${repairCost(save) === 0 ? '✓ NENHUM REPARO NECESSÁRIO' : `REPARAR 100% · ${money(repairCost(save))}`}</button></div></div><div class="garage-footer"><span>SALDO <b>${money(save.cash)}</b></span><button class="text-button danger" id="reset-btn">Reiniciar progresso</button></div></div>`;
+  }).join('')}</div><div class="repair-panel"><h3>MOTO EM ${Math.round(save.condition[save.bikeId])}%</h3><p>Nas corridas livres, a Ferro 500 recebe reparos gratuitos até 55% após cada corrida. No campeonato, os reparos ficam entre as etapas ou quando a moto chega a 0%.</p><button class="secondary" id="repair-btn" ${repairCost(save) === 0 || save.cash < repairCost(save) ? 'disabled' : ''}>${repairCost(save) === 0 ? '✓ NENHUM REPARO NECESSÁRIO' : `REPARAR 100% · ${money(repairCost(save))}`}</button></div></div><div class="garage-footer"><span>SALDO <b>${money(save.cash)}</b></span><button class="text-button danger" id="reset-btn">Reiniciar progresso</button></div></div>`;
 }
 function showGarage() { if(championshipMode && save.championship && !championshipGarageOpen(save.championship))return;renderGarage(); $<HTMLDialogElement>('garage-modal').showModal(); }
 
@@ -484,6 +487,8 @@ function showChampionship() {
   $<HTMLDialogElement>('championship-modal').showModal();$('championship-modal').scrollTop=0;
 }
 function launchChampionship(){
+  // Validate before advancing the stage, capturing equipment or recording a race.
+  if(championshipBikeState(save).blocked){showChampionship();return;}
   save.championship ??=newChampionship(crypto.getRandomValues(new Uint32Array(1))[0]);
   if(save.championship.status==='service')nextChampionshipStage(save.championship);
   saveNow();void startRace(true);
@@ -608,6 +613,8 @@ function update() {
     return;
   }
   if (screen !== 'race' || paused) return;
+  const p=localRider();
+  if(championshipMode && !lowIntegrityWarned && p.integrity>0 && p.integrity<20){lowIntegrityWarned=true;toast(`Atenção: moto com ${Math.max(1,Math.floor(p.integrity))}% de integridade.`);}
   const command=input();soloRecorder?.add(command);
   stepRace(race, { player: command });
   syncSoloNitro();
@@ -668,6 +675,7 @@ document.addEventListener('click', event => {
     case 'online-copy': { const url=new URL(location.href);url.search='';url.searchParams.set('sala',online.code);void navigator.clipboard.writeText(url.toString()).then(()=>{$('online-status').textContent='CONVITE COPIADO';}).catch(()=>{$('online-status').textContent=`COMPARTILHE O CÓDIGO ${online.code}`;});break;}
     case 'championship-btn': showChampionship();break;
     case 'champ-start': launchChampionship();break;
+    case 'champ-repair': if(repairChampionshipBike(save)){saveNow();showChampionship();}break;
     case 'champ-restart': save.championship=newChampionship(crypto.getRandomValues(new Uint32Array(1))[0]);saveNow();showChampionship();break;
     case 'champ-garage': if(!save.championship || championshipGarageOpen(save.championship)){showMenu();champGarageReturn=true;showGarage();}break;
     case 'champ-close': case 'champ-menu': showMenu();break;
@@ -772,7 +780,7 @@ declare global {
 }
 window.render_game_to_text = () => {
   const p = localRider(), target = nearestTarget(race, p, p.weapon ? 'weapon' : 'punch');
-  return JSON.stringify({ championship:save.championship?{active:championshipMode,settling:champSettling,stage:save.championship.stage,status:save.championship.status,heats:save.championship.heats.length,garageOpen:championshipGarageOpen(save.championship),standings:championshipStandings(save.championship.heats).map(r=>({id:r.id,points:r.points,rank:r.rank})),integrity:save.championship.entry?.condition[save.championship.entry.bikeId],checkpoint:!!save.championship.checkpoint}:null,payout:resultPayout, finish:{stage:finishElapsed===null?'none':screen==='finish'?'camera':'result',elapsed:finishElapsed===null?null:+finishElapsed.toFixed(2),pullback:finishElapsed===null?0:+finishPullback(finishElapsed).toFixed(3),winnerId:finishWinner(race)?.id ?? null}, account:{signedIn:!!accounts.session?.account,status:accounts.status,pending:accounts.cache?.dirty ?? false,conflict:!!accounts.conflict,rankedRace:!!soloRecorder}, online: onlineMode?{status:online.status,syncing:online.syncing,id:online.id,code:online.code,phase:online.room?.phase,locked:online.room?.locked,deadline:online.room?.deadline,serverNow:online.serverNow(),members:online.room?.members,fillBots:online.room?.fillBots,public:online.room?.public,condition:online.room?.condition}:null, screen, paused, modal: document.querySelector('dialog[open]')?.id ?? null, mode: race.mode, coordinates: `x in metres: negative left, positive right; road ±${roadHalf(race.trackId)}. z forward in metres. speed m/s.`, road:{lanes:race.trackId==='terra'?2:4,halfWidth:roadHalf(race.trackId),surface:race.trackId==='terra'?'dirt':'asphalt'}, tick: race.tick, time: +race.time.toFixed(2), countdown: +race.countdown.toFixed(2), track: race.trackId, condition:raceCondition(race.condition), scenic:scenicAppearance(race), length: getTrack(race.trackId).distance, player: { helmetId:getHelmet(p.helmetId).id,helmetColorId:getHelmetColor(p.helmetColorId).id,weaponId:p.weaponId??null,weaponName:weaponName(p),wheeliesLeft:wheeliesLeft(p),wheelieTime:p.wheelieTime??0,jumpTime:p.jumpTime??0,jumpHeight:jumpHeight(p),jumpTarget:p.jumpTarget??null,kneePadId:p.kneePadId??null,kneeTime:p.kneeTime??0,wetKneeTime:(p.wetKneeTicks??0)*STEP,kneeSide:p.kneeSide??0,kneeSupport:kneeSupport(p,curveAt(p.z,race.trackId),race.trackId),nitro:p.nitro??0,nitroTime:p.nitroTime??0,nitroUsed:p.nitroUsed??0,speech:p.speech&&p.speech.until>race.time?TAUNTS[p.speech.index]:null,bikeId:getBike(p.bikeId).id,bike:getBike(p.bikeId).name,handling:p.handling,armor:p.armor,out:p.out ?? null, x: +p.x.toFixed(2), z: +p.z.toFixed(1), speed: +p.speed.toFixed(2), health: +p.health.toFixed(1), integrity: +p.integrity.toFixed(1), weapon: p.weapon, attack: p.attack, cooldown: +p.cooldown.toFixed(2), crash: +p.crash.toFixed(2), immune: +p.immune.toFixed(2), hits: p.hits, falls: p.falls, place: ranking(onlineMode ? (online.room?.race ?? race) : race).findIndex(r => r.id === localId()) + 1 }, awareness:raceAwareness(race,localId()), corner:upcomingCorner(p.z,race.trackId,p.handling,race.condition,p.kneeTime!>0 && supportsKneeDown(p.bikeId)?p.kneePadId:undefined), curve: +curveAt(p.z, race.trackId).toFixed(2), target: target?.id ?? null, riders: race.riders.filter(r => r.id !== localId() && Math.abs(r.z - p.z) < 400).map(r => ({ id: r.id, name: r.name,helmetId:getHelmet(r.helmetId).id,helmetColorId:getHelmetColor(r.helmetColorId).id,weaponId:r.weaponId??null,wheeliesLeft:wheeliesLeft(r),wheelieTime:r.wheelieTime??0,jumpTime:r.jumpTime??0,jumpHeight:jumpHeight(r),kneePadId:r.kneePadId??null,kneeSupport:kneeSupport(r,curveAt(r.z,race.trackId),race.trackId),speech:r.speech&&r.speech.until>race.time?TAUNTS[r.speech.index]:null, bikeId:getBike(r.bikeId).id, x: +r.x.toFixed(1), dz: +(r.z - p.z).toFixed(1), speed: +r.speed.toFixed(1), health: +r.health.toFixed(1), weapon: r.weapon, attack: r.attack, crash: +r.crash.toFixed(1) })), traffic: race.traffic.filter(t => t.z - p.z > -10 && t.z - p.z < 350).map(t => ({ id:t.id,kind:t.kind,x: t.x, dz: +(t.z - p.z).toFixed(1), direction: (t.heading ?? Math.sign(t.speed)) < 0 ? 'oncoming' : 'forward',queued:!!t.queued })), obstacles: race.obstacles.filter(o => o.z - p.z > -10 && o.z - p.z < 200).map(o => ({ id:o.id,kind: o.kind, x: o.x,width:o.width ?? null,moving:!!o.motion, dz: +(o.z - p.z).toFixed(1) })), heat: +race.heat.toFixed(1), police: race.policeActive, capture: +race.capture.toFixed(2), result: onlineMode?(race.multiplayer?.results[online.id] ?? null):race.result, save: { ownedHelmets:save.ownedHelmets??['integral'],helmetId:equippedHelmet(save).id,helmetColorId:getHelmetColor(save.helmetColorId).id,ownedWeapons:save.ownedWeapons??[],weaponId:save.weaponId??null,ownedKneePads:save.ownedKneePads??[],kneePadId:save.kneePadId??null,nitro:save.nitro??{},cash: save.cash, bike: save.bikeId, unlocked: save.unlocked, races: save.races } });
+  return JSON.stringify({ championship:save.championship?{active:championshipMode,settling:champSettling,stage:save.championship.stage,status:save.championship.status,heats:save.championship.heats.length,garageOpen:championshipGarageOpen(save.championship),bike:championshipBikeState(save),standings:championshipStandings(save.championship.heats).map(r=>({id:r.id,points:r.points,rank:r.rank})),integrity:save.championship.entry?.condition[save.championship.entry.bikeId],checkpoint:!!save.championship.checkpoint}:null,payout:resultPayout, finish:{stage:finishElapsed===null?'none':screen==='finish'?'camera':'result',elapsed:finishElapsed===null?null:+finishElapsed.toFixed(2),pullback:finishElapsed===null?0:+finishPullback(finishElapsed).toFixed(3),winnerId:finishWinner(race)?.id ?? null}, account:{signedIn:!!accounts.session?.account,status:accounts.status,pending:accounts.cache?.dirty ?? false,conflict:!!accounts.conflict,rankedRace:!!soloRecorder}, online: onlineMode?{status:online.status,syncing:online.syncing,id:online.id,code:online.code,phase:online.room?.phase,locked:online.room?.locked,deadline:online.room?.deadline,serverNow:online.serverNow(),members:online.room?.members,fillBots:online.room?.fillBots,public:online.room?.public,condition:online.room?.condition}:null, screen, paused, modal: document.querySelector('dialog[open]')?.id ?? null, mode: race.mode, coordinates: `x in metres: negative left, positive right; road ±${roadHalf(race.trackId)}. z forward in metres. speed m/s.`, road:{lanes:race.trackId==='terra'?2:4,halfWidth:roadHalf(race.trackId),surface:race.trackId==='terra'?'dirt':'asphalt'}, tick: race.tick, time: +race.time.toFixed(2), countdown: +race.countdown.toFixed(2), track: race.trackId, condition:raceCondition(race.condition), scenic:scenicAppearance(race), length: getTrack(race.trackId).distance, player: { helmetId:getHelmet(p.helmetId).id,helmetColorId:getHelmetColor(p.helmetColorId).id,weaponId:p.weaponId??null,weaponName:weaponName(p),wheeliesLeft:wheeliesLeft(p),wheelieTime:p.wheelieTime??0,jumpTime:p.jumpTime??0,jumpHeight:jumpHeight(p),jumpTarget:p.jumpTarget??null,kneePadId:p.kneePadId??null,kneeTime:p.kneeTime??0,wetKneeTime:(p.wetKneeTicks??0)*STEP,kneeSide:p.kneeSide??0,kneeSupport:kneeSupport(p,curveAt(p.z,race.trackId),race.trackId),nitro:p.nitro??0,nitroTime:p.nitroTime??0,nitroUsed:p.nitroUsed??0,speech:p.speech&&p.speech.until>race.time?TAUNTS[p.speech.index]:null,bikeId:getBike(p.bikeId).id,bike:getBike(p.bikeId).name,handling:p.handling,armor:p.armor,out:p.out ?? null, x: +p.x.toFixed(2), z: +p.z.toFixed(1), speed: +p.speed.toFixed(2), health: +p.health.toFixed(1), integrity: +p.integrity.toFixed(1), weapon: p.weapon, attack: p.attack, cooldown: +p.cooldown.toFixed(2), crash: +p.crash.toFixed(2), immune: +p.immune.toFixed(2), hits: p.hits, falls: p.falls, place: ranking(onlineMode ? (online.room?.race ?? race) : race).findIndex(r => r.id === localId()) + 1 }, awareness:raceAwareness(race,localId()), corner:upcomingCorner(p.z,race.trackId,p.handling,race.condition,p.kneeTime!>0 && supportsKneeDown(p.bikeId)?p.kneePadId:undefined), curve: +curveAt(p.z, race.trackId).toFixed(2), target: target?.id ?? null, riders: race.riders.filter(r => r.id !== localId() && Math.abs(r.z - p.z) < 400).map(r => ({ id: r.id, name: r.name,helmetId:getHelmet(r.helmetId).id,helmetColorId:getHelmetColor(r.helmetColorId).id,weaponId:r.weaponId??null,wheeliesLeft:wheeliesLeft(r),wheelieTime:r.wheelieTime??0,jumpTime:r.jumpTime??0,jumpHeight:jumpHeight(r),kneePadId:r.kneePadId??null,kneeSupport:kneeSupport(r,curveAt(r.z,race.trackId),race.trackId),speech:r.speech&&r.speech.until>race.time?TAUNTS[r.speech.index]:null, bikeId:getBike(r.bikeId).id, x: +r.x.toFixed(1), dz: +(r.z - p.z).toFixed(1), speed: +r.speed.toFixed(1), health: +r.health.toFixed(1), weapon: r.weapon, attack: r.attack, crash: +r.crash.toFixed(1) })), traffic: race.traffic.filter(t => t.z - p.z > -10 && t.z - p.z < 350).map(t => ({ id:t.id,kind:t.kind,x: t.x, dz: +(t.z - p.z).toFixed(1), direction: (t.heading ?? Math.sign(t.speed)) < 0 ? 'oncoming' : 'forward',queued:!!t.queued })), obstacles: race.obstacles.filter(o => o.z - p.z > -10 && o.z - p.z < 200).map(o => ({ id:o.id,kind: o.kind, x: o.x,width:o.width ?? null,moving:!!o.motion, dz: +(o.z - p.z).toFixed(1) })), heat: +race.heat.toFixed(1), police: race.policeActive, capture: +race.capture.toFixed(2), result: onlineMode?(race.multiplayer?.results[online.id] ?? null):race.result, save: { ownedHelmets:save.ownedHelmets??['integral'],helmetId:equippedHelmet(save).id,helmetColorId:getHelmetColor(save.helmetColorId).id,ownedWeapons:save.ownedWeapons??[],weaponId:save.weaponId??null,ownedKneePads:save.ownedKneePads??[],kneePadId:save.kneePadId??null,nitro:save.nitro??{},cash: save.cash, bike: save.bikeId, unlocked: save.unlocked, races: save.races } });
 };
 window.advanceTime = ms => { if(onlineMode){advanceFinish(ms/1000);draw();return;} testMode = true; for (let i = 0; i < Math.round(ms / (STEP * 1000)); i++) {update();advanceFinish(STEP);} draw(); };
 if (testMode) window.__game = {
