@@ -190,3 +190,11 @@ Artefatos locais estão em `road rash/output/vps/`: `live-check.json`, `eight.js
 - Chromium local e HTTPS/WSS entre os dois domínios confirmaram técnica visível, joelheira dourada humana, primeira moto/saldo intactos, pausa, chuva, celular, dois humanos + seis bots, equipamento compartilhado e reconexão. Manobra online em curva verificada com fixture autoritativa local; público verificou largada/equipamento/reconexão sem alterar servidor. Nenhum erro JS/console. Capturas/estados/relatórios inspecionados em `output/difficulty/` na origem.
 - Cliente da skill com GPU nativa e preâmbulo descartável de curva preservou controles/tempo/captura, testou direção/aceleração/empinada e mostrou rival apoiando joelho, sem erros. QA público em `?test`, sem incrementar visitas, com DNS temporário e TLS validado.
 - Concluído, publicado e salvo no GitHub. Recarregar a página carrega a atualização; compras existentes preservadas. Registro posterior não requer nova ativação.
+
+
+### Joelho na chuva: 2 segundos publicados — 2026-09-09
+
+- Código `1aaf6b2`, release `20260909T043450Z-1aaf6b2` ativa. Queda após ultrapassar 2s contínuos de joelho apoiado na chuva (tick 121), manobra de até 4s preservada. Textos da loja/tutorial/documentação ajustados. Protocolo v11/save v1; regra autoritativa, previsão continua sem confirmar queda.
+- Build/export, 104 testes do jogo e nove da VPS passaram. Navegador local com dois humanos + seis bots confirmou contato breve seguro, reset ao levantar, queda compartilhada e reconexão preservando exposição; sem erros JS/console. Cliente da skill com GPU nativa preservou seu loop e acionou a manobra com teclas em fixture de curva molhada, mostrando contato/queda. Imagens/estados revisados.
+- HTTPS público confirmou descrição de 2s na loja, segurança até exatamente 2s, pausa congelando contato e queda no tick seguinte. Sem erros JS/console; teste com `?test` sem registrar visita artificial, DNS temporário com TLS validado. Relatório/capturas em output/wet-knee na origem.
+- Asfalto/Catálogo/Caddy saudáveis, nenhuma corrida ativa na verificação final. Guarda de partidas respeitada na ativação. Concluído, publicado e salvo no GitHub; recarregar a página carrega a versão nova. Registro posterior não requer redeploy.
