@@ -1,4 +1,13 @@
 import type { GameEvent, BikeStyle, Rider } from './types';
+import { GUARD_RAIL_LIMIT, hasGuardRail } from './guardrails';
+
+// Physics already contains the bike at this boundary. Read its presented pose
+// so the sound also responds immediately to predicted multiplayer movement.
+export function guardRailSoundSide(trackId: string, rider: Rider) {
+  if(rider.crash || rider.out || rider.finishedAt!==null || rider.speed<=1)return 0;
+  const side=Math.sign(rider.x);
+  return hasGuardRail(trackId,side) && Math.abs(rider.x)>=GUARD_RAIL_LIMIT-.025 ? side : 0;
+}
 
 // Stable through predicted frames and repeated online snapshots.
 export function jumpSoundKey(rider: Rider) {
@@ -13,9 +22,17 @@ export class GameAudio {
   private engine?: OscillatorNode;
   private engineFilter?: BiquadFilterNode;
   private windGain?: GainNode;
+  private scrapeGain?: GainNode;
+  private scrapeFilter?: BiquadFilterNode;
+  private scrapeRing?: BiquadFilterNode;
   private lastJumpKey = '';
+  private lastRailSide = 0;
+  private lastRailContactAt = -Infinity;
   muted = false;
-  resetStunts(currentJump = '') { this.lastJumpKey = currentJump; }
+  resetRace(currentJump = '', currentRailSide = 0) {
+    this.lastJumpKey=currentJump;this.lastRailSide=currentRailSide;this.lastRailContactAt=-Infinity;
+    if(this.context)this.scrapeGain?.gain.setTargetAtTime(0,this.context.currentTime,.035);
+  }
   async start() {
     if (!this.context) {
       this.context = new AudioContext();
@@ -31,6 +48,13 @@ export class GameAudio {
       const windFilter = this.context.createBiquadFilter(); windFilter.type = 'bandpass'; windFilter.frequency.value = 1500; windFilter.Q.value = .35;
       this.windGain = this.context.createGain(); this.windGain.gain.value = 0;
       wind.connect(windFilter); windFilter.connect(this.windGain); this.windGain.connect(this.master); wind.start();
+      // One reusable loop, shaped into two metallic bands. No per-frame sources.
+      const scrape=this.context.createBufferSource();scrape.buffer=windBuffer;scrape.loop=true;
+      this.scrapeFilter=this.context.createBiquadFilter();this.scrapeFilter.type='bandpass';this.scrapeFilter.frequency.value=1700;this.scrapeFilter.Q.value=1.6;
+      this.scrapeRing=this.context.createBiquadFilter();this.scrapeRing.type='bandpass';this.scrapeRing.frequency.value=3100;this.scrapeRing.Q.value=4.5;
+      this.scrapeGain=this.context.createGain();this.scrapeGain.gain.value=0;
+      scrape.connect(this.scrapeFilter);scrape.connect(this.scrapeRing);
+      this.scrapeFilter.connect(this.scrapeGain);this.scrapeRing.connect(this.scrapeGain);this.scrapeGain.connect(this.master);scrape.start();
     }
     await this.context.resume();
   }
@@ -38,12 +62,23 @@ export class GameAudio {
     this.muted = muted;
     if (this.master && this.context) this.master.gain.setTargetAtTime(muted ? 0 : .28, this.context.currentTime, .03);
   }
-  update(speed: number, running: boolean, police: boolean, time: number, style: BikeStyle = 'street', jumpKey = '') {
+  update(speed: number, running: boolean, police: boolean, time: number, style: BikeStyle = 'street', jumpKey = '', railSide = 0) {
     if (!this.context || !this.engine || !this.engineGain) return;
     if(jumpKey && jumpKey!==this.lastJumpKey) {
       this.lastJumpKey=jumpKey;
       if(running)this.metalImpact();
     }
+    if(running) {
+      if(railSide) {
+        if(railSide!==this.lastRailSide)this.metalImpact(Math.min(1,.3+speed/75),1.5);
+        this.lastRailSide=railSide;this.lastRailContactAt=time;
+      } else if(time-this.lastRailContactAt>.15)this.lastRailSide=0;
+    }
+    const scraping=running && !!railSide && speed>1;
+    const scrapeLevel=scraping ? Math.min(1,(speed-1)/8)*(.07+Math.min(speed/60,1)*.2) : 0;
+    this.scrapeGain?.gain.setTargetAtTime(scrapeLevel,this.context.currentTime,scraping?.025:.035);
+    this.scrapeFilter?.frequency.setTargetAtTime(1700+Math.min(speed,80)*15,this.context.currentTime,.08);
+    this.scrapeRing?.frequency.setTargetAtTime(3100+Math.min(speed,80)*10,this.context.currentTime,.08);
     const airborne=running && !!jumpKey;
     const rpm = speed % 15;
     const custom=style==='cruiser'||style==='chopper';
@@ -64,15 +99,15 @@ export class GameAudio {
     gain.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + duration);
     osc.connect(gain); gain.connect(this.master); osc.start(); osc.stop(ctx.currentTime + duration);
   }
-  private metalImpact() {
+  private metalImpact(strength = 1, pitch = 1) {
     const ctx=this.context;if(!ctx || !this.master || this.muted)return;
     // Inharmonic, decaying resonances give the short impact a sheet-metal ring.
-    this.noise(.045,.26);
+    this.noise(.045,.26*strength);
     for(const [frequency,volume,duration] of [[228,.20,.20],[403,.14,.32],[719,.10,.24],[1181,.055,.16]]) {
       const osc=ctx.createOscillator(),gain=ctx.createGain();
-      osc.type='sine';osc.frequency.setValueAtTime(frequency,ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(frequency*.86,ctx.currentTime+duration);
-      gain.gain.setValueAtTime(.001,ctx.currentTime);gain.gain.linearRampToValueAtTime(volume,ctx.currentTime+.002);
+      osc.type='sine';osc.frequency.setValueAtTime(frequency*pitch,ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(frequency*pitch*.86,ctx.currentTime+duration);
+      gain.gain.setValueAtTime(.001,ctx.currentTime);gain.gain.linearRampToValueAtTime(volume*strength,ctx.currentTime+.002);
       gain.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+duration);
       osc.connect(gain);gain.connect(this.master);osc.start();osc.stop(ctx.currentTime+duration);
       osc.onended=()=>{osc.disconnect();gain.disconnect();};

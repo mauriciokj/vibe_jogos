@@ -163,3 +163,10 @@ Saltar sobre um carro dispara uma pancada metálica curta e eleva o giro e o bri
 As proteções da Costa do Sol e Porto Ferrugem (esquerda) e Serra da Fumaça (ambos os lados) seguram a moto e reduzem a velocidade enquanto ela força a passagem. O contato com o guard-rail não tira vida/integridade nem provoca queda; basta virar para dentro da pista para sair do contato e acelerar. As laterais sem proteção continuam abertas e os obstáculos das obras mantêm suas próprias regras de colisão.
 
 A geometria compartilhada mantém desenho, colisão, previsão e pilotos remotos alinhados; empurrões e nitro também respeitam a barreira. A regra se aplica a todos os pilotos e climas. Protocolo multiplayer v10, sem mudanças no save v1. `npm run test:guardrails` confere colisão, liberação, obras, celular e uma sala com dois humanos/seis bots e reconexão.
+
+
+### Áudio das proteções laterais
+
+O primeiro contato com guard-rail toca uma pancada metálica curta; o contato em movimento mantém uma raspagem que acompanha a velocidade. O som cessa ao afastar, parar, cair ou pausar. Pequenas correções online não repetem a pancada. Os loops são reaproveitados e respeitam o áudio silenciado. Física e protocolo v10 preservados.
+
+Verificação Web Audio e corrida com dois clientes: `npm run test:guardrail-audio`. Para a versão publicada, defina `GUARDRAIL_AUDIO_URL` com a URL do jogo; o teste usa `?test` para não registrar visitantes artificiais.

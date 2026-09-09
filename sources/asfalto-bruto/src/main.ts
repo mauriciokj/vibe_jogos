@@ -19,7 +19,7 @@ import { BIKES, clamp, clockString, cornerForces, cornerPace, curveAt, upcomingC
 import { RACE_ROUTES, raceRoute, routeFromId } from './game/routes';
 import { conditionName, raceCondition, recordKey, roadGrip, scenicAppearance } from './game/conditions';
 import { raceAwareness } from './game/awareness';
-import { GameAudio, jumpSoundKey } from './game/audio';
+import { GameAudio, jumpSoundKey, guardRailSoundSide } from './game/audio';
 import { RaceInstruments } from './game/instruments';
 import { Renderer } from './game/renderer';
 import { createRace, nearestTarget, ranking, restoreSnapshot, snapshot, STEP, stepRace } from './game/simulation';
@@ -192,7 +192,7 @@ function receiveOnlineRoom(room: RoomView) {
   const mine=room.race.riders.find(r=>r.id===online.id);if(mine && recordOnlineNitro(save,mine))saveNow();
   race=online.view()!;
   if(!onlineRaceStarted) {
-    onlineRaceStarted=true;audio.resetStunts(jumpSoundKey(localRider()));closeDialogs();clearControls();screen='race';paused=false;settled=false;messageUntil=0;
+    onlineRaceStarted=true;audio.resetRace(jumpSoundKey(localRider()),guardRailSoundSide(race.trackId,localRider()));closeDialogs();clearControls();screen='race';paused=false;settled=false;messageUntil=0;
     $('menu').hidden=true;$('hud').hidden=false;$('online-hud').hidden=false;
     setText('race-track',getTrack(room.trackId).name.toUpperCase());setText('race-region',getTrack(room.trackId).region);
     setText('distance-total',`${(getTrack(room.trackId).distance/1000).toFixed(1)} KM ⚑`);setText('race-message','');
@@ -284,7 +284,7 @@ function startRace() {
   $('online-hud').hidden=true;
   closeDialogs(); clearControls();
   if ((save.condition[save.bikeId] ?? 100) < 20) { save.bikeId = 'ferro'; save.condition.ferro = Math.max(55, save.condition.ferro); saveNow(); toast('Ferro 500 pronta: reparo básico gratuito para continuar.'); }
-  soloNitroSpent=0;audio.resetStunts();
+  soloNitroSpent=0;audio.resetRace();
   race = createRace(selectedTrack, save, testMode ? 88117 : crypto.getRandomValues(new Uint32Array(1))[0], selectedCondition);
   screen = 'race'; paused = false; settled = false; messageUntil = 0; lastCount = 4;
   $('menu').hidden = true; $('hud').hidden = false;
@@ -439,7 +439,7 @@ function update() {
     if (localEvent && event.text) { setText('race-message', event.text); messageUntil = race.time + 1.6; $('race-message').classList.toggle('alert', event.type === 'police' || event.type === 'crash'); }
     if (localEvent && (event.type === 'hit' || event.type === 'crash')) renderer.hit();
   }
-  audio.update(localRider().speed, true, race.policeActive && Math.abs((race.riders.find(r => r.id === 'police')?.z ?? 99999) - localRider().z) < 100, race.time, getBike(localRider().bikeId).style, jumpSoundKey(localRider()));
+  audio.update(localRider().speed, true, race.policeActive && Math.abs((race.riders.find(r => r.id === 'police')?.z ?? 99999) - localRider().z) < 100, race.time, getBike(localRider().bikeId).style, jumpSoundKey(localRider()),guardRailSoundSide(race.trackId,localRider()));
   if (race.mode === 'finished') showResult();
 }
 function draw() { renderer.render(race, screen === 'menu',localId()); if (screen !== 'menu') { updateHUD(); instruments.draw(race,localId()); } }
@@ -448,7 +448,7 @@ function frame(now: number) {
   if(onlineMode) {
     accumulator+=dt;while(accumulator>=STEP){online.step(paused || screen!=='race'?{...EMPTY_COMMAND,brake:1}:input());accumulator-=STEP;}
     const view=online.view();if(view)race=view;drawLobbyClock();
-    if(screen==='race'){const p=localRider();audio.update(p.speed,!paused,race.policeActive && Math.abs((race.riders.find(r=>r.profile==='police')?.z ?? 99999)-p.z)<100,race.time,getBike(p.bikeId).style,jumpSoundKey(p));}
+    if(screen==='race'){const p=localRider();audio.update(p.speed,!paused,race.policeActive && Math.abs((race.riders.find(r=>r.profile==='police')?.z ?? 99999)-p.z)<100,race.time,getBike(p.bikeId).style,jumpSoundKey(p),guardRailSoundSide(race.trackId,p));}
   } else if (!testMode) { accumulator += dt; while (accumulator >= STEP) { update(); accumulator -= STEP; } }
   draw(); requestAnimationFrame(frame);
 }
