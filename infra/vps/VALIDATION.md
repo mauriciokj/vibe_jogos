@@ -270,3 +270,10 @@ Artefatos locais estão em `road rash/output/vps/`: `live-check.json`, `eight.js
 - Teste reproduziu a falha anterior e passou com o ajuste. 124 unitários, nove VPS, build/export, browser local com solo/multiplayer e cinco iterações de controles/capturas da skill passaram. Permanência das vagas após dois minutos confirmada em teste.
 - QA HTTPS nos dois domínios/quatro viewports passou; imagens após 10 e mais 20 segundos da chegada em segundo inspecionadas em desktop/celular. Rivais permanecem estacionados, pagamento e snapshot intactos. Sem erros JS/console, visitas artificiais ou resultados/contas de teste na base pública.
 - Ativação guardada, serviços Asfalto/Catálogo/Caddy ativos e zero corridas no check final. Configuração OAuth, bancos, homepage e protocolo11 preservados.
+
+### 2026-09-09 — Próxima corrida segue a numeração
+
+- Código `8dd9de2`, release `20260909T214829Z-8dd9de2` ativa. Botão usa a mesma lista numerada do menu: Dia → Entardecer → Noite → Chuva → Dia da próxima estrada. Seleção e save atualizados juntos. Multiplayer prepara a próxima variante na tela de salas. Bloqueios de campanha, replay da mesma variante e fim da lista preservados.
+- Build/export, nove testes VPS, browser local da chegada/multiplayer, regressão do bônus e skill com chegada→botão Próxima→direção em Entardecer passaram.
+- QA HTTPS nos dois domínios passou, incluindo quatro viewports de chegada e ciclo completo Costa 01→02→03→04→Serra05, save/seleção/contador, variantes da última estrada e bloqueios. Imagens públicas inspecionadas; sem erros JS/console, visitas artificiais ou resultados fictícios no ranking.
+- Ativação guardada, serviços saudáveis e zero corridas no check final. Sem mudança de física, economia, protocolo11, bancos, OAuth ou homepage.
