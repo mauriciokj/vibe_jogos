@@ -97,6 +97,7 @@ try{
   while(simulation.mode!=='finished' && simulation.tick<72000){const cmd=safeDrivingCommand(simulation);commands.push(cmd);stepRace(simulation,{player:cmd});}
   assert.equal(simulation.result?.reason,'finish');serverNow+=simulation.tick/60*1000+3000;
   await p.evaluate(commands=>(window as any).__qaDrive(commands),commands);
+  assert.equal((await state(p)).screen,'finish');await p.evaluate(()=>window.advanceTime(5000));
   await p.waitForFunction(()=>JSON.parse(window.render_game_to_text()).screen==='result');
   for(let i=0;i<100;i++){if(db.run(run.id,account.id)?.completed)break;await p.waitForTimeout(100);}
   if(!db.run(run.id,account.id)?.completed)console.log(JSON.stringify({rankResponses,state:await state(p),toast:await p.locator('#toast').innerText()},null,2));

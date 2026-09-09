@@ -1,4 +1,6 @@
 import { bankStrength } from './rural';
+import { finishScene } from './finish';
+import { finishBanner, finishFan } from './finish-art';
 import { roadHalf, trafficShape } from './road-profile';
 import { farmSprite, tractorSprite, folkloreSprite, type FarmProp } from './rural-art';
 import { GUARD_RAIL_X, hasGuardRail } from './guardrails';
@@ -24,6 +26,10 @@ export class Renderer {
   private points: RoadPoint[] = [];
   private shake = 0;
   private localId = 'player';
+  private winnerId: string | null = null;
+  private pullback = 0;
+  private cinematic = false;
+  private centerX = 640;
   private player(state: RaceState) { return state.riders.find(r => r.id === this.localId) ?? state.riders[0]; }
   private focal = .9;
   private reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -117,10 +123,11 @@ export class Renderer {
     const pace = this.reducedMotion ? 0 : clamp(player.speed / 70, 0, 1);
     // A low chase camera brings the passing asphalt closer. Widen the lens and
     // move forward together so acceleration doesn't shrink the player's bike.
-    this.focal = .9 - pace * .2;
-    const followDistance = 12 - pace * 3.4;
+    const blend=(from:number,to:number)=>from+(to-from)*this.pullback;
+    this.focal = blend(.9 - pace * .2,.9);
+    const followDistance = blend(12 - pace * 3.4,54);
     const camZ = player.z - followDistance;
-    const height = 6.5 - pace * 1.7;
+    const height = blend(6.5 - pace * 1.7,12);
     const camY = elevationAt(player.z, state.trackId) + height;
     const road: RoadPoint[] = [];
     const segment = 3;
@@ -129,11 +136,13 @@ export class Renderer {
     const slope = (elevationAt(player.z + 35, state.trackId) - elevationAt(player.z, state.trackId)) / 35;
     const vibration = this.reducedMotion ? 0 : Math.sin(player.z * .7) * pace * .55;
     const playerScale = this.focal * this.projectionWidth / (2 * followDistance);
-    const horizon = this.h * .8 - height * playerScale + slope * this.w * .25 + vibration;
-    this.camera = { z: camZ, y: camY, x: player.x * .6, horizon, trackId: state.trackId };
+    const horizon = blend(this.h * .8 - height * playerScale + slope * this.w * .25 + vibration,this.h*.3);
+    const cameraX=blend(player.x*.6,0);
+    this.centerX=this.w*(.5-(this.w>this.h?.17:0)*this.pullback);
+    this.camera = { z: camZ, y: camY, x: cameraX, horizon, trackId: state.trackId };
     const nearZ = camZ + 1.01;
     const nearScale = this.focal / 1.01 * this.projectionWidth / 2;
-    road.push({ z: nearZ, x: this.w / 2 - player.x * .6 * nearScale, y: horizon - (elevationAt(nearZ, state.trackId) - camY) * nearScale, scale: nearScale, worldX: 0, clip: this.h });
+    road.push({ z: nearZ, x: this.centerX - cameraX * nearScale, y: horizon - (elevationAt(nearZ, state.trackId) - camY) * nearScale, scale: nearScale, worldX: 0, clip: this.h });
     for (let i = 0; i < 520; i++) {
       const z = start + i * segment, dz = z - camZ;
       if (z <= nearZ) continue;
@@ -141,7 +150,7 @@ export class Renderer {
       dx += curve * .0008 * segment;
       wx += dx * segment;
       const scale = this.focal / dz * this.projectionWidth / 2;
-      const x = this.w / 2 + (wx - player.x * .6) * scale;
+      const x = this.centerX + (wx - cameraX) * scale;
       const y = horizon - (elevationAt(z, state.trackId) - camY) * scale;
       road.push({ z, x, y, scale, worldX: wx, clip: this.h });
     }
@@ -247,7 +256,7 @@ export class Renderer {
         c.fillStyle = `rgba(${condition==='night'?'34,57,76':condition==='rain'?'130,154,164':condition==='day'?'185,218,220':'203,183,165'},${clamp((a.z - this.player(state).z - 140) / 1600, 0, .35)})`;
         c.fillRect(0, b.y, w, a.y - b.y + .1);
       }
-      if (Math.abs(a.z - track.distance) < 18) {
+      if (Math.abs(a.z - track.distance) < 1.6) {
         for (let col = 0; col < 18; col++) for (let row = 0; row < 2; row++) {
           const l = col / 9 - 1, r = (col + 1) / 9 - 1;
           const t = row / 2, u = (row + 1) / 2;
@@ -267,7 +276,7 @@ export class Renderer {
     const a = pts[lo], b = pts[lo + 1], t = clamp((z - a.z) / (b.z - a.z), 0, 1);
     const scale = this.focal / Math.max(1, z - this.camera.z) * this.projectionWidth / 2;
     const wx = a.worldX + (b.worldX - a.worldX) * t;
-    const road = this.w / 2 + (wx - this.camera.x) * scale;
+    const road = this.centerX + (wx - this.camera.x) * scale;
     return { x: road + lateral * scale, y: this.camera.horizon - (elevationAt(z, this.camera.trackId) - this.camera.y) * scale, scale, road, clip: a.clip };
   }
   private scenery(state: RaceState, track: Track, z: number, i: number) {
@@ -427,8 +436,10 @@ export class Renderer {
       c.rotate(1.25); c.translate(-height * .23, -width * .14);
       for (let i = 0; i < 8; i++) { c.fillStyle = i % 2 ? '#f9cd8b' : '#d2b78d'; c.fillRect(-width * .8 + Math.sin(state.time * 13 + i) * width, -height * .2 - i * 3, 4, 4); }
     } else { c.rotate(leanAngle); if (!this.reducedMotion) c.translate(0, Math.sin(r.z * 1.1) * Math.min(1, r.speed / 50) * height * .003); }
-    const pose = r.attack && r.attack.age > .08 ? r.attack.kind : 'ride';
-    c.drawImage(bikeSprite(r.color, pose, r.attack?.side ?? 1, r.profile === 'police', r.speed > 8 ? Math.floor(r.z * 1.6) % 3 : 0, getBike(r.bikeId).style,getKneePad(r.kneePadId)?.color,kneeSide,r.weaponId,stunting(r),r.helmetId,r.helmetColorId), -width / 2, -height, width, height);
+    const champion=r.id===this.winnerId && r.finishedAt!==null;
+    const pose = champion?'celebrate':r.attack && r.attack.age > .08 ? r.attack.kind : 'ride';
+    const frame=champion?(this.reducedMotion?0:Math.floor(state.time*3)%3):r.speed > 8 ? Math.floor(r.z * 1.6) % 3 : 0;
+    c.drawImage(bikeSprite(r.color, pose, r.attack?.side ?? 1, r.profile === 'police', frame, getBike(r.bikeId).style,getKneePad(r.kneePadId)?.color,kneeSide,r.weaponId,stunting(r),r.helmetId,r.helmetColorId), -width / 2, -height, width, height);
     if((r.nitroTime ?? 0)>0 && !r.crash){
       for(const side of [-1,1]){
         const x=side*width*.26,flicker=.8+Math.sin(state.time*45)*.2;
@@ -437,7 +448,11 @@ export class Renderer {
       }
     }
     c.restore();
-    if (!player && height > 58 && !r.crash && p.y < p.clip + 5) {
+    if(champion && height>30){
+      c.save();c.textAlign='center';c.font="700 12px 'Barlow Condensed',sans-serif";const text=player?'VOCÊ VENCEU':`${r.name} VENCEU`,tw=c.measureText(text).width,y=p.y-height-8;
+      c.fillStyle='#172c32d9';c.fillRect(p.x-tw/2-5,y-12,tw+10,17);c.fillStyle='#deff70';c.fillText(text,p.x,y);c.restore();
+    }
+    if (!this.cinematic && !champion && !player && height > 58 && !r.crash && p.y < p.clip + 5) {
       c.save();
       c.font = `600 ${clamp(height * .13, 10, 13)}px monospace`; c.textAlign = 'center';
       const y = p.y - lift - height - 12;
@@ -448,7 +463,7 @@ export class Renderer {
       if (targetId === r.id) { c.strokeStyle = '#e2ff7b'; c.lineWidth = 2; c.beginPath(); c.moveTo(p.x - width * .5, p.y - height * .5 - 8); c.lineTo(p.x - width * .5 - 7, p.y - height * .5); c.lineTo(p.x - width * .5, p.y - height * .5 + 8); c.stroke(); }
       c.restore();
     }
-    if(r.speech && r.speech.until>state.time && !r.crash && !r.out && height>40) {
+    if(!this.cinematic && r.speech && r.speech.until>state.time && !r.crash && !r.out && height>40) {
       const text=TAUNTS[r.speech.index];if(!text)return;
       c.save();c.font=`600 ${player?13:11}px 'Barlow',sans-serif`;c.textAlign='center';c.textBaseline='middle';
       const headX=p.x+Math.sin(leanAngle)*height*.9,headY=p.y-lift-Math.cos(leanAngle)*height;
@@ -484,8 +499,47 @@ export class Renderer {
     for(let i=0;i<18;i++){const age=(time*1.7+visualHash(i*13))%1,x=visualHash(i*91)*w,y=h*(.6+visualHash(i*51)*.35);c.moveTo(x-age*4,y);c.lineTo(x+age*4,y);}
     c.stroke();
   }
-  render(state: RaceState, menu = false, localId = 'player') {
+  private finishArea(state: RaceState, entities: {z:number;draw:()=>void}[]) {
+    const length=getTrack(state.trackId).distance,half=roadHalf(state.trackId),c=this.ctx,condition=raceCondition(state.condition);
+    if(this.camera.z<length-1500 || this.camera.z>length+80)return;
+    for(const side of [-1,1]){
+      for(let i=0;i<2;i++){
+        const z=length+10+i*25,x=side*(half+4.5);
+        entities.push({z,draw:()=>{
+          const p=this.project(z,x);if(!p || p.y>p.clip+4)return;
+          c.save();c.beginPath();c.rect(0,0,this.w,p.clip);c.clip();c.fillStyle='#10252c70';c.beginPath();c.ellipse(p.x,p.y,p.scale*2.3,p.scale*.4,0,0,Math.PI*2);c.fill();
+          c.drawImage(carSprite(side>0?(i?'#679d9d':'#d97453'):(i?'#ddd5b9':'#aabcca'),true,i===1),p.x-p.scale*2.1,p.y-p.scale*3.4,p.scale*4.2,p.scale*3.4);c.restore();
+        }});
+      }
+      for(let i=0;i<9;i++){
+        const z=length-5+i*5,x=side*(half+1.35+(i%3)*.7),index=i+(side>0?3:0);
+        entities.push({z,draw:()=>{
+          const p=this.project(z,x);if(!p || p.y>p.clip+3)return;
+          const frame=this.reducedMotion?0:Math.floor(state.time*4+i*.7)%3;
+          const h=p.scale*2.6,w=h*36/56;c.save();c.beginPath();c.rect(0,0,this.w,p.clip);c.clip();
+          c.drawImage(finishFan(index,!!this.winnerId,frame,condition),p.x-w/2,p.y-h,w,h);c.restore();
+        }});
+      }
+    }
+    entities.push({z:length,draw:()=>{
+      const p=this.project(length,0);if(!p || p.y>p.clip+4)return;
+      const left=p.road-(half+.8)*p.scale,width=(half*2+1.6)*p.scale,top=p.y-10.5*p.scale;
+      c.save();c.beginPath();c.rect(0,0,this.w,p.clip);c.clip();
+      for(const x of [left,left+width-.22*p.scale]){
+        c.fillStyle='#293e46';c.fillRect(x,top,.22*p.scale,10.5*p.scale);c.fillStyle='#d4d7bc';c.fillRect(x,top,.07*p.scale,10.5*p.scale);
+      }
+      c.drawImage(finishBanner(),left,top,width,p.scale*2.1);
+      if(condition==='night' || condition==='rain')for(let i=0;i<10;i++){
+        c.fillStyle=i%2?'#deff70':'#fff0cb';c.beginPath();c.arc(left+width*(i+.5)/10,top+2.2*p.scale,Math.max(1,.055*p.scale),0,Math.PI*2);c.fill();
+      }
+      c.restore();
+    }});
+  }
+  render(state: RaceState, menu = false, localId = 'player', finishElapsed: number | null = null) {
     this.localId = localId;
+    this.cinematic=!menu && finishElapsed!==null;
+    const finish=finishScene(state,localId,menu?null:finishElapsed);
+    this.winnerId=menu?null:finish.winnerId;this.pullback=menu?0:this.reducedMotion&&finishElapsed!==null?1:finish.pullback;state=finish.state;
     const c = this.ctx, track = conditionTrack(getTrack(state.trackId),state.condition), player = this.player(state);
     c.save();
     if (this.shake > .1 && !this.reducedMotion) { c.translate(this.w / 2, this.h / 2); c.scale(1.016, 1.016); c.translate(-this.w / 2, -this.h / 2); c.translate(Math.sin(state.tick * 8) * this.shake, Math.cos(state.tick * 7) * this.shake * .6); this.shake *= .83; }
@@ -494,8 +548,9 @@ export class Renderer {
     this.road(state, track); this.roadside(state);
     this.speedFlow(state, menu);
     const entities: { z: number; draw: () => void }[] = [];
-    const first = Math.floor((player.z - 12) / 28);
-    for (let i = first; i < first + 55; i++) entities.push({ z: i * 28 + 12, draw: () => this.scenery(state, track, i * 28 + 12, i) });
+    const first = Math.floor(this.camera.z / 28);
+    for (let i = first; i < first + 55; i++) if(Math.abs(i*28+12-track.distance)>65)entities.push({ z: i * 28 + 12, draw: () => this.scenery(state, track, i * 28 + 12, i) });
+    if(!menu)this.finishArea(state,entities);
     const scenic=menu?null:scenicAppearance(state);
     for (const t of state.traffic) if (t.z > player.z - 12 && t.z < player.z + 1900) entities.push({ z: t.z, draw: () => {
       const p = this.project(t.z, t.x); if (!p || p.y > p.clip + 35) return;
@@ -543,7 +598,7 @@ export class Renderer {
       c.drawImage(folkloreSprite(scenic.kind==='saci'?'saci':'boitata',this.reducedMotion?0:Math.floor(scenic.age*4)%3),p.x-width/2,p.y-height,width,height);c.restore();
     }});
     const target = nearestTarget(state, player, player.weapon ? 'weapon' : 'punch');
-    for (const r of state.riders) if (r.z > player.z - 14 && r.z < player.z + 1900) entities.push({ z: r.z, draw: () => this.rider(r, state, target?.id) });
+    for (const r of state.riders) if (r.z > this.camera.z && r.z < player.z + 1900) entities.push({ z: r.z, draw: () => this.rider(r, state, target?.id) });
     entities.sort((a, b) => b.z - a.z).forEach(e => e.draw());
     this.atmosphere(state);
     // Subtle raster texture, with a soft lower edge for the instruments.

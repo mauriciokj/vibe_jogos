@@ -71,14 +71,16 @@ export function bikeSprite(color: string, pose = 'ride', side = 1, police = fals
   // Handlebars and bent arms. Customs draw their raised arms below.
   if (!low) {
   rect(16, 43, 56, 4, '#29303c'); rect(12, 42, 8, 6, '#d4d8ca'); rect(68, 42, 8, 6, '#d4d8ca');
-  poly([28, 26, 34, 34, 27, 45, 19, 49, 15, 43, 20, 32], dark);
-  rect(14, 41, 8, 7, '#a59c91'); rect(20, 30, 6, 12, color);
+  if(pose!=='celebrate'){
+    poly([28, 26, 34, 34, 27, 45, 19, 49, 15, 43, 20, 32], dark);
+    rect(14, 41, 8, 7, '#a59c91'); rect(20, 30, 6, 12, color);
+  }
   }
   if (pose === 'punch' || pose === 'weapon') {
     poly([55, 25, 62, 28, 68, 38, 78, 31, 83, 36, 73, 48, 63, 48, 55, 37], color);
     rect(76, 29, 10, 9, '#b99789'); rect(82, 27, 5, 7, dark);
     if (pose === 'weapon') drawHeldWeapon(c,82,30,weaponId);
-  } else if (!low) {
+  } else if (!low && pose!=='celebrate') {
     poly([55, 26, 65, 32, 72, 43, 68, 49, 61, 45, 53, 34], dark);
     rect(65, 41, 8, 7, '#a59c91'); rect(61, 30, 6, 12, color);
   }
@@ -101,13 +103,24 @@ export function bikeSprite(color: string, pose = 'ride', side = 1, police = fals
     for (const direction of [-1,1]) {
       if (direction === 1 && (pose === 'punch' || pose === 'weapon')) continue;
       c.strokeStyle = '#bdc8c9';c.lineWidth=3;c.beginPath();c.moveTo(44+direction*20,47);c.lineTo(44+direction*31,barY);c.lineTo(44+direction*35,barY);c.stroke();
+      if(pose==='celebrate')continue;
       c.strokeStyle = '#33363d';c.lineWidth=7;c.beginPath();c.moveTo(44+direction*13,30);c.lineTo(44+direction*23,36);c.lineTo(44+direction*31,barY+2);c.stroke();
       rect(42+direction*31,barY,6,5,'#b99789');
     }
   }
+  if(pose==='celebrate')drawVictoryArms(c,color,frame);
   c.restore();
   if (police) { rect(24, 71, 10, 7, '#539ff7'); rect(55, 71, 10, 7, '#ff5d5b'); rect(38, 33, 14, 5, '#e5e8eb'); }
   return rememberRider(key,canvas);
+}
+
+function drawVictoryArms(c: CanvasRenderingContext2D, color: string, frame: number) {
+  for(const side of [-1,1]){
+    const y=3+(frame%3)*3;
+    c.strokeStyle='#20313c';c.lineWidth=10;c.beginPath();c.moveTo(44+side*12,29);c.lineTo(44+side*24,20);c.lineTo(44+side*30,y+3);c.stroke();
+    c.strokeStyle=color;c.lineWidth=6;c.stroke();
+    c.fillStyle='#e0b58c';c.fillRect(41+side*30,y-2,7,7);c.fillStyle='#263541';c.fillRect(41+side*30,y+3,7,3);
+  }
 }
 
 function drawRearBody(c: CanvasRenderingContext2D, color: string, style: BikeStyle, frame: number) {
@@ -176,11 +189,13 @@ export function bikeFrontSprite(color: string, style: BikeStyle = 'street', pose
   c.strokeStyle='#bac7c5';c.lineWidth=4;c.beginPath();c.moveTo(14,custom?24:44);c.lineTo(30,47);c.lineTo(58,47);c.lineTo(74,custom?24:44);c.stroke();
   c.strokeStyle=custom?'#303039':color;c.lineWidth=8;c.beginPath();
   for(const direction of [-1,1]) {
+    if(pose==='celebrate')continue;
     if(direction===side&&(pose==='punch'||pose==='weapon'))continue;
     c.moveTo(44+direction*13,32);c.lineTo(44+direction*28,custom?25:46);
   }
   c.stroke();
   r(39,29,10,4,'#b89882');c.save();if(wheelie)c.translate(0,10);drawHelmet(c,helmetId,helmetColorId,true);c.restore();
+  if(pose==='celebrate')drawVictoryArms(c,color,frame);
   if(pose==='punch'||pose==='weapon'){c.strokeStyle=color;c.lineWidth=8;c.beginPath();c.moveTo(44,34);c.lineTo(44+side*36,36);c.stroke();if(pose==='weapon')drawHeldWeapon(c,side>0?82:6,35,weaponId);}
   if(pose==='kick'){c.strokeStyle='#29353e';c.lineWidth=9;c.beginPath();c.moveTo(44,70);c.lineTo(44+side*36,85);c.stroke();}
   if(police){r(19,75,10,7,frame%2?'#70b0fa':'#f87d66');r(59,75,10,7,frame%2?'#f87d66':'#70b0fa');}

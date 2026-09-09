@@ -33,7 +33,8 @@
     "test:balance": "tsx tests/difficulty-benchmark.ts",
     "test:public-rooms": "tsx tests/public-rooms-browser.ts",
     "test:recovery": "tsx tests/connection-recovery-browser.ts",
-    "test:hud": "tsx tests/hud-browser.ts"
+    "test:hud": "tsx tests/hud-browser.ts",
+    "test:finish": "tsx tests/finish-browser.ts"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
