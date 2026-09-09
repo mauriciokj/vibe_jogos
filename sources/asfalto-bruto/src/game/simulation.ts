@@ -41,6 +41,13 @@ export function stockBike(id?: string) {
   return { bikeId: bike.id, maxSpeed: bike.speed, acceleration: bike.acceleration, handling: bike.handling, armor: bike.armor };
 }
 
+// A few cornering specialists use ordinary shop equipment. Choppers, brawlers
+// and police keep their original approach; there is no hidden grip bonus.
+function rivalKneePad(bikeId: string | undefined, profile: Rider['profile'], level: number) {
+  if(!supportsKneeDown(bikeId) || (profile!=='fast' && profile!=='careful'))return undefined;
+  return profile==='fast' && level>=2 ? 'purple' : level>=1 ? 'blue' : 'green';
+}
+
 export function createRace(trackId = 'costa', save?: SaveData, seed = 88117, condition: RaceCondition = 'sunset'): RaceState {
   const bike = getBike(save?.bikeId);
   const up = save?.upgrades[bike.id] ?? { engine: 0, armor: 0, handling: 0 };
@@ -57,7 +64,8 @@ export function createRace(trackId = 'costa', save?: SaveData, seed = 88117, con
     const r = makeRider(`rival-${i}`, name, profiles[i], colors[i], i % 2 ? -1.5 : 3.8, 7 + i * 9);
     r.helmetId=HELMETS[i%HELMETS.length].id;r.helmetColorId=HELMET_COLORS[(i+2)%HELMET_COLORS.length].id;
     Object.assign(r,stockBike(BIKES[(i+1)%BIKES.length].id));
-    r.maxSpeed *= .92 + getTrack(trackId).level * .025;
+    r.maxSpeed *= .95 + getTrack(trackId).level * .02;
+    const pad=rivalKneePad(r.bikeId,r.profile,getTrack(trackId).level);if(pad)r.kneePadId=pad;
     r.weapon = i === 1 || i === 3 || i === 6;
     return r;
   })];
@@ -167,12 +175,18 @@ export function botCommand(state: RaceState, rider: Rider): Command {
   const nearby = nearestTarget(state, rider, rider.weapon ? 'weapon' : 'punch');
   if (nearby && rider.cooldown === 0 && (rider.profile !== 'careful' || state.tick % 80 < 8)) attack = rider.weapon ? 'weapon' : rider.profile === 'aggressive' ? 'kick' : 'punch';
   const curve = curveAt(rider.z, state.trackId);
+  // Dry bends allow the same four-second technique as the player. In rain the
+  // AI takes the bend upright and plans braking without an inactive pad bonus.
+  const kneeCapable=!police && raceCondition(state.condition)!=='rain' && supportsKneeDown(rider.bikeId) && !!getKneePad(rider.kneePadId);
   const forces = cornerForces(rider.speed, cornerHandling(rider,curve,state.trackId) * surfaceGrip(state.trackId,state.condition), curve, Math.abs(rider.x) > roadHalf(state.trackId));
   const steering = clamp((target - rider.x) * .9 + forces.drift / forces.lateral, -1, 1);
-  const pace = cornerPace(rider.z, state.trackId, rider.handling, state.condition, rider.kneePadId) * (rider.profile === 'careful' ? .92 : rider.profile === 'fast' ? 1.03 : .98);
+  const canLean=kneeCapable && steering*Math.sign(curve)>=-.2 && Math.abs(rider.x)<=roadHalf(state.trackId) && !stunting(rider);
+  const action=canLean && !(rider.kneeTime!>0) && rider.speed>=24 && Math.abs(curve)>.5
+    ? curve>0?'kneeRight':'kneeLeft' : undefined;
+  const pace = cornerPace(rider.z, state.trackId, rider.handling, state.condition, canLean?rider.kneePadId:undefined) * (rider.profile === 'careful' ? .94 : rider.profile === 'fast' ? 1.03 : .98);
   brake = Math.max(brake, clamp((rider.speed - pace) * .3, 0, 1));
   if (police && rider.z > player.z + 7) brake = Math.max(brake, .42);
-  return { throttle: rider.speed > pace - .6 || brake > .1 ? 0 : 1, brake, steer: steering, attack };
+  return { throttle: rider.speed > pace - .6 || brake > .1 ? 0 : 1, brake, steer: steering, attack, ...(action?{action}: {}) };
 }
 
 export function policeTarget(state: RaceState, officer: Rider): Rider | undefined {
@@ -311,7 +325,8 @@ export function createMultiplayerRace(trackId: string, players: { id: string; na
   state.riders = players.map((p,i) => ({ ...base, ...stockBike(p.bikeId), helmetId:getHelmet(p.helmetId).id, helmetColorId:getHelmetColor(p.helmetColorId).id, weaponId:getWeapon(p.weaponId)?.id, kneePadId:getKneePad(p.kneePadId)?.id, nitro:nitroCount(p.bikeId,p.nitro), id: p.id, name: p.name, color: colors[i], x: grid[i%grid.length], z: -(Math.floor(i/grid.length)*(trackId==='terra'?10:8)), profile: 'player' }));
   if (fillBots) for (let i = players.length; i < 8; i++) {
     const bot = bots[i - players.length];
-    state.riders.push({ ...base, ...stockBike(BIKES[i%BIKES.length].id), helmetId:bot.helmetId, helmetColorId:bot.helmetColorId, id: `cpu-${i}`, name: `${bot.name} CPU`, profile: bot.profile, color: colors[i], x: grid[i%grid.length], targetX: grid[i%grid.length], z: -(Math.floor(i/grid.length)*(trackId==='terra'?10:8)) });
+    const bike=BIKES[i%BIKES.length],pad=rivalKneePad(bike.id,bot.profile,getTrack(trackId).level);
+    state.riders.push({ ...base, ...stockBike(bike.id), ...(pad?{kneePadId:pad}:{}), helmetId:bot.helmetId, helmetColorId:bot.helmetColorId, id: `cpu-${i}`, name: `${bot.name} CPU`, profile: bot.profile, color: colors[i], x: grid[i%grid.length], targetX: grid[i%grid.length], z: -(Math.floor(i/grid.length)*(trackId==='terra'?10:8)) });
   }
   state.multiplayer = { humanIds: players.map(p => p.id), results: {} };
   return state;

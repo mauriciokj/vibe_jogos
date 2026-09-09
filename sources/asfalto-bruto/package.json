@@ -28,7 +28,9 @@
     "test:guardrails": "tsx tests/guardrails-browser.ts",
     "test:guardrail-audio": "tsx tests/guardrail-audio-browser.mjs",
     "test:helmets": "tsx tests/helmets-browser.ts",
-    "test:rural": "tsx tests/rural-browser.ts"
+    "test:rural": "tsx tests/rural-browser.ts",
+    "test:difficulty": "tsx tests/difficulty-browser.ts",
+    "test:balance": "tsx tests/difficulty-benchmark.ts"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
