@@ -113,3 +113,12 @@ Artefatos locais estão em `road rash/output/vps/`: `live-check.json`, `eight.js
 - A tentativa de manobra sem joelheira ou abaixo da velocidade mínima retorna silenciosamente. Requisitos da manobra e explicação na loja permanecem.
 - Build/export e verificação local/HTTPS passaram: duplo toque sem equipamento, com equipamento em baixa velocidade e ativação válida em velocidade. Nenhum toast nos dois casos recusados, sem erros JS. Imagens inspecionadas, relatórios em `output/quiet-knee/` no projeto de origem.
 - Ajuste publicado e conferido, sem pendências. Registro posterior à release, sem necessidade de nova ativação.
+
+
+### Tolerância do joelho na chuva publicada — 2026-09-08
+
+- Código `782ee62`, release `20260909T014846Z-782ee62` ativa, protocolo v9. Serviços Asfalto/Catálogo/Caddy ativos. Ativação respeitou a guarda de corridas ativas.
+- Manobra mantém os 4s originais; a queda na chuva ocorre apenas após mais de 3s contínuos de contato. Levantar o joelho zera a exposição, pausar congela e reconectar preserva o estado. Sem novos avisos de requisito. Loja/ajuda atualizadas.
+- Build e 83 testes passaram. Regressão no navegador cobriu equipamentos, controles móveis, pausa e rede. Dois humanos + seis bots confirmaram contato breve seguro, cancelamento, reconexão e queda compartilhada. Cliente da skill, estados e capturas inspecionados; relatórios em output/wet-knee e output/equipment no projeto de origem.
+- HTTPS publicado confirmou manobra de 4s, 3s exatos seguros, queda no tick seguinte e reset ao levantar. Texto atualizado nos dois domínios. Sem erros JS/console, capturas publicadas inspecionadas em output/wet-knee/published-*.png; relatório published.json. Domínio principal usou DNS temporário no Chromium mantendo TLS válido.
+- Concluído e publicado. Registro posterior à release, sem necessidade de redeploy.
