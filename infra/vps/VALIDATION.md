@@ -141,3 +141,12 @@ Artefatos locais estão em `road rash/output/vps/`: `live-check.json`, `eight.js
 - Build/export e oito testes de manobra/armas passaram. Chromium local e HTTPS público verificaram nós Web Audio reais: frequência do motor cerca de 130Hz no chão, 275Hz no ar e 85Hz após aterrissagem na fixture; retorno suave, quatro ressonâncias de metal, uma ativação por salto, pausa/mute, snapshots repetidos, caminhão sem salto e reinício. Sem erros JS/console. Trata-se de verificação instrumental, não de avaliação auditiva subjetiva.
 - Capturas de salto/pouso inspecionadas em output/jump-audio; relatórios local.json e published.json. QA público usou ?test sem aumentar visitantes. Cliente da skill com backend nativo já documentado executou largada/aceleração no HTTPS; imagem/estado inspecionados.
 - Concluído, publicado e enviado ao GitHub. Registro posterior não exige nova ativação.
+
+
+### Guard-rails sólidos publicados — 2026-09-08
+
+- Código `a5f4c90`, release `20260909T025030Z-a5f4c90` ativa, protocolo v10. Asfalto/Catálogo/Caddy ativos. A ativação respeitou a guarda de corridas ativas; salas de teste encerradas explicitamente.
+- Proteções desenhadas agora bloqueiam a moto e reduzem a velocidade por contato: Costa do Sol/Porto Ferrugem à esquerda, Serra da Fumaça nos dois lados. Não causam dano ou queda por si; virar para dentro libera o movimento. Laterais abertas preservadas. Geometria compartilhada com desenho, física, previsão e apresentação online. Obras mantidas.
+- Build/export e todos os 89 testes passaram. Navegador local verificou Porto/Chuva, Serra nos dois lados, controles móveis, dois humanos + seis bots, posições remotas e reconexão; sem erros JS/console.
+- HTTPS/WSS público entre domínio principal e subdomínio confirmou contato/velocidade/saída da proteção, obras, corrida individual e dois humanos, contenção remota e reconexão, sem erros JS/console. QA usou `?test`, sem aumentar visitantes. DNS temporário no Chromium manteve TLS validado.
+- Relatórios e capturas em `output/guardrails/` no projeto de origem, inspecionados. Cliente da skill com backend nativo já documentado passou com aceleração/direção na Costa publicada; estado e imagem revisados. Concluído, publicado e enviado ao GitHub. Registro posterior não requer nova ativação.
