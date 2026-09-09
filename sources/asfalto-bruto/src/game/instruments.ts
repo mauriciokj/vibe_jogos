@@ -1,3 +1,5 @@
+import { roadHalf, trafficShape } from './road-profile';
+import { tractorSprite } from './rural-art';
 import { jumpHeight, stunting } from './stunts';
 import { conditionTrack } from './conditions';
 import { clamp, curveAt, elevationAt, getBike, getTrack } from './content';
@@ -49,7 +51,7 @@ export class RaceInstruments {
     for (const r of awareness.racers.sort((a,b)=>Number(a.local)-Number(b.local))) {
       const n = r.progress*(this.route.points.length-1), i=Math.floor(n), a=this.route.points[i], b=this.route.points[Math.min(i+1,this.route.points.length-1)];
       const q=screen(a.x+(b.x-a.x)*(n-i),r.progress*track.distance);
-      const rider=state.riders.find(p=>p.id===r.id)!; q.x+=clamp(rider.x,-7,7)*.85;
+      const rider=state.riders.find(p=>p.id===r.id)!; q.x+=clamp(rider.x,-roadHalf(state.trackId),roadHalf(state.trackId))*.85;
       c.globalAlpha=r.out ? .4 : 1; c.fillStyle=r.local?'#deff70':r.color;
       c.beginPath();c.arc(q.x,q.y,r.local?4.5:3,0,Math.PI*2);c.fill();
       if(r.local){c.strokeStyle='#fff';c.lineWidth=1.5;c.stroke();}
@@ -83,8 +85,8 @@ export class RaceInstruments {
     for(let i=points.length-1;i>0;i--){
       const a=points[i],b=points[i-1];if(a.y>b.y)continue;
       const poly=(left:number,right:number,color:string)=>{c.fillStyle=color;c.beginPath();c.moveTo(a.x+left*a.scale,a.y);c.lineTo(a.x+right*a.scale,a.y);c.lineTo(b.x+right*b.scale,b.y);c.lineTo(b.x+left*b.scale,b.y);c.closePath();c.fill();};
-      poly(-7.6,7.6,'#e1cfad');poly(-7,7,track.road[Math.floor((me.z-a.distance)/8)%2===0?0:1]);
-      if(Math.floor((me.z-a.distance)/6)%2===0)poly(-.08,.08,'#e9c177');
+      const half=roadHalf(state.trackId);poly(-half-.6,half+.6,track.theme==='rural'?'#a18a52':'#e1cfad');poly(-half,half,track.road[Math.floor((me.z-a.distance)/8)%2===0?0:1]);
+      if(track.theme!=='rural' && Math.floor((me.z-a.distance)/6)%2===0)poly(-.08,.08,'#e9c177');
     }
     const entities=[...state.riders.filter(r=>r.id!==me.id&&!r.out).map(r=>({r,car:null,z:r.z,x:r.x})),...state.traffic.map(car=>({r:null,car,z:car.z,x:car.x}))]
       .filter(e=>me.z-e.z>0&&me.z-e.z<=MIRROR_RANGE).sort((a,b)=>a.z-b.z);
@@ -92,14 +94,16 @@ export class RaceInstruments {
       const p=project(me.z-e.z,e.x);if(p.y>p.clip+12)continue;
       const size=Math.min(h*.68,p.scale*(e.car?3.3:3.5));
       c.save();c.beginPath();c.rect(0,0,w,Math.min(h,p.clip+12));c.clip();c.translate(p.x,p.y);
-      if(e.car?.kind==='truck'){
+      if(e.car?.kind==='tractor'){
+        const shape=trafficShape(state.trackId,'tractor'),width=Math.min(h*.68,p.scale*shape.width);c.drawImage(tractorSprite(e.car.color,e.car.speed>=0,Math.floor(e.car.z*.8)%2),-width/2,-width*1.08,width,width*1.08);
+      }else if(e.car?.kind==='truck'){
         const width=Math.min(h*.68,p.scale*4.5);c.drawImage(truckSprite(e.car.color,e.car.speed>=0),-width/2,-width*1.25,width,width*1.25);
       }else if(e.car){
         c.fillStyle=e.car.color;c.fillRect(-size*.5,-size*.65,size,size*.55);
         c.fillStyle='#293e48';c.fillRect(-size*.32,-size*.6,size*.64,size*.22);
         c.fillStyle=e.car.speed>=0?'#fff0b8':'#f78061';c.fillRect(-size*.4,-size*.28,size*.2,size*.1);c.fillRect(size*.2,-size*.28,size*.2,size*.1);
       }else if(e.r){
-        const r=e.r; c.translate(0,-jumpHeight(r)*p.scale); const support=kneeSupport(r,curveAt(r.z,state.trackId));c.rotate(r.crash?1.2:-(r.lean*(1-support)+support*(r.kneeSide ?? 0)*.59));
+        const r=e.r; c.translate(0,-jumpHeight(r)*p.scale); const support=kneeSupport(r,curveAt(r.z,state.trackId),state.trackId);c.rotate(r.crash?1.2:-(r.lean*(1-support)+support*(r.kneeSide ?? 0)*.59));
         const width=size*88/128;
         c.drawImage(bikeFrontSprite(r.color,getBike(r.bikeId).style,r.attack?.kind ?? 'ride',r.attack?.side ?? 1,r.profile==='police',Math.floor(state.time*8)%3,getKneePad(r.kneePadId)?.color,support>.35?-(r.kneeSide ?? 0):0,r.weaponId,stunting(r),r.helmetId,r.helmetColorId),-width/2,-size,width,size);
       }

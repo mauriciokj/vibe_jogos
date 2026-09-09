@@ -1,3 +1,4 @@
+import { roadHalf } from './road-profile';
 import type { Command, RaceState, Rider, Traffic } from './types';
 
 export const WHEELIE_USES = 3;
@@ -17,7 +18,7 @@ export function advanceStunt(state: RaceState, rider: Rider, command: Command, d
   }
   if(!rider.wheelieTime)return;
   rider.wheelieTime=Math.max(0,rider.wheelieTime-dt);
-  if(command.brake>.2 || rider.speed<WHEELIE_MIN_SPEED || Math.abs(rider.x)>7)rider.wheelieTime=0;
+  if(command.brake>.2 || rider.speed<WHEELIE_MIN_SPEED || Math.abs(rider.x)>roadHalf(state.trackId))rider.wheelieTime=0;
   if(!rider.wheelieTime)return;
   const target=state.traffic.filter(t=>t.kind==='car' && t.speed<0 && Math.abs(t.x-rider.x)<1.7)
     .map(t=>({t,ttc:(t.z-rider.z)/(rider.speed-t.speed)}))

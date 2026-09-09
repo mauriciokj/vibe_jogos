@@ -1,7 +1,7 @@
 # Asfalto Bruto — planejamento de novas pistas
 
-Status: quatro condições nas quatro pistas, incluindo Porto Ferrugem, com sereia na Costa e passageiro decorativo no porto. Terra Brava, Mata e demais expansões continuam planejadas.
-Data: 2026-09-08.
+Status: cinco pistas implementadas e vinte combinações. Terra Brava já inclui estrada de duas faixas, barrancos, tratores e folclore. Mata Fechada é a próxima expansão; demais ideias abaixo continuam planejadas.
+Atualizado: 2026-09-09.
 
 Registro de pilotagem e combate, incluindo empinada e equipamentos já implementados, além do easter egg do Porto: [melhorias-futuras.md](melhorias-futuras.md).
 
@@ -16,6 +16,7 @@ Criar pistas com traçados, horários, clima e obstáculos reconhecíveis. Cada 
 - Costa do Sol: uma sereia pode aparecer eventualmente no mar.
 - Mata Fechada: um macaco pode aparecer entre as árvores.
 - Porto Ferrugem: personagem pendurado em um caminhão na contramão, em referência ao meme indicado pelo usuário; apenas visual. Detalhes em [melhorias-futuras.md](melhorias-futuras.md).
+- Terra Brava: uma faixa por sentido, barrancos intermitentes que bloqueiam e desaceleram sem derrubar, tratores e cenário de fazenda.
 - Adicionar uma pista de terra no interior, com muitas subidas, descidas e curvas; usar aparições inspiradas no folclore brasileiro.
 - As condições devem mudar detalhes característicos da pista, além da iluminação.
 
@@ -25,9 +26,10 @@ Criar pistas com traçados, horários, clima e obstáculos reconhecíveis. Cada 
 - Serra da Fumaça: montanha, 9,2 km, difícil.
 - Vale Vermelho: deserto, 10,2 km, brutal.
 - Porto Ferrugem: porto industrial, 7,8 km, técnico, com traçado manual.
+- Terra Brava: interior, 7,2 km, duas faixas em terra, doze curvas manuais e barrancos alternados.
 - Curvas e elevações já influenciam a pilotagem. As três pistas originais derivam de uma sequência comum, ajustada por dificuldade.
 - Trânsito: carros, vans e caminhões no porto. Obstáculos: óleo, barreiras, cones e blocos de concreto.
-- As quatro pistas oferecem Dia, Entardecer, Noite e Chuva, com aderência e frenagem menores na chuva. Neve, vento lateral e aderência localizada por superfície continuam planejados.
+- As cinco pistas oferecem Dia, Entardecer, Noite e Chuva, com aderência e frenagem menores na chuva. Neve, vento lateral e aderência localizada por superfície continuam planejados.
 
 ## Ideias de pistas novas
 
@@ -62,7 +64,7 @@ A tabela indica uma versão que apresenta bem a identidade de cada pista. **Toda
 
 Apresentação ajustada a pedido do usuário: **cada combinação aparece como uma opção de pista**, como Costa do Sol · Dia e Costa do Sol · Chuva. No individual, usar cartões com navegação lateral; ao criar sala, uma lista combinada. O menu usa fluxo normal e rolagem em janelas baixas para impedir sobreposição dos controles. Internamente, os IDs de pista e condição continuam separados para preservar saves, recordes e regras da sala. A versão Chuva começa durante o dia, com céu encoberto. Horário e precipitação serão parâmetros separados internamente, permitindo combinar noite e chuva futuramente. Não acrescentar essas combinações extras ao escopo inicial.
 
-Três pistas com quatro condições resultam em **12 combinações jogáveis**. A lista de planejamento agora contém 12 traçados candidatos contando os três existentes, portanto poderia chegar a **48 combinações** se todos forem construídos. A multiplicação reaproveita o traçado; cada condição recebe cenário, efeitos e balanceamento adequados.
+As cinco pistas implementadas com quatro condições resultam em **20 combinações jogáveis**. A lista de planejamento agora contém 12 traçados candidatos contando os três existentes, portanto poderia chegar a **48 combinações** se todos forem construídos. A multiplicação reaproveita o traçado; cada condição recebe cenário, efeitos e balanceamento adequados.
 
 A condição é escolhida antes da largada e fica estável durante a corrida na primeira implementação. Recordes devem identificar pista e condição, porque visibilidade e piso podem mudar os tempos. As quatro versões pertencem à mesma pista e acompanham seu desbloqueio na campanha.
 
@@ -107,18 +109,19 @@ As demais pistas seguem a mesma lógica: variar pose, iluminação ou situação
 8. O sorteio decorativo deve ser independente do gerador aleatório da física/IA. Desativar o desenho de uma aparição não pode mudar nenhum resultado da corrida.
 9. Uma aparição pode acompanhar um veículo físico, como o caminhão do Porto Ferrugem. Nesse caso, apenas o personagem decorativo não tem colisão; o veículo mantém seu comportamento normal e continua sendo um obstáculo.
 
-## Terra Brava: proposta da pista de terra
+## Terra Brava: implementação inicial — 2026-09-09
 
-Uma estrada de chão vermelho pelo interior, com cercas, fazendas, pequenas pontes, árvores e morros. Diferenciar da Estrada das Fazendas, cuja proposta continua sendo uma rodovia asfaltada rural.
+Implementado: 7,2 km de chão vermelho, uma faixa por sentido (8,4 m no total), cercas, casas, celeiros, feno, cata-ventos, árvores e morros. A campanha libera as quatro versões após um top 5 no Porto, inclusive em recordes anteriores; online a pista já pode ser escolhida. Pequenas pontes, valetas e pedras grandes ficam para uma expansão posterior. Diferenciar da Estrada das Fazendas, cuja proposta continua sendo uma rodovia asfaltada rural.
 
 - **Traçado:** muitas mudanças de elevação, curvas em S entre morros, descidas sinuosas e pequenas retas de recuperação. Subidas e descidas precisam ser reconhecíveis na câmera e no desenho da estrada.
 - **Pilotagem:** a terra tem aderência e resistência ao rolamento próprias; não aplicar simplesmente uma penalidade extrema de acostamento à pista inteira. As sete motos devem conseguir percorrê-la.
-- **Elevação:** avaliar efeito moderado de subida sobre aceleração e de descida sobre frenagem. Isso exige uma regra nova na simulação, pois não se resolve apenas pelo desenho do relevo.
-- **Obstáculos:** valetas e pedras visíveis, pequenos bolsões de cascalho, tratores lentos e passagem estreita sinalizada. Obstáculos nunca devem ficar escondidos imediatamente após um topo de morro.
+- **Elevação:** relevo próprio com efeito moderado da inclinação na aceleração e na frenagem, aplicado igualmente no servidor e na previsão.
+- **Obstáculos atuais:** tratores lentos e carros em ambos os sentidos, com dimensões adequadas às duas faixas. Cascalho seco ou lama na chuva em quatro trechos de reta, sempre deixando passagem. Não é possível saltar tratores.
+- **Barrancos:** seis segmentos alternando os lados, com aproximação gradual em 64 m. Bloqueiam a moto e dissipam velocidade, inclusive empurrões e posições online. Contato toca terra/pedras raspando; sem dano ou queda pelo barranco. Cercas são decorativas e os intervalos continuam abertos.
 - **Dia/entardecer:** poeira acompanhando as motos, com intensidade limitada para preservar a visão; sombras ajudam a ler as ondulações.
 - **Noite:** faróis, refletores, luzes de casas distantes e o Boitatá no cenário.
 - **Chuva:** a poeira dá lugar a lama e poças; faixas mais firmes precisam continuar transitáveis. Água e lama não devem transformar toda tentativa de curva em queda inevitável.
-- **Folclore:** começar com uma interpretação visual original do Saci, depois adicionar o Boitatá à noite. São surpresas decorativas, nunca ameaças que perseguem o piloto.
+- **Folclore:** Saci no seco/chuva e Boitatá à noite; chance de 33%, duração de oito segundos, com escolha e relógio compartilhados. São surpresas decorativas, nunca ameaças que perseguem o piloto.
 
 ## Comportamento dos novos obstáculos
 

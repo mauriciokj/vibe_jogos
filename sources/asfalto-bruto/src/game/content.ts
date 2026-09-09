@@ -1,5 +1,6 @@
+import { RURAL_CORNERS, ruralElevation } from './rural';
+import { surfaceGrip, surfaceBraking } from './road-profile';
 import { PORT_CORNERS } from './port';
-import { brakeGrip, roadGrip } from './conditions';
 import { plannedCornerHandling } from './equipment';
 import type { Track, RaceCondition } from './types';
 
@@ -9,6 +10,7 @@ export const TRACKS: Track[] = [
   { id: 'serra', name: 'Serra da Fumaça', region: 'ESTRADA DA MONTANHA', distance: 9200, difficulty: 'DIFÍCIL', prize: 1850, index: 1, level: 1, theme: 'mountain', sky: ['#555f83', '#b794b1', '#f2c2b5'], land: ['#728b70', '#637e67'], road: ['#555962', '#50545c'], accent: '#b9a0f8' },
   { id: 'deserto', name: 'Vale Vermelho', region: 'FRONTEIRA DO DESERTO', distance: 10200, difficulty: 'BRUTAL', prize: 2300, index: 2, level: 2, theme: 'desert', sky: ['#69678d', '#e2908b', '#ffcb95'], land: ['#bc8165', '#b3785d'], road: ['#5c5356', '#564e51'], accent: '#ffac6f' },
   { id: 'porto', name: 'Porto Ferrugem', region: 'DISTRITO PORTUÁRIO', distance: 7800, difficulty: 'TÉCNICA', prize: 2200, index: 3, level: 1, theme: 'port', sky: ['#52697b','#c58c79','#f2cc98'], land: ['#797d76','#70766f'], road: ['#535f62','#4b575b'], accent: '#ffc16a' },
+  { id: 'terra', name: 'Terra Brava', region: 'CAMINHOS DO INTERIOR', distance: 7200, difficulty: 'TERRA', prize: 2500, index: 4, level: 1, theme: 'rural', sky: ['#577f91','#dfa385','#f7d5a4'], land: ['#829454','#78874c'], road: ['#b77749','#b27346'], accent: '#efbd80' },
 ];
 export function getTrack(id: string): Track { return TRACKS.find(t => t.id === id) ?? TRACKS[0]; }
 export function clamp(v: number, min: number, max: number) { return Math.min(max, Math.max(min, v)); }
@@ -18,6 +20,7 @@ export function trackCorners(trackId: string): Corner[] {
   const track = getTrack(trackId), cached = cornerCache.get(track.id);
   if (cached) return cached;
   if(track.theme==='port')return PORT_CORNERS;
+  if(track.theme==='rural')return RURAL_CORNERS;
   const corners: Corner[] = [];
   const strengths = [1.65, 2.3, 1.4, 2.05, 2.6, 1.75];
   let start = 650;
@@ -43,8 +46,8 @@ export function cornerSpeed(curve: number, handling = 1.1) {
 export function cornerPace(z: number, trackId: string, handling = 1.1, condition: RaceCondition = 'sunset', kneePadId?: string) {
   let speed = 120;
   for (let ahead = 0; ahead <= 240; ahead += 20) {
-    const safe = cornerSpeed(curveAt(z + ahead, trackId), plannedCornerHandling(handling,kneePadId) * roadGrip(condition));
-    speed = Math.min(speed, Math.sqrt(safe * safe + 2 * 19 * brakeGrip(condition) * Math.max(0, ahead - 12)));
+    const safe = cornerSpeed(curveAt(z + ahead, trackId), plannedCornerHandling(handling,kneePadId) * surfaceGrip(trackId,condition));
+    speed = Math.min(speed, Math.sqrt(safe * safe + 2 * 19 * surfaceBraking(trackId,condition) * Math.max(0, ahead - 12)));
   }
   return speed;
 }
@@ -59,10 +62,11 @@ export function cornerForces(speed: number, handling: number, curve: number, sho
 }
 export function upcomingCorner(z: number, trackId: string, handling = 1.1, condition: RaceCondition = 'sunset', kneePadId?: string) {
   const c = trackCorners(trackId).find(c => c.end - 35 > z && c.start - z <= 240);
-  return c ? { direction: c.bend > 0 ? 'right' : 'left', distance: Math.max(0, Math.round(c.start - z)), speed: Math.floor(cornerSpeed(c.bend, plannedCornerHandling(handling,kneePadId) * roadGrip(condition)) * 3.6 / 5) * 5, tight: Math.abs(c.bend) >= 2 } : null;
+  return c ? { direction: c.bend > 0 ? 'right' : 'left', distance: Math.max(0, Math.round(c.start - z)), speed: Math.floor(cornerSpeed(c.bend, plannedCornerHandling(handling,kneePadId) * surfaceGrip(trackId,condition)) * 3.6 / 5) * 5, tight: Math.abs(c.bend) >= 2 } : null;
 }
 export function elevationAt(z: number, trackId: string) {
   const track=getTrack(trackId);
+  if(track.theme==='rural')return ruralElevation(z);
   if(track.theme==='port')return Math.sin(z/900)*2.5+Math.sin(z/260)*.6;
   const i = track.level;
   return (Math.sin(z / 640) * 17 + Math.sin(z / 265) * 3.5) * (i === 1 ? 2.5 : 1);

@@ -1,3 +1,6 @@
+import { bankStrength } from './rural';
+import { roadHalf, trafficShape } from './road-profile';
+import { farmSprite, tractorSprite, folkloreSprite, type FarmProp } from './rural-art';
 import { GUARD_RAIL_X, hasGuardRail } from './guardrails';
 import { portSprite, portHorizon, type PortProp } from './port-art';
 import { PORT_WORKS } from './port';
@@ -5,7 +8,7 @@ import { jumpHeight, stunting } from './stunts';
 import { conditionTrack, raceCondition, scenicAppearance, seaColors } from './conditions';
 import { mermaidSprite } from './mermaid';
 import { clamp, curveAt, elevationAt, getBike, getTrack } from './content';
-import { nearestTarget, ROAD_HALF } from './simulation';
+import { nearestTarget } from './simulation';
 import { bikeSprite, carSprite, truckSprite } from './sprites';
 import { scenerySprite, visualHash } from './scenery';
 import { getKneePad, kneeSupport } from './equipment';
@@ -155,9 +158,14 @@ export class Renderer {
       if (a.y <= b.y || b.y >= a.clip || a.y < 0) continue;
       const alt = Math.floor(a.z / 12) % 2 === 0;
       const stripe = Math.floor(a.z / 3) % 2 === 0;
-      const aw = ROAD_HALF * a.scale, bw = ROAD_HALF * b.scale;
+      const half=roadHalf(state.trackId),rural=track.theme==='rural';
+      const aw = half * a.scale, bw = half * b.scale;
       c.save(); c.beginPath(); c.rect(0, 0, w, a.clip); c.clip();
       this.polygon([0, a.y, w, a.y, w, b.y, 0, b.y], track.land[alt ? 0 : 1]);
+      if(rural && a.y-b.y>1.2)for(const side of [-1,1])for(let field=0;field<3;field++){
+        const l=side*(12+field*8),r=side*(15+field*8);
+        this.polygon([a.x+l*a.scale,a.y,a.x+r*a.scale,a.y,b.x+r*b.scale,b.y,b.x+l*b.scale,b.y],condition==='night'?'#303e3528':'#435a3120');
+      }
       if (track.theme === 'coast') {
         this.polygon([0, a.y, a.x - aw * 2.7, a.y, b.x - bw * 2.7, b.y, 0, b.y], sea.water);
         this.polygon([a.x - aw * 2.7, a.y, a.x - aw * 2.2, a.y, b.x - bw * 2.2, b.y, b.x - bw * 2.7, b.y], sea.sand);
@@ -166,9 +174,9 @@ export class Renderer {
         this.polygon([0,a.y,a.x-aw*2,a.y,b.x-bw*2,b.y,0,b.y],sea.water);
         this.polygon([a.x-aw*2,a.y,a.x-aw*1.88,a.y,b.x-bw*1.88,b.y,b.x-bw*2,b.y],alt?'#bca06c':'#43545b');
       }
-      this.polygon([a.x - aw * 1.13, a.y, a.x + aw * 1.13, a.y, b.x + bw * 1.13, b.y, b.x - bw * 1.13, b.y], condition==='night' ? '#636e6d' : alt ? '#c2b9a0' : '#bab39b');
+      this.polygon([a.x - aw * 1.13, a.y, a.x + aw * 1.13, a.y, b.x + bw * 1.13, b.y, b.x - bw * 1.13, b.y], rural?(condition==='night'?'#665640':condition==='rain'?'#775b43':'#a18a52'):condition==='night' ? '#636e6d' : alt ? '#c2b9a0' : '#bab39b');
       this.polygon([a.x - aw, a.y + 1, a.x + aw, a.y + 1, b.x + bw, b.y - .5, b.x - bw, b.y - .5], track.road[alt ? 0 : 1]);
-      if(condition==='rain' && alt) {
+      if(condition==='rain' && alt && !rural) {
         // Broad reflections follow the road surface, with no extra obstacles.
         for(const lane of [-3.3,3.3])this.polygon([a.x+(lane-1)*a.scale,a.y,a.x+(lane+.6)*a.scale,a.y,b.x+(lane+.6)*b.scale,b.y,b.x+(lane-1)*b.scale,b.y],'#b9d2d51a');
       }
@@ -179,7 +187,7 @@ export class Renderer {
           const hash = visualHash(row * 97 + dot * 17);
           const mix = visualHash(row * 53 + dot);
           const scale = b.scale + (a.scale - b.scale) * mix;
-          const x = b.x + (a.x - b.x) * mix + (hash * 12.6 - 6.3) * scale;
+          const x = b.x + (a.x - b.x) * mix + (hash * half * 1.8 - half * .9) * scale;
           const y = b.y + (a.y - b.y) * mix;
           const exposure = this.reducedMotion ? 0 : this.player(state).speed * .012;
           const distance = this.focal * this.projectionWidth / (2 * scale);
@@ -191,12 +199,39 @@ export class Renderer {
           c.stroke();
         }
         if (row % 11 === 0) {
-          const x = (visualHash(row) * 8 - 4) * a.scale + a.x;
+          const x = (visualHash(row) * half * 1.14 - half * .57) * a.scale + a.x;
           c.strokeStyle = '#202e3140'; c.lineWidth = Math.max(.5, a.scale * .015);
           c.beginPath(); c.moveTo(x, a.y); c.lineTo(x - a.scale * .25, a.y - (a.y - b.y) * .4); c.lineTo(x + a.scale * .16, b.y); c.stroke();
         }
       }
-      for (const sign of [-1, 1]) {
+      if(rural) {
+        // Two worn wheel paths per direction; no painted four-lane highway.
+        for(const lane of [-2.1,2.1])for(const wheel of [-.7,.7]){
+          const l=lane+wheel-.17,r=lane+wheel+.17;
+          this.polygon([a.x+l*a.scale,a.y,a.x+r*a.scale,a.y,b.x+r*b.scale,b.y,b.x+l*b.scale,b.y],condition==='rain'?'#362e2522':'#efd0a02c');
+        }
+        if(condition==='rain' && Math.floor(a.z/33)%4===1){
+          const lane=Math.floor(a.z/132)%2?-2.9:2.9;
+          this.polygon([a.x+(lane-.5)*a.scale,a.y,a.x+(lane+.5)*a.scale,a.y,b.x+(lane+.5)*b.scale,b.y,b.x+(lane-.5)*b.scale,b.y],'#b6bab03a');
+        }
+        for(const side of [-1,1]){
+          const sa=bankStrength(a.z,side),sb=bankStrength(b.z,side);if(!sa&&!sb)continue;
+          const ax=side*(half+.75+(1-sa)*3.5),bx=side*(half+.75+(1-sb)*3.5);
+          const ah=sa*(3.1+Math.sin(a.z/35)*.35),bh=sb*(3.1+Math.sin(b.z/35)*.35);
+          const topA=a.x+(ax+side*1.6)*a.scale,topB=b.x+(bx+side*1.6)*b.scale;
+          this.polygon([a.x+ax*a.scale,a.y,topA,a.y-ah*a.scale,topB,b.y-bh*b.scale,b.x+bx*b.scale,b.y],condition==='night'?'#65422f':condition==='rain'?'#794a32':alt?'#985638':'#9c593a');
+          this.polygon([topA,a.y-ah*a.scale,a.x+(ax+side*3.7)*a.scale,a.y-ah*.7*a.scale,b.x+(bx+side*3.7)*b.scale,b.y-bh*.7*b.scale,topB,b.y-bh*b.scale],track.land[1]);
+          if(a.scale>.45 && sa>.3){
+            for(let pebble=0;pebble<3;pebble++){
+              const level=.1+visualHash(row*13+pebble)*.7,x=a.x+(ax+side*1.6*level)*a.scale,y=a.y-ah*level*a.scale;
+              c.fillStyle=pebble%2?'#d69b6855':'#573a2877';c.beginPath();c.ellipse(x,y,a.scale*(.08+visualHash(row)*.09),a.scale*.045,.3,0,Math.PI*2);c.fill();
+            }
+            if(row%4===0){c.strokeStyle='#503e2b88';c.lineWidth=Math.max(.6,a.scale*.024);c.beginPath();c.moveTo(topA,a.y-ah*a.scale);c.lineTo(topA-side*a.scale*.45,a.y-ah*a.scale*.73);c.lineTo(topA-side*a.scale*.35,a.y-ah*a.scale*.52);c.stroke();}
+          }
+          c.strokeStyle=condition==='night'?'#677c50':'#a7a458';c.lineWidth=Math.max(.7,a.scale*.045);c.beginPath();c.moveTo(topA,a.y-ah*a.scale);c.lineTo(topB,b.y-bh*b.scale);c.stroke();
+        }
+      }
+      if(!rural)for (const sign of [-1, 1]) {
         const curbA = aw * sign, curbB = bw * sign;
         this.polygon([a.x + curbA * 1.02,a.y,a.x + curbA * 1.065,a.y,b.x + curbB * 1.065,b.y,b.x + curbB * 1.02,b.y], track.theme==='port'?(stripe?'#d9b264':'#344951'):stripe ? '#dbd2b6' : '#b97864');
         const edge = .97 * sign;
@@ -236,6 +271,18 @@ export class Renderer {
     return { x: road + lateral * scale, y: this.camera.horizon - (elevationAt(z, this.camera.trackId) - this.camera.y) * scale, scale, road, clip: a.clip };
   }
   private scenery(state: RaceState, track: Track, z: number, i: number) {
+    if(track.theme==='rural') {
+      const side=i%2?1:-1;
+      let kind:FarmProp='tree',lateral=side*(11+visualHash(i*17)*7),height=10,width=8.6;
+      if(i%19===3){kind='house';lateral=side*25;height=9;width=13;}
+      else if(i%23===7){kind='barn';lateral=side*28;height=12;width=17;}
+      else if(i%29===11){kind='windmill';lateral=side*22;height=15;width=12;}
+      else if(i%7===0){kind='hay';lateral=side*11;height=3.4;width=5;}
+      else if(i%3!==0)return;
+      const p=this.project(z,lateral);if(!p || p.y>p.clip+20 || p.scale<.16)return;
+      const c=this.ctx;c.save();c.beginPath();c.rect(0,0,this.w,p.clip);c.clip();
+      c.drawImage(farmSprite(kind,raceCondition(state.condition),i),p.x-p.scale*width/2,p.y-p.scale*height,p.scale*width,p.scale*height);c.restore();return;
+    }
     if(track.theme==='port'){
       let kind:PortProp, lateral:number, width:number,height:number;
       if(i%17===0){kind='ship';lateral=-44;width=55;height=30;}
@@ -264,7 +311,7 @@ export class Renderer {
   private roadside(state: RaceState) {
     const c = this.ctx, pz = this.player(state).z;
     // Real projected points make markers sweep past faster as they approach the camera.
-    for (let i = Math.floor(pz / 8) + 100; i >= Math.floor((pz - 12) / 8); i--) {
+    if(state.trackId!=='terra')for (let i = Math.floor(pz / 8) + 100; i >= Math.floor((pz - 12) / 8); i--) {
       const z = i * 8;
       for (const side of [-1, 1]) {
         const p = this.project(z, side * GUARD_RAIL_X); if (!p || p.y > p.clip + 2 || p.y < 0) continue;
@@ -278,11 +325,24 @@ export class Renderer {
         c.fillStyle = '#f0a372'; c.fillRect(p.x-p.scale*.055,p.y-p.scale*.96,Math.max(1,p.scale*.11),p.scale*.2);
       }
     }
+    if(state.trackId==='terra') {
+      const condition=raceCondition(state.condition);
+      for(let i=Math.floor(pz/12)+65;i>=Math.floor((pz-12)/12);i--)for(const side of [-1,1]){
+        const z=i*12;if(bankStrength(z,side)>0 || bankStrength(z+12,side)>0)continue;
+        const p=this.project(z,side*6.7),q=this.project(z+12,side*6.7);if(!p || !q || p.y>p.clip+3)continue;
+        c.save();c.beginPath();c.rect(0,0,this.w,p.clip);c.clip();
+        c.fillStyle=condition==='night'?'#7b7760':'#9e8b63';c.fillRect(p.x-p.scale*.08,p.y-p.scale*1.4,Math.max(1,p.scale*.16),p.scale*1.4);
+        for(const level of [.55,1.12]){c.strokeStyle=condition==='night'?'#9eab9277':'#596747aa';c.lineWidth=Math.max(.6,p.scale*.025);c.beginPath();c.moveTo(p.x,p.y-p.scale*level);c.lineTo(q.x,q.y-q.scale*level);c.stroke();}
+        c.restore();
+      }
+      for(let z=430;z<7200;z+=1380){const p=this.project(z,5.9);if(!p || p.y>p.clip+3)continue;c.save();c.beginPath();c.rect(0,0,this.w,p.clip);c.clip();c.drawImage(farmSprite('tractorSign',condition),p.x-p.scale*1.6,p.y-p.scale*3.7,p.scale*3.2,p.scale*3.7);c.restore();}
+    }
     // Crop the transparent sprite padding: these are full-sized roadside shrubs,
     // close enough to cross the edge of the view as the player passes them.
     if(state.trackId!=='porto')for (let i = Math.floor(pz / 8) + 55; i >= Math.floor((pz - 12) / 8); i--) {
       for (const side of [-1, 1]) {
-        const p = this.project(i*8+4,side*(8.1+visualHash(i*71+side)*2.5));
+        if(state.trackId==='terra' && bankStrength(i*8+4,side)>0)continue;
+        const p = this.project(i*8+4,side*(roadHalf(state.trackId)+1.1+visualHash(i*71+side)*2.5));
         if (!p || p.y > p.clip + 3 || p.scale < .7) continue;
         const kind = i%7===0 ? 'rock' : 'bush';
         const h = p.scale*(kind === 'rock' ? 1.3 : .85), w = h*(kind === 'rock' ? 2.2 : 3.1);
@@ -300,7 +360,7 @@ export class Renderer {
     for (let i = Math.floor(pz/160); i < Math.floor(pz/160)+8; i++) {
       const z=i*160+45, curve=curveAt(z,state.trackId);
       if(Math.abs(curve)<.45) continue;
-      const side=curve>0?-1:1, p=this.project(z,side*8.4);
+      const side=curve>0?-1:1, p=this.project(z,side*(roadHalf(state.trackId)+1.4));
       if(!p || p.y>p.clip+3) continue;
       c.save(); c.beginPath(); c.rect(0,0,this.w,p.clip);c.clip();
       c.fillStyle='#66746b';c.fillRect(p.x-p.scale*.055,p.y-p.scale*2.4,p.scale*.11,p.scale*2.4);
@@ -319,7 +379,7 @@ export class Renderer {
     for (let i = first + 34; i >= first; i--) {
       for (const side of [-1, 1]) {
         const z = i * 3 + visualHash(i * 31) * 2;
-        const x = side * (8.2 + visualHash(i * 19 + side) * 4.5);
+        const x = side * (roadHalf(state.trackId)+1.2 + visualHash(i * 19 + side) * 4.5);
         const p = this.project(z, x), tail = this.project(z + player.speed * .035, x);
         if (!p || !tail || p.y > p.clip + 2 || p.y < this.camera.horizon || p.x < -120 || p.x > this.w + 120) continue;
         const alpha = pace * clamp((p.y - this.camera.horizon) / (this.h * .45), 0, 1) * .42;
@@ -348,7 +408,7 @@ export class Renderer {
     const p = this.project(r.z, r.x);
     if (!p || p.y < 0 || p.y > p.clip + 100) return;
     const c = this.ctx, player = r.id === this.localId;
-    const support=kneeSupport(r,curveAt(r.z,state.trackId)),kneeSide=support>.35 && r.attack?.kind!=='kick'?(r.kneeSide ?? 0):0;
+    const support=kneeSupport(r,curveAt(r.z,state.trackId),state.trackId),kneeSide=support>.35 && r.attack?.kind!=='kick'?(r.kneeSide ?? 0):0;
     const leanAngle=r.lean*.65*(1-support)+support*(r.kneeSide ?? 0)*.59;
     let height = p.scale * 3.55;
     height = Math.min(height, this.h * .36);
@@ -357,6 +417,10 @@ export class Renderer {
     c.save(); c.beginPath(); c.rect(0, 0, this.w, player ? this.h : p.clip); c.clip();
     c.fillStyle = '#15293670'; c.beginPath(); c.ellipse(p.x, p.y - 2, width * .4, height * .045, 0, 0, Math.PI * 2); c.fill();
     if (r.immune && Math.floor(state.time * 10) % 2) c.globalAlpha = .48;
+    if(state.trackId==='terra' && r.speed>12 && !r.crash && !(r.jumpTime!>0)){
+      const wet=raceCondition(state.condition)==='rain';c.fillStyle=wet?'#80684455':'#dbb87e35';
+      for(let i=0;i<5;i++){const age=(r.z*.08+i*.21)%1;const size=height*(.025+age*.06);c.beginPath();c.ellipse(p.x+(i%2?1:-1)*width*(.16+age*.52),p.y-height*.03-age*height*.045,size,size*.3,0,0,Math.PI*2);c.fill();}
+    }
     const lift=jumpHeight(r)*p.scale;
     c.translate(p.x, p.y-lift);
     if (r.crash) {
@@ -436,13 +500,16 @@ export class Renderer {
     for (const t of state.traffic) if (t.z > player.z - 12 && t.z < player.z + 1900) entities.push({ z: t.z, draw: () => {
       const p = this.project(t.z, t.x); if (!p || p.y > p.clip + 35) return;
       c.save(); c.beginPath(); c.rect(0, 0, this.w, p.clip); c.clip();
-      const width = p.scale * (t.kind==='truck'?4.5:3.7), height = width * (t.kind==='truck'?1.25:.94);
+      const shape=trafficShape(state.trackId,t.kind),width=p.scale*shape.width,height=p.scale*shape.height;
       c.fillStyle = '#233a4055'; c.beginPath(); c.ellipse(p.x, p.y, width * .5, height * .1, 0, 0, Math.PI * 2); c.fill();
-      c.drawImage(t.kind==='truck'?truckSprite(t.color,t.speed<0,scenic?.kind==='truckPassenger'&&scenic.trafficId===t.id,Math.floor(state.time*4)%2):carSprite(t.color, t.speed < 0, t.kind === 'van'), p.x - width / 2, p.y - height, width, height); c.restore();
+      c.drawImage(t.kind==='tractor'?tractorSprite(t.color,t.speed<0,Math.floor(t.z*.8)%2):t.kind==='truck'?truckSprite(t.color,t.speed<0,scenic?.kind==='truckPassenger'&&scenic.trafficId===t.id,Math.floor(state.time*4)%2):carSprite(t.color, t.speed < 0, t.kind === 'van'), p.x - width / 2, p.y - height, width, height); c.restore();
     } });
     for (const o of state.obstacles) if (o.z > player.z - 8 && o.z < player.z + 1700) entities.push({ z: o.z, draw: () => {
       const p = this.project(o.z, o.x); if (!p || p.y > p.clip + 4) return;
-      if (o.kind === 'oil') {
+      if(o.kind==='gravel' || o.kind==='mud'){
+        const s=p.scale;c.fillStyle=o.kind==='mud'?'#463d2ed0':'#cbba87';c.beginPath();c.ellipse(p.x,p.y,s*1.1,s*.36,-.12,0,Math.PI*2);c.fill();
+        for(let i=0;i<12;i++){c.fillStyle=o.kind==='mud'?'#b3b19b66':i%2?'#8c805e':'#e7ce97';c.fillRect(p.x+(visualHash(i*7)-.5)*s*1.9,p.y+(visualHash(i*13)-.5)*s*.4,s*.12,s*.055);}
+      } else if (o.kind === 'oil') {
         c.fillStyle = '#293642'; c.beginPath(); c.ellipse(p.x, p.y, p.scale * 1.1, p.scale * .3, -.1, 0, Math.PI * 2); c.fill();
         c.fillStyle = '#71768b'; c.fillRect(p.x - p.scale * .5, p.y - 1, p.scale * .7, 2);
       } else if(o.kind==='cone'){
@@ -467,6 +534,13 @@ export class Renderer {
       const bob=this.reducedMotion?0:Math.sin(scenic.age*2.4)*size*.015;
       if(condition==='night'){const g=c.createRadialGradient(p.x,p.y-size*.4,0,p.x,p.y-size*.4,size*.8);g.addColorStop(0,'#83f3e743');g.addColorStop(1,'#83f3e700');c.fillStyle=g;c.fillRect(p.x-size,p.y-size*1.3,size*2,size*2);}
       c.drawImage(mermaidSprite(condition,this.reducedMotion?0:Math.floor(scenic.age*2)%3),p.x-size*96/88/2,p.y-size+bob,size*96/88,size);c.restore();
+    }});
+    if(scenic?.kind==='saci' || scenic?.kind==='boitata')entities.push({z:scenic.z,draw:()=>{
+      const p=this.project(scenic.z,7.8);if(!p || p.y>p.clip+8)return;
+      const height=p.scale*(scenic.kind==='saci'?3.5:3.1),width=height*144/112;
+      c.save();c.beginPath();c.rect(0,0,this.w,p.clip);c.clip();c.globalAlpha=clamp(scenic.age*2,0,1)*clamp((scenic.duration-scenic.age)*2,0,1);
+      if(scenic.kind==='boitata'){const glow=c.createRadialGradient(p.x,p.y-height*.35,0,p.x,p.y-height*.35,width);glow.addColorStop(0,'#faab483b');glow.addColorStop(1,'#faab4800');c.fillStyle=glow;c.fillRect(p.x-width,p.y-height-width,width*2,width*2);}
+      c.drawImage(folkloreSprite(scenic.kind==='saci'?'saci':'boitata',this.reducedMotion?0:Math.floor(scenic.age*4)%3),p.x-width/2,p.y-height,width,height);c.restore();
     }});
     const target = nearestTarget(state, player, player.weapon ? 'weapon' : 'punch');
     for (const r of state.riders) if (r.z > player.z - 14 && r.z < player.z + 1900) entities.push({ z: r.z, draw: () => this.rider(r, state, target?.id) });

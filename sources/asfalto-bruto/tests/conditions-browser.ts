@@ -20,7 +20,7 @@ const state=(p=a)=>p.evaluate(()=>JSON.parse(window.render_game_to_text()));
 const shot=(name:string,p=a)=>p.screenshot({path:`${folder}/${name}.png`});
 try{
   await a.goto(base+'?test');
-  assert.equal(await a.locator('[data-route]').count(),16);assert.equal(await a.locator('[data-route]:enabled').count(),4);assert.equal(await a.locator('[data-route]:disabled').count(),12);
+  assert.equal(await a.locator('[data-route]').count(),20);assert.equal(await a.locator('[data-route]:enabled').count(),4);assert.equal(await a.locator('[data-route]:disabled').count(),16);
   const old=freshSave();delete old.raceCondition;old.cash=8040;old.unlocked=3;old.records.costa={time:156,place:2};old.races=7;
   await a.evaluate(({key,save})=>localStorage.setItem(key,JSON.stringify(save)),{key:SAVE_KEY,save:old});await a.reload();
   assert.equal((await state()).condition,'sunset');assert.equal((await state()).save.cash,8040);assert.match(await a.locator('#route-detail').innerText(),/RECORDE/);
@@ -49,7 +49,7 @@ try{
     await a.setViewportSize({width,height});await a.waitForTimeout(120);await shot(`menu-${name}`);
     const dock=await a.locator('.route-select').boundingBox(),hero=await a.locator('.menu-main').boundingBox();assert.ok(dock&&hero);assert.ok(dock.x>=0&&dock.x+dock.width<=width+1);assert.ok(hero.y+hero.height<=dock.y || hero.x+hero.width<=dock.x,'Menu sections must not overlap');
     const list=await a.locator('#routes').boundingBox(),selected=await a.locator('.route.selected').boundingBox();assert.ok(list&&selected&&selected.x>=list.x-1&&selected.x+selected.width<=list.x+list.width+1,'Selected route remains visible after resize');
-    assert.equal(await a.locator('[data-route]').count(),16);assert.equal(await a.locator('#conditions').count(),0);
+    assert.equal(await a.locator('[data-route]').count(),20);assert.equal(await a.locator('#conditions').count(),0);
     await a.click('#routes-next');await a.waitForTimeout(400);assert.ok(await a.locator('#routes').evaluate(el=>el.scrollLeft)>0);
     await a.locator('[data-route="deserto:rain"]').click();assert.equal((await state()).track,'deserto');assert.equal((await state()).condition,'rain');
     await a.locator('[data-route="costa:rain"]').click();

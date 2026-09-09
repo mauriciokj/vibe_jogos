@@ -111,7 +111,7 @@ export class RacePresentation {
           if(age<attackSpec(r,this.swing.kind).duration)r.attack={id:this.swing.seq,kind:this.swing.kind,side:this.swing.side,age,hit:false};
         }
       }
-      r.x=guardRailPosition(race.trackId,r.x);
+      r.x=guardRailPosition(race.trackId,r.x,r.z);
       return r;
     }),traffic:race.traffic.map(t=>({...t,z:t.z+t.speed*age}))};
   }

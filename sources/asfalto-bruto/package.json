@@ -27,7 +27,8 @@
     "test:jump-audio": "node tests/jump-audio-browser.mjs",
     "test:guardrails": "tsx tests/guardrails-browser.ts",
     "test:guardrail-audio": "tsx tests/guardrail-audio-browser.mjs",
-    "test:helmets": "tsx tests/helmets-browser.ts"
+    "test:helmets": "tsx tests/helmets-browser.ts",
+    "test:rural": "tsx tests/rural-browser.ts"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

@@ -1,3 +1,4 @@
+import { roadHalf, surfaceGrip } from './game/road-profile';
 import { equippedHelmet, getHelmet, getHelmetColor } from './game/helmets';
 import { upcomingWorks } from './game/port';
 import './style.css';
@@ -18,7 +19,7 @@ import type { RoomView } from './multiplayer/protocol';
 import { EMPTY_COMMAND } from './game/types';
 import { BIKES, clamp, clockString, cornerForces, cornerPace, curveAt, upcomingCorner, getBike, handlingLabel, zeroToHundred, getTrack, money, TRACKS } from './game/content';
 import { RACE_ROUTES, raceRoute, routeFromId } from './game/routes';
-import { conditionName, raceCondition, recordKey, roadGrip, scenicAppearance } from './game/conditions';
+import { conditionName, raceCondition, recordKey, scenicAppearance } from './game/conditions';
 import { raceAwareness } from './game/awareness';
 import { GameAudio, jumpSoundKey, guardRailSoundSide } from './game/audio';
 import { RaceInstruments } from './game/instruments';
@@ -354,7 +355,7 @@ function updateHUD() {
   document.querySelector('[data-touch=KeyL]')?.setAttribute('aria-label',weaponName(p));
   setText('wheelie-indicator',`${p.jumpTime!>0?'SALTO':p.wheelieTime!>0?'EMPINANDO':'EMPINADAS'} ${wheeliesLeft(p)}/3`);
   $('wheelie-indicator').classList.toggle('active',stunting(p));
-  const knee=kneeSupport(p,curveAt(p.z,race.trackId));
+  const knee=kneeSupport(p,curveAt(p.z,race.trackId),race.trackId);
   setText('knee-indicator',p.crash||p.out?'':knee>.25?'JOELHO APOIADO':p.kneeTime!>0?'MANOBRA ATIVA':getKneePad(p.kneePadId)&&supportsKneeDown(p.bikeId)?'JOELHEIRA PRONTA':'');
   $('knee-indicator').classList.toggle('knee-active',knee>.25);
   setText('nitro-indicator',`NITRO ${p.nitro ?? 0}/${getBike(p.bikeId).nitroCapacity}${p.nitroTime!>0?' · '+p.nitroTime!.toFixed(1)+'s':''}`);
@@ -367,7 +368,7 @@ function updateHUD() {
   $('corner-warning').hidden = !corner || !!p.out || race.mode !== 'racing';
   if (corner) {
     const fast = p.speed > cornerPace(p.z, race.trackId, p.handling, race.condition, p.kneeTime!>0 && supportsKneeDown(p.bikeId)?p.kneePadId:undefined) + 2;
-    const sliding = cornerForces(p.speed,cornerHandling(p,curveAt(p.z,race.trackId))*roadGrip(race.condition),curveAt(p.z,race.trackId)).sliding;
+    const sliding = cornerForces(p.speed,cornerHandling(p,curveAt(p.z,race.trackId),race.trackId)*surfaceGrip(race.trackId,race.condition),curveAt(p.z,race.trackId)).sliding;
     $('corner-warning').classList.toggle('braking',fast);
     setText('corner-arrow',corner.direction === 'right' ? '↱' : '↰');
     setText('corner-title',sliding ? 'SEM ADERÊNCIA · FREIE' : fast ? 'FREIE ANTES DA CURVA' : corner.tight ? 'CURVA FECHADA' : 'CURVA À FRENTE');
@@ -391,7 +392,7 @@ function updateHUD() {
   $('crash').hidden = p.crash === 0 || !!p.out || race.mode === 'finished';
   $('hud').classList.toggle('is-crashed',!$('crash').hidden);
   if (p.crash) setText('crash-time', `DE VOLTA EM ${p.crash.toFixed(1)}s · SEGURE O ACELERADOR`);
-  if (race.time > messageUntil) setText('race-message', Math.abs(p.x) > 7 && p.speed > 6 ? 'ACOSTAMENTO · MENOS ADERÊNCIA' : race.time < 5 && race.mode === 'racing' ? 'ACELERA. A ESTRADA É SUA.' : '');
+  if (race.time > messageUntil) setText('race-message', Math.abs(p.x) > roadHalf(race.trackId) && p.speed > 6 ? 'ACOSTAMENTO · MENOS ADERÊNCIA' : race.time < 5 && race.mode === 'racing' ? 'ACELERA. A ESTRADA É SUA.' : '');
   if (race.tick < lastStandingsTick || race.tick - lastStandingsTick >= 6 || place !== lastStandingsPlace || inCountdown) {
     lastStandingsTick = race.tick; lastStandingsPlace = place;
     const start = clamp(place - 2, 0, 4);
@@ -440,7 +441,7 @@ function update() {
     if (localEvent && event.text) { setText('race-message', event.text); messageUntil = race.time + 1.6; $('race-message').classList.toggle('alert', event.type === 'police' || event.type === 'crash'); }
     if (localEvent && (event.type === 'hit' || event.type === 'crash')) renderer.hit();
   }
-  audio.update(localRider().speed, true, race.policeActive && Math.abs((race.riders.find(r => r.id === 'police')?.z ?? 99999) - localRider().z) < 100, race.time, getBike(localRider().bikeId).style, jumpSoundKey(localRider()),guardRailSoundSide(race.trackId,localRider()));
+  audio.update(localRider().speed, true, race.policeActive && Math.abs((race.riders.find(r => r.id === 'police')?.z ?? 99999) - localRider().z) < 100, race.time, getBike(localRider().bikeId).style, jumpSoundKey(localRider()),guardRailSoundSide(race.trackId,localRider()),race.trackId==='terra'?'earth':'metal');
   if (race.mode === 'finished') showResult();
 }
 function draw() { renderer.render(race, screen === 'menu',localId()); if (screen !== 'menu') { updateHUD(); instruments.draw(race,localId()); } }
@@ -449,7 +450,7 @@ function frame(now: number) {
   if(onlineMode) {
     accumulator+=dt;while(accumulator>=STEP){online.step(paused || screen!=='race'?{...EMPTY_COMMAND,brake:1}:input());accumulator-=STEP;}
     const view=online.view();if(view)race=view;drawLobbyClock();
-    if(screen==='race'){const p=localRider();audio.update(p.speed,!paused,race.policeActive && Math.abs((race.riders.find(r=>r.profile==='police')?.z ?? 99999)-p.z)<100,race.time,getBike(p.bikeId).style,jumpSoundKey(p),guardRailSoundSide(race.trackId,p));}
+    if(screen==='race'){const p=localRider();audio.update(p.speed,!paused,race.policeActive && Math.abs((race.riders.find(r=>r.profile==='police')?.z ?? 99999)-p.z)<100,race.time,getBike(p.bikeId).style,jumpSoundKey(p),guardRailSoundSide(race.trackId,p),race.trackId==='terra'?'earth':'metal');}
   } else if (!testMode) { accumulator += dt; while (accumulator >= STEP) { update(); accumulator -= STEP; } }
   draw(); requestAnimationFrame(frame);
 }
@@ -579,7 +580,7 @@ declare global {
 }
 window.render_game_to_text = () => {
   const p = localRider(), target = nearestTarget(race, p, p.weapon ? 'weapon' : 'punch');
-  return JSON.stringify({ online: onlineMode?{status:online.status,id:online.id,code:online.code,phase:online.room?.phase,locked:online.room?.locked,deadline:online.room?.deadline,serverNow:online.serverNow(),members:online.room?.members,fillBots:online.room?.fillBots,condition:online.room?.condition}:null, screen, paused, modal: document.querySelector('dialog[open]')?.id ?? null, mode: race.mode, coordinates: 'x in metres: negative left, positive right; road ±7. z forward in metres. speed m/s.', tick: race.tick, time: +race.time.toFixed(2), countdown: +race.countdown.toFixed(2), track: race.trackId, condition:raceCondition(race.condition), scenic:scenicAppearance(race), length: getTrack(race.trackId).distance, player: { helmetId:getHelmet(p.helmetId).id,helmetColorId:getHelmetColor(p.helmetColorId).id,weaponId:p.weaponId??null,weaponName:weaponName(p),wheeliesLeft:wheeliesLeft(p),wheelieTime:p.wheelieTime??0,jumpTime:p.jumpTime??0,jumpHeight:jumpHeight(p),jumpTarget:p.jumpTarget??null,kneePadId:p.kneePadId??null,kneeTime:p.kneeTime??0,wetKneeTime:(p.wetKneeTicks??0)*STEP,kneeSide:p.kneeSide??0,kneeSupport:kneeSupport(p,curveAt(p.z,race.trackId)),nitro:p.nitro??0,nitroTime:p.nitroTime??0,nitroUsed:p.nitroUsed??0,speech:p.speech&&p.speech.until>race.time?TAUNTS[p.speech.index]:null,bikeId:getBike(p.bikeId).id,bike:getBike(p.bikeId).name,handling:p.handling,armor:p.armor,out:p.out ?? null, x: +p.x.toFixed(2), z: +p.z.toFixed(1), speed: +p.speed.toFixed(2), health: +p.health.toFixed(1), integrity: +p.integrity.toFixed(1), weapon: p.weapon, attack: p.attack, cooldown: +p.cooldown.toFixed(2), crash: +p.crash.toFixed(2), immune: +p.immune.toFixed(2), hits: p.hits, falls: p.falls, place: ranking(onlineMode ? (online.room?.race ?? race) : race).findIndex(r => r.id === localId()) + 1 }, awareness:raceAwareness(race,localId()), corner:upcomingCorner(p.z,race.trackId,p.handling,race.condition,p.kneeTime!>0 && supportsKneeDown(p.bikeId)?p.kneePadId:undefined), curve: +curveAt(p.z, race.trackId).toFixed(2), target: target?.id ?? null, riders: race.riders.filter(r => r.id !== localId() && Math.abs(r.z - p.z) < 400).map(r => ({ id: r.id, name: r.name,helmetId:getHelmet(r.helmetId).id,helmetColorId:getHelmetColor(r.helmetColorId).id,weaponId:r.weaponId??null,wheeliesLeft:wheeliesLeft(r),wheelieTime:r.wheelieTime??0,jumpTime:r.jumpTime??0,jumpHeight:jumpHeight(r),kneePadId:r.kneePadId??null,kneeSupport:kneeSupport(r,curveAt(r.z,race.trackId)),speech:r.speech&&r.speech.until>race.time?TAUNTS[r.speech.index]:null, bikeId:getBike(r.bikeId).id, x: +r.x.toFixed(1), dz: +(r.z - p.z).toFixed(1), speed: +r.speed.toFixed(1), health: +r.health.toFixed(1), weapon: r.weapon, attack: r.attack, crash: +r.crash.toFixed(1) })), traffic: race.traffic.filter(t => t.z - p.z > -10 && t.z - p.z < 350).map(t => ({ id:t.id,kind:t.kind,x: t.x, dz: +(t.z - p.z).toFixed(1), direction: t.speed < 0 ? 'oncoming' : 'forward' })), obstacles: race.obstacles.filter(o => o.z - p.z > -10 && o.z - p.z < 200).map(o => ({ kind: o.kind, x: o.x, dz: +(o.z - p.z).toFixed(1) })), heat: +race.heat.toFixed(1), police: race.policeActive, capture: +race.capture.toFixed(2), result: onlineMode?(race.multiplayer?.results[online.id] ?? null):race.result, save: { ownedHelmets:save.ownedHelmets??['integral'],helmetId:equippedHelmet(save).id,helmetColorId:getHelmetColor(save.helmetColorId).id,ownedWeapons:save.ownedWeapons??[],weaponId:save.weaponId??null,ownedKneePads:save.ownedKneePads??[],kneePadId:save.kneePadId??null,nitro:save.nitro??{},cash: save.cash, bike: save.bikeId, unlocked: save.unlocked, races: save.races } });
+  return JSON.stringify({ online: onlineMode?{status:online.status,id:online.id,code:online.code,phase:online.room?.phase,locked:online.room?.locked,deadline:online.room?.deadline,serverNow:online.serverNow(),members:online.room?.members,fillBots:online.room?.fillBots,condition:online.room?.condition}:null, screen, paused, modal: document.querySelector('dialog[open]')?.id ?? null, mode: race.mode, coordinates: `x in metres: negative left, positive right; road ±${roadHalf(race.trackId)}. z forward in metres. speed m/s.`, road:{lanes:race.trackId==='terra'?2:4,halfWidth:roadHalf(race.trackId),surface:race.trackId==='terra'?'dirt':'asphalt'}, tick: race.tick, time: +race.time.toFixed(2), countdown: +race.countdown.toFixed(2), track: race.trackId, condition:raceCondition(race.condition), scenic:scenicAppearance(race), length: getTrack(race.trackId).distance, player: { helmetId:getHelmet(p.helmetId).id,helmetColorId:getHelmetColor(p.helmetColorId).id,weaponId:p.weaponId??null,weaponName:weaponName(p),wheeliesLeft:wheeliesLeft(p),wheelieTime:p.wheelieTime??0,jumpTime:p.jumpTime??0,jumpHeight:jumpHeight(p),jumpTarget:p.jumpTarget??null,kneePadId:p.kneePadId??null,kneeTime:p.kneeTime??0,wetKneeTime:(p.wetKneeTicks??0)*STEP,kneeSide:p.kneeSide??0,kneeSupport:kneeSupport(p,curveAt(p.z,race.trackId),race.trackId),nitro:p.nitro??0,nitroTime:p.nitroTime??0,nitroUsed:p.nitroUsed??0,speech:p.speech&&p.speech.until>race.time?TAUNTS[p.speech.index]:null,bikeId:getBike(p.bikeId).id,bike:getBike(p.bikeId).name,handling:p.handling,armor:p.armor,out:p.out ?? null, x: +p.x.toFixed(2), z: +p.z.toFixed(1), speed: +p.speed.toFixed(2), health: +p.health.toFixed(1), integrity: +p.integrity.toFixed(1), weapon: p.weapon, attack: p.attack, cooldown: +p.cooldown.toFixed(2), crash: +p.crash.toFixed(2), immune: +p.immune.toFixed(2), hits: p.hits, falls: p.falls, place: ranking(onlineMode ? (online.room?.race ?? race) : race).findIndex(r => r.id === localId()) + 1 }, awareness:raceAwareness(race,localId()), corner:upcomingCorner(p.z,race.trackId,p.handling,race.condition,p.kneeTime!>0 && supportsKneeDown(p.bikeId)?p.kneePadId:undefined), curve: +curveAt(p.z, race.trackId).toFixed(2), target: target?.id ?? null, riders: race.riders.filter(r => r.id !== localId() && Math.abs(r.z - p.z) < 400).map(r => ({ id: r.id, name: r.name,helmetId:getHelmet(r.helmetId).id,helmetColorId:getHelmetColor(r.helmetColorId).id,weaponId:r.weaponId??null,wheeliesLeft:wheeliesLeft(r),wheelieTime:r.wheelieTime??0,jumpTime:r.jumpTime??0,jumpHeight:jumpHeight(r),kneePadId:r.kneePadId??null,kneeSupport:kneeSupport(r,curveAt(r.z,race.trackId),race.trackId),speech:r.speech&&r.speech.until>race.time?TAUNTS[r.speech.index]:null, bikeId:getBike(r.bikeId).id, x: +r.x.toFixed(1), dz: +(r.z - p.z).toFixed(1), speed: +r.speed.toFixed(1), health: +r.health.toFixed(1), weapon: r.weapon, attack: r.attack, crash: +r.crash.toFixed(1) })), traffic: race.traffic.filter(t => t.z - p.z > -10 && t.z - p.z < 350).map(t => ({ id:t.id,kind:t.kind,x: t.x, dz: +(t.z - p.z).toFixed(1), direction: t.speed < 0 ? 'oncoming' : 'forward' })), obstacles: race.obstacles.filter(o => o.z - p.z > -10 && o.z - p.z < 200).map(o => ({ kind: o.kind, x: o.x, dz: +(o.z - p.z).toFixed(1) })), heat: +race.heat.toFixed(1), police: race.policeActive, capture: +race.capture.toFixed(2), result: onlineMode?(race.multiplayer?.results[online.id] ?? null):race.result, save: { ownedHelmets:save.ownedHelmets??['integral'],helmetId:equippedHelmet(save).id,helmetColorId:getHelmetColor(save.helmetColorId).id,ownedWeapons:save.ownedWeapons??[],weaponId:save.weaponId??null,ownedKneePads:save.ownedKneePads??[],kneePadId:save.kneePadId??null,nitro:save.nitro??{},cash: save.cash, bike: save.bikeId, unlocked: save.unlocked, races: save.races } });
 };
 window.advanceTime = ms => { if(onlineMode){draw();return;} testMode = true; for (let i = 0; i < Math.round(ms / (STEP * 1000)); i++) update(); draw(); };
 if (testMode) window.__game = {

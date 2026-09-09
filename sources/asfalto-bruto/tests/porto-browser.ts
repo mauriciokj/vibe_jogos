@@ -19,7 +19,7 @@ const errors:string[]=[];for(const p of [a,b]){p.on('pageerror',e=>errors.push(e
 const state=(p=a)=>p.evaluate(()=>JSON.parse(window.render_game_to_text()));
 const shot=(name:string,p=a)=>p.screenshot({path:`${folder}/${name}.png`});
 try {
-  await a.goto(base+'?test');assert.equal(await a.locator('[data-route]').count(),16);assert.equal(await a.locator('[data-route]:enabled').count(),4);
+  await a.goto(base+'?test');assert.equal(await a.locator('[data-route]').count(),20);assert.equal(await a.locator('[data-route]:enabled').count(),4);
   const save=freshSave();save.races=1;save.unlocked=2;save.records['deserto:rain']={time:280,place:4};save.cash=9999;
   await a.evaluate(({key,save})=>localStorage.setItem(key,JSON.stringify(save)),{key:SAVE_KEY,save});await a.reload();assert.equal((await state()).save.unlocked,3);
   await a.click('#garage-btn');for(const bike of BIKES.filter(b=>b.price>0)){const card=a.locator(`[data-bike="${bike.id}"]`);assert.match(await card.innerText(),new RegExp(bike.price.toLocaleString('pt-BR').replace('.','\\.')));assert.ok(await card.isDisabled());}await shot('garage-prices');await a.keyboard.press('Escape');
@@ -59,5 +59,5 @@ try {
   await shot('online-rain');await b.reload();await b.waitForFunction(()=>JSON.parse(window.render_game_to_text()).screen==='race');assert.equal((await state(b)).online.id,bid);assert.equal((await state(b)).track,'porto');assert.equal((await state(b)).condition,'rain');
   const restored=await b.evaluate(()=>JSON.parse(window.__game!.snapshot()));assert.equal(restored.scenicEvent.startedAt,after.race!.scenicEvent!.startedAt);
   for(const p of [a,b]){await p.click('#pause-btn');await p.click('#menu-btn');}assert.equal(await a.evaluate(()=>window.__game!.save()),before);assert.deepEqual(errors,[]);
-  const report={ok:true,checks:['new prices in real garage','16 routes and save migration','4 conditions / works / traffic / restart','rare passenger on actual truck','mobile menu and gameplay','2 humans + 6 bots / rain / combat / reconnect / solo preserved'],renderMs,errors};await fs.writeFile(`${folder}/browser-check.json`,JSON.stringify(report,null,2));console.log(report);
+  const report={ok:true,checks:['new prices in real garage','20 routes and save migration','4 conditions / works / traffic / restart','rare passenger on actual truck','mobile menu and gameplay','2 humans + 6 bots / rain / combat / reconnect / solo preserved'],renderMs,errors};await fs.writeFile(`${folder}/browser-check.json`,JSON.stringify(report,null,2));console.log(report);
 } finally {await browser.close();vite.kill('SIGTERM');await app.close();}

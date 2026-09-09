@@ -52,7 +52,7 @@ Joelheira: dois toques rápidos em A/← ou D/→. Nitro: **N**. Buzina: **B**. 
 - Curvas alternadas com aviso de direção, distância e velocidade de referência. Excesso de velocidade reduz a aderência; frear antes da entrada e acelerar na saída permite ganhar terreno sem depender de acidentes.
 - Mapa de proximidade com 300m para cada lado, pilotos por cor e distâncias ao da frente e de trás. Retrovisor mostra motos e trânsito nos últimos 200m, com indicação de aproximação.
 - Quatro estradas com curvas, elevações e cenários próprios: **Costa do Sol** (8,4 km), **Serra da Fumaça** (9,2 km) **Vale Vermelho** (10,2 km) e **Porto Ferrugem** (7,8 km).
-- **Dia, Entardecer, Noite e Chuva** nas quatro estradas: 16 combinações. Cada combinação aparece como uma pista própria na seleção (por exemplo, Costa do Sol · Dia), em cartões com navegação lateral. A criação de salas usa a mesma lista combinada. A escolha completa muda o cenário e fica salva; na chuva, a aderência equivale a 82% da dirigibilidade e a frenagem a 88% da força original. Dia/noite mantêm a física seca. Os avisos de curva e os bots consideram o piso molhado.
+- **Dia, Entardecer, Noite e Chuva** nas cinco estradas: 20 combinações. Cada combinação aparece como uma pista própria na seleção (por exemplo, Costa do Sol · Dia), em cartões com navegação lateral. A criação de salas usa a mesma lista combinada. A escolha completa muda o cenário e fica salva; na chuva, a aderência equivale a 82% da dirigibilidade e a frenagem a 88% da força original. Dia/noite mantêm a física seca. Os avisos de curva e os bots consideram o piso molhado.
 - Aparição rara de uma **sereia no mar da Costa**, com poses próprias por condição: cauda entre as ondas na chuva, brilho discreto à noite e pedra no entardecer. É apenas cenário, sem colisão, prêmio, dano ou aviso. Cada corrida tem 33% de chance, um local sorteado e uma janela de 8 segundos, iniciada quando o primeiro humano chega a 180m. No online, todos compartilham a mesma aparição.
 - **Porto Ferrugem:** acesso amplo, armazéns, chicanes nas obras, curvas de serviço e avenida de guindastes. Caminhões lentos e na contramão, cones que tiram 10% da velocidade e 4 de resistência sem queda imediata, blocos de concreto com colisão forte. Obras ocupam uma faixa lateral, com aviso 220m antes e placas. Navios, contêineres, guindastes, luzes noturnas e reflexos na chuva compõem o cenário. Um passageiro pendurado em um caminhão da contramão pode aparecer: chance de 33%, janela de 8s compartilhada, apenas visual; o caminhão mantém sua colisão normal.
 - Recordes por estrada e condição. Saves v1 continuam válidos; os recordes anteriores pertencem ao Entardecer.
@@ -119,7 +119,7 @@ npm run test:browser
 - Testes de navegador: teclado, tutorial, pausa, reinício, todos os golpes, queda/retorno, captura, corrida completa, resultados, desbloqueio, persistência, reparos, compras, todas as melhorias, seleção de moto, reset, áudio, tela cheia e toque.
 - `npm run test:online` verifica dois navegadores e seis conexões adicionais com 200ms de atraso de ida e volta. Inclui largada, combate, reconexão, prisão individual e retorno ao modo individual.
 - `npm run test:porto` verifica preços, desbloqueio por recorde anterior, Porto nas quatro condições, obras e passageiro, celular, dois humanos + seis bots, combate e reconexão. Os testes de simulação também percorrem Porto com as sete motos no seco e na chuva. Artefatos em `output/porto/`.
-- `npm run test:conditions` verifica as 16 combinações visuais, seleção persistente, saves anteriores, pausa/reinício, cartões, navegação lateral e menu em sete tamanhos, sala com duas pessoas e seis bots, condição e aparição compartilhadas, golpes na chuva e reconexão. Artefatos em `output/conditions/`.
+- `npm run test:conditions` verifica as 20 combinações visuais, seleção persistente, saves anteriores, pausa/reinício, cartões, navegação lateral e menu em sete tamanhos, sala com duas pessoas e seis bots, condição e aparição compartilhadas, golpes na chuva e reconexão. Artefatos em `output/conditions/`.
 - `npm run test:equipment` verifica compras, cinco joelheiras, nitro 2/3/5, duplo toque, chopper, queda na chuva, pausas/reinícios, buzina, balões, dois toques simultâneos reais no Chromium, ações online e consumo preservado na reconexão.
 - `npm run test:wet-knee` verifica em dois navegadores e seis bots a tolerância na chuva, reset ao levantar o joelho, queda confirmada pelo servidor e reconexão preservando o contador.
 - `npm run test:bikes` verifica os sete modelos na garagem e na corrida, compras, melhorias, preservação do save, seleção online móvel, atributos de fábrica e reconexão entre modelos diferentes.
@@ -181,3 +181,18 @@ Os capacetes são cosméticos e compatíveis com todas as motos. Aparecem no pil
 Os campos opcionais de personalização no loadout/lobby/mundo são normalizados pelo servidor e preservados na reconexão, compatíveis com o protocolo v10. Bots usam variações determinísticas sem interferir na física ou no RNG da pista. O cache dos sprites de pilotos tem limite de 512 variantes.
 
 `npm run test:helmets` verifica compras, pintura gratuita, persistência, layout móvel, chopper/retrovisor e dois humanos com seis bots. `HELMET_CHECK_URL` aponta o teste para uma instalação publicada usando `?test`, sem inflar visitantes.
+
+
+## Terra Brava
+
+Estrada rural de 7,2 km, com uma faixa por sentido, doze curvas, morros, cercas e fazendas. Disponível de dia, entardecer, noite e chuva; são vinte opções de pista no total. Na campanha, um top 5 no Porto Ferrugem libera suas quatro versões, inclusive com recorde salvo antes da atualização. O multiplayer oferece a pista sem exigir progresso na campanha.
+
+- Barrancos em seis trechos alternados: impedem atravessar e reduzem velocidade, sem causar queda/dano por si. As entradas se aproximam gradualmente; espaços entre barrancos permanecem abertos. Som de terra/pedras raspando, distinto dos guard-rails de metal.
+- Tratores lentos e carros em ambos os sentidos. Tratores têm silhueta e colisão próprias, aparecem no retrovisor e não podem ser saltados.
+- Terra com aderência e arrasto moderados; subidas/descidas influenciam a aceleração. Na chuva, lama e poças; no seco, cascalho e poeira discreta. As sete motos continuam utilizáveis.
+- Saci decorativo; Boitatá à noite. Aparição de 33% por corrida, oito segundos, sem efeito na física. Sorteio e instante compartilhados online.
+- Largada em duas colunas para até oito corredores, mantendo dois humanos como mínimo, sala de 60 segundos e cinco segundos quando todos estiverem prontos.
+
+Geometria, trânsito, piso e barrancos compartilhados pela simulação, previsão, desenho e retrovisor. Protocolo atual **v11**: recarregar as páginas antes de criar nova sala. Saves v1 e equipamentos comprados preservados.
+
+`npm run test:rural` verifica as quatro condições, desbloqueio, computador/celular, barrancos/áudio, tratores, folclore, dois humanos + seis bots, combate contra barranco e reconexão. `RURAL_CHECK_URL` permite repetir a validação pública em `?test`. Testes de simulação incluem corridas completas com sete motos no seco/chuva e equivalência da previsão. Artefatos em `output/terra/`.

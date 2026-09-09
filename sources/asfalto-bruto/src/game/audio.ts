@@ -1,12 +1,13 @@
 import type { GameEvent, BikeStyle, Rider } from './types';
-import { GUARD_RAIL_LIMIT, hasGuardRail } from './guardrails';
+import { roadsideBarrier } from './guardrails';
 
 // Physics already contains the bike at this boundary. Read its presented pose
 // so the sound also responds immediately to predicted multiplayer movement.
 export function guardRailSoundSide(trackId: string, rider: Rider) {
   if(rider.crash || rider.out || rider.finishedAt!==null || rider.speed<=1)return 0;
   const side=Math.sign(rider.x);
-  return hasGuardRail(trackId,side) && Math.abs(rider.x)>=GUARD_RAIL_LIMIT-.025 ? side : 0;
+  const barrier=roadsideBarrier(trackId,side,rider.z);
+  return barrier && Math.abs(rider.x)>=barrier.limit-.025 ? side : 0;
 }
 
 // Stable through predicted frames and repeated online snapshots.
@@ -62,7 +63,7 @@ export class GameAudio {
     this.muted = muted;
     if (this.master && this.context) this.master.gain.setTargetAtTime(muted ? 0 : .28, this.context.currentTime, .03);
   }
-  update(speed: number, running: boolean, police: boolean, time: number, style: BikeStyle = 'street', jumpKey = '', railSide = 0) {
+  update(speed: number, running: boolean, police: boolean, time: number, style: BikeStyle = 'street', jumpKey = '', railSide = 0, material: 'metal' | 'earth' = 'metal') {
     if (!this.context || !this.engine || !this.engineGain) return;
     if(jumpKey && jumpKey!==this.lastJumpKey) {
       this.lastJumpKey=jumpKey;
@@ -70,15 +71,17 @@ export class GameAudio {
     }
     if(running) {
       if(railSide) {
-        if(railSide!==this.lastRailSide)this.metalImpact(Math.min(1,.3+speed/75),1.5);
+        if(railSide!==this.lastRailSide){if(material==='earth')this.noise(.16,Math.min(.4,.15+speed/200));else this.metalImpact(Math.min(1,.3+speed/75),1.5);}
         this.lastRailSide=railSide;this.lastRailContactAt=time;
       } else if(time-this.lastRailContactAt>.15)this.lastRailSide=0;
     }
     const scraping=running && !!railSide && speed>1;
     const scrapeLevel=scraping ? Math.min(1,(speed-1)/8)*(.07+Math.min(speed/60,1)*.2) : 0;
     this.scrapeGain?.gain.setTargetAtTime(scrapeLevel,this.context.currentTime,scraping?.025:.035);
-    this.scrapeFilter?.frequency.setTargetAtTime(1700+Math.min(speed,80)*15,this.context.currentTime,.08);
-    this.scrapeRing?.frequency.setTargetAtTime(3100+Math.min(speed,80)*10,this.context.currentTime,.08);
+    this.scrapeFilter?.frequency.setTargetAtTime((material==='earth'?420:1700)+Math.min(speed,80)*(material==='earth'?6:15),this.context.currentTime,.08);
+    this.scrapeRing?.frequency.setTargetAtTime((material==='earth'?950:3100)+Math.min(speed,80)*10,this.context.currentTime,.08);
+    this.scrapeFilter?.Q.setTargetAtTime(material==='earth'?.45:1.6,this.context.currentTime,.08);
+    this.scrapeRing?.Q.setTargetAtTime(material==='earth'?.6:4.5,this.context.currentTime,.08);
     const airborne=running && !!jumpKey;
     const rpm = speed % 15;
     const custom=style==='cruiser'||style==='chopper';

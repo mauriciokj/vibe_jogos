@@ -1,3 +1,4 @@
+import { roadHalf } from './road-profile';
 import type { Rider, SaveData } from './types';
 import { getBike, supportsKneeDown } from './bikes';
 
@@ -25,16 +26,16 @@ export const kneeCornerSpeedBonus = (grip: number) => Math.round((Math.sqrt(1+gr
 const ramp = (value: number) => Math.max(0,Math.min(1,value));
 // Double-tap activates the technique; grip builds smoothly in the chosen bend.
 // Choppers, straights, shoulders and low speeds receive no knee bonus.
-export function kneeSupport(rider: Rider, curve: number) {
-  if((rider.wheelieTime ?? 0)>0 || (rider.jumpTime ?? 0)>0 || !getKneePad(rider.kneePadId) || !supportsKneeDown(rider.bikeId) || !(rider.kneeTime!>0) || rider.kneeSide!==Math.sign(curve) || rider.crash || rider.out || rider.finishedAt!==null || Math.abs(rider.x)>7)return 0;
+export function kneeSupport(rider: Rider, curve: number, trackId = 'costa') {
+  if((rider.wheelieTime ?? 0)>0 || (rider.jumpTime ?? 0)>0 || !getKneePad(rider.kneePadId) || !supportsKneeDown(rider.bikeId) || !(rider.kneeTime!>0) || rider.kneeSide!==Math.sign(curve) || rider.crash || rider.out || rider.finishedAt!==null || Math.abs(rider.x)>roadHalf(trackId))return 0;
   return ramp((rider.speed-20)/10)*ramp((Math.abs(curve)-.15)/.5);
 }
 // Match the visible contact pose: kicking lifts the leg off the road.
-export function kneeContact(rider: Rider, curve: number) {
-  return kneeSupport(rider,curve)>.35 && rider.attack?.kind!=='kick';
+export function kneeContact(rider: Rider, curve: number, trackId = 'costa') {
+  return kneeSupport(rider,curve,trackId)>.35 && rider.attack?.kind!=='kick';
 }
-export function cornerHandling(rider: Rider, curve: number) {
-  return rider.handling*(1+(getKneePad(rider.kneePadId)?.grip ?? 0)*kneeSupport(rider,curve));
+export function cornerHandling(rider: Rider, curve: number, trackId = 'costa') {
+  return rider.handling*(1+(getKneePad(rider.kneePadId)?.grip ?? 0)*kneeSupport(rider,curve,trackId));
 }
 // Braking advice assumes the equipped technique can be used in the bend.
 export function plannedCornerHandling(handling: number, kneePadId?: string) {

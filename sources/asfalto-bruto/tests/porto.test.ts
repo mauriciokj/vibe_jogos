@@ -17,7 +17,7 @@ test('two clean wins cannot buy a replacement bike; exact 10k buys the first ste
   save.cash=9999;assert.equal(buyBike(save,'falcao'),false);save.cash=10000;assert.ok(buyBike(save,'falcao'));assert.equal(save.cash,0);
 });
 test('Porto is the fourth track, with four routes, a broad start and a straight finish',()=>{
-  assert.equal(RACE_ROUTES.length,16);assert.equal(RACE_ROUTES.filter(r=>r.track.id==='porto').length,4);
+  assert.equal(RACE_ROUTES.length,20);assert.equal(RACE_ROUTES.filter(r=>r.track.id==='porto').length,4);
   assert.equal(getTrack('porto').distance,7800);assert.equal(getTrack('porto').index,3);
   for(const z of [0,200,500,780,7440,7700,7800])assert.equal(curveAt(z,'porto'),0);
   assert.ok(curveAt(2535,'porto')>1.9);assert.ok(curveAt(2890,'porto')<-2);

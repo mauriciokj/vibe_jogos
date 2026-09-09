@@ -18,13 +18,13 @@ export function conditionTrack(track: Track, value: unknown): Track {
   const condition=raceCondition(value),key=`${track.id}:${condition}`;
   if(condition==='sunset')return track;
   const cached=palettes.get(key);if(cached)return cached;
-  const desert=track.theme==='desert',port=track.theme==='port';
+  const desert=track.theme==='desert',port=track.theme==='port',rural=track.theme==='rural';
   const visual={...track,...(condition==='day'?{
-    sky:['#287fad','#86cddb','#e2efd0'],land:port?['#8a9089','#7f867e']:desert?['#cc9b64','#c19360']:['#719d66','#65905b'],road:['#56646b','#515e65'],
+    sky:['#287fad','#86cddb','#e2efd0'],land:port?['#8a9089','#7f867e']:desert?['#cc9b64','#c19360']:['#719d66','#65905b'],road:rural?['#b98150','#b37c4c']:['#56646b','#515e65'],
   }:condition==='night'?{
-    sky:['#060d23','#142746','#385975'],land:port?['#38484c','#324145']:desert?['#534d50','#4a4449']:['#29474a','#244044'],road:['#33434e','#2d3c48'],
+    sky:['#060d23','#142746','#385975'],land:port?['#38484c','#324145']:desert?['#534d50','#4a4449']:['#29474a','#244044'],road:rural?['#675443','#61503f']:['#33434e','#2d3c48'],
   }:{
-    sky:['#344d60','#688491','#acbbc0'],land:port?['#617377','#596a6e']:desert?['#9c8166','#90765d']:['#57786e','#4e6c64'],road:['#3b535e','#344a56'],
+    sky:['#344d60','#688491','#acbbc0'],land:port?['#617377','#596a6e']:desert?['#9c8166','#90765d']:['#57786e','#4e6c64'],road:rural?['#805e45','#795840']:['#3b535e','#344a56'],
   })};
   palettes.set(key,visual);return visual;
 }
