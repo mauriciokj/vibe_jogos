@@ -263,3 +263,10 @@ Artefatos locais estão em `road rash/output/vps/`: `live-check.json`, `eight.js
 - 122 testes unitários, nove VPS, build/export, browser de bônus, regressão de chegada solo/multiplayer e loop de controles da skill passaram. Liquidação não altera resultado autoritativo/snapshot/replay; dinheiro e recorde persistidos juntos. Normalização/CAS/recibo cloud validados em banco local descartável.
 - Browser HTTPS nos dois domínios passou em quatro telas por domínio, incluindo reload, bônus de 420 somado aos 1120 do segundo lugar, casos sem bônus, separação pista/condição e visibilidade acima dos botões. Capturas públicas inspecionadas; sem erros JS/console. QA descartável em ?test, sem incrementar visitas/autenticar usuários/publicar resultados falsos.
 - Ativação inicial recusada por corrida ativa; aguardado fim e usada ativação guardada normal. Asfalto/Catálogo/Caddy saudáveis, zero corridas na conferência. Configuração Google, save v1, protocolo11, bases e homepage preservados.
+
+### 2026-09-09 — Pilotos tardios param na chegada solo
+
+- Código `1a83e16`, release `20260909T214102Z-1a83e16` ativa. Corrigida extrapolação visual ilimitada: rivais que chegam após o player desaceleram e estacionam em posições distintas, sem alterar resultados/tempos oficiais, snapshot, prêmio, bônus ou estado online. Vencedor real continua comemorando.
+- Teste reproduziu a falha anterior e passou com o ajuste. 124 unitários, nove VPS, build/export, browser local com solo/multiplayer e cinco iterações de controles/capturas da skill passaram. Permanência das vagas após dois minutos confirmada em teste.
+- QA HTTPS nos dois domínios/quatro viewports passou; imagens após 10 e mais 20 segundos da chegada em segundo inspecionadas em desktop/celular. Rivais permanecem estacionados, pagamento e snapshot intactos. Sem erros JS/console, visitas artificiais ou resultados/contas de teste na base pública.
+- Ativação guardada, serviços Asfalto/Catálogo/Caddy ativos e zero corridas no check final. Configuração OAuth, bancos, homepage e protocolo11 preservados.
