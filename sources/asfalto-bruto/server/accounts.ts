@@ -36,10 +36,14 @@ export class AccountService {
       if(method==='GET' && route==='/session') {
         let csrf=identity?.csrf ?? '',nonce='';
         if(!identity && this.options.clientId){
-          const key=token();nonce=token();csrf=token();
           for(const [k,c] of this.challenges)if(c.expires<this.now())this.challenges.delete(k);
-          if(this.challenges.size>=2048)fail(429,'Muitos acessos. Tente em alguns minutos.');
-          this.challenges.set(hash(key),{nonce,csrf,expires:this.now()+600_000});this.setCookie(res,'login',key,600);
+          const pending=this.challenges.get(hash(cookie(req,this.cookieName('login'))));
+          if(pending){nonce=pending.nonce;csrf=pending.csrf;}
+          else {
+            if(this.challenges.size>=2048)fail(429,'Muitos acessos. Tente em alguns minutos.');
+            const key=token();nonce=token();csrf=token();
+            this.challenges.set(hash(key),{nonce,csrf,expires:this.now()+600_000});this.setCookie(res,'login',key,600);
+          }
         }
         send({account:identity?.account ?? null,cloud:identity?this.db.cloud(identity.account.id):undefined,csrf,nonce,clientId:this.options.clientId});return true;
       }

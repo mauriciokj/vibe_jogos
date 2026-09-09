@@ -34,12 +34,24 @@ async function setup(page:Page,save:typeof guest){
   await page.goto(origin+'/?test',{waitUntil:'domcontentloaded'});
   await page.waitForFunction(()=>typeof window.render_game_to_text==='function');
 }
-async function login(page:Page){await page.click('#account-btn');await page.click('#qa-google');}
+async function login(page:Page){
+  await page.click('#account-btn');await page.locator('#qa-google').waitFor();
+  const response=page.waitForResponse(r=>r.url().endsWith('/account/session'));
+  await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await response;await page.waitForTimeout(100);
+  await page.click('#qa-google');
+}
 async function close(page:Page){await page.click('#account-modal .close-btn');}
 try{
   await setup(p,guest);await setup(m,stock);
   assert.equal((await state(p)).save.cash,25000);
-  await login(p);await p.locator('[data-import]').waitFor();await p.screenshot({path:folder+'/01-import.png'});await p.click('[data-import]');
+  await p.click('#account-btn');await p.locator('#qa-google').waitFor();
+  let releaseRefresh!:()=>void;let refreshHeld!:()=>void;
+  const held=new Promise<void>(r=>refreshHeld=r),released=new Promise<void>(r=>releaseRefresh=r);
+  await p.route('**/api/asfalto/account/session',async route=>{const response=await route.fetch();refreshHeld();await released;await route.fulfill({response});});
+  await p.evaluate(()=>window.dispatchEvent(new Event('focus')));await held;
+  await p.click('#qa-google');await p.locator('[data-import]').waitFor();releaseRefresh();await p.waitForTimeout(200);
+  await p.unroute('**/api/asfalto/account/session');assert.equal((await state(p)).account.signedIn,true);
+  await p.locator('[data-import]').waitFor();await p.screenshot({path:folder+'/01-import.png'});await p.click('[data-import]');
   await p.waitForFunction(()=>JSON.parse(window.render_game_to_text()).account.status==='Progresso sincronizado');
   await p.fill('#account-nickname','Piloto QA');await p.click('#nickname-form button');await close(p);
   await login(m);await m.locator('#account-nickname').waitFor();await m.screenshot({path:folder+'/02-mobile-account.png'});

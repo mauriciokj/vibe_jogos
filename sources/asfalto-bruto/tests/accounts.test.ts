@@ -51,6 +51,10 @@ test('Authenticated API: nonce, CSRF, import, conflicts, verified solo replay an
   try{
     const challenge=await call('/session');cookie=challenge.res.headers.get('set-cookie')!.split(';')[0];csrf=challenge.body.csrf;
     assert.match(challenge.res.headers.get('set-cookie')!,/HttpOnly; SameSite=Lax.*Secure/);
+    const refocused=await call('/session');
+    assert.equal(refocused.body.nonce,challenge.body.nonce,'returning from Google must preserve the pending nonce');
+    assert.equal(refocused.body.csrf,csrf);
+    assert.equal(refocused.res.headers.get('set-cookie'),null);
     assert.equal((await call('/login',{credential:`test:${challenge.body.nonce}`},{Origin:'https://evil.example'})).res.status,403);
     assert.equal((await call('/login',{credential:`test:${challenge.body.nonce}`},{'X-Asfalto-CSRF':'wrong'})).res.status,403);
     const login=await call('/login',{credential:`test:${challenge.body.nonce}`});assert.equal(login.res.status,200);

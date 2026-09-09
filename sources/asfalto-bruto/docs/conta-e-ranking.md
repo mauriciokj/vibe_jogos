@@ -35,7 +35,7 @@ O login é opcional. Convidados mantêm a campanha e o multiplayer existentes.
 Criar/reutilizar um cliente OAuth do tipo **Aplicativo da Web** no Google Auth Platform. Informar:
 
 - Nome do app: Asfalto Bruto.
-- Público externo, para jogadores fora da organização. Enquanto em teste, só usuários de teste cadastrados conseguem entrar; publicar para permitir outros jogadores.
+- Público externo, para jogadores fora da organização. O login básico Google (openid/email/profile) é uma exceção à restrição de usuários de teste. A publicação e a verificação de marca controlam a apresentação pública do nome/logotipo; conferir a configuração no painel.
 - Origens JavaScript autorizadas: `https://asfaltobruto.flowofdevelopment.com` e `https://flowofdevelopment.com`. Adicionar `https://www.flowofdevelopment.com` se esse endereço for usado para jogar.
 - Página inicial: `https://asfaltobruto.flowofdevelopment.com/asfalto-bruto/`.
 - Privacidade: `https://asfaltobruto.flowofdevelopment.com/asfalto-bruto/privacidade.html`.

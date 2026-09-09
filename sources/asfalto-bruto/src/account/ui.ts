@@ -17,7 +17,7 @@ export function accountUI(client:AccountClient, canOpen:()=>boolean) {
   document.querySelector('.bike-line')!.after(entry);
   const dialog=document.createElement('dialog');dialog.id='account-modal';dialog.setAttribute('aria-labelledby','account-title');document.body.append(dialog);
   const board=document.createElement('dialog');board.id='ranking-modal';board.setAttribute('aria-labelledby','ranking-title');document.body.append(board);
-  let displayMode='',request=0;
+  let displayMode='',request=0,renderRevision=0;
   function mode(){return client.conflict?'conflict':client.session?.account && !client.cache?'import':client.session?.account?'signed':'guest';}
   function update(){
     entry.querySelector('small')!.textContent=client.status;
@@ -32,6 +32,7 @@ export function accountUI(client:AccountClient, canOpen:()=>boolean) {
     try{await fn();render();}catch(e){dialog.querySelector('[data-error]')!.textContent=e instanceof Error?e.message:'Tente novamente.';dialog.querySelectorAll<HTMLButtonElement>('button').forEach(b=>b.disabled=false);}
   }
   function render(){
+    const revision=++renderRevision;
     displayMode=mode();
     let body='';
     if(displayMode==='import'){
@@ -53,7 +54,8 @@ export function accountUI(client:AccountClient, canOpen:()=>boolean) {
     dialog.querySelector('[data-refresh]')?.addEventListener('click',()=>void act(()=>client.refresh()));
     dialog.querySelector('form')?.addEventListener('submit',e=>{e.preventDefault();void act(async()=>{const result=await client.api('/nickname',{nickname:dialog.querySelector<HTMLInputElement>('input')!.value});client.session!.account!.nickname=result.nickname;if(client.cache)client.cache.account.nickname=result.nickname;});});
     if(displayMode==='guest' && client.session?.clientId)void loadGoogle().then(()=>{
-      const target=dialog.querySelector('#google-button');if(!target)return;
+      const target=dialog.querySelector('#google-button');if(!target || revision!==renderRevision || !dialog.open)return;
+      target.replaceChildren();
       const google=(window as any).google.accounts.id;
       google.initialize({client_id:client.session!.clientId,nonce:(client.session as any).nonce,auto_select:false,callback:(response:{credential:string})=>void act(()=>client.login(response.credential))});
       google.renderButton(target,{type:'standard',theme:'outline',size:'large',text:'signin_with',locale:'pt-BR',width:Math.min(320,dialog.clientWidth-60)});

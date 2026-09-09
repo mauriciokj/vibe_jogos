@@ -17,6 +17,8 @@ export class AccountClient {
   private timer?:ReturnType<typeof setTimeout>;
   private sending:Promise<void>|null=null;
   private listeners=new Set<()=>void>();
+  private authChanging=false;
+  private authEpoch=0;
   constructor(private apply:(save:SaveData)=>void,private safe:()=>boolean) {
     try{const id=localStorage.getItem(ACTIVE);if(id){const recovery=JSON.parse(localStorage.getItem(recoveryKey(id)) ?? 'null');const raw=recovery?.dirty?recovery:JSON.parse(localStorage.getItem(cacheKey(id)) ?? 'null');if(raw?.account?.id===id)this.cache={...raw,save:normalizeSave(raw.save)};}}catch{}
     if(this.cache)this.status='Progresso neste aparelho · conectando…';
@@ -38,8 +40,11 @@ export class AccountClient {
     const data=await res.json();if(!res.ok)throw new ApiError(res.status,data);return data;
   }
   async refresh() {
+    if(this.authChanging)return;
+    const epoch=this.authEpoch;
     try {
       const session=await this.api('/session') as Session;
+      if(epoch!==this.authEpoch || this.authChanging)return;
       if(!('account' in session))throw new Error('Conta indisponível');
       this.session=session;this.available=true;
       if(session.account){
@@ -47,7 +52,7 @@ export class AccountClient {
         else if(this.cache?.account.id!==session.account.id){this.status='Conta alterada · abra Conta no menu';}
         if(this.cache?.account.id===session.account.id)await this.flush();
       } else this.status=this.cache?'Entre no Google para sincronizar este progresso':'Convidado · salvo neste navegador';
-    } catch {this.status=this.cache?'Sem conexão · progresso salvo neste aparelho':'Convidado · salvo neste navegador';}
+    } catch {if(epoch!==this.authEpoch || this.authChanging)return;this.status=this.cache?'Sem conexão · progresso salvo neste aparelho':'Convidado · salvo neste navegador';}
     this.changed();
   }
   acceptSession(session:Session) {
@@ -69,7 +74,12 @@ export class AccountClient {
     }
     this.persistCache();if(!this.conflict)this.status=this.cache.dirty?'Sincronizando…':'Progresso sincronizado';this.changed();
   }
-  async login(credential:string){const session=await this.api('/login',{credential});this.acceptSession(session);this.changed();}
+  async login(credential:string){
+    if(this.authChanging)return;
+    this.authChanging=true;this.authEpoch++;
+    try{const session=await this.api('/login',{credential});this.acceptSession(session);this.changed();}
+    finally{this.authChanging=false;}
+  }
   async chooseInitial(importGuest:boolean) {
     if(!this.session?.account || this.cache)return;
     this.cache={account:this.session.account,revision:this.session.cloud?.revision ?? 0,save:importGuest?loadSave():freshSave(),dirty:true};
@@ -109,8 +119,13 @@ export class AccountClient {
   }
   async logout() {
     await this.flush();
-    if(this.session?.account)await this.api('/logout',{});
-    localStorage.removeItem(ACTIVE);this.cache=null;this.session=null;this.conflict=null;this.apply(loadSave());await this.refresh();
+    if(this.authChanging)return;
+    this.authChanging=true;this.authEpoch++;
+    try {
+      if(this.session?.account)await this.api('/logout',{});
+      localStorage.removeItem(ACTIVE);this.cache=null;this.session=null;this.conflict=null;this.apply(loadSave());
+    } finally {this.authChanging=false;}
+    await this.refresh();
   }
   async startRun(trackId:string,condition:RaceCondition):Promise<RankedRun|null>{
     if(!this.cache || !this.session?.account || this.conflict)return null;
