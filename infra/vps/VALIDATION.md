@@ -150,3 +150,12 @@ Artefatos locais estão em `road rash/output/vps/`: `live-check.json`, `eight.js
 - Build/export e todos os 89 testes passaram. Navegador local verificou Porto/Chuva, Serra nos dois lados, controles móveis, dois humanos + seis bots, posições remotas e reconexão; sem erros JS/console.
 - HTTPS/WSS público entre domínio principal e subdomínio confirmou contato/velocidade/saída da proteção, obras, corrida individual e dois humanos, contenção remota e reconexão, sem erros JS/console. QA usou `?test`, sem aumentar visitantes. DNS temporário no Chromium manteve TLS validado.
 - Relatórios e capturas em `output/guardrails/` no projeto de origem, inspecionados. Cliente da skill com backend nativo já documentado passou com aceleração/direção na Costa publicada; estado e imagem revisados. Concluído, publicado e enviado ao GitHub. Registro posterior não requer nova ativação.
+
+
+### Áudio do guard-rail publicado — 2026-09-09
+
+- Código `8e20908`, release `20260909T030557Z-8e20908` ativa. Protocolo v10 e física preservados. Asfalto/Catálogo/Caddy ativos; guarda de corridas respeitada, clientes de teste saíram explicitamente.
+- Batida metálica curta no primeiro contato e raspagem contínua com volume/brilho acompanhando a velocidade. Duas bandas filtradas no loop reutilizado; histerese de 150ms evita repetir pancadas com pequenas correções online. Silencia ao afastar/parar/cair/sair/pausar; mute e reinício respeitados.
+- Build/export e seis testes de guard-rail passaram. Chromium local e HTTPS/WSS nos dois domínios confirmaram nós Web Audio reais, impacto único, raspagem e volume (ganhos aproximados 0,220 a 45m/s e 0,103 a 10m/s), pausa/mute, snapshots repetidos, laterais abertas, fim/reinício e dois humanos sem sons indevidos no outro cliente. Sem erros JS/console. Primeira sonda online media após a moto já ter parado; corrigida para medir durante movimento. Regressão do áudio de salto também passou. Verificação instrumental, sem avaliação auditiva subjetiva.
+- Relatórios e capturas locais/publicadas inspecionados em `output/guardrail-audio/` no projeto de origem. Cliente da skill com backend nativo já documentado executou largada/aceleração/contato na Costa publicada; estado em x=-7, saúde/integridade 100%, sem queda. Imagem/estado revisados, sem erros.
+- QA público em `?test`, sem incrementar visitas; DNS temporário no Chromium com TLS validado. Concluído, publicado e enviado ao GitHub. Registro posterior não requer redeploy.
