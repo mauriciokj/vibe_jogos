@@ -12,6 +12,7 @@ import './menu.css';
 import { showVisitorCount } from './visitors';
 import './equipment.css';
 import './touch.css';
+import './hud.css';
 import { supportsKneeDown } from './game/bikes';
 import { cornerHandling, equippedKneePad, getKneePad, kneeSupport, nitroCount } from './game/equipment';
 import { TAUNTS } from './game/banter';
@@ -63,11 +64,20 @@ root.innerHTML = `
     </section>
     <section id="hud" hidden aria-label="Informações da corrida">
       <div class="hud-top"><div><div class="position"><strong id="position">8</strong><span>/ <b id="rider-total">8</b></span></div><div class="position-label">POSIÇÃO</div></div>
-        <div class="hud-track"><div class="eyebrow" id="race-region">RODOVIA LITORÂNEA</div><h2 id="race-track">COSTA DO SOL</h2><span class="hud-time" id="race-time">00:00.0</span></div>
         <div class="hud-actions"><button class="icon-btn" data-action="mute" aria-label="Silenciar áudio">${icons.sound}</button><button class="icon-btn" data-action="fullscreen" aria-label="Tela cheia (F)">${icons.full}</button><button class="icon-btn" id="pause-btn" aria-label="Pausar (Esc)">${icons.pause}</button></div>
       </div>
-      <canvas id="rear-view" class="rear-view" aria-label="Retrovisor: pilotos e trânsito até 200 metros atrás"></canvas><canvas id="race-map" class="race-map" aria-label="Mapa dos 300 metros à frente e atrás e distâncias entre pilotos"></canvas><div class="online-hud" id="online-hud" hidden></div><div class="heat-status"><span class="heat-dots" id="heat-dots">${'<i></i>'.repeat(8)}</span><span id="heat-label">PROCURADO</span></div>
-      <div id="corner-warning" class="corner-warning" hidden><b id="corner-arrow">↱</b><div><strong id="corner-title"></strong><span id="corner-detail"></span></div></div><div class="rival-list" id="rival-list"></div><div class="race-message" id="race-message" aria-live="polite"></div>
+      <div class="race-guidance">
+        <span class="hud-time" id="race-time">00:00.0</span>
+        <canvas id="rear-view" class="rear-view" aria-label="Retrovisor: pilotos e trânsito até 200 metros atrás"></canvas>
+        <div id="corner-warning" class="corner-warning" hidden><b id="corner-arrow">↱</b><div><strong id="corner-title"></strong><span id="corner-detail"></span></div></div>
+      </div>
+      <div class="race-sidebar">
+        <div class="heat-status"><span class="heat-dots" id="heat-dots">${'<i></i>'.repeat(8)}</span><span id="heat-label">PROCURADO</span></div>
+        <canvas id="race-map" class="race-map" aria-label="Mapa dos 300 metros à frente e atrás; você em verde-limão, polícia em vermelho e azul"></canvas>
+        <div class="hud-track"><h2 id="race-track">COSTA DO SOL</h2><div class="eyebrow" id="race-region">RODOVIA LITORÂNEA</div></div>
+        <div class="online-hud" id="online-hud" hidden></div>
+      </div>
+      <div class="rival-list" id="rival-list"></div><div class="race-message" id="race-message" aria-live="polite"></div>
       <div class="countdown" id="countdown"><strong id="count-number">3</strong><span>PREPARE-SE · SEGURE W OU ↑</span></div>
       <div class="crash-overlay" id="crash" hidden><strong>LEVANTA E VAI.</strong><small id="crash-time">VOLTANDO À PISTA...</small></div>
       <div class="race-bottom"><div class="vitals"><div class="meter-label"><span>PILOTO</span><b id="health-value">100%</b></div><div class="meter-track"><i id="health-bar"></i></div><div class="meter-label"><span>MOTO</span><b id="integrity-value">100%</b></div><div class="meter-track bike"><i id="integrity-bar"></i></div><div class="weapon"><span class="weapon-icon">╱</span><span id="weapon-label">BASTÃO</span><kbd>L</kbd><small>J SOCO · K CHUTE</small></div><div class="equipment-hud"><span id="knee-indicator"></span><span id="nitro-indicator"></span><span id="wheelie-indicator"></span></div></div>
@@ -364,7 +374,8 @@ function directionTap(side: number, at: number) {
   if(doubleTap.press(side,at))queueAction(side<0?'kneeLeft':'kneeRight');
 }
 function updateHUD() {
-  setText('race-region',`${getTrack(race.trackId).region} · ${conditionName(race.condition).toUpperCase()}`);
+  setText('race-track',getTrack(race.trackId).name.toUpperCase());
+  setText('race-region',conditionName(race.condition).toUpperCase());
   const p = localRider(), standings=onlineMode?(online.room?.race ?? race):race;
   const order = ranking(standings), place = order.findIndex(r => r.id === localId()) + 1;
   const standingZ=standings.riders.find(r=>r.id===localId())?.z ?? p.z;

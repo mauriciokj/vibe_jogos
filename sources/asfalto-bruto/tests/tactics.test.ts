@@ -72,3 +72,22 @@ test('map and mirror use the local identity, signed route distances and the 200m
   assert.deepEqual(view.rear.map(r=>r.distance),[200,18]);assert.ok(view.rear.every(r=>r.closing));
   assert.equal(view.racers.find(r=>r.id===s.riders[7].id)?.out,'caught');
 });
+
+test('police map markers follow the local rider within 300m without entering the standings', () => {
+  const s=createMultiplayerRace('costa',[{id:'a',name:'A'},{id:'b',name:'B'}]);
+  s.riders[0].z=2000;s.riders[1].z=1000;
+  const officer={...s.riders[0],id:'police',profile:'police' as const,z:700,x:-2};
+  s.riders.push(officer);
+  assert.deepEqual(raceAwareness(s,'b').police,[]);
+  s.policeActive=true;
+  for(const gap of [-300,-1,0,1,300]){
+    officer.z=1000+gap;
+    const view=raceAwareness(s,'b');
+    assert.deepEqual(view.police,[{id:'police',x:-2,z:officer.z,gap}]);
+    assert.equal(view.racers.length,2);assert.equal(view.ahead?.id,'a');assert.equal(view.behind,null);
+    assert.deepEqual(raceAwareness(s,'a').police,[]);
+  }
+  for(const gap of [-301,301]){officer.z=1000+gap;assert.deepEqual(raceAwareness(s,'b').police,[]);}
+  officer.z=1050;officer.out='wrecked';assert.deepEqual(raceAwareness(s,'b').police,[]);
+  officer.out=undefined;officer.integrity=0;assert.deepEqual(raceAwareness(s,'b').police,[]);
+});

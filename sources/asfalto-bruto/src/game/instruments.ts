@@ -3,7 +3,7 @@ import { tractorSprite } from './rural-art';
 import { jumpHeight, stunting } from './stunts';
 import { conditionTrack } from './conditions';
 import { clamp, curveAt, elevationAt, getBike, getTrack } from './content';
-import { MIRROR_RANGE, raceAwareness } from './awareness';
+import { MAP_RANGE, MIRROR_RANGE, raceAwareness } from './awareness';
 import { bikeFrontSprite, truckSprite } from './sprites';
 import { getKneePad, kneeSupport } from './equipment';
 import type { RaceState } from './types';
@@ -40,28 +40,47 @@ export class RaceInstruments {
     }
     c.clearRect(0,0,w,h); c.fillStyle = '#13272ded'; c.fillRect(0,0,w,h);
     c.textAlign = 'center'; c.font = 'bold 9px monospace'; c.fillStyle = '#b4c8bc'; c.fillText('MAPA · ±300 M',w/2,15);
-    const first=clamp(Math.floor((me.z-300)/20),0,this.route.points.length-1),last=clamp(Math.ceil((me.z+300)/20),first,this.route.points.length-1);
+    const compact=h<160, short=h<120, mapTop=compact?24:30, mapBottom=h-(short?24:compact?37:60);
+    const first=clamp(Math.floor((me.z-MAP_RANGE)/20),0,this.route.points.length-1),last=clamp(Math.ceil((me.z+MAP_RANGE)/20),first,this.route.points.length-1);
     const section=this.route.points.slice(first,last+1),xs=section.map(p=>p.x),minX=Math.min(...xs),maxX=Math.max(...xs);
-    const screen = (x:number,z:number) => ({x:clamp(18+(x-minX)/Math.max(.00001,maxX-minX)*(w-36),18,w-18),y:30+clamp((me.z+300-z)/600,0,1)*(h-90)});
+    const screen = (x:number,z:number) => ({x:clamp(18+(x-minX)/Math.max(.00001,maxX-minX)*(w-36),18,w-18),y:mapTop+clamp((me.z+MAP_RANGE-z)/(MAP_RANGE*2),0,1)*(mapBottom-mapTop)});
+    const marker = (x:number,z:number) => {
+      const n=clamp(z/track.distance,0,1)*(this.route.points.length-1),i=Math.floor(n),a=this.route.points[i],b=this.route.points[Math.min(i+1,this.route.points.length-1)];
+      const q=screen(a.x+(b.x-a.x)*(n-i),z);
+      q.x+=clamp(x,-roadHalf(state.trackId),roadHalf(state.trackId))*.85;
+      return q;
+    };
     c.beginPath(); section.forEach((p,i)=>{const q=screen(p.x,(first+i)*20); if(i)c.lineTo(q.x,q.y);else c.moveTo(q.x,q.y);});
     c.strokeStyle = '#5d7475'; c.lineWidth = 5; c.lineJoin = 'round'; c.stroke();
     c.strokeStyle = '#273f44'; c.lineWidth = 2; c.stroke();
     if(track.distance-me.z<=300){const end=screen(this.route.points.at(-1)!.x,track.distance);c.fillStyle='#edf1d7';c.fillRect(end.x-4,end.y-6,8,4);}
     // Nearby riders share progress; small lane offsets keep their markers visible.
     for (const r of awareness.racers.sort((a,b)=>Number(a.local)-Number(b.local))) {
-      const n = r.progress*(this.route.points.length-1), i=Math.floor(n), a=this.route.points[i], b=this.route.points[Math.min(i+1,this.route.points.length-1)];
-      const q=screen(a.x+(b.x-a.x)*(n-i),r.progress*track.distance);
-      const rider=state.riders.find(p=>p.id===r.id)!; q.x+=clamp(rider.x,-roadHalf(state.trackId),roadHalf(state.trackId))*.85;
+      const rider=state.riders.find(p=>p.id===r.id)!, q=marker(rider.x,rider.z);
       c.globalAlpha=r.out ? .4 : 1; c.fillStyle=r.local?'#deff70':r.color;
       c.beginPath();c.arc(q.x,q.y,r.local?4.5:3,0,Math.PI*2);c.fill();
       if(r.local){c.strokeStyle='#fff';c.lineWidth=1.5;c.stroke();}
     }
-    c.globalAlpha=1; c.font=`${w<120?8:10}px monospace`; c.textAlign='left';
-    c.fillStyle='#deff70';c.fillText(`● VOCÊ · ${(me.z/1000).toFixed(1)}KM`,9,h-42);
+    c.globalAlpha=1;
+    // A small alternating light bar stays distinct from the round rider dots.
+    for(const officer of awareness.police){
+      const q=marker(officer.x,officer.z),red=Math.floor(state.time*4)%2===0;
+      c.fillStyle='#10252c';c.fillRect(q.x-8,q.y-5,16,10);
+      c.strokeStyle='#eef4ec';c.lineWidth=1;c.strokeRect(q.x-8,q.y-5,16,10);
+      c.fillStyle=red?'#ff5263':'#702a3a';c.fillRect(q.x-6,q.y-3,6,6);
+      c.fillStyle=red?'#25457c':'#58a6ff';c.fillRect(q.x,q.y-3,6,6);
+    }
+    c.font=`${w<120?8:10}px monospace`; c.textAlign='left';
+    if(!compact){c.fillStyle='#deff70';c.fillText(`● VOCÊ · ${(me.z/1000).toFixed(1)}KM`,9,h-42);}
     for (const [i,r] of [awareness.ahead,awareness.behind].entries()) {
       c.fillStyle=r?.color ?? '#9eb3a9';
       const gap=r?`${r.gap>=0?'+':'−'}${Math.abs(r.gap)}m`:'—';
-      c.fillText(`${i?'ATRÁS':'FRENTE'} ${gap}`,9,h-25+i*14);
+      if(short){
+        const x=i?w/2+3:9;
+        c.beginPath();c.moveTo(x+3,h-(i?8:15));c.lineTo(x,h-(i?14:9));c.lineTo(x+6,h-(i?14:9));c.closePath();c.fill();
+        c.font='8px monospace';c.fillText(gap,x+9,h-9);
+      }
+      else c.fillText(`${i?'ATRÁS':'FRENTE'} ${gap}`,9,h-25+i*14);
     }
   }
   private drawMirror(state: RaceState, localId: string) {

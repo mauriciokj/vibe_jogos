@@ -2,6 +2,7 @@ import { clamp, getTrack } from './content';
 import type { RaceState } from './types';
 
 export const MIRROR_RANGE = 200;
+export const MAP_RANGE = 300;
 export function raceAwareness(state: RaceState, localId: string) {
   const me = state.riders.find(r => r.id === localId) ?? state.riders[0];
   const length = getTrack(state.trackId).distance;
@@ -15,5 +16,8 @@ export function raceAwareness(state: RaceState, localId: string) {
   const behind = competing.filter(r => r.gap < 0).sort((a,b) => b.gap-a.gap)[0] ?? null;
   const rear = state.riders.filter(r => r.id !== me.id && !r.out && me.z-r.z > 0 && me.z-r.z <= MIRROR_RANGE)
     .sort((a,b) => a.z-b.z).map(r => ({id:r.id, name:r.name, distance: +(me.z-r.z).toFixed(1), closing: r.speed > me.speed + 1, police:r.profile === 'police'}));
-  return { racers, ahead, behind, rear, mirrorRange: MIRROR_RANGE };
+  // Police are nearby hazards, never competitors in the position/gap list.
+  const police = state.policeActive ? state.riders.filter(r => r.profile === 'police' && !r.out && r.integrity > 0 && Math.abs(r.z-me.z) <= MAP_RANGE)
+    .map(r => ({id:r.id,x:r.x,z:r.z,gap:Math.round(r.z-me.z)})) : [];
+  return { racers, ahead, behind, rear, police, mirrorRange: MIRROR_RANGE };
 }
