@@ -31,7 +31,8 @@
     "test:rural": "tsx tests/rural-browser.ts",
     "test:difficulty": "tsx tests/difficulty-browser.ts",
     "test:balance": "tsx tests/difficulty-benchmark.ts",
-    "test:public-rooms": "tsx tests/public-rooms-browser.ts"
+    "test:public-rooms": "tsx tests/public-rooms-browser.ts",
+    "test:recovery": "tsx tests/connection-recovery-browser.ts"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

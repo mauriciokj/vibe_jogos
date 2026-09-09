@@ -22,8 +22,10 @@ export class OnlineClient {
   private presentation?: RacePresentation;
   private offset = 0;
   private clockReady = false;
+  private lastProgressAt = 0;
   constructor(private hooks: Hooks) {}
   get active() { return !this.stopped; }
+  get syncing() { return this.status==='connected' && this.room?.phase==='racing' && performance.now()-this.lastProgressAt>750; }
   serverNow() { return Date.now()+this.offset; }
   private setStatus(status: Connection) { this.status=status; this.hooks.status(status); }
   private persistSession() { try { sessionStorage.setItem(sessionKey,JSON.stringify({code:this.code,token:this.token})); } catch {} }
@@ -55,11 +57,19 @@ export class OnlineClient {
     const endpoint = new URL(import.meta.env.VITE_MULTIPLAYER_URL || '/api/asfalto/',location.href);
     endpoint.protocol=endpoint.protocol==='https:'?'wss:':endpoint.protocol==='http:'?'ws:':endpoint.protocol;
     const ws=new WebSocket(endpoint);this.ws=ws;
-    this.connectTimer=setTimeout(()=>{if(ws===this.ws && this.status!=='connected'){this.hooks.error('Servidor online indisponível. Você pode continuar no modo individual.');ws.close();}},8000);
+    const remaining=this.reconnectStarted?Math.max(1,RECONNECT_MS-(performance.now()-this.reconnectStarted)):8000;
+    this.connectTimer=setTimeout(()=>{
+      if(ws!==this.ws || this.status==='connected')return;
+      if(message.type==='resume')this.reconnect();
+      else {this.stop(false);this.forgetSession();this.hooks.error('Servidor online indisponível. Você pode continuar no modo individual.');}
+    },Math.min(8000,remaining));
     ws.addEventListener('open',()=> {
       if(ws!==this.ws)return;this.send(message);
       let ticks=0;
       this.sendTimer=setInterval(()=> {
+        // A socket can remain OPEN (and even answer ping) while race updates
+        // stop arriving. Do not wait for its close handshake to recover.
+        if(this.status==='connected' && this.room?.phase==='racing' && performance.now()-this.lastProgressAt>3000){this.reconnect();return;}
         this.sendInput();
         if(++ticks%40===0)this.send({type:'ping',sentAt:performance.now()});
       },50);
@@ -69,7 +79,7 @@ export class OnlineClient {
       if(ws!==this.ws)return;
       let data: ServerMessage;try{data=JSON.parse(event.data);}catch{return;}
       if(data.type==='welcome') {
-        clearTimeout(this.connectTimer);this.reconnectStarted=0;
+        clearTimeout(this.connectTimer);
         if(this.id!==data.id || this.code!==data.room.code){this.attacks=[];this.attackSeq=0;this.actions=[];this.actionSeq=0;this.seq=0;this.presentation=new RacePresentation(data.id);this.room=null;}
         this.id=data.id;this.code=data.room.code;this.token=data.token;
         this.seq=Math.max(this.seq,data.room.ack[this.id] ?? 0);this.persistSession();this.setStatus('connected');this.accept(data.room);
@@ -84,16 +94,26 @@ export class OnlineClient {
       else if(data.type==='error') {this.hooks.error(data.message);if(data.fatal || !this.id){this.stop(false);this.forgetSession();}}
     });
     ws.addEventListener('close',()=> {
-      if(ws!==this.ws || this.stopped)return;clearInterval(this.sendTimer);clearTimeout(this.connectTimer);
-      if(!this.code || !this.token){this.setStatus('offline');this.stopped=true;this.hooks.error('Não foi possível conectar ao multiplayer. Tente novamente.');return;}
-      this.reconnectStarted ||= performance.now();
-      if(performance.now()-this.reconnectStarted>RECONNECT_MS){this.stop(false);this.forgetSession();this.hooks.error('A reconexão expirou. Volte ao menu para entrar em outra sala.');return;}
-      this.setStatus('reconnecting');this.reconnectTimer=setTimeout(()=>this.open({type:'resume',version:NET_VERSION,code:this.code,token:this.token}),750);
+      if(ws===this.ws && !this.stopped)this.reconnect();
     });
     ws.addEventListener('error',()=>{});
   }
+  private reconnect() {
+    clearInterval(this.sendTimer);clearTimeout(this.connectTimer);clearTimeout(this.reconnectTimer);
+    const ws=this.ws;this.ws=undefined;ws?.close();
+    if(this.stopped)return;
+    if(!this.code || !this.token){this.stop(false);this.hooks.error('Não foi possível conectar ao multiplayer. Tente novamente.');return;}
+    this.reconnectStarted ||= performance.now();
+    const remaining=RECONNECT_MS-(performance.now()-this.reconnectStarted);
+    if(remaining<=0){this.stop(false);this.forgetSession();this.hooks.error('A reconexão expirou. Volte ao menu para entrar em outra sala.');return;}
+    this.setStatus('reconnecting');
+    this.reconnectTimer=setTimeout(()=>this.open({type:'resume',version:NET_VERSION,code:this.code,token:this.token}),Math.min(750,remaining));
+  }
   private accept(room: RoomView) {
     if(this.room?.code===room.code && this.room.revision>=room.revision)return;
+    if(!this.room || room.phase!=='racing' || room.phase!==this.room.phase || (room.race?.tick ?? 0)>(this.room.race?.tick ?? 0)) {
+      this.lastProgressAt=performance.now();this.reconnectStarted=0;
+    }
     const clock=room.serverNow+this.rtt/2-Date.now();
     if(!this.clockReady || Math.abs(clock-this.offset)>1000)this.offset=clock;
     this.room=room;
@@ -117,6 +137,6 @@ export class OnlineClient {
   leave(notify=true) { if(notify)this.send({type:'leave'});this.stop(true);this.forgetSession();this.hooks.left(); }
   private stop(clear: boolean) {
     this.stopped=true;clearTimeout(this.reconnectTimer);clearTimeout(this.connectTimer);clearInterval(this.sendTimer);this.ws?.close();this.ws=undefined;this.setStatus('offline');
-    if(clear){this.id='';this.code='';this.token='';this.room=null;this.presentation=undefined;this.attacks=[];this.actions=[];this.seq=0;this.attackSeq=0;this.actionSeq=0;this.current=EMPTY_COMMAND;this.clockReady=false;}
+    if(clear){this.id='';this.code='';this.token='';this.room=null;this.presentation=undefined;this.attacks=[];this.actions=[];this.seq=0;this.attackSeq=0;this.actionSeq=0;this.current=EMPTY_COMMAND;this.clockReady=false;this.reconnectStarted=0;this.lastProgressAt=0;}
   }
 }

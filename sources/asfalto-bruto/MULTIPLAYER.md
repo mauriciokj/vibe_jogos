@@ -24,6 +24,7 @@ O modo individual continua local, com garagem, melhorias e progressão existente
 - O menu de pausa online deixa a corrida continuar e neutraliza os controles locais. A pausa individual mantém o comportamento anterior.
 - Na chuva, o servidor só derruba após mais de 2 segundos contínuos com o joelho apoiado, dentro da manobra de até 4s. O contador de contato faz parte do estado compartilhado; novo toque não reinicia e reconexão preserva. Tirar o joelho zera a contagem.
 - Cada humano tem três ativações de empinada por corrida; reconectar preserva os usos restantes e o salto em andamento. Armas, alcance, dano, cadência e colisões são definidos pelo servidor, nunca por números enviados no carregamento de equipamentos.
+- Ao ficar mais de 750ms sem avanço recebido da corrida, o HUD mostra **Sincronizando**. Interrupções breves retomam sem trocar a conexão. Após 3s sem avanço, o cliente abre outra conexão e tenta retomar o mesmo piloto, mesmo que o socket antigo continue aberto ou responda ao ping. Tentativas sem recuperação têm limite de 15s; ao esgotar, o HUD indica conexão perdida e o menu permite voltar ao individual. A corrida continua no servidor durante a oscilação.
 - Reconexão reserva a identidade por 15 segundos; após perda prolongada, o piloto sai da corrida. Atualizar a página tenta retomar a mesma vaga usando um token de sessão.
 
 Joelheiras, preços, nitro por modelo e os analógicos estão detalhados em [Equipamentos e controles](docs/equipamentos-controles.md).
@@ -130,3 +131,7 @@ Quatro condições e Saci/Boitatá usam o mesmo estado e relógio da sala, inclu
 ### Busca pública
 
 `npm run test:public-rooms` valida criação pública de 120s, busca e entrada sem código, duas pessoas com bots, todos prontos/5s, reconexão, tela de celular, convite privado de 60s, sala encerrada durante a entrada e modo individual/save preservados. `tests/public-rooms.test.ts` cobre privacidade, salas cheias/fechadas/inativas, admissão concorrente, temporizadores e o endpoint HTTP. `npm run test:redis` inclui descoberta entre instâncias e exclusão de salas em corrida.
+
+### Recuperação de interrupções
+
+`npm run test:recovery` injeta uma pausa breve nas atualizações, perda contínua de estados com ping funcionando e perda silenciosa de todo o tráfego. Confere aviso, recuperação automática sem duplicar piloto, encerramento das tentativas após perda prolongada e retorno ao individual. `FREEZE_BASELINE=1` no driver registra o congelamento anterior, com tick imóvel e status conectado.
