@@ -1,12 +1,14 @@
 import { NET_VERSION } from '../src/multiplayer/protocol';
 import Redis from 'ioredis';
-import { secret, type Inputs, type Room, type StoredInput } from './room';
+import { publicRoomView, sortPublicRooms, secret, type Inputs, type Room, type StoredInput } from './room';
+import type { PublicRoomView } from '../src/multiplayer/protocol';
 
 export class BusyRoom extends Error {}
 export interface RoomStore {
   shared: boolean;
   create(room: Room): Promise<boolean>;
   read(code: string): Promise<Room | null>;
+  publicRooms(now: number): Promise<PublicRoomView[]>;
   mutate(code: string, change: (room: Room, inputs: Inputs) => void, retries?: number, localInputs?: Inputs): Promise<Room>;
   input(code: string, key: string, input: StoredInput): Promise<void>;
   close(): Promise<void>;
@@ -18,6 +20,9 @@ export class MemoryStore implements RoomStore {
   private inputs = new Map<string,Inputs>();
   async create(room: Room) { if (this.rooms.has(room.code)) return false; this.rooms.set(room.code,clone(room)); return true; }
   async read(code: string) { return clone(this.rooms.get(code) ?? null); }
+  async publicRooms(now: number) {
+    return sortPublicRooms([...this.rooms.values()].flatMap(r=>{const view=publicRoomView(r,now);return view?[view]:[];}));
+  }
   async mutate(code: string, change: (room: Room, inputs: Inputs) => void, _retries?: number, localInputs: Inputs = {}) {
     const old = this.rooms.get(code); if (!old) throw new Error('Sala não encontrada ou encerrada.');
     const all=this.inputs.get(code) ?? {};
@@ -55,8 +60,29 @@ export class RedisStore implements RoomStore {
     } else throw new Error('Configure o Redis do multiplayer no servidor.');
   }
   private key(code: string, field: string) { return `asfalto:online:v${NET_VERSION}:{${code}}:${field}`; }
-  async create(room: Room) { return await this.command('SET',this.key(room.code,'state'),JSON.stringify(room),'NX','EX',1800) === 'OK'; }
+  private publicIndex = `asfalto:online:v${NET_VERSION}:public-lobbies`;
+  async create(room: Room) {
+    if (await this.command('SET',this.key(room.code,'state'),JSON.stringify(room),'NX','EX',1800) !== 'OK') return false;
+    if (room.public === true) await this.command('ZADD',this.publicIndex,room.createdAt,room.code);
+    return true;
+  }
   async read(code: string) { const raw = await this.command('GET',this.key(code,'state')); return raw ? JSON.parse(raw as string) as Room : null; }
+  async publicRooms(now: number) {
+    await this.command('ZREMRANGEBYSCORE',this.publicIndex,'-inf',now-30*60_000);
+    const codes=await this.command('ZRANGE',this.publicIndex,0,511) as string[];
+    const views: PublicRoomView[]=[];
+    // Bounded batches avoid a Redis request per rider/frame and huge fan-out.
+    for(let i=0;i<codes.length;i+=16) {
+      const rooms=await Promise.all(codes.slice(i,i+16).map(code=>this.read(code)));
+      const stale:string[]=[];
+      rooms.forEach((room,j)=>{
+        if(!room || room.phase!=='lobby' || room.public!==true)stale.push(codes[i+j]);
+        if(room){const view=publicRoomView(room,now);if(view)views.push(view);}
+      });
+      if(stale.length)await this.command('ZREM',this.publicIndex,...stale);
+    }
+    return sortPublicRooms(views);
+  }
   async input(code: string, key: string, input: StoredInput) {
     await this.command('EVAL',`local old=redis.call('HGET',KEYS[1],ARGV[1]); if not old or cjson.decode(old).seq<tonumber(ARGV[2]) then redis.call('HSET',KEYS[1],ARGV[1],ARGV[3]); redis.call('EXPIRE',KEYS[1],1800); return 1 end; return 0`,1,this.key(code,'inputs'),key,input.seq,JSON.stringify(input));
   }

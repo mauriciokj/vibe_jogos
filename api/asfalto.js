@@ -905,6 +905,7 @@ function stepRace(state, commands = {}) {
 var NET_VERSION = 11;
 var MAX_PLAYERS = 8;
 var ROOM_WAIT_MS = 6e4;
+var PUBLIC_ROOM_WAIT_MS = 12e4;
 var READY_WAIT_MS = 5e3;
 var RECONNECT_MS = 15e3;
 function cleanName(value) {
@@ -950,17 +951,18 @@ function makeMember(name, now, bikeId, loadout) {
   const bike = getBike(typeof bikeId === "string" ? bikeId : void 0);
   return { id: `human-${(0, import_node_crypto.randomBytes)(8).toString("hex")}`, name: cleanName(name), bikeId: bike.id, helmetId: getHelmet(loadout?.helmetId).id, helmetColorId: getHelmetColor(loadout?.helmetColorId).id, weaponId: getWeapon(loadout?.weaponId)?.id, kneePadId: getKneePad(loadout?.kneePadId)?.id, nitro: nitroCount(bike.id, loadout?.nitro), ready: false, connected: true, token: secret(), epoch: secret(), lastSeen: now };
 }
-function makeRoom(code, trackId, member, now, fillBots = false, condition) {
+function makeRoom(code, trackId, member, now, fillBots = false, condition, isPublic = false) {
   if (!TRACKS.some((t) => t.id === trackId)) throw new Error("Estrada inv\xE1lida.");
   if (condition !== void 0 && !CONDITIONS.some((c) => c.id === condition)) throw new Error("Condi\xE7\xE3o inv\xE1lida.");
   return {
     code,
+    public: isPublic === true,
     condition: raceCondition(condition),
     trackId,
     fillBots: fillBots === true,
     phase: "lobby",
     locked: false,
-    deadline: now + ROOM_WAIT_MS,
+    deadline: now + (isPublic === true ? PUBLIC_ROOM_WAIT_MS : ROOM_WAIT_MS),
     revision: 0,
     members: [member],
     race: null,
@@ -975,6 +977,7 @@ function makeRoom(code, trackId, member, now, fillBots = false, condition) {
 function viewRoom(room, now) {
   return {
     code: room.code,
+    public: room.public === true,
     condition: raceCondition(room.condition),
     trackId: room.trackId,
     fillBots: room.fillBots,
@@ -991,18 +994,27 @@ function viewRoom(room, now) {
     actionAck: room.actionAck
   };
 }
+function publicRoomView(room, now) {
+  if (room.public !== true || room.phase !== "lobby" || room.locked || now - room.createdAt > 30 * 6e4) return null;
+  const players = room.members.filter((m) => m.connected && now - m.lastSeen <= RECONNECT_MS).length;
+  if (!players || players >= MAX_PLAYERS || players >= 2 && room.deadline !== null && room.deadline - now <= READY_WAIT_MS) return null;
+  return { code: room.code, trackId: room.trackId, condition: raceCondition(room.condition), fillBots: room.fillBots, players, maxPlayers: MAX_PLAYERS, deadline: room.deadline !== null && room.deadline > now ? room.deadline : null };
+}
+function sortPublicRooms(rooms) {
+  return rooms.sort((a, b) => b.players - a.players || (a.deadline ?? Infinity) - (b.deadline ?? Infinity) || a.code.localeCompare(b.code)).slice(0, 50);
+}
 function lobbyClock(room, now) {
   if (room.phase !== "lobby") return;
   const present = room.members.filter((p) => p.connected);
   if (present.length < 2) {
     if (room.locked) {
       room.locked = false;
-      room.deadline = now + ROOM_WAIT_MS;
+      room.deadline = now + (room.public ? PUBLIC_ROOM_WAIT_MS : ROOM_WAIT_MS);
     }
     if (room.deadline !== null && now >= room.deadline) room.deadline = null;
     return;
   }
-  if (room.deadline === null) room.deadline = now + ROOM_WAIT_MS;
+  if (room.deadline === null) room.deadline = now + (room.public ? PUBLIC_ROOM_WAIT_MS : ROOM_WAIT_MS);
   if (!room.locked && present.every((p) => p.ready)) room.deadline = Math.min(room.deadline, now + READY_WAIT_MS);
   if (room.deadline - now <= READY_WAIT_MS) room.locked = true;
   if (now < room.deadline) return;
@@ -1128,6 +1140,12 @@ var MemoryStore = class {
   async read(code) {
     return clone(this.rooms.get(code) ?? null);
   }
+  async publicRooms(now) {
+    return sortPublicRooms([...this.rooms.values()].flatMap((r) => {
+      const view = publicRoomView(r, now);
+      return view ? [view] : [];
+    }));
+  }
   async mutate(code, change, _retries, localInputs = {}) {
     const old = this.rooms.get(code);
     if (!old) throw new Error("Sala n\xE3o encontrada ou encerrada.");
@@ -1180,12 +1198,33 @@ var RedisStore = class {
   key(code, field) {
     return `asfalto:online:v${NET_VERSION}:{${code}}:${field}`;
   }
+  publicIndex = `asfalto:online:v${NET_VERSION}:public-lobbies`;
   async create(room) {
-    return await this.command("SET", this.key(room.code, "state"), JSON.stringify(room), "NX", "EX", 1800) === "OK";
+    if (await this.command("SET", this.key(room.code, "state"), JSON.stringify(room), "NX", "EX", 1800) !== "OK") return false;
+    if (room.public === true) await this.command("ZADD", this.publicIndex, room.createdAt, room.code);
+    return true;
   }
   async read(code) {
     const raw = await this.command("GET", this.key(code, "state"));
     return raw ? JSON.parse(raw) : null;
+  }
+  async publicRooms(now) {
+    await this.command("ZREMRANGEBYSCORE", this.publicIndex, "-inf", now - 30 * 6e4);
+    const codes = await this.command("ZRANGE", this.publicIndex, 0, 511);
+    const views = [];
+    for (let i = 0; i < codes.length; i += 16) {
+      const rooms = await Promise.all(codes.slice(i, i + 16).map((code) => this.read(code)));
+      const stale = [];
+      rooms.forEach((room, j) => {
+        if (!room || room.phase !== "lobby" || room.public !== true) stale.push(codes[i + j]);
+        if (room) {
+          const view = publicRoomView(room, now);
+          if (view) views.push(view);
+        }
+      });
+      if (stale.length) await this.command("ZREM", this.publicIndex, ...stale);
+    }
+    return sortPublicRooms(views);
   }
   async input(code, key, input) {
     await this.command("EVAL", `local old=redis.call('HGET',KEYS[1],ARGV[1]); if not old or cjson.decode(old).seq<tonumber(ARGV[2]) then redis.call('HSET',KEYS[1],ARGV[1],ARGV[3]); redis.call('EXPIRE',KEYS[1],1800); return 1 end; return 0`, 1, this.key(code, "inputs"), key, input.seq, JSON.stringify(input));
@@ -1256,9 +1295,33 @@ function createGameServer(store, options = {}) {
   const pumping = /* @__PURE__ */ new Set();
   const latest = /* @__PURE__ */ new Map();
   const limits = /* @__PURE__ */ new Map();
-  const server2 = (0, import_node_http.createServer)((req, res) => {
+  let discovery;
+  const server2 = (0, import_node_http.createServer)(async (req, res) => {
     res.setHeader("Cache-Control", "no-store");
     res.setHeader("Content-Type", "application/json");
+    const query = (req.url ?? "").split("?").slice(1).join("?");
+    if (new URLSearchParams(query).get("op") === "rooms") {
+      if (req.method !== "GET") {
+        res.writeHead(405, { Allow: "GET" });
+        res.end(JSON.stringify({ error: "Use GET para encontrar salas." }));
+        return;
+      }
+      const origin = req.headers.origin;
+      if (origin && options.origins?.includes(origin)) {
+        res.setHeader("Access-Control-Allow-Origin", origin);
+        res.setHeader("Vary", "Origin");
+      }
+      try {
+        if (!discovery || now() - discovery.at >= 1e3) discovery = { at: now(), pending: store.publicRooms(now()) };
+        const rooms = await discovery.pending;
+        res.end(JSON.stringify({ rooms, serverNow: now(), version: NET_VERSION }));
+      } catch {
+        discovery = void 0;
+        res.statusCode = 503;
+        res.end(JSON.stringify({ error: "N\xE3o foi poss\xEDvel buscar salas. Tente atualizar a lista." }));
+      }
+      return;
+    }
     res.statusCode = 200;
     res.end(JSON.stringify({ service: "asfalto-bruto", version: NET_VERSION, multiplayer: true, sharedRooms: store.shared, storage: store.shared ? "redis" : "memory", region: process.env.VERCEL_REGION ?? "local", activeRaces: [...latest.values()].filter((r) => r.phase === "racing" && [...peers].some((p) => p.code === r.code)).length }));
   });
@@ -1380,7 +1443,7 @@ function createGameServer(store, options = {}) {
             const member = makeMember(data.name, now(), data.bikeId, data.loadout);
             let room;
             do {
-              room = makeRoom((0, import_node_crypto2.randomBytes)(4).toString("hex").slice(0, 6).toUpperCase(), data.trackId, member, now(), data.fillBots === true, data.condition);
+              room = makeRoom((0, import_node_crypto2.randomBytes)(4).toString("hex").slice(0, 6).toUpperCase(), data.trackId, member, now(), data.fillBots === true, data.condition, data.public === true);
             } while (!await store.create(room));
             await attach(peer, room, member);
           } else {
@@ -1388,8 +1451,10 @@ function createGameServer(store, options = {}) {
             if (!/^[A-F0-9]{6}$/.test(code)) throw new Error("Digite o c\xF3digo de 6 caracteres da sala.");
             let member = makeMember(data.name, now(), data.bikeId, data.loadout);
             const room = await store.mutate(code, (r) => {
-              if (data.type === "join") joinRoom(r, member, now());
-              else {
+              if (data.type === "join") {
+                if (data.publicOnly === true && !publicRoomView(r, now())) throw new Error("Esta sala n\xE3o est\xE1 mais dispon\xEDvel. Atualize a lista e escolha outra.");
+                joinRoom(r, member, now());
+              } else {
                 const found = r.members.find((m) => typeof data.token === "string" && m.token === data.token);
                 if (!found || now() - found.lastSeen > RECONNECT_MS && r.phase === "lobby") throw new Error("Sua vaga expirou. Entre novamente.");
                 if (r.race && now() - found.lastSeen > RECONNECT_MS) {

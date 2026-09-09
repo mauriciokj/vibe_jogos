@@ -6,7 +6,7 @@ import { createMultiplayerRace, finishRider, STEP, stepRace } from '../src/game/
 import { TRACKS, getBike } from '../src/game/content';
 import { getKneePad, nitroCount } from '../src/game/equipment';
 import { EMPTY_COMMAND, type Command } from '../src/game/types';
-import { cleanName, MAX_PLAYERS, READY_WAIT_MS, RECONNECT_MS, ROOM_WAIT_MS, type AttackInput, type ActionInput, type Loadout, type MemberView, type RoomView } from '../src/multiplayer/protocol';
+import { cleanName, MAX_PLAYERS, READY_WAIT_MS, RECONNECT_MS, ROOM_WAIT_MS, PUBLIC_ROOM_WAIT_MS, type PublicRoomView, type AttackInput, type ActionInput, type Loadout, type MemberView, type RoomView } from '../src/multiplayer/protocol';
 
 export interface Member extends MemberView { token: string; epoch: string; lastSeen: number; }
 export interface Room extends Omit<RoomView,'members'|'serverNow'|'simulationAt'> {
@@ -20,25 +20,35 @@ export function makeMember(name: unknown, now: number, bikeId?: unknown, loadout
   const bike=getBike(typeof bikeId==='string'?bikeId:undefined);
   return { id: `human-${randomBytes(8).toString('hex')}`, name: cleanName(name), bikeId: bike.id, helmetId:getHelmet(loadout?.helmetId).id, helmetColorId:getHelmetColor(loadout?.helmetColorId).id, weaponId:getWeapon(loadout?.weaponId)?.id, kneePadId:getKneePad(loadout?.kneePadId)?.id, nitro:nitroCount(bike.id,loadout?.nitro), ready: false, connected: true, token: secret(), epoch: secret(), lastSeen: now };
 }
-export function makeRoom(code: string, trackId: unknown, member: Member, now: number, fillBots = false, condition?: unknown): Room {
+export function makeRoom(code: string, trackId: unknown, member: Member, now: number, fillBots = false, condition?: unknown, isPublic = false): Room {
   if (!TRACKS.some(t => t.id === trackId)) throw new Error('Estrada inválida.');
   if(condition!==undefined && !CONDITIONS.some(c=>c.id===condition))throw new Error('Condição inválida.');
-  return { code, condition: raceCondition(condition), trackId: trackId as string, fillBots: fillBots === true, phase: 'lobby', locked: false, deadline: now+ROOM_WAIT_MS, revision: 0,
+  return { code, public: isPublic === true, condition: raceCondition(condition), trackId: trackId as string, fillBots: fillBots === true, phase: 'lobby', locked: false, deadline: now+(isPublic === true ? PUBLIC_ROOM_WAIT_MS : ROOM_WAIT_MS), revision: 0,
     members: [member], race: null, ack: {}, attackAck: {}, actionAck: {}, updatedAt: now, createdAt: now, finishedAt: null };
 }
 export function viewRoom(room: Room, now: number): RoomView {
-  return { code: room.code, condition: raceCondition(room.condition), trackId: room.trackId, fillBots: room.fillBots, phase: room.phase, locked: room.locked, deadline: room.deadline,
+  return { code: room.code, public: room.public === true, condition: raceCondition(room.condition), trackId: room.trackId, fillBots: room.fillBots, phase: room.phase, locked: room.locked, deadline: room.deadline,
     revision: room.revision, serverNow: now, simulationAt: room.updatedAt, members: room.members.map(({id,name,bikeId,helmetId,helmetColorId,weaponId,kneePadId,nitro,ready,connected}) => ({id,name,bikeId,helmetId,helmetColorId,weaponId,kneePadId,nitro,ready,connected})), race: room.race, ack: room.ack, attackAck: room.attackAck, actionAck:room.actionAck };
+}
+// Discovery exposes only joinable lobby metadata, never members or credentials.
+export function publicRoomView(room: Room, now: number): PublicRoomView | null {
+  if (room.public !== true || room.phase !== 'lobby' || room.locked || now-room.createdAt > 30*60_000) return null;
+  const players=room.members.filter(m=>m.connected && now-m.lastSeen<=RECONNECT_MS).length;
+  if (!players || players>=MAX_PLAYERS || (players>=2 && room.deadline!==null && room.deadline-now<=READY_WAIT_MS)) return null;
+  return {code:room.code,trackId:room.trackId,condition:raceCondition(room.condition),fillBots:room.fillBots,players,maxPlayers:MAX_PLAYERS,deadline:room.deadline!==null && room.deadline>now ? room.deadline : null};
+}
+export function sortPublicRooms(rooms: PublicRoomView[]) {
+  return rooms.sort((a,b)=>b.players-a.players || (a.deadline ?? Infinity)-(b.deadline ?? Infinity) || a.code.localeCompare(b.code)).slice(0,50);
 }
 export function lobbyClock(room: Room, now: number) {
   if (room.phase !== 'lobby') return;
   const present = room.members.filter(p => p.connected);
   if (present.length < 2) {
-    if (room.locked) { room.locked = false; room.deadline = now+ROOM_WAIT_MS; }
+    if (room.locked) { room.locked = false; room.deadline = now+(room.public ? PUBLIC_ROOM_WAIT_MS : ROOM_WAIT_MS); }
     if (room.deadline !== null && now >= room.deadline) room.deadline = null;
     return;
   }
-  if (room.deadline === null) room.deadline = now+ROOM_WAIT_MS;
+  if (room.deadline === null) room.deadline = now+(room.public ? PUBLIC_ROOM_WAIT_MS : ROOM_WAIT_MS);
   if (!room.locked && present.every(p => p.ready)) room.deadline = Math.min(room.deadline,now+READY_WAIT_MS);
   if (room.deadline-now <= READY_WAIT_MS) room.locked = true;
   if (now < room.deadline) return;

@@ -9,8 +9,10 @@ O modo individual continua local, com garagem, melhorias e progressão existente
 - Porto Ferrugem está disponível nas quatro condições. Caminhões, cones e blocos pertencem à simulação comum; servidor, bots e previsão usam as mesmas regras. O passageiro decorativo acompanha um caminhão existente, não cria um obstáculo.
 - A sereia da Costa é apenas cenário. O servidor sorteia local e ocorrência fora do gerador aleatório da física e compartilha o início da aparição. Reconectar não reinicia o evento.
 - Ao criar, **Completar com bots** é opcional e vem desmarcado. Quando marcado, vagas livres são preenchidas por pilotos **CPU** somente na largada, até um total de 8. Todas as vagas continuam disponíveis para pessoas durante a espera. Bots não contam como prontos nem substituem o mínimo de 2 pessoas reais.
-- O relógio começa em **60 segundos**. Entradas posteriores não prolongam a janela.
-- É preciso ter **pelo menos 2 pessoas conectadas** na largada. Com apenas uma ao fim do tempo, a sala fica aguardando; a chegada da segunda abre uma nova janela de 60 segundos.
+- **Sala pública** é opcional e vem desmarcada. Quando marcada, aparece em **Encontrar partidas públicas** e espera **120 segundos**. Salas por convite mantêm **60 segundos**. Entradas posteriores não prolongam a janela.
+- A busca mostra pista, condição, número de pessoas e preenchimento com bots; basta tocar em **Entrar**, sem digitar código. Somente salas públicas com pessoas conectadas, vagas e largada aberta aparecem. Salas públicas também aceitam convite por código.
+- A lista atualiza a cada 5 segundos enquanto estiver aberta e visível. A entrada confere a disponibilidade novamente no servidor; se a sala encheu ou fechou nesse intervalo, o jogador pode escolher outra.
+- É preciso ter **pelo menos 2 pessoas conectadas** na largada. Com apenas uma ao fim do tempo, a sala fica aguardando; a chegada da segunda abre uma nova janela de 120 segundos em salas públicas ou 60 segundos nas salas por convite.
 - Quando todos os presentes marcam **Pronto**, o tempo restante cai para **no máximo 5 segundos**. Uma pessoa sozinha não acelera a largada.
 - Nos últimos 5 segundos, a entrada e a mudança de prontidão ficam fechadas. Se uma saída deixar menos de duas pessoas, a contagem é cancelada e volta à espera.
 - Ao zerar o relógio, a corrida começa diretamente, sem outra contagem adicional.
@@ -35,7 +37,7 @@ npm run dev:server
 npm run dev
 ```
 
-Abra `http://127.0.0.1:4317/` em duas abas, escolha Multiplayer, crie uma sala e use o código na outra aba. A física roda no servidor em passos de 1/60 s; conexões recebem atualizações aproximadamente a cada 50ms. O Vite encaminha `/api/asfalto/` para o servidor em `4318`.
+Abra `http://127.0.0.1:4317/` em duas abas, escolha Multiplayer, crie uma sala e marque **Sala pública** e abra **Encontrar partidas públicas** na outra aba, ou use o código para entrar por convite. A física roda no servidor em passos de 1/60 s; conexões recebem atualizações aproximadamente a cada 50ms. O Vite encaminha `/api/asfalto/` para o servidor em `4318`.
 
 Em desenvolvimento, salas ficam em memória por padrão. Para testar armazenamento compartilhado:
 
@@ -44,6 +46,8 @@ ASFALTO_REDIS_URL=redis://127.0.0.1:6398 npm run dev:server
 ```
 
 O navegador envia controles e sequências, nunca posição, vida ou resultados. O servidor limita valores e taxa de mensagens, rejeita sequências antigas e aplica um relógio próprio. O protocolo v11 inclui a condição da corrida, a aparição decorativa e o modelo validado de cada piloto e transmite o instante da simulação para desenhar todos os pilotos na mesma linha de tempo. As correções preservam a posição já desenhada e convergem gradualmente, com extrapolação limitada a 350ms. A classificação exibida vem do servidor. Ações de empinada, joelho, nitro, buzina e provocação usam fila com sequência e confirmação própria, para sobreviver a toques curtos e agrupamento de pacotes sem repetir consumo. Servidor e previsão compartilham a física dos equipamentos; IDs e estoque máximo são validados no servidor. Compras continuam no save local do navegador, sem conta ou carteira no servidor; o carregamento de equipamento não é uma comprovação autenticada de compra.
+
+A busca usa `GET /api/asfalto/?op=rooms`, sem abrir WebSocket nem alterar a campanha. A resposta contém somente código, pista, condição, contagem de pessoas, bots e prazo de largada — sem nomes, tokens, IDs de membros ou estado da corrida. Salas antigas sem a opção pública continuam por convite. A VPS consulta a memória do próprio processo; Redis mantém um índice compartilhado de salas públicas para a alternativa com múltiplas instâncias. Buscas simultâneas são agrupadas por um segundo no servidor. A admissão continua atômica e respeita o limite de oito pessoas.
 
 Toques de teclado e dos botões na tela geram ações numeradas, enviadas imediatamente e mantidas nos pacotes seguintes até a confirmação do servidor. Isso evita perder golpes curtos entre atualizações. O servidor respeita os intervalos entre golpes e executa cada ação apenas uma vez. Segurar o botão repete os golpes no intervalo permitido. A animação local começa imediatamente; acertos, danos, roubo de arma, prisão e resultados dependem da confirmação do servidor. Os eventos de impacto permanecem disponíveis por um segundo para chegar mesmo quando uma atualização é atrasada.
 
@@ -122,3 +126,7 @@ As proteções desenhadas têm colisão: Costa do Sol e Porto Ferrugem à esquer
 Pista rural com duas faixas, largada em duas colunas e até oito pilotos. Tratores, cascalho/lama e barrancos são autoritativos. Largura da estrada, atrito do solo, inclinação e contato com barrancos são compartilhados com a previsão. A interpolação remota respeita os limites do barranco na posição longitudinal apresentada; trechos abertos continuam livres. A colisão não causa queda/dano extra e soa como terra/pedras raspando.
 
 Quatro condições e Saci/Boitatá usam o mesmo estado e relógio da sala, inclusive ao reconectar. Regras de prontidão, mínimo de dois humanos e preenchimento opcional por bots preservadas. Garagem/save v1 permanecem locais e compatíveis. Campos cosméticos introduzidos em v10 continuam disponíveis. Atualizar navegador e servidor juntos para v11; o deploy da VPS continua recusando ativação durante corridas ativas.
+
+### Busca pública
+
+`npm run test:public-rooms` valida criação pública de 120s, busca e entrada sem código, duas pessoas com bots, todos prontos/5s, reconexão, tela de celular, convite privado de 60s, sala encerrada durante a entrada e modo individual/save preservados. `tests/public-rooms.test.ts` cobre privacidade, salas cheias/fechadas/inativas, admissão concorrente, temporizadores e o endpoint HTTP. `npm run test:redis` inclui descoberta entre instâncias e exclusão de salas em corrida.

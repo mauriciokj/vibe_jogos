@@ -4,7 +4,7 @@ import { isIP } from 'node:net';
 import { WebSocket, WebSocketServer } from 'ws';
 import { finishRider } from '../src/game/simulation';
 import { cleanActions, cleanAttacks, cleanCommand, NET_VERSION, RECONNECT_MS, type ServerMessage } from '../src/multiplayer/protocol';
-import { depart, inputKey, joinRoom, lobbyClock, makeMember, makeRoom, pulseRoom, secret, setReady, viewRoom, type Inputs, type Member, type Room, type StoredInput } from './room';
+import { depart, inputKey, joinRoom, lobbyClock, makeMember, makeRoom, publicRoomView, pulseRoom, secret, setReady, viewRoom, type Inputs, type Member, type Room, type StoredInput } from './room';
 import { BusyRoom, MemoryStore, type RoomStore } from './store';
 
 interface Peer { ws: WebSocket; code: string; id: string; epoch: string; seq: number; pending?: StoredInput; latestInput?: StoredInput; writing: boolean; lastSeen: number; alive: boolean; }
@@ -15,8 +15,22 @@ export function createGameServer(store: RoomStore, options: { origins?: string[]
   const pumping = new Set<string>();
   const latest = new Map<string,Room>();
   const limits = new Map<string,{ at: number; count: number }>();
-  const server = createServer((req,res) => {
+  let discovery: {at:number; pending: ReturnType<RoomStore['publicRooms']>} | undefined;
+  const server = createServer(async (req,res) => {
     res.setHeader('Cache-Control','no-store'); res.setHeader('Content-Type','application/json');
+    const query=(req.url ?? '').split('?').slice(1).join('?');
+    if (new URLSearchParams(query).get('op') === 'rooms') {
+      if(req.method!=='GET'){res.writeHead(405,{Allow:'GET'});res.end(JSON.stringify({error:'Use GET para encontrar salas.'}));return;}
+      const origin=req.headers.origin;
+      if(origin && options.origins?.includes(origin)){res.setHeader('Access-Control-Allow-Origin',origin);res.setHeader('Vary','Origin');}
+      try {
+        // Coalesce simultaneous searches; the join transaction always rechecks availability.
+        if(!discovery || now()-discovery.at>=1000)discovery={at:now(),pending:store.publicRooms(now())};
+        const rooms=await discovery.pending;
+        res.end(JSON.stringify({rooms,serverNow:now(),version:NET_VERSION}));
+      } catch {discovery=undefined;res.statusCode=503;res.end(JSON.stringify({error:'Não foi possível buscar salas. Tente atualizar a lista.'}));}
+      return;
+    }
     res.statusCode = 200; res.end(JSON.stringify({service:'asfalto-bruto',version:NET_VERSION,multiplayer:true,sharedRooms:store.shared,storage:store.shared?'redis':'memory',region:process.env.VERCEL_REGION ?? 'local',activeRaces:[...latest.values()].filter(r=>r.phase==='racing' && [...peers].some(p=>p.code===r.code)).length}));
   });
   const wss = new WebSocketServer({noServer:true,maxPayload:4096,perMessageDeflate:false});
@@ -87,14 +101,17 @@ export function createGameServer(store: RoomStore, options: { origins?: string[]
           if (data.version !== NET_VERSION) throw new Error('Atualize a página para entrar nesta versão.');
           if (data.type === 'create') {
             const member = makeMember(data.name,now(),data.bikeId,data.loadout); let room: Room;
-            do { room = makeRoom(randomBytes(4).toString('hex').slice(0,6).toUpperCase(),data.trackId,member,now(),data.fillBots === true,data.condition); } while (!await store.create(room));
+            do { room = makeRoom(randomBytes(4).toString('hex').slice(0,6).toUpperCase(),data.trackId,member,now(),data.fillBots === true,data.condition,data.public === true); } while (!await store.create(room));
             await attach(peer,room,member);
           } else {
             const code = String(data.code ?? '').toUpperCase();
             if (!/^[A-F0-9]{6}$/.test(code)) throw new Error('Digite o código de 6 caracteres da sala.');
             let member = makeMember(data.name,now(),data.bikeId,data.loadout);
             const room = await store.mutate(code,r => {
-              if (data.type === 'join') joinRoom(r,member,now());
+              if (data.type === 'join') {
+                if(data.publicOnly === true && !publicRoomView(r,now()))throw new Error('Esta sala não está mais disponível. Atualize a lista e escolha outra.');
+                joinRoom(r,member,now());
+              }
               else {
                 const found = r.members.find(m => typeof data.token === 'string' && m.token === data.token);
                 if (!found || (now()-found.lastSeen > RECONNECT_MS && r.phase === 'lobby')) throw new Error('Sua vaga expirou. Entre novamente.');

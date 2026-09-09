@@ -30,7 +30,8 @@
     "test:helmets": "tsx tests/helmets-browser.ts",
     "test:rural": "tsx tests/rural-browser.ts",
     "test:difficulty": "tsx tests/difficulty-browser.ts",
-    "test:balance": "tsx tests/difficulty-benchmark.ts"
+    "test:balance": "tsx tests/difficulty-benchmark.ts",
+    "test:public-rooms": "tsx tests/public-rooms-browser.ts"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

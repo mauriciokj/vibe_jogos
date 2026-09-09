@@ -3,6 +3,7 @@ import type { AttackKind, Command, RaceState, RaceCondition, RiderAction } from 
 export const NET_VERSION = 11;
 export const MAX_PLAYERS = 8;
 export const ROOM_WAIT_MS = 60_000;
+export const PUBLIC_ROOM_WAIT_MS = 120_000;
 export const READY_WAIT_MS = 5_000;
 export const RECONNECT_MS = 15_000;
 export interface MemberView { helmetId?: string; helmetColorId?: string; id: string; name: string; bikeId: string; weaponId?: string; kneePadId?: string; nitro?: number; ready: boolean; connected: boolean; }
@@ -10,13 +11,19 @@ export interface AttackInput { seq: number; kind: AttackKind; }
 export interface ActionInput { seq: number; kind: RiderAction; }
 export interface Loadout { helmetId?: string; helmetColorId?: string; weaponId?: string; kneePadId?: string; nitro?: number; }
 export interface RoomView {
+  public?: boolean;
   code: string; trackId: string; condition?: RaceCondition; fillBots: boolean; phase: 'lobby' | 'racing' | 'finished'; locked: boolean;
   deadline: number | null; serverNow: number; revision: number; members: MemberView[];
   race: RaceState | null; ack: Record<string, number>; attackAck: Record<string, number>; actionAck?: Record<string, number>; simulationAt: number;
 }
+export interface PublicRoomView {
+  code: string; trackId: string; condition: RaceCondition; fillBots: boolean;
+  players: number; maxPlayers: number; deadline: number | null;
+}
+export interface PublicRoomsResponse { rooms: PublicRoomView[]; serverNow: number; version: number; }
 export type ClientMessage =
-  | { type: 'create'; version: number; name: string; trackId: string; condition?: RaceCondition; fillBots?: boolean; bikeId?: string; loadout?: Loadout }
-  | { type: 'join'; version: number; name: string; code: string; bikeId?: string; loadout?: Loadout }
+  | { type: 'create'; version: number; name: string; trackId: string; condition?: RaceCondition; fillBots?: boolean; public?: boolean; bikeId?: string; loadout?: Loadout }
+  | { type: 'join'; version: number; name: string; code: string; publicOnly?: boolean; bikeId?: string; loadout?: Loadout }
   | { type: 'resume'; version: number; code: string; token: string }
   | { type: 'ready'; ready: boolean }
   | { type: 'input'; seq: number; command: Command; attacks?: AttackInput[]; actions?: ActionInput[] }
