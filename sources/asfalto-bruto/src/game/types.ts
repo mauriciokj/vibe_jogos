@@ -13,7 +13,7 @@ export interface Rider {
   weapon: boolean; weaponId?: string; wheeliesLeft?: number; wheelieTime?: number; jumpTime?: number; jumpTarget?: string; attack: Attack | null; cooldown: number; crash: number; immune: number;
   targetX: number; decisionAt: number; finishedAt: number | null; hits: number; falls: number;
   out?: 'caught' | 'wrecked' | 'left' | 'timeout'; capture?: number;
-  kneeSide?: number; kneeTime?: number; nitro?: number; nitroUsed?: number; nitroTime?: number; hornCooldown?: number;
+  kneeSide?: number; kneeTime?: number; wetKneeTicks?: number; nitro?: number; nitroUsed?: number; nitroTime?: number; hornCooldown?: number;
   speech?: { index: number; until: number }; tauntReadyAt?: number; tauntSeq?: number;
 }
 export interface Traffic { id: string; x: number; z: number; speed: number; color: string; kind: 'car' | 'van' | 'truck'; }

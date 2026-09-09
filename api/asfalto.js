@@ -190,6 +190,7 @@ var supportsKneeDown = (bikeId) => getBike(bikeId).style !== "chopper";
 var NITRO_DURATION = 5;
 var NITRO_MULTIPLIER = 1.1;
 var KNEE_DURATION = 4;
+var WET_KNEE_LIMIT = 3;
 function nitroCount(bikeId, value) {
   return typeof value === "number" && Number.isInteger(value) ? Math.max(0, Math.min(getBike(bikeId).nitroCapacity, value)) : 0;
 }
@@ -210,6 +211,9 @@ var ramp = (value) => Math.max(0, Math.min(1, value));
 function kneeSupport(rider, curve) {
   if ((rider.wheelieTime ?? 0) > 0 || (rider.jumpTime ?? 0) > 0 || !getKneePad(rider.kneePadId) || !supportsKneeDown(rider.bikeId) || !(rider.kneeTime > 0) || rider.kneeSide !== Math.sign(curve) || rider.crash || rider.out || rider.finishedAt !== null || Math.abs(rider.x) > 7) return 0;
   return ramp((rider.speed - 20) / 10) * ramp((Math.abs(curve) - 0.15) / 0.5);
+}
+function kneeContact(rider, curve) {
+  return kneeSupport(rider, curve) > 0.35 && rider.attack?.kind !== "kick";
 }
 function cornerHandling(rider, curve) {
   return rider.handling * (1 + (getKneePad(rider.kneePadId)?.grip ?? 0) * kneeSupport(rider, curve));
@@ -397,6 +401,7 @@ function crashRider(state, rider, force = false) {
   rider.integrity = Math.max(0, rider.integrity - 13 / rider.armor);
   rider.attack = null;
   rider.kneeTime = 0;
+  rider.wetKneeTicks = 0;
   rider.nitroTime = 0;
   rider.speech = void 0;
   cancelStunt(rider);
@@ -410,14 +415,10 @@ function performAction(state, rider, action) {
     rider.wheeliesLeft = wheeliesLeft(rider) - 1;
     rider.wheelieTime = WHEELIE_DURATION;
     rider.kneeTime = 0;
+    rider.wetKneeTicks = 0;
   } else if (action === "kneeLeft" || action === "kneeRight") {
     if (stunting(rider)) return;
     if (!getKneePad(rider.kneePadId) || !supportsKneeDown(rider.bikeId) || rider.speed < 20 || Math.abs(rider.x) > ROAD_HALF) return;
-    if (raceCondition(state.condition) === "rain") {
-      crashRider(state, rider, true);
-      state.events[state.events.length - 1].text = "JOELHO NO PISO MOLHADO \xB7 QUEDA!";
-      return;
-    }
     const side = action === "kneeLeft" ? -1 : 1;
     if ((rider.kneeTime ?? 0) > 0 && rider.kneeSide === side) return;
     rider.kneeSide = side;
@@ -513,6 +514,7 @@ function applyCommand(state, rider, command) {
   const onShoulder = Math.abs(rider.x) > ROAD_HALF;
   if (rider.kneeTime && (onShoulder || rider.speed < 20 || command.steer * (rider.kneeSide ?? 0) < -0.2)) rider.kneeTime = 0;
   const curve = curveAt(rider.z, state.trackId);
+  rider.wetKneeTicks = raceCondition(state.condition) === "rain" && kneeContact(rider, curve) ? (rider.wetKneeTicks ?? 0) + 1 : 0;
   const boost = (rider.nitroTime ?? 0) > 0 ? NITRO_MULTIPLIER : 1;
   const topSpeed = rider.maxSpeed * boost;
   const shoulderLimit = Math.abs(curve) > 0.8 ? 0.38 : 0.56;
@@ -625,6 +627,7 @@ function finishRider(state, rider, reason, arrestCause) {
   if (state.multiplayer?.results[rider.id] || rider.out) return;
   cancelStunt(rider);
   rider.kneeTime = 0;
+  rider.wetKneeTicks = 0;
   if (reason !== "finish") {
     rider.out = reason;
     rider.attack = null;
@@ -682,7 +685,13 @@ function stepRace(state, commands = {}) {
   const player = state.riders[0];
   const oldOrder = ranking(state).map((r) => r.id);
   const oldZ = new Map(state.riders.map((r) => [r.id, r.z]));
-  for (const r of state.riders) applyCommand(state, r, commands[r.id] ?? (r.profile === "player" ? EMPTY_COMMAND : botCommand(state, r)));
+  for (const r of state.riders) {
+    applyCommand(state, r, commands[r.id] ?? (r.profile === "player" ? EMPTY_COMMAND : botCommand(state, r)));
+    if (!r.out && !r.crash && r.finishedAt === null && (r.wetKneeTicks ?? 0) * STEP > WET_KNEE_LIMIT) {
+      crashRider(state, r, true);
+      state.events[state.events.length - 1].text = "JOELHO NO MOLHADO POR TEMPO DEMAIS \xB7 QUEDA!";
+    }
+  }
   const active = state.riders.filter((r) => r.profile !== "police" && !r.out && r.finishedAt === null);
   const back = Math.min(...active.map((r) => r.z), player.z);
   for (const t of state.traffic) {
@@ -732,7 +741,7 @@ function stepRace(state, commands = {}) {
 }
 
 // src/multiplayer/protocol.ts
-var NET_VERSION = 8;
+var NET_VERSION = 9;
 var MAX_PLAYERS = 8;
 var ROOM_WAIT_MS = 6e4;
 var READY_WAIT_MS = 5e3;

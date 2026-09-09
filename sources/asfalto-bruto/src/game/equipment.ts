@@ -5,6 +5,7 @@ export const NITRO_PRICE = 2500;
 export const NITRO_DURATION = 5;
 export const NITRO_MULTIPLIER = 1.1;
 export const KNEE_DURATION = 4;
+export const WET_KNEE_LIMIT = 3;
 export function nitroCount(bikeId: string | undefined, value: unknown) {
   return typeof value==='number' && Number.isInteger(value) ? Math.max(0,Math.min(getBike(bikeId).nitroCapacity,value)) : 0;
 }
@@ -27,6 +28,10 @@ const ramp = (value: number) => Math.max(0,Math.min(1,value));
 export function kneeSupport(rider: Rider, curve: number) {
   if((rider.wheelieTime ?? 0)>0 || (rider.jumpTime ?? 0)>0 || !getKneePad(rider.kneePadId) || !supportsKneeDown(rider.bikeId) || !(rider.kneeTime!>0) || rider.kneeSide!==Math.sign(curve) || rider.crash || rider.out || rider.finishedAt!==null || Math.abs(rider.x)>7)return 0;
   return ramp((rider.speed-20)/10)*ramp((Math.abs(curve)-.15)/.5);
+}
+// Match the visible contact pose: kicking lifts the leg off the road.
+export function kneeContact(rider: Rider, curve: number) {
+  return kneeSupport(rider,curve)>.35 && rider.attack?.kind!=='kick';
 }
 export function cornerHandling(rider: Rider, curve: number) {
   return rider.handling*(1+(getKneePad(rider.kneePadId)?.grip ?? 0)*kneeSupport(rider,curve));
