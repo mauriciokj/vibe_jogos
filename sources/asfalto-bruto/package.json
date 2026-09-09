@@ -24,7 +24,8 @@
     "test:porto": "tsx tests/porto-browser.ts",
     "test:wet-knee": "tsx tests/wet-knee-browser.ts",
     "test:visitors": "node tests/visitors-browser.mjs",
-    "test:jump-audio": "node tests/jump-audio-browser.mjs"
+    "test:jump-audio": "node tests/jump-audio-browser.mjs",
+    "test:guardrails": "tsx tests/guardrails-browser.ts"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

@@ -1,3 +1,4 @@
+import { guardRailPosition } from '../game/guardrails';
 import { attackSpec, predictMovement, STEP, nearestTarget } from '../game/simulation';
 import { clamp } from '../game/content';
 import { NITRO_MULTIPLIER } from '../game/equipment';
@@ -110,6 +111,7 @@ export class RacePresentation {
           if(age<attackSpec(r,this.swing.kind).duration)r.attack={id:this.swing.seq,kind:this.swing.kind,side:this.swing.side,age,hit:false};
         }
       }
+      r.x=guardRailPosition(race.trackId,r.x);
       return r;
     }),traffic:race.traffic.map(t=>({...t,z:t.z+t.speed*age}))};
   }

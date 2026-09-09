@@ -1,3 +1,4 @@
+import { contactGuardRail, guardRailPosition } from './guardrails';
 import { portObstacles, portTraffic, portPassengerEvent } from './port';
 import { equippedWeapon, getWeapon } from './weapons';
 import { advanceStunt, cancelStunt, clearsCar, stunting, WHEELIE_DURATION, WHEELIE_MIN_SPEED, WHEELIE_USES, wheeliesLeft } from './stunts';
@@ -120,6 +121,7 @@ function impact(state: RaceState, rider: Rider, damage: number, push: number) {
   if (rider.immune || rider.crash) return;
   rider.health = Math.max(0, rider.health - damage);
   rider.x = clamp(rider.x + push, -10.5, 10.5);
+  contactGuardRail(state.trackId,rider);
   rider.speed *= .94;
   if (rider.health <= 0) crashRider(state, rider);
 }
@@ -169,6 +171,7 @@ export function policeTarget(state: RaceState, officer: Rider): Rider | undefine
 }
 
 function applyCommand(state: RaceState, rider: Rider, command: Command) {
+  contactGuardRail(state.trackId,rider);
   if (rider.out) { rider.speed = 0; rider.attack = null; return; }
   rider.cooldown = Math.max(0, rider.cooldown - STEP);
   rider.immune = Math.max(0, rider.immune - STEP);
@@ -207,6 +210,7 @@ function applyCommand(state: RaceState, rider: Rider, command: Command) {
   const steering = clamp(command.steer, -1, 1);
   const forces = cornerForces(rider.speed, cornerHandling(rider,curve) * roadGrip(state.condition), curve, onShoulder);
   rider.x = clamp(rider.x + (steering * forces.lateral - forces.drift) * STEP, -10.5, 10.5);
+  contactGuardRail(state.trackId,rider,STEP);
   rider.lean += (steering * .32 - rider.lean) * .12;
   rider.z += rider.speed * STEP;
   rider.health = Math.min(100, rider.health + STEP * 1.15);
@@ -365,7 +369,7 @@ export function stepRace(state: RaceState, commands: Record<string, Command> = {
   else state.heat = Math.max(0,state.heat-STEP*.15);
   const front = active.slice().sort((a,b) => b.z-a.z)[0];
   if (!state.policeActive && state.heat >= 48 && front && front.z > 1300) {
-    const police = makeRider('police','POLÍCIA','police','#e7e9e5',front.x+1.5,front.z-100);
+    const police = makeRider('police','POLÍCIA','police','#e7e9e5',guardRailPosition(state.trackId,front.x+1.5),front.z-100);
     police.bikeId = 'estradeira'; police.speed = 58; police.maxSpeed = 71+getTrack(state.trackId).level*2; police.acceleration = 12.5; police.weapon = true;
     state.riders.push(police); state.policeActive = true;
     state.events.push({ type: 'police', actor: 'police', text: 'POLÍCIA NA ESTRADA · CUIDADO!' });

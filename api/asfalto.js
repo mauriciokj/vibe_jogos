@@ -42,6 +42,26 @@ var import_node_crypto2 = require("node:crypto");
 var import_node_net = require("node:net");
 var import_ws = require("ws");
 
+// src/game/guardrails.ts
+var GUARD_RAIL_X = 7.75;
+var GUARD_RAIL_CLEARANCE = 0.75;
+var GUARD_RAIL_LIMIT = GUARD_RAIL_X - GUARD_RAIL_CLEARANCE;
+function hasGuardRail(trackId, side) {
+  return trackId === "serra" || (trackId === "costa" || trackId === "porto") && side < 0;
+}
+function guardRailPosition(trackId, x) {
+  if (x < -GUARD_RAIL_LIMIT && hasGuardRail(trackId, -1)) return -GUARD_RAIL_LIMIT;
+  if (x > GUARD_RAIL_LIMIT && hasGuardRail(trackId, 1)) return GUARD_RAIL_LIMIT;
+  return x;
+}
+function contactGuardRail(trackId, rider, dt = 0) {
+  const x = guardRailPosition(trackId, rider.x), penetration = Math.abs(rider.x - x);
+  if (!penetration) return false;
+  rider.x = x;
+  rider.speed = Math.max(0, rider.speed - penetration * 6 - dt * 12);
+  return true;
+}
+
 // src/game/conditions.ts
 var CONDITIONS = [
   { id: "day", name: "Dia", icon: "\u2600", description: "C\xE9u aberto e boa visibilidade." },
@@ -439,6 +459,7 @@ function impact(state, rider, damage, push) {
   if (rider.immune || rider.crash) return;
   rider.health = Math.max(0, rider.health - damage);
   rider.x = clamp(rider.x + push, -10.5, 10.5);
+  contactGuardRail(state.trackId, rider);
   rider.speed *= 0.94;
   if (rider.health <= 0) crashRider(state, rider);
 }
@@ -483,6 +504,7 @@ function policeTarget(state, officer) {
   return state.riders.filter((r) => r.id !== officer.id && r.profile !== "police" && !r.out && r.finishedAt === null).sort((a, b) => Math.hypot(a.z - officer.z, a.x - officer.x) - Math.hypot(b.z - officer.z, b.x - officer.x) || a.id.localeCompare(b.id))[0];
 }
 function applyCommand(state, rider, command) {
+  contactGuardRail(state.trackId, rider);
   if (rider.out) {
     rider.speed = 0;
     rider.attack = null;
@@ -525,6 +547,7 @@ function applyCommand(state, rider, command) {
   const steering = clamp(command.steer, -1, 1);
   const forces = cornerForces(rider.speed, cornerHandling(rider, curve) * roadGrip(state.condition), curve, onShoulder);
   rider.x = clamp(rider.x + (steering * forces.lateral - forces.drift) * STEP, -10.5, 10.5);
+  contactGuardRail(state.trackId, rider, STEP);
   rider.lean += (steering * 0.32 - rider.lean) * 0.12;
   rider.z += rider.speed * STEP;
   rider.health = Math.min(100, rider.health + STEP * 1.15);
@@ -705,7 +728,7 @@ function stepRace(state, commands = {}) {
   else state.heat = Math.max(0, state.heat - STEP * 0.15);
   const front = active.slice().sort((a, b) => b.z - a.z)[0];
   if (!state.policeActive && state.heat >= 48 && front && front.z > 1300) {
-    const police = makeRider("police", "POL\xCDCIA", "police", "#e7e9e5", front.x + 1.5, front.z - 100);
+    const police = makeRider("police", "POL\xCDCIA", "police", "#e7e9e5", guardRailPosition(state.trackId, front.x + 1.5), front.z - 100);
     police.bikeId = "estradeira";
     police.speed = 58;
     police.maxSpeed = 71 + getTrack(state.trackId).level * 2;
@@ -741,7 +764,7 @@ function stepRace(state, commands = {}) {
 }
 
 // src/multiplayer/protocol.ts
-var NET_VERSION = 9;
+var NET_VERSION = 10;
 var MAX_PLAYERS = 8;
 var ROOM_WAIT_MS = 6e4;
 var READY_WAIT_MS = 5e3;

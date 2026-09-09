@@ -157,3 +157,9 @@ Para desenvolvimento, inicie o catálogo com um banco temporário e defina `VIBE
 Saltar sobre um carro dispara uma pancada metálica curta e eleva o giro e o brilho do motor enquanto a roda traseira está no ar. A aterrissagem restaura o timbre normal, preservando o som próprio de cada estilo de moto. A mudança é sonora, sem alterar a potência, a física ou o protocolo v9. Pausa/silenciamento são respeitados; o mesmo salto não repete o impacto ao receber snapshots nem ao retomar uma pausa ou uma corrida online em andamento.
 
 `npm run test:jump-audio` verifica os nós Web Audio reais no Chromium, giro no chão/no ar/após aterrissar, impacto único, pausa, mute, snapshots repetidos, caminhão e reinício. `AUDIO_CHECK_URL` permite usar uma instalação publicada, sempre em modo `?test` de leitura para o contador de visitas.
+
+### Guard-rails com colisão
+
+As proteções da Costa do Sol e Porto Ferrugem (esquerda) e Serra da Fumaça (ambos os lados) seguram a moto e reduzem a velocidade enquanto ela força a passagem. O contato com o guard-rail não tira vida/integridade nem provoca queda; basta virar para dentro da pista para sair do contato e acelerar. As laterais sem proteção continuam abertas e os obstáculos das obras mantêm suas próprias regras de colisão.
+
+A geometria compartilhada mantém desenho, colisão, previsão e pilotos remotos alinhados; empurrões e nitro também respeitam a barreira. A regra se aplica a todos os pilotos e climas. Protocolo multiplayer v10, sem mudanças no save v1. `npm run test:guardrails` confere colisão, liberação, obras, celular e uma sala com dois humanos/seis bots e reconexão.

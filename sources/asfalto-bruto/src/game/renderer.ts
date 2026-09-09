@@ -1,3 +1,4 @@
+import { GUARD_RAIL_X, hasGuardRail } from './guardrails';
 import { portSprite, portHorizon, type PortProp } from './port-art';
 import { PORT_WORKS } from './port';
 import { jumpHeight, stunting } from './stunts';
@@ -266,9 +267,9 @@ export class Renderer {
     for (let i = Math.floor(pz / 8) + 100; i >= Math.floor((pz - 12) / 8); i--) {
       const z = i * 8;
       for (const side of [-1, 1]) {
-        const p = this.project(z, side * 7.75); if (!p || p.y > p.clip + 2 || p.y < 0) continue;
-        const next = this.project(z + 8, side * 7.75);
-        if (next && (state.trackId === 'serra' || (['costa','porto'].includes(state.trackId) && side < 0))) {
+        const p = this.project(z, side * GUARD_RAIL_X); if (!p || p.y > p.clip + 2 || p.y < 0) continue;
+        const next = this.project(z + 8, side * GUARD_RAIL_X);
+        if (next && hasGuardRail(state.trackId,side)) {
           c.save(); c.beginPath(); c.rect(0, 0, this.w, p.clip); c.clip();
           this.polygon([p.x,p.y-p.scale*.65,p.x,p.y-p.scale*.92,next.x,next.y-next.scale*.92,next.x,next.y-next.scale*.65], '#a3aaa1');
           c.strokeStyle = '#e4dfc0'; c.lineWidth = Math.max(.5,p.scale*.025); c.beginPath(); c.moveTo(p.x,p.y-p.scale*.91); c.lineTo(next.x,next.y-next.scale*.91); c.stroke(); c.restore();

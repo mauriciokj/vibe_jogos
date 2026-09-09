@@ -1,0 +1,36 @@
+import {chromium,type Page} from 'playwright';
+import {spawn} from 'node:child_process';
+import {once} from 'node:events';
+import fs from 'node:fs/promises';
+import assert from 'node:assert/strict';
+import {createGameServer} from '../server/service';
+import {MemoryStore} from '../server/store';
+import {freshSave,SAVE_KEY} from '../src/game/save';
+const folder='output/guardrails';await fs.mkdir(folder,{recursive:true});
+let offset=0;const store=new MemoryStore(),app=createGameServer(store,{now:()=>Date.now()+offset});app.server.listen(0,'127.0.0.1');await once(app.server,'listening');
+const vite=spawn(process.execPath,['node_modules/vite/bin/vite.js','--host','127.0.0.1','--port','4367','--strictPort'],{env:{...process.env,ASFALTO_SERVER_URL:`http://127.0.0.1:${(app.server.address() as {port:number}).port}`},stdio:'ignore'});
+const base='http://127.0.0.1:4367/';for(let i=0;i<100;i++){try{if((await fetch(base)).ok)break;}catch{}await new Promise(r=>setTimeout(r,100));}
+const browser=await chromium.launch({headless:true}),a=await browser.newPage({viewport:{width:1280,height:800}}),b=await browser.newPage({viewport:{width:1100,height:760}}),errors:string[]=[];
+const observe=async(p:Page)=>{p.on('pageerror',e=>errors.push(e.message));p.on('console',e=>{if(e.type()==='error')errors.push(e.text());});await p.route('**/api/visitors*',route=>route.fulfill({json:{visitors:0,since:'2026-09-08T00:00:00Z'}}));};await observe(a);await observe(b);
+const state=(p=a)=>p.evaluate(()=>JSON.parse(window.render_game_to_text()));
+const fixture=async(p=a,side=-1,z=2150)=>p.evaluate(({side,z})=>{const s=JSON.parse(window.__game!.snapshot());s.mode='racing';s.countdown=0;s.time=20;s.tick=1200;s.riders=s.riders.slice(0,1);s.traffic=[];s.heat=0;Object.assign(s.riders[0],{x:side*6.8,z,speed:50,crash:0,immune:0,health:100,integrity:100,kneeTime:0,jumpTime:0,wheelieTime:0});window.__game!.restore(JSON.stringify(s));},{side,z});
+try{
+  await a.goto(base+'?test');const save=freshSave();save.unlocked=3;save.races=1;await a.evaluate(({key,save})=>localStorage.setItem(key,JSON.stringify(save)),{key:SAVE_KEY,save});await a.reload();await a.click('[data-route="porto:rain"]');await a.click('#start-btn');await fixture();
+  assert.match(await a.locator('#corner-title').innerText(),/OBRAS/);await a.keyboard.down('w');await a.keyboard.down('a');await a.evaluate(()=>window.advanceTime(1600));let p=(await state()).player;assert.equal(p.x,-7);assert.ok(p.speed<30);assert.equal(p.falls,0);assert.equal(p.integrity,100);await a.screenshot({path:`${folder}/porto-contact.png`});
+  await a.keyboard.up('a');await a.keyboard.down('d');await a.evaluate(()=>window.advanceTime(400));assert.ok((await state()).player.x>-6.5);assert.ok((await state()).player.speed>p.speed);await a.keyboard.up('d');await a.keyboard.up('w');await a.screenshot({path:`${folder}/porto-release.png`});
+  await a.click('#pause-btn');await a.click('#menu-btn');for(const side of [-1,1]){await a.click('[data-route="serra:day"]');await a.click('#start-btn');await fixture(a,side,0);await a.keyboard.down(side<0?'a':'d');await a.keyboard.down('w');await a.evaluate(()=>window.advanceTime(1400));assert.equal((await state()).player.x,side*7);assert.equal((await state()).player.falls,0);await a.keyboard.up(side<0?'a':'d');await a.keyboard.up('w');await a.click('#pause-btn');await a.click('#menu-btn');}
+  const mobile=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});await observe(mobile);await mobile.goto(base+'?test');await mobile.evaluate(({key,save})=>localStorage.setItem(key,JSON.stringify({...save,raceTrackId:'porto',raceCondition:'day'})),{key:SAVE_KEY,save});await mobile.reload();await mobile.click('#start-btn');await fixture(mobile);
+  const cd=await mobile.context().newCDPSession(mobile),left=(await mobile.locator('#steering-stick').boundingBox())!,right=(await mobile.locator('#drive-stick').boundingBox())!;
+  const touches=[{id:1,x:left.x+left.width/2,y:left.y+left.height/2},{id:2,x:right.x+right.width/2,y:right.y+right.height/2}];await cd.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:touches});await cd.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{...touches[0],x:touches[0].x-45},{...touches[1],y:touches[1].y-45}]});await mobile.evaluate(()=>window.advanceTime(1600));assert.equal((await state(mobile)).player.x,-7);assert.ok((await state(mobile)).player.speed<30);assert.equal((await state(mobile)).player.falls,0);await mobile.screenshot({path:`${folder}/mobile-contact.png`});await cd.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await mobile.close();
+  await a.click('#online-btn');await a.fill('#online-name','Ana');await a.selectOption('#online-track','porto:rain');await a.check('#online-bots');await a.click('#online-create');await a.waitForFunction(()=>JSON.parse(window.render_game_to_text()).online?.phase==='lobby');const code=(await state()).online.code;
+  await b.goto(base+`?test&sala=${code}`);await b.fill('#online-name','Bia');await b.click('#online-join');await b.waitForFunction(()=>JSON.parse(window.render_game_to_text()).online?.phase==='lobby');await a.click('#online-ready');await b.click('#online-ready');await a.waitForFunction(()=>JSON.parse(window.render_game_to_text()).online?.locked);offset+=5001;for(const page of [a,b])await page.waitForFunction(()=>JSON.parse(window.render_game_to_text()).screen==='race');
+  const aid=(await state()).online.id,bid=(await state(b)).online.id;
+  await store.mutate(code,room=>{const s=room.race!;s.traffic=[];s.obstacles=[];s.heat=0;s.riders.forEach((r,i)=>Object.assign(r,{x:i<2?-6.8:3,z:i<2?2150+i*50:2600+i*40,speed:50,crash:0,immune:0,health:100,integrity:100}));});
+  await a.waitForFunction(()=>JSON.parse(window.render_game_to_text()).player.z>2140&&JSON.parse(window.render_game_to_text()).player.x< -6.6);
+  for(const page of [a,b]){await page.keyboard.down('a');await page.keyboard.down('w');}
+  await a.waitForFunction(()=>{const p=JSON.parse(window.render_game_to_text()).player;return p.x===-7&&p.speed<30;});
+  const room=(await store.read(code))!;assert.equal(room.race!.riders.length,8);for(const id of [aid,bid]){const rider=room.race!.riders.find(r=>r.id===id)!;assert.ok(rider.x>=-7);assert.equal(rider.falls,0);}
+  for(const page of [a,b]){const s=await state(page);assert.ok(s.player.x>=-7);assert.ok(s.riders.every((r:{x:number})=>r.x>=-7));await page.keyboard.up('a');await page.keyboard.up('w');}await a.screenshot({path:`${folder}/online-contact.png`});
+  await b.reload();await b.waitForFunction(()=>JSON.parse(window.render_game_to_text()).screen==='race');assert.equal((await state(b)).online.id,bid);assert.ok((await state(b)).player.x>=-7);for(const page of [a,b]){await page.click('#pause-btn');await page.click('#menu-btn');}
+  assert.deepEqual(errors,[]);const report={ok:true,portoRainContact:true,slowsWithoutFall:true,steeringAway:true,serraBothSides:true,worksPreserved:true,mobile:true,humans:2,bots:6,remotePositionsContained:true,reconnect:true,errors};await fs.writeFile(`${folder}/browser.json`,JSON.stringify(report,null,2));console.log(report);
+}finally{await browser.close();vite.kill('SIGTERM');await app.close();}
