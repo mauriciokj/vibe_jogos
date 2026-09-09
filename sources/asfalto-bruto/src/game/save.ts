@@ -4,6 +4,7 @@ import { CONDITIONS, raceCondition, recordKey } from './conditions';
 import { BIKES, TRACKS, clamp, getTrack } from './content';
 import { KNEE_PADS, NITRO_PRICE, equippedKneePad, getKneePad, nitroCount } from './equipment';
 import type { RaceState, SaveData, Upgrade } from './types';
+import { racePayout } from './rewards';
 
 export const SAVE_KEY = 'asfalto-bruto:v1';
 export function freshSave(): SaveData {
@@ -120,8 +121,9 @@ export function buyUpgrade(save: SaveData, key: keyof Upgrade): boolean {
   up[key]++; save.cash -= cost; return true;
 }
 export function settleRace(save: SaveData, state: RaceState) {
-  if (!state.result) return;
-  save.cash += state.result.reward; save.races++;
+  if (!state.result || state.multiplayer) return;
+  const payout = racePayout(state.trackId, state.result, save.records[recordKey(state.trackId,state.condition)]?.time);
+  save.cash += payout.total; save.races++;
   save.condition[save.bikeId] = clamp(state.riders[0].integrity, 0, 100);
   const result = state.result;
   if (result.reason === 'finish') {
@@ -132,4 +134,5 @@ export function settleRace(save: SaveData, state: RaceState) {
   }
   // A sponsor restores the starter bike to a safe minimum, so failure never locks out play.
   if ((save.condition.ferro ?? 100) < 55) save.condition.ferro = 55;
+  return payout;
 }

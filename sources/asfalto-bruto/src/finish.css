@@ -19,7 +19,12 @@
 .finish-result .result-actions button{min-height:38px;height:auto;padding:10px 12px;font-size:10px;flex:1}
 .finish-result .result-actions .primary{flex-basis:100%}
 .finish-room-hint{padding:0 23px;font-size:10px;line-height:1.4;color:#bfccba}
+.record-bonus{margin:0 23px;padding:10px 0;display:flex;align-items:center;gap:12px;border-bottom:1px solid #def39940}
+.record-bonus div{flex:1;min-width:0}.record-bonus strong{display:block;font-size:10px;letter-spacing:.7px;color:var(--acid)}
+.record-bonus small{display:block;margin-top:4px;font-size:10px;line-height:1.4;color:#bfccba}
+.record-bonus b{font:700 23px 'Barlow Condensed',sans-serif;white-space:nowrap;color:var(--acid)}
 @media(orientation:portrait){
+  .record-bonus{margin:0 16px;padding:8px 0}.record-bonus strong{font-size:9px}.record-bonus small{font-size:9px}.record-bonus b{font-size:20px}
   #result-modal.finish-result{left:12px;right:12px;top:auto;bottom:12px;margin:0;width:calc(100vw - 24px);max-height:48dvh}
   #result-modal.finish-result::backdrop{background:linear-gradient(0deg,#081c2755,transparent 65%)}
   .finish-result .result-top{padding:12px 16px 8px}.finish-result .result-title{font-size:32px;margin:6px 0}.finish-result .result-sub{font-size:10px;line-height:1.35}
@@ -27,7 +32,15 @@
   .finish-result .result-actions button{font-size:9px;min-height:34px;padding:8px}
   #finish-skip{right:16px;bottom:20px}
 }
+@media(max-height:650px) and (orientation:portrait){
+  #result-modal.finish-result:has(.record-bonus){max-height:54dvh}
+  .finish-result:has(.record-bonus) .result-sub{display:none}
+  .finish-result:has(.record-bonus) .result-title{font-size:28px;margin:4px 0}
+  .finish-result:has(.record-bonus) .result-stats b{font-size:18px}
+  .finish-result:has(.record-bonus) .result-stats small{font-size:7px}
+}
 @media(max-height:520px) and (orientation:landscape){
+  .record-bonus{margin:0 14px;gap:8px}.record-bonus strong{font-size:9px}.record-bonus small{font-size:9px}.record-bonus b{font-size:20px}
   #result-modal.finish-result{right:12px;top:12px;bottom:12px;width:40vw;max-height:calc(100dvh - 24px)}
   .finish-heading{top:6%}.finish-heading strong{font-size:26px}
   .finish-result .result-top{padding:12px 14px 8px}.finish-result .result-title{font-size:30px;margin:6px 0}.finish-result .result-sub{font-size:10px}
