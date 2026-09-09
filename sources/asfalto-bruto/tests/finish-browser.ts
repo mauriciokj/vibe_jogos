@@ -52,6 +52,10 @@ try{
     const second=fixture('porto',true,'rain');second.riders[0].bikeId='lobo';await restore(p,second);assert.equal((await state(p)).finish.winnerId,'rival-0');await shot(p,`${name}-rival-waiting`);
     await p.keyboard.down('w');await advance(p,1100);await p.keyboard.up('w');assert.equal((await state(p)).result.place,2);assert.equal((await state(p)).screen,'finish');
     await advance(p,1800);await shot(p,`${name}-second-place`);await p.click('#finish-skip');assert.equal((await state(p)).screen,'result');
+    const secondSnapshot=await p.evaluate(()=>window.__game!.snapshot()),secondCash=(await state(p)).save.cash;
+    await advance(p,10000);await shot(p,`${name}-late-arrivals`);
+    await advance(p,20000);await shot(p,`${name}-late-arrivals-parked`);
+    assert.equal(await p.evaluate(()=>window.__game!.snapshot()),secondSnapshot);assert.equal((await state(p)).save.cash,secondCash);
     await p.click('#again-btn');assert.equal((await state(p)).mode,'countdown');assert.equal((await state(p)).track,'porto');assert.equal((await state(p)).condition,'rain');assert.equal((await state(p)).finish.stage,'none');
     const caught=fixture();caught.riders[0].finishedAt=null;finishRider(caught,caught.riders[0],'caught','fall');await restore(p,caught);await p.evaluate(cmd=>window.__game!.command(cmd,0),EMPTY_COMMAND);
     assert.equal((await state(p)).screen,'result');assert.equal((await state(p)).finish.stage,'none');assert.equal(await p.locator('#result-modal').isVisible(),true);assert.equal(await p.locator('#next-race-btn').count(),0);
@@ -80,5 +84,5 @@ try{
     assert.equal((await state(guest)).online.id,guestId);assert.equal((await state(guest)).screen,'race');
     await guest.keyboard.up('w');await guest.click('#pause-btn');await guest.click('#menu-btn');await host.close();await guest.close();
   }
-  assert.deepEqual(errors,[]);await fs.writeFile(`${folder}/report.json`,JSON.stringify({ok:true,checks:['winner and rival celebrate','camera before result','reward once','frozen authoritative solo state','next unlocked race','retry and menu','four screen sizes','rain and night','loss skips celebration',...app?['online winner while guest continues','new online track lobby without moving other racer']:[]],errors},null,2));console.log('Finish scenes and result navigation passed');
+  assert.deepEqual(errors,[]);await fs.writeFile(`${folder}/report.json`,JSON.stringify({ok:true,checks:['winner and rival celebrate','camera before result','reward once','frozen authoritative solo state','late solo arrivals remain parked after second-place finish','next unlocked race','retry and menu','four screen sizes','rain and night','loss skips celebration',...app?['online winner while guest continues','new online track lobby without moving other racer']:[]],errors},null,2));console.log('Finish scenes and result navigation passed');
 }finally{await browser.close();await app?.close();vite?.kill('SIGTERM');}

@@ -17,15 +17,21 @@ export function finishScene(state: RaceState, localId: string, elapsed: number |
   const winner=finishWinner(state),length=getTrack(state.trackId).distance;
   const local=state.riders.find(r=>r.id===localId) ?? state.riders[0];
   const time=elapsed===null?state.time:Math.max(state.time,(local.finishedAt ?? state.time)+elapsed);
-  const finishers=state.riders.filter(r=>r.finishedAt!==null && !r.out && r.profile!=='police').sort((a,b)=>a.finishedAt!-b.finishedAt!);
+  const soloFinish=elapsed!==null && !state.multiplayer && state.mode==='finished' && local.finishedAt!==null;
+  // Solo physics freezes at the player's finish. Estimate the remaining visual
+  // arrivals from that frozen state, without recording official times.
+  const arrivals=new Map(state.riders.filter(r=>!r.out && r.profile!=='police').map(r=>[
+    r.id,r.finishedAt ?? (soloFinish && r.speed>0 ? state.time+Math.max(0,length-r.z)/r.speed : Infinity),
+  ]));
+  const finishers=state.riders.filter(r=>Number.isFinite(arrivals.get(r.id))).sort((a,b)=>arrivals.get(a.id)!-arrivals.get(b.id)!);
   const riders=state.riders.map(r=>{
-    if(r.finishedAt!==null && !r.out && r.profile!=='police'){
-      const age=Math.max(0,time-r.finishedAt),t=1-Math.pow(1-clamp(age/2.4,0,1),3);
+    const arrival=arrivals.get(r.id) ?? Infinity;
+    if(Number.isFinite(arrival) && (r.finishedAt!==null || time>=arrival)){
+      const age=Math.max(0,time-arrival),t=1-Math.pow(1-clamp(age/2.4,0,1),3);
       const place=finishers.indexOf(r),x=place===0?0:(place%2?1:-1)*2.8,z=length+18+(place===0?0:Math.floor((place-1)/2)*5-4);
       return {...r,x:r.x+(x-r.x)*t,z:length+(z-length)*t,speed:r.speed*(1-t),lean:0,attack:null,crash:0,immune:0,kneeTime:0,jumpTime:0,wheelieTime:0,nitroTime:0,speech:undefined};
     }
-    // When solo simulation stops, background riders coast out of the shot.
-    if(elapsed!==null && state.mode==='finished' && !r.out && r.profile!=='police')return {...r,z:r.z+r.speed*Math.max(0,time-state.time),attack:null,lean:0};
+    if(soloFinish && Number.isFinite(arrival))return {...r,z:r.z+r.speed*Math.max(0,time-state.time),attack:null,lean:0};
     return r;
   });
   return {state:{...state,time,riders},winnerId:winner?.id ?? null,pullback:elapsed===null?0:finishPullback(elapsed)};
