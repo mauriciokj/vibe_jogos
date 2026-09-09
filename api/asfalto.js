@@ -317,7 +317,7 @@ var supportsKneeDown = (bikeId) => getBike(bikeId).style !== "chopper";
 var NITRO_DURATION = 5;
 var NITRO_MULTIPLIER = 1.1;
 var KNEE_DURATION = 4;
-var WET_KNEE_LIMIT = 3;
+var WET_KNEE_LIMIT = 2;
 function nitroCount(bikeId, value) {
   return typeof value === "number" && Number.isInteger(value) ? Math.max(0, Math.min(getBike(bikeId).nitroCapacity, value)) : 0;
 }

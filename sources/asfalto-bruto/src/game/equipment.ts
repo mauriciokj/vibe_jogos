@@ -6,7 +6,7 @@ export const NITRO_PRICE = 2500;
 export const NITRO_DURATION = 5;
 export const NITRO_MULTIPLIER = 1.1;
 export const KNEE_DURATION = 4;
-export const WET_KNEE_LIMIT = 3;
+export const WET_KNEE_LIMIT = 2;
 export function nitroCount(bikeId: string | undefined, value: unknown) {
   return typeof value==='number' && Number.isInteger(value) ? Math.max(0,Math.min(getBike(bikeId).nitroCapacity,value)) : 0;
 }

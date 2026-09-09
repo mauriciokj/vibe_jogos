@@ -20,7 +20,7 @@ O modo individual continua local, com garagem, melhorias e progressão existente
 - CPUs com perfil veloz ou cauteloso e moto compatível recebem joelheiras e usam a manobra comum nas curvas secas. A cor progride conforme a dificuldade da pista. Choppers e polícia não apoiam o joelho; na chuva, os bots planejam a frenagem sem esse bônus. As motos online continuam com atributos de fábrica, e os equipamentos dos humanos seguem a seleção da garagem.
 - As curvas exigem reduzir a velocidade para manter aderência. Mapa de proximidade (±300m) e retrovisor (200m atrás) usam posições da mesma simulação compartilhada.
 - O menu de pausa online deixa a corrida continuar e neutraliza os controles locais. A pausa individual mantém o comportamento anterior.
-- Na chuva, o servidor só derruba após mais de 3 segundos contínuos com o joelho apoiado, dentro da manobra de até 4s. O contador de contato faz parte do estado compartilhado; novo toque não reinicia e reconexão preserva. Tirar o joelho zera a contagem.
+- Na chuva, o servidor só derruba após mais de 2 segundos contínuos com o joelho apoiado, dentro da manobra de até 4s. O contador de contato faz parte do estado compartilhado; novo toque não reinicia e reconexão preserva. Tirar o joelho zera a contagem.
 - Cada humano tem três ativações de empinada por corrida; reconectar preserva os usos restantes e o salto em andamento. Armas, alcance, dano, cadência e colisões são definidos pelo servidor, nunca por números enviados no carregamento de equipamentos.
 - Reconexão reserva a identidade por 15 segundos; após perda prolongada, o piloto sai da corrida. Atualizar a página tenta retomar a mesma vaga usando um token de sessão.
 
