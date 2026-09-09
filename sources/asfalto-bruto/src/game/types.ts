@@ -7,6 +7,7 @@ export type RiderAction = 'kneeLeft' | 'kneeRight' | 'nitro' | 'horn' | 'taunt' 
 export interface Command { throttle: number; brake: number; steer: number; attack: AttackKind | null; action?: RiderAction; }
 export interface Attack { kind: AttackKind; age: number; side: number; hit: boolean; id?: number; }
 export interface Rider {
+  helmetId?: string; helmetColorId?: string;
   id: string; name: string; color: string; profile: Profile; bikeId?: string; kneePadId?: string;
   x: number; z: number; speed: number; lean: number;
   health: number; integrity: number; maxSpeed: number; acceleration: number; handling: number; armor: number;
@@ -30,6 +31,6 @@ export interface RaceState {
 }
 export interface Bike { id: string; name: string; class: string; style: BikeStyle; nitroCapacity: 2 | 3 | 5; price: number; speed: number; acceleration: number; handling: number; armor: number; color: string; tagline: string; }
 export interface Upgrade { engine: number; armor: number; handling: number; }
-export interface SaveData { version: 1; raceTrackId?: string; raceCondition?: RaceCondition; ownedWeapons?: string[]; weaponId?: string; ownedKneePads?: string[]; kneePadId?: string; nitro?: Record<string, number>; nitroReceipts?: Record<string, number>; cash: number; owned: string[]; bikeId: string; upgrades: Record<string, Upgrade>; condition: Record<string, number>; unlocked: number; records: Record<string, { time: number; place: number }>; races: number; muted: boolean; }
+export interface SaveData { version: 1; ownedHelmets?: string[]; helmetId?: string; helmetColorId?: string; raceTrackId?: string; raceCondition?: RaceCondition; ownedWeapons?: string[]; weaponId?: string; ownedKneePads?: string[]; kneePadId?: string; nitro?: Record<string, number>; nitroReceipts?: Record<string, number>; cash: number; owned: string[]; bikeId: string; upgrades: Record<string, Upgrade>; condition: Record<string, number>; unlocked: number; records: Record<string, { time: number; place: number }>; races: number; muted: boolean; }
 export interface Track { id: string; name: string; region: string; distance: number; difficulty: string; prize: number; index: number; level: number; theme: 'coast' | 'mountain' | 'desert' | 'port'; sky: string[]; land: string[]; road: string[]; accent: string; }
 export const EMPTY_COMMAND: Command = { throttle: 0, brake: 0, steer: 0, attack: null };

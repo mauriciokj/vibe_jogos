@@ -101,7 +101,7 @@ export class RaceInstruments {
       }else if(e.r){
         const r=e.r; c.translate(0,-jumpHeight(r)*p.scale); const support=kneeSupport(r,curveAt(r.z,state.trackId));c.rotate(r.crash?1.2:-(r.lean*(1-support)+support*(r.kneeSide ?? 0)*.59));
         const width=size*88/128;
-        c.drawImage(bikeFrontSprite(r.color,getBike(r.bikeId).style,r.attack?.kind ?? 'ride',r.attack?.side ?? 1,r.profile==='police',Math.floor(state.time*8)%3,getKneePad(r.kneePadId)?.color,support>.35?-(r.kneeSide ?? 0):0,r.weaponId,stunting(r)),-width/2,-size,width,size);
+        c.drawImage(bikeFrontSprite(r.color,getBike(r.bikeId).style,r.attack?.kind ?? 'ride',r.attack?.side ?? 1,r.profile==='police',Math.floor(state.time*8)%3,getKneePad(r.kneePadId)?.color,support>.35?-(r.kneeSide ?? 0):0,r.weaponId,stunting(r),r.helmetId,r.helmetColorId),-width/2,-size,width,size);
       }
       c.restore();
     }

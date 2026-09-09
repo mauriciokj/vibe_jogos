@@ -170,3 +170,14 @@ A geometria compartilhada mantém desenho, colisão, previsão e pilotos remotos
 O primeiro contato com guard-rail toca uma pancada metálica curta; o contato em movimento mantém uma raspagem que acompanha a velocidade. O som cessa ao afastar, parar, cair ou pausar. Pequenas correções online não repetem a pancada. Os loops são reaproveitados e respeitam o áudio silenciado. Física e protocolo v10 preservados.
 
 Verificação Web Audio e corrida com dois clientes: `npm run test:guardrail-audio`. Para a versão publicada, defina `GUARDRAIL_AUDIO_URL` com a URL do jogo; o teste usa `?test` para não registrar visitantes artificiais.
+
+
+### Capacetes e cores
+
+Garagem → Capacetes: Integral incluído, Retrô por 1.500 créditos, Cross por 3.000 e Racing por 5.000. As compras são permanentes; equipar novamente é gratuito. Oito cores (branco, preto, vermelho, laranja, amarelo, verde, azul e roxo) podem ser trocadas sem custo, com prévias de frente e costas.
+
+Os capacetes são cosméticos e compatíveis com todas as motos. Aparecem no piloto, nos adversários e no retrovisor, incluindo manobras e corridas online. Modelo/cor e propriedade ficam no save v1 do navegador, preservando os equipamentos já comprados. Saves anteriores recebem o Integral branco; IDs inválidos e modelos não comprados voltam ao básico. Não há sincronização de garagem entre navegadores.
+
+Os campos opcionais de personalização no loadout/lobby/mundo são normalizados pelo servidor e preservados na reconexão, compatíveis com o protocolo v10. Bots usam variações determinísticas sem interferir na física ou no RNG da pista. O cache dos sprites de pilotos tem limite de 512 variantes.
+
+`npm run test:helmets` verifica compras, pintura gratuita, persistência, layout móvel, chopper/retrovisor e dois humanos com seis bots. `HELMET_CHECK_URL` aponta o teste para uma instalação publicada usando `?test`, sem inflar visitantes.

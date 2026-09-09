@@ -1,3 +1,4 @@
+import { HELMETS, HELMET_COLORS, equippedHelmet, getHelmetColor, ownsHelmet } from './helmets';
 import { WEAPONS, equippedWeapon, getWeapon } from './weapons';
 import { CONDITIONS, raceCondition, recordKey } from './conditions';
 import { BIKES, TRACKS, clamp, getTrack } from './content';
@@ -6,7 +7,7 @@ import type { RaceState, SaveData, Upgrade } from './types';
 
 export const SAVE_KEY = 'asfalto-bruto:v1';
 export function freshSave(): SaveData {
-  return { version: 1, raceTrackId: 'costa', raceCondition: 'sunset', cash: 650, owned: ['ferro'], bikeId: 'ferro', upgrades: { ferro: { engine: 0, armor: 0, handling: 0 } }, condition: { ferro: 100 }, unlocked: 0, records: {}, races: 0, muted: false };
+  return { version: 1, ownedHelmets: ['integral'], helmetId: 'integral', helmetColorId: 'white', raceTrackId: 'costa', raceCondition: 'sunset', cash: 650, owned: ['ferro'], bikeId: 'ferro', upgrades: { ferro: { engine: 0, armor: 0, handling: 0 } }, condition: { ferro: 100 }, unlocked: 0, records: {}, races: 0, muted: false };
 }
 export function loadSave(): SaveData {
   try {
@@ -22,6 +23,9 @@ export function loadSave(): SaveData {
     valid.races = Number.isFinite(saved.races) ? Math.max(0, saved.races) : 0;
     valid.muted = saved.muted === true;
     valid.raceCondition = raceCondition(saved.raceCondition);
+    valid.ownedHelmets=HELMETS.filter(h=>h.id==='integral' || Array.isArray(saved.ownedHelmets) && saved.ownedHelmets.includes(h.id)).map(h=>h.id);
+    valid.helmetId=equippedHelmet({...valid,helmetId:saved.helmetId}).id;
+    valid.helmetColorId=getHelmetColor(saved.helmetColorId).id;
     if(Array.isArray(saved.ownedWeapons))valid.ownedWeapons=WEAPONS.filter(w=>saved.ownedWeapons.includes(w.id)).map(w=>w.id);
     const weapon=equippedWeapon({...valid,weaponId:saved.weaponId});if(weapon)valid.weaponId=weapon.id;
     if (Array.isArray(saved.ownedKneePads)) valid.ownedKneePads=KNEE_PADS.filter(p=>saved.ownedKneePads.includes(p.id)).map(p=>p.id);
@@ -47,6 +51,18 @@ export function persist(save: SaveData): boolean {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); return true; } catch { return false; }
 }
 export function repairCost(save: SaveData, bikeId = save.bikeId) { return Math.ceil((100 - (save.condition[bikeId] ?? 100)) * 4); }
+export function buyHelmet(save: SaveData, id: string): boolean {
+  const helmet=HELMETS.find(h=>h.id===id);if(!helmet)return false;
+  if(!ownsHelmet(save,id)){
+    if(save.cash<helmet.price)return false;
+    save.cash-=helmet.price;save.ownedHelmets=HELMETS.filter(h=>h.id==='integral' || h.id===id || save.ownedHelmets?.includes(h.id)).map(h=>h.id);
+  }
+  save.helmetId=id;return true;
+}
+export function paintHelmet(save: SaveData,id: string): boolean {
+  if(!HELMET_COLORS.some(c=>c.id===id))return false;
+  save.helmetColorId=id;return true;
+}
 export function buyWeapon(save: SaveData, id: string): boolean {
   const weapon=getWeapon(id);if(!weapon)return false;
   const owned=save.ownedWeapons ?? [];

@@ -109,3 +109,8 @@ O benchmark registra intervalo entre estados, idade do estado ao sair do servido
 ### Guard-rails
 
 As proteções desenhadas têm colisão: Costa do Sol e Porto Ferrugem à esquerda, Serra da Fumaça nos dois lados. A moto desliza pela proteção e perde velocidade sem queda ou dano causado pelo guard-rail. Laterais sem proteção continuam abertas. A mesma geometria limita simulação, previsão e interpolação de pilotos remotos; golpes e colisões laterais também não permitem atravessar. Esta alteração de física requer protocolo v10 e atualização das páginas.
+
+
+### Personalização do capacete
+
+`Loadout`, `MemberView` e `Rider` podem informar `helmetId` e `helmetColorId`. O servidor normaliza os dois por catálogos fixos; omissões/valores desconhecidos usam Integral branco. A seleção da garagem acompanha criar/entrar e a identidade já salva da sala acompanha retomar. Os campos são cosméticos e opcionais, mantendo o protocolo v10 e a física. Cada cliente desenha o mesmo capacete no piloto e no retrovisor; o save da garagem continua local ao navegador/origem.

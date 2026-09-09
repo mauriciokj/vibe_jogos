@@ -42,6 +42,37 @@ var import_node_crypto2 = require("node:crypto");
 var import_node_net = require("node:net");
 var import_ws = require("ws");
 
+// src/game/helmets.ts
+var HELMETS = [
+  { id: "integral", name: "Integral", price: 0, description: "Casco fechado, linhas cl\xE1ssicas e faixa central." },
+  { id: "retro", name: "Retr\xF4", price: 1500, description: "Casco arredondado e \xF3culos com tira de couro." },
+  { id: "cross", name: "Cross", price: 3e3, description: "Pala larga, \xF3culos escuros e queixeira alongada." },
+  { id: "racing", name: "Racing", price: 5e3, description: "Perfil angular, entradas de ar e spoiler traseiro." }
+];
+var HELMET_COLORS = [
+  { id: "white", name: "Branco", color: "#e4e9dc" },
+  { id: "black", name: "Preto", color: "#424d5a" },
+  { id: "red", name: "Vermelho", color: "#ed6557" },
+  { id: "orange", name: "Laranja", color: "#f39c48" },
+  { id: "yellow", name: "Amarelo", color: "#f1d955" },
+  { id: "green", name: "Verde", color: "#96db69" },
+  { id: "blue", name: "Azul", color: "#62a9ed" },
+  { id: "purple", name: "Roxo", color: "#ba8fe4" }
+];
+function getHelmet(id) {
+  return HELMETS.find((h) => h.id === id) ?? HELMETS[0];
+}
+function getHelmetColor(id) {
+  return HELMET_COLORS.find((c) => c.id === id) ?? HELMET_COLORS[0];
+}
+function ownsHelmet(save, id) {
+  return id === "integral" || !!save?.ownedHelmets?.includes(id);
+}
+function equippedHelmet(save) {
+  const helmet = getHelmet(save?.helmetId);
+  return ownsHelmet(save, helmet.id) ? helmet : HELMETS[0];
+}
+
 // src/game/guardrails.ts
 var GUARD_RAIL_X = 7.75;
 var GUARD_RAIL_CLEARANCE = 0.75;
@@ -367,6 +398,8 @@ function createRace(trackId = "costa", save, seed = 88117, condition = "sunset")
   const bike = getBike(save?.bikeId);
   const up = save?.upgrades[bike.id] ?? { engine: 0, armor: 0, handling: 0 };
   const player = makeRider("player", "VOC\xCA", "player", bike.color, 1.7, 0);
+  player.helmetId = equippedHelmet(save).id;
+  player.helmetColorId = getHelmetColor(save?.helmetColorId).id;
   const weapon = equippedWeapon(save);
   if (weapon) player.weaponId = weapon.id;
   const pad = equippedKneePad(save);
@@ -379,6 +412,8 @@ function createRace(trackId = "costa", save, seed = 88117, condition = "sunset")
   const profiles = ["aggressive", "fast", "careful", "aggressive", "careful", "fast", "aggressive"];
   const riders = [player, ...names.map((name, i) => {
     const r = makeRider(`rival-${i}`, name, profiles[i], colors[i], i % 2 ? -1.5 : 3.8, 7 + i * 9);
+    r.helmetId = HELMETS[i % HELMETS.length].id;
+    r.helmetColorId = HELMET_COLORS[(i + 2) % HELMET_COLORS.length].id;
     Object.assign(r, stockBike(BIKES[(i + 1) % BIKES.length].id));
     r.maxSpeed *= 0.92 + getTrack(trackId).level * 0.025;
     r.weapon = i === 1 || i === 3 || i === 6;
@@ -638,10 +673,10 @@ function createMultiplayerRace(trackId, players, seed = 88117, fillBots = false,
   const colors = ["#dcff74", "#d87bfa", "#6cdace", "#f28451", "#ebbc5c", "#a4bde2", "#ef6f8a", "#e7e6dc"];
   const base = state.riders[0];
   const bots = state.riders.slice(1);
-  state.riders = players.map((p, i) => ({ ...base, ...stockBike(p.bikeId), weaponId: getWeapon(p.weaponId)?.id, kneePadId: getKneePad(p.kneePadId)?.id, nitro: nitroCount(p.bikeId, p.nitro), id: p.id, name: p.name, color: colors[i], x: [-5.1, -1.7, 1.7, 5.1][i % 4], z: -(Math.floor(i / 4) * 8), profile: "player" }));
+  state.riders = players.map((p, i) => ({ ...base, ...stockBike(p.bikeId), helmetId: getHelmet(p.helmetId).id, helmetColorId: getHelmetColor(p.helmetColorId).id, weaponId: getWeapon(p.weaponId)?.id, kneePadId: getKneePad(p.kneePadId)?.id, nitro: nitroCount(p.bikeId, p.nitro), id: p.id, name: p.name, color: colors[i], x: [-5.1, -1.7, 1.7, 5.1][i % 4], z: -(Math.floor(i / 4) * 8), profile: "player" }));
   if (fillBots) for (let i = players.length; i < 8; i++) {
     const bot = bots[i - players.length];
-    state.riders.push({ ...base, ...stockBike(BIKES[i % BIKES.length].id), id: `cpu-${i}`, name: `${bot.name} CPU`, profile: bot.profile, color: colors[i], x: [-5.1, -1.7, 1.7, 5.1][i % 4], targetX: [-5.1, -1.7, 1.7, 5.1][i % 4], z: -(Math.floor(i / 4) * 8) });
+    state.riders.push({ ...base, ...stockBike(BIKES[i % BIKES.length].id), helmetId: bot.helmetId, helmetColorId: bot.helmetColorId, id: `cpu-${i}`, name: `${bot.name} CPU`, profile: bot.profile, color: colors[i], x: [-5.1, -1.7, 1.7, 5.1][i % 4], targetX: [-5.1, -1.7, 1.7, 5.1][i % 4], z: -(Math.floor(i / 4) * 8) });
   }
   state.multiplayer = { humanIds: players.map((p) => p.id), results: {} };
   return state;
@@ -810,7 +845,7 @@ var inputKey = (member) => `${member.id}:${member.epoch}`;
 var secret = () => (0, import_node_crypto.randomBytes)(24).toString("base64url");
 function makeMember(name, now, bikeId, loadout) {
   const bike = getBike(typeof bikeId === "string" ? bikeId : void 0);
-  return { id: `human-${(0, import_node_crypto.randomBytes)(8).toString("hex")}`, name: cleanName(name), bikeId: bike.id, weaponId: getWeapon(loadout?.weaponId)?.id, kneePadId: getKneePad(loadout?.kneePadId)?.id, nitro: nitroCount(bike.id, loadout?.nitro), ready: false, connected: true, token: secret(), epoch: secret(), lastSeen: now };
+  return { id: `human-${(0, import_node_crypto.randomBytes)(8).toString("hex")}`, name: cleanName(name), bikeId: bike.id, helmetId: getHelmet(loadout?.helmetId).id, helmetColorId: getHelmetColor(loadout?.helmetColorId).id, weaponId: getWeapon(loadout?.weaponId)?.id, kneePadId: getKneePad(loadout?.kneePadId)?.id, nitro: nitroCount(bike.id, loadout?.nitro), ready: false, connected: true, token: secret(), epoch: secret(), lastSeen: now };
 }
 function makeRoom(code, trackId, member, now, fillBots = false, condition) {
   if (!TRACKS.some((t) => t.id === trackId)) throw new Error("Estrada inv\xE1lida.");
@@ -846,7 +881,7 @@ function viewRoom(room, now) {
     revision: room.revision,
     serverNow: now,
     simulationAt: room.updatedAt,
-    members: room.members.map(({ id, name, bikeId, weaponId, kneePadId, nitro, ready, connected }) => ({ id, name, bikeId, weaponId, kneePadId, nitro, ready, connected })),
+    members: room.members.map(({ id, name, bikeId, helmetId, helmetColorId, weaponId, kneePadId, nitro, ready, connected }) => ({ id, name, bikeId, helmetId, helmetColorId, weaponId, kneePadId, nitro, ready, connected })),
     race: room.race,
     ack: room.ack,
     attackAck: room.attackAck,

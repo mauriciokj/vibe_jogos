@@ -1,3 +1,4 @@
+import { getHelmet, getHelmetColor } from '../src/game/helmets';
 import { getWeapon } from '../src/game/weapons';
 import { CONDITIONS, raceCondition } from '../src/game/conditions';
 import { randomBytes } from 'node:crypto';
@@ -17,7 +18,7 @@ export const inputKey = (member: Member) => `${member.id}:${member.epoch}`;
 export const secret = () => randomBytes(24).toString('base64url');
 export function makeMember(name: unknown, now: number, bikeId?: unknown, loadout?: Loadout): Member {
   const bike=getBike(typeof bikeId==='string'?bikeId:undefined);
-  return { id: `human-${randomBytes(8).toString('hex')}`, name: cleanName(name), bikeId: bike.id, weaponId:getWeapon(loadout?.weaponId)?.id, kneePadId:getKneePad(loadout?.kneePadId)?.id, nitro:nitroCount(bike.id,loadout?.nitro), ready: false, connected: true, token: secret(), epoch: secret(), lastSeen: now };
+  return { id: `human-${randomBytes(8).toString('hex')}`, name: cleanName(name), bikeId: bike.id, helmetId:getHelmet(loadout?.helmetId).id, helmetColorId:getHelmetColor(loadout?.helmetColorId).id, weaponId:getWeapon(loadout?.weaponId)?.id, kneePadId:getKneePad(loadout?.kneePadId)?.id, nitro:nitroCount(bike.id,loadout?.nitro), ready: false, connected: true, token: secret(), epoch: secret(), lastSeen: now };
 }
 export function makeRoom(code: string, trackId: unknown, member: Member, now: number, fillBots = false, condition?: unknown): Room {
   if (!TRACKS.some(t => t.id === trackId)) throw new Error('Estrada inválida.');
@@ -27,7 +28,7 @@ export function makeRoom(code: string, trackId: unknown, member: Member, now: nu
 }
 export function viewRoom(room: Room, now: number): RoomView {
   return { code: room.code, condition: raceCondition(room.condition), trackId: room.trackId, fillBots: room.fillBots, phase: room.phase, locked: room.locked, deadline: room.deadline,
-    revision: room.revision, serverNow: now, simulationAt: room.updatedAt, members: room.members.map(({id,name,bikeId,weaponId,kneePadId,nitro,ready,connected}) => ({id,name,bikeId,weaponId,kneePadId,nitro,ready,connected})), race: room.race, ack: room.ack, attackAck: room.attackAck, actionAck:room.actionAck };
+    revision: room.revision, serverNow: now, simulationAt: room.updatedAt, members: room.members.map(({id,name,bikeId,helmetId,helmetColorId,weaponId,kneePadId,nitro,ready,connected}) => ({id,name,bikeId,helmetId,helmetColorId,weaponId,kneePadId,nitro,ready,connected})), race: room.race, ack: room.ack, attackAck: room.attackAck, actionAck:room.actionAck };
 }
 export function lobbyClock(room: Room, now: number) {
   if (room.phase !== 'lobby') return;

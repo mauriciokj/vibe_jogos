@@ -1,3 +1,4 @@
+import { helmetShop } from './helmet-ui';
 import { WEAPONS, equippedWeapon } from './game/weapons';
 import { weaponArt } from './weapon-art';
 import { BIKES, getBike, supportsKneeDown } from './game/bikes';
@@ -5,9 +6,10 @@ import { KNEE_PADS, NITRO_DURATION, NITRO_PRICE, equippedKneePad, kneeCornerSpee
 import { money } from './game/content';
 import type { SaveData } from './game/types';
 
-export type GarageTab = 'bikes' | 'knees' | 'nitro' | 'weapons';
-export const garageNav = (selected: GarageTab) => `<nav class="garage-nav" aria-label="Seções da garagem">${([['bikes','Motos'],['weapons','Combate'],['knees','Joelheiras'],['nitro','Nitro']] as const).map(([id,name])=>`<button class="secondary" data-garage-tab="${id}" aria-pressed="${id===selected}">${name}</button>`).join('')}</nav>`;
+export type GarageTab = 'bikes' | 'knees' | 'nitro' | 'weapons' | 'helmets';
+export const garageNav = (selected: GarageTab) => `<nav class="garage-nav" aria-label="Seções da garagem">${([['bikes','Motos'],['helmets','Capacetes'],['weapons','Combate'],['knees','Joelheiras'],['nitro','Nitro']] as const).map(([id,name])=>`<button class="secondary" data-garage-tab="${id}" aria-pressed="${id===selected}">${name}</button>`).join('')}</nav>`;
 export function equipmentShop(save: SaveData, tab: GarageTab) {
+  if(tab==='helmets')return helmetShop(save);
   const bike=getBike(save.bikeId),pad=equippedKneePad(save);
   if(tab==='weapons'){
     const selected=equippedWeapon(save);

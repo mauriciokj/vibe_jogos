@@ -364,7 +364,7 @@ export class Renderer {
       for (let i = 0; i < 8; i++) { c.fillStyle = i % 2 ? '#f9cd8b' : '#d2b78d'; c.fillRect(-width * .8 + Math.sin(state.time * 13 + i) * width, -height * .2 - i * 3, 4, 4); }
     } else { c.rotate(leanAngle); if (!this.reducedMotion) c.translate(0, Math.sin(r.z * 1.1) * Math.min(1, r.speed / 50) * height * .003); }
     const pose = r.attack && r.attack.age > .08 ? r.attack.kind : 'ride';
-    c.drawImage(bikeSprite(r.color, pose, r.attack?.side ?? 1, r.profile === 'police', r.speed > 8 ? Math.floor(r.z * 1.6) % 3 : 0, getBike(r.bikeId).style,getKneePad(r.kneePadId)?.color,kneeSide,r.weaponId,stunting(r)), -width / 2, -height, width, height);
+    c.drawImage(bikeSprite(r.color, pose, r.attack?.side ?? 1, r.profile === 'police', r.speed > 8 ? Math.floor(r.z * 1.6) % 3 : 0, getBike(r.bikeId).style,getKneePad(r.kneePadId)?.color,kneeSide,r.weaponId,stunting(r),r.helmetId,r.helmetColorId), -width / 2, -height, width, height);
     if((r.nitroTime ?? 0)>0 && !r.crash){
       for(const side of [-1,1]){
         const x=side*width*.26,flicker=.8+Math.sin(state.time*45)*.2;

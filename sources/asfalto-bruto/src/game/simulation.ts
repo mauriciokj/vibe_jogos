@@ -1,3 +1,4 @@
+import { HELMETS, HELMET_COLORS, equippedHelmet, getHelmet, getHelmetColor } from './helmets';
 import { contactGuardRail, guardRailPosition } from './guardrails';
 import { portObstacles, portTraffic, portPassengerEvent } from './port';
 import { equippedWeapon, getWeapon } from './weapons';
@@ -42,6 +43,7 @@ export function createRace(trackId = 'costa', save?: SaveData, seed = 88117, con
   const bike = getBike(save?.bikeId);
   const up = save?.upgrades[bike.id] ?? { engine: 0, armor: 0, handling: 0 };
   const player = makeRider('player', 'VOCÊ', 'player', bike.color, 1.7, 0);
+  player.helmetId=equippedHelmet(save).id;player.helmetColorId=getHelmetColor(save?.helmetColorId).id;
   const weapon=equippedWeapon(save);if(weapon)player.weaponId=weapon.id;
   const pad=equippedKneePad(save);if(pad)player.kneePadId=pad.id;
   const nitro=nitroCount(bike.id,save?.nitro?.[bike.id]);if(nitro)player.nitro=nitro;
@@ -51,6 +53,7 @@ export function createRace(trackId = 'costa', save?: SaveData, seed = 88117, con
   const profiles: Rider['profile'][] = ['aggressive', 'fast', 'careful', 'aggressive', 'careful', 'fast', 'aggressive'];
   const riders = [player, ...names.map((name, i) => {
     const r = makeRider(`rival-${i}`, name, profiles[i], colors[i], i % 2 ? -1.5 : 3.8, 7 + i * 9);
+    r.helmetId=HELMETS[i%HELMETS.length].id;r.helmetColorId=HELMET_COLORS[(i+2)%HELMET_COLORS.length].id;
     Object.assign(r,stockBike(BIKES[(i+1)%BIKES.length].id));
     r.maxSpeed *= .92 + getTrack(trackId).level * .025;
     r.weapon = i === 1 || i === 3 || i === 6;
@@ -289,16 +292,16 @@ function resolveCollisions(state: RaceState, oldZ: Map<string, number>) {
   }
 }
 
-export function createMultiplayerRace(trackId: string, players: { id: string; name: string; bikeId?: string; kneePadId?: string; nitro?: number; weaponId?: string }[], seed = 88117, fillBots = false, condition: RaceCondition = 'sunset'): RaceState {
+export function createMultiplayerRace(trackId: string, players: { id: string; name: string; helmetId?: string; helmetColorId?: string; bikeId?: string; kneePadId?: string; nitro?: number; weaponId?: string }[], seed = 88117, fillBots = false, condition: RaceCondition = 'sunset'): RaceState {
   if (players.length < 2 || players.length > 8 || new Set(players.map(p => p.id)).size !== players.length) throw new Error('A corrida precisa de 2 a 8 pilotos distintos.');
   const state = createRace(trackId, undefined, seed, condition);
   const colors = ['#dcff74', '#d87bfa', '#6cdace', '#f28451', '#ebbc5c', '#a4bde2', '#ef6f8a', '#e7e6dc'];
   const base = state.riders[0];
   const bots = state.riders.slice(1);
-  state.riders = players.map((p,i) => ({ ...base, ...stockBike(p.bikeId), weaponId:getWeapon(p.weaponId)?.id, kneePadId:getKneePad(p.kneePadId)?.id, nitro:nitroCount(p.bikeId,p.nitro), id: p.id, name: p.name, color: colors[i], x: [-5.1,-1.7,1.7,5.1][i%4], z: -(Math.floor(i/4)*8), profile: 'player' }));
+  state.riders = players.map((p,i) => ({ ...base, ...stockBike(p.bikeId), helmetId:getHelmet(p.helmetId).id, helmetColorId:getHelmetColor(p.helmetColorId).id, weaponId:getWeapon(p.weaponId)?.id, kneePadId:getKneePad(p.kneePadId)?.id, nitro:nitroCount(p.bikeId,p.nitro), id: p.id, name: p.name, color: colors[i], x: [-5.1,-1.7,1.7,5.1][i%4], z: -(Math.floor(i/4)*8), profile: 'player' }));
   if (fillBots) for (let i = players.length; i < 8; i++) {
     const bot = bots[i - players.length];
-    state.riders.push({ ...base, ...stockBike(BIKES[i%BIKES.length].id), id: `cpu-${i}`, name: `${bot.name} CPU`, profile: bot.profile, color: colors[i], x: [-5.1,-1.7,1.7,5.1][i%4], targetX: [-5.1,-1.7,1.7,5.1][i%4], z: -(Math.floor(i/4)*8) });
+    state.riders.push({ ...base, ...stockBike(BIKES[i%BIKES.length].id), helmetId:bot.helmetId, helmetColorId:bot.helmetColorId, id: `cpu-${i}`, name: `${bot.name} CPU`, profile: bot.profile, color: colors[i], x: [-5.1,-1.7,1.7,5.1][i%4], targetX: [-5.1,-1.7,1.7,5.1][i%4], z: -(Math.floor(i/4)*8) });
   }
   state.multiplayer = { humanIds: players.map(p => p.id), results: {} };
   return state;
