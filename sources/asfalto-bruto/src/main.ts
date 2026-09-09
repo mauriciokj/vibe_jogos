@@ -41,6 +41,7 @@ import { buyHelmet, paintHelmet, buyBike, buyWeapon, buyKneePad, buyNitro, spend
 import type { Command, RaceState, RiderAction, Upgrade } from './game/types';
 
 const icons = {
+  trophy: '<svg class="champ-trophy" viewBox="0 0 80 80" fill="none" aria-hidden="true"><path d="M24 19H13v8c0 10 7 16 17 16m26-24h11v8c0 10-7 16-17 16" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><path d="M23 14h34l-3 20c-1 10-7 16-14 16s-13-6-14-16l-3-20Z" fill="currentColor" fill-opacity=".15" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M40 50v12m-11 4h22l4 6H25l4-6Z" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="m40 23 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1 3-6Z" fill="currentColor"/></svg>',
   arrow: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 19 19 5M5 5h14v14"/></svg>',
   garage: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 21V9l9-6 9 6v12M6 21V11h12v10M6 15h12M6 18h12"/></svg>',
   help: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 4 2c-1 .7-1.5 1-1.5 3m0 2v1"/></svg>',
@@ -62,8 +63,9 @@ root.innerHTML = `
       <div class="menu-main"><div class="eyebrow"><i class="live-dot"></i> OITO PILOTOS. UMA CHEGADA.</div>
         <h1>ASFALTO<span>BRUTO</span></h1><p>A estrada é de todos.<br>A chegada é de um só.</p>
         <div class="start-row"><button class="primary" id="start-btn">JOGAR SOZINHO ${icons.arrow}</button><button class="secondary online-entry" id="online-btn">MULTIPLAYER <span>2–8 PILOTOS ↗</span></button></div>
-        <button class="secondary" id="championship-btn">CAMPEONATO <span>5 ETAPAS · 20 CORRIDAS ↗</span></button><div class="bike-line"><span>NA SUA GARAGEM</span><b id="current-bike"></b><button id="change-bike">TROCAR ↗</button></div>
+        <div class="menu-meta"><div class="menu-profile"><div class="bike-line"><span>NA SUA GARAGEM</span><b id="current-bike"></b><button id="change-bike">TROCAR ↗</button></div>
         <div id="visitor-count" class="visitor-count" hidden role="status"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="9" cy="7" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M16 4a3 3 0 0 1 0 6m2 4a5 5 0 0 1 3 4v3"/></svg><div><strong data-visitor-message></strong><small data-visitor-since></small></div></div>
+        </div><button id="championship-btn" aria-label="Campeonato, 5 etapas e 20 corridas"><span id="champ-card-state" class="champ-card-state" hidden></span><span class="champ-card-arrow" aria-hidden="true">↗</span>${icons.trophy}<strong>CAMPEONATO</strong><span class="champ-card-detail">5 ETAPAS · 20 CORRIDAS</span></button></div>
       </div>
       <div class="route-select"><div class="route-heading"><div><span>ESCOLHA A PISTA</span><span id="route-count"></span></div><div class="route-navigation"><button id="routes-prev" aria-label="Ver pistas anteriores" aria-controls="routes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M19 12H5m7-7-7 7 7 7"/></svg></button><button id="routes-next" aria-label="Ver próximas pistas" aria-controls="routes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 12h14m-7-7 7 7-7 7"/></svg></button></div></div><div class="routes" id="routes" role="group" aria-label="Pistas disponíveis"></div><p class="route-detail" id="route-detail"></p></div>
       <footer class="bottomline"><span>ESTRADAS ABERTAS. PUNHOS FECHADOS.</span><span><i class="live-dot"></i> PRONTO PARA A LARGADA</span></footer>
@@ -288,7 +290,10 @@ $('routes').addEventListener('scroll',updateRouteNavigation,{passive:true});
 window.addEventListener('resize',()=>requestAnimationFrame(revealSelectedRoute));
 function renderMenu() {
   const championship=save.championship;
-  $('championship-btn').innerHTML=championship && !['eliminated','complete'].includes(championship.status)?`CONTINUAR CAMPEONATO <span>ETAPA ${championship.stage+1} / ${TRACKS.length} ↗</span>`:'CAMPEONATO <span>5 ETAPAS · 20 CORRIDAS ↗</span>';
+  const continuing=championship && !['eliminated','complete'].includes(championship.status);
+  $('champ-card-state').hidden=!continuing;
+  setText('champ-card-state',continuing?`RETOMAR · ${championship.stage+1} / ${TRACKS.length}`:'');
+  $('championship-btn').setAttribute('aria-label',continuing?`Continuar campeonato, etapa ${championship.stage+1} de ${TRACKS.length}`:'Campeonato, 5 etapas e 20 corridas');
   const selected=raceRoute(selectedTrack,selectedCondition),best=save.records[recordKey(selectedTrack,selectedCondition)];
   $('route-detail').textContent=`${selected.name} — ${selected.condition.description}`+(best ? ` · RECORDE ${clockString(best.time)}` : '');
   $('wallet').textContent=money(save.cash);

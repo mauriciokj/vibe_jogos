@@ -1,6 +1,6 @@
 # Campeonato
 
-Modo individual opcional, acessível pelo botão **Campeonato** no menu. Corrida livre e multiplayer continuam disponíveis.
+Modo individual opcional, acessível pelo card quadrado com troféu **Campeonato** ao lado das informações da garagem/conta no menu. O card indica 5 etapas/20 corridas e mostra Retomar com a etapa atual quando existe progresso. Corrida livre e multiplayer continuam disponíveis.
 
 ## Estrutura
 
