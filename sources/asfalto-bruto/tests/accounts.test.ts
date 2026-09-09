@@ -92,6 +92,6 @@ test('Multiplayer ranking binds private member account, never leaks identity, de
     room.race!.multiplayer!.results[member.id]={reason:'finish',time:200,place:1,reward:0,hits:3,falls:0};
     service.recordRoom(room);service.recordRoom(room);
     const result=db.ranking('multi','costa','night','points',account.id);assert.equal(result.length,1);assert.equal(result[0].races,1);assert.equal(result[0].points,25);
-    assert.ok(!JSON.stringify(viewRoom(room,6000)).includes(account.id));assert.equal(RANK_RULES,1);
+    assert.ok(!JSON.stringify(viewRoom(room,6000)).includes(account.id));assert.equal(RANK_RULES,2);
   }finally{db.close();}
 });

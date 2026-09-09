@@ -13,7 +13,7 @@ let offset=0;const store=new MemoryStore(),app=createGameServer(store,{now:()=>D
 const vite=spawn(process.execPath,['node_modules/vite/bin/vite.js','--host','127.0.0.1','--port','4361','--strictPort'],{env:{...process.env,ASFALTO_SERVER_URL:`http://127.0.0.1:${(app.server.address() as {port:number}).port}`},stdio:'ignore'});
 const base='http://127.0.0.1:4361/';for(let i=0;i<100;i++){try{if((await fetch(base)).ok)break;}catch{}await new Promise(r=>setTimeout(r,100));}
 const browser=await chromium.launch({headless:true}),a=await browser.newPage({viewport:{width:1280,height:800}}),b=await browser.newPage({viewport:{width:1280,height:800}}),errors:string[]=[];
-function observe(p:Page){p.on('pageerror',e=>errors.push(e.message));p.on('console',e=>{if(e.type()==='error')errors.push(e.text());});}observe(a);observe(b);
+async function observe(p:Page){await p.route('**/api/visitors*',route=>route.fulfill({json:{visitors:0}}));p.on('pageerror',e=>errors.push(e.message));p.on('console',e=>{if(e.type()==='error')errors.push(e.text());});}await observe(a);await observe(b);
 const state=(p=a)=>p.evaluate(()=>JSON.parse(window.render_game_to_text()));
 const shot=(name:string,p=a)=>p.screenshot({path:`${folder}/${name}.png`});
 const back=async(p=a)=>{await p.click('#pause-btn');await p.click('#menu-btn');};
@@ -46,7 +46,7 @@ try{
   }
   await back();await a.reload();assert.equal((await state()).save.ownedWeapons.length,3);assert.equal((await state()).save.weaponId,'chain');
   // Native mobile double accelerator flick, with simultaneous steering held.
-  const mobile=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});observe(mobile);await mobile.goto(base+'?test&race');await fixture(mobile,'car');
+  const mobile=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});await observe(mobile);await mobile.goto(base+'?test&race');await fixture(mobile,'car');
   const cd=await mobile.context().newCDPSession(mobile),left=(await mobile.locator('#steering-stick').boundingBox())!,right=(await mobile.locator('#drive-stick').boundingBox())!;
   const l={x:left.x+left.width/2,y:left.y+left.height/2,id:1},r={x:right.x+right.width/2,y:right.y+right.height/2,id:2};let timestamp=Date.now()/1000;
   const touch=async(type:'touchStart'|'touchMove'|'touchEnd',dy=0)=>{timestamp+=.04;await cd.send('Input.dispatchTouchEvent',{type,timestamp,touchPoints:type==='touchEnd'?[]:[l,{...r,y:r.y+dy}]});await mobile.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>resolve())));};

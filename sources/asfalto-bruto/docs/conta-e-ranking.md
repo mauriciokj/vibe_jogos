@@ -18,6 +18,7 @@ O login é opcional. Convidados mantêm a campanha e o multiplayer existentes.
 - Individual: largada cadastrada no servidor com seed e garagem da conta. Navegador registra comandos por tick. Ao chegar, o servidor reproduz a física compartilhada em lotes com yield, confirma chegada e tempo; não aceita um tempo declarado. Proteção de tempo real, tamanho de envio, 72.000 ticks, um replay por vez, posse da largada e expiração de 24h. Offline continua local; largadas sem cadastro não entram no ranking.
 - Multiplayer: associação privada do membro à sessão autenticada, sem expor ID da conta/token no snapshot. Uma conta por sala. Grava cada chegada autoritativa uma vez. Jogadores convidados continuam participando normalmente, sem ranking permanente.
 - Recordes antigos ficam pessoais. Equipamento/saldo migrado é aceito como propriedade legada; ranking verifica corrida e física, não comprova origem do saldo anterior.
+- Pistas atuais usam regras2 (árvores, travessias, filas, rampas e nova velocidade policial). O seletor **Histórico · antes dos obstáculos** consulta regras1; resultados continuam na base e ficam separados para comparar corridas equivalentes.
 - `RANK_RULES` versiona a classificação. Aumentar ao alterar física/balanceamento de forma incompatível. Corridas iniciadas em regras antigas não entram na nova classificação. A história continua no banco.
 - Até três resultados individuais pendentes ficam no navegador da conta; envio retoma ao conectar/abrir o jogo. Replays maiores que o espaço disponível não podem ficar pendentes.
 

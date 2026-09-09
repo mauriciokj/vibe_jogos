@@ -1,3 +1,4 @@
+import { trafficDirection } from './hazards';
 import { roadHalf, trafficShape } from './road-profile';
 import { tractorSprite } from './rural-art';
 import { jumpHeight, stunting } from './stunts';
@@ -114,13 +115,13 @@ export class RaceInstruments {
       const size=Math.min(h*.68,p.scale*(e.car?3.3:3.5));
       c.save();c.beginPath();c.rect(0,0,w,Math.min(h,p.clip+12));c.clip();c.translate(p.x,p.y);
       if(e.car?.kind==='tractor'){
-        const shape=trafficShape(state.trackId,'tractor'),width=Math.min(h*.68,p.scale*shape.width);c.drawImage(tractorSprite(e.car.color,e.car.speed>=0,Math.floor(e.car.z*.8)%2),-width/2,-width*1.08,width,width*1.08);
+        const shape=trafficShape(state.trackId,'tractor'),width=Math.min(h*.68,p.scale*shape.width);c.drawImage(tractorSprite(e.car.color,trafficDirection(e.car)>=0,Math.floor(e.car.z*.8)%2),-width/2,-width*1.08,width,width*1.08);
       }else if(e.car?.kind==='truck'){
-        const width=Math.min(h*.68,p.scale*4.5);c.drawImage(truckSprite(e.car.color,e.car.speed>=0),-width/2,-width*1.25,width,width*1.25);
+        const width=Math.min(h*.68,p.scale*4.5);c.drawImage(truckSprite(e.car.color,trafficDirection(e.car)>=0),-width/2,-width*1.25,width,width*1.25);
       }else if(e.car){
         c.fillStyle=e.car.color;c.fillRect(-size*.5,-size*.65,size,size*.55);
         c.fillStyle='#293e48';c.fillRect(-size*.32,-size*.6,size*.64,size*.22);
-        c.fillStyle=e.car.speed>=0?'#fff0b8':'#f78061';c.fillRect(-size*.4,-size*.28,size*.2,size*.1);c.fillRect(size*.2,-size*.28,size*.2,size*.1);
+        c.fillStyle=trafficDirection(e.car)>=0?'#fff0b8':'#f78061';c.fillRect(-size*.4,-size*.28,size*.2,size*.1);c.fillRect(size*.2,-size*.28,size*.2,size*.1);
       }else if(e.r){
         const r=e.r; c.translate(0,-jumpHeight(r)*p.scale); const support=kneeSupport(r,curveAt(r.z,state.trackId),state.trackId);c.rotate(r.crash?1.2:-(r.lean*(1-support)+support*(r.kneeSide ?? 0)*.59));
         const width=size*88/128;

@@ -1,4 +1,4 @@
-import type { GameEvent, BikeStyle, Rider } from './types';
+import type { GameEvent, BikeStyle, Rider, RaceState } from './types';
 import { roadsideBarrier } from './guardrails';
 
 // Physics already contains the bike at this boundary. Read its presented pose
@@ -14,6 +14,11 @@ export function guardRailSoundSide(trackId: string, rider: Rider) {
 export function jumpSoundKey(rider: Rider) {
   return (rider.jumpTime ?? 0)>0 && rider.jumpTarget && !rider.crash && !rider.out && rider.finishedAt===null
     ? `${rider.id}:${rider.wheeliesLeft ?? 3}:${rider.jumpTarget}` : '';
+}
+
+export function jumpSoundMaterial(state: RaceState, rider: Rider): 'metal'|'wood'|'earth' {
+  const kind=state.obstacles.find(o=>o.id===rider.jumpTarget)?.kind;
+  return kind==='dirtRamp'?'earth':kind==='woodRamp'||kind==='fallenTree'?'wood':'metal';
 }
 
 export class GameAudio {
@@ -63,11 +68,11 @@ export class GameAudio {
     this.muted = muted;
     if (this.master && this.context) this.master.gain.setTargetAtTime(muted ? 0 : .28, this.context.currentTime, .03);
   }
-  update(speed: number, running: boolean, police: boolean, time: number, style: BikeStyle = 'street', jumpKey = '', railSide = 0, material: 'metal' | 'earth' = 'metal') {
+  update(speed: number, running: boolean, police: boolean, time: number, style: BikeStyle = 'street', jumpKey = '', railSide = 0, material: 'metal' | 'earth' = 'metal', jumpMaterial: 'metal'|'wood'|'earth' = 'metal') {
     if (!this.context || !this.engine || !this.engineGain) return;
     if(jumpKey && jumpKey!==this.lastJumpKey) {
       this.lastJumpKey=jumpKey;
-      if(running)this.metalImpact();
+      if(running){if(jumpMaterial==='metal')this.metalImpact();else {this.noise(jumpMaterial==='earth'?.16:.06,.25);this.tone(jumpMaterial==='earth'?74:138,.12,.17,'triangle');}}
     }
     if(running) {
       if(railSide) {

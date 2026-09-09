@@ -1,3 +1,5 @@
+import { drawTrackHazard } from './hazard-art';
+import { obstacleShape, trafficDirection } from './hazards';
 import { bankStrength } from './rural';
 import { finishScene } from './finish';
 import { finishBanner, finishFan } from './finish-art';
@@ -557,11 +559,13 @@ export class Renderer {
       c.save(); c.beginPath(); c.rect(0, 0, this.w, p.clip); c.clip();
       const shape=trafficShape(state.trackId,t.kind),width=p.scale*shape.width,height=p.scale*shape.height;
       c.fillStyle = '#233a4055'; c.beginPath(); c.ellipse(p.x, p.y, width * .5, height * .1, 0, 0, Math.PI * 2); c.fill();
-      c.drawImage(t.kind==='tractor'?tractorSprite(t.color,t.speed<0,Math.floor(t.z*.8)%2):t.kind==='truck'?truckSprite(t.color,t.speed<0,scenic?.kind==='truckPassenger'&&scenic.trafficId===t.id,Math.floor(state.time*4)%2):carSprite(t.color, t.speed < 0, t.kind === 'van'), p.x - width / 2, p.y - height, width, height); c.restore();
+      c.drawImage(t.kind==='tractor'?tractorSprite(t.color,trafficDirection(t)<0,Math.floor(t.z*.8)%2):t.kind==='truck'?truckSprite(t.color,trafficDirection(t)<0,scenic?.kind==='truckPassenger'&&scenic.trafficId===t.id,Math.floor(state.time*4)%2):carSprite(t.color, trafficDirection(t)<0, t.kind === 'van'), p.x - width / 2, p.y - height, width, height); c.restore();
     } });
     for (const o of state.obstacles) if (o.z > player.z - 8 && o.z < player.z + 1700) entities.push({ z: o.z, draw: () => {
       const p = this.project(o.z, o.x); if (!p || p.y > p.clip + 4) return;
-      if(o.kind==='gravel' || o.kind==='mud'){
+      c.save();c.beginPath();c.rect(0,0,this.w,p.clip);c.clip();
+      if(drawTrackHazard(c,o,p.x,p.y,p.scale,state.time,this.reducedMotion)){}
+      else if(o.kind==='gravel' || o.kind==='mud'){
         const s=p.scale;c.fillStyle=o.kind==='mud'?'#463d2ed0':'#cbba87';c.beginPath();c.ellipse(p.x,p.y,s*1.1,s*.36,-.12,0,Math.PI*2);c.fill();
         for(let i=0;i<12;i++){c.fillStyle=o.kind==='mud'?'#b3b19b66':i%2?'#8c805e':'#e7ce97';c.fillRect(p.x+(visualHash(i*7)-.5)*s*1.9,p.y+(visualHash(i*13)-.5)*s*.4,s*.12,s*.055);}
       } else if (o.kind === 'oil') {
@@ -572,14 +576,15 @@ export class Renderer {
         this.polygon([p.x-s*.45,p.y-s*.15,p.x+s*.45,p.y-s*.15,p.x+s*.12,p.y-s*1.35,p.x-s*.12,p.y-s*1.35],'#fa9a50');
         this.polygon([p.x-s*.3,p.y-s*.65,p.x+s*.3,p.y-s*.65,p.x+s*.22,p.y-s*.96,p.x-s*.22,p.y-s*.96],'#f4e8c3');
       } else if(o.kind==='concrete'){
-        const s=p.scale;this.polygon([p.x-s,p.y,p.x+s,p.y,p.x+s*.75,p.y-s*1.6,p.x-s*.75,p.y-s*1.6],'#9ba7a0');
-        c.fillStyle='#d9b566';c.fillRect(p.x-s*.7,p.y-s*1.35,s*1.4,s*.5);
-        for(let n=-.6;n<.7;n+=.45)this.polygon([p.x+s*n,p.y-s*.85,p.x+s*(n+.2),p.y-s*.85,p.x+s*(n+.42),p.y-s*1.35,p.x+s*(n+.22),p.y-s*1.35],'#384951');
+        const s=p.scale,half=obstacleShape(o).width/2;this.polygon([p.x-s*half,p.y,p.x+s*half,p.y,p.x+s*(half-.25),p.y-s*1.6,p.x-s*(half-.25),p.y-s*1.6],'#9ba7a0');
+        c.fillStyle='#d9b566';c.fillRect(p.x-s*(half-.3),p.y-s*1.35,s*(half*2-.6),s*.5);
+        for(let n=-half+.4;n<half-.5;n+=.45)this.polygon([p.x+s*n,p.y-s*.85,p.x+s*(n+.2),p.y-s*.85,p.x+s*(n+.42),p.y-s*1.35,p.x+s*(n+.22),p.y-s*1.35],'#384951');
       } else {
         c.fillStyle = '#e1bf8c'; c.fillRect(p.x - p.scale, p.y - p.scale * 1.2, p.scale * 2, p.scale * .8);
         c.fillStyle = '#d77956'; for (let n = -1; n < 1; n += .5) c.fillRect(p.x + p.scale * n, p.y - p.scale * 1.2, p.scale * .23, p.scale * .8);
         c.fillStyle = '#443f41'; c.fillRect(p.x - p.scale * .8, p.y - p.scale * .4, p.scale * .13, p.scale * .4); c.fillRect(p.x + p.scale * .7, p.y - p.scale * .4, p.scale * .13, p.scale * .4);
       }
+      c.restore();
     } });
     if(scenic?.kind==='mermaid')entities.push({z:scenic.z,draw:()=>{
       const p=this.project(scenic.z,-25);if(!p || p.y>p.clip+8)return;

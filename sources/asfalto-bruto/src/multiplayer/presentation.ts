@@ -1,3 +1,4 @@
+import { obstacleX } from '../game/hazards';
 import { guardRailPosition } from '../game/guardrails';
 import { attackSpec, predictMovement, STEP, nearestTarget } from '../game/simulation';
 import { clamp } from '../game/content';
@@ -113,6 +114,6 @@ export class RacePresentation {
       }
       r.x=guardRailPosition(race.trackId,r.x,r.z);
       return r;
-    }),traffic:race.traffic.map(t=>({...t,z:t.z+t.speed*age}))};
+    }),traffic:race.traffic.map(t=>({...t,z:t.z+t.speed*age})),obstacles:race.obstacles.map(o=>o.motion?{...o,x:obstacleX(o,race.time+age)}:o)};
   }
 }

@@ -17,8 +17,8 @@ export interface Rider {
   kneeSide?: number; kneeTime?: number; wetKneeTicks?: number; nitro?: number; nitroUsed?: number; nitroTime?: number; hornCooldown?: number;
   speech?: { index: number; until: number }; tauntReadyAt?: number; tauntSeq?: number;
 }
-export interface Traffic { id: string; x: number; z: number; speed: number; color: string; kind: 'car' | 'van' | 'truck' | 'tractor'; }
-export interface Obstacle { id: string; x: number; z: number; kind: 'oil' | 'barrier' | 'cone' | 'concrete' | 'gravel' | 'mud'; }
+export interface Traffic { id: string; x: number; z: number; speed: number; color: string; kind: 'car' | 'van' | 'truck' | 'tractor'; heading?: 1 | -1; queued?: boolean; }
+export interface Obstacle { id: string; x: number; z: number; kind: 'oil' | 'barrier' | 'cone' | 'concrete' | 'gravel' | 'mud' | 'fallenTree' | 'tumbleweed' | 'armadillo' | 'dirtRamp' | 'woodRamp'; width?: number; motion?: { from: number; to: number; speed: number; phase: number; period: number }; }
 export interface GameEvent { type: 'hit' | 'crash' | 'pass' | 'finish' | 'attack' | 'steal' | 'police' | 'horn' | 'nitro'; actor: string; target?: string; text?: string; tick?: number; }
 export interface RaceResult { reason: 'finish' | 'wrecked' | 'caught' | 'left' | 'timeout'; arrestCause?: 'fall' | 'stopped'; place: number; time: number; reward: number; hits: number; falls: number; }
 export interface RaceState {

@@ -78,13 +78,13 @@ export class AccountsDB {
     const points=[25,18,15,12,10,8,6,4][result.place-1] ?? 0;
     this.db.prepare('INSERT OR IGNORE INTO results VALUES(?,?,?,?,?,?,?,?,?,?,?)').run(race,account,mode,track,condition,bike,result.time,result.place,points,RANK_RULES,now);
   }
-  ranking(mode:string,track:string,condition:string,order:string,me?:string) {
+  ranking(mode:string,track:string,condition:string,order:string,me?:string,rules=RANK_RULES) {
     const rows=this.db.prepare(`WITH best AS (
       SELECT *,ROW_NUMBER() OVER(PARTITION BY account ORDER BY time,created,race) AS n,
       COUNT(*) OVER(PARTITION BY account) AS races,SUM(points) OVER(PARTITION BY account) AS totalPoints
       FROM results WHERE rules=? AND mode=? AND track=? AND condition=?
     ), ranked AS (SELECT b.*,a.nickname,ROW_NUMBER() OVER(ORDER BY ${order==='points'?'totalPoints DESC,':' '}time,created,account) AS rank FROM best b JOIN accounts a ON a.id=b.account WHERE n=1)
-    SELECT rank,nickname,bike AS bikeId,time,place,races,totalPoints AS points,account FROM ranked WHERE rank<=50 OR account=? ORDER BY rank`).all(RANK_RULES,mode,track,condition,me ?? '');
+    SELECT rank,nickname,bike AS bikeId,time,place,races,totalPoints AS points,account FROM ranked WHERE rank<=50 OR account=? ORDER BY rank`).all(rules,mode,track,condition,me ?? '');
     return rows.map(r=>({rank:Number(r.rank),nickname:String(r.nickname),bikeId:String(r.bikeId),time:Number(r.time),place:Number(r.place),races:Number(r.races),points:Number(r.points),me:r.account===me}));
   }
   close(){this.db.close();}

@@ -49,7 +49,8 @@ export class AccountService {
       }
       if(method==='GET' && route==='/ranking') {
         const mode=url.searchParams.get('mode')==='multi'?'multi':'solo',track=url.searchParams.get('track') ?? 'costa',condition=url.searchParams.get('condition') ?? 'sunset';
-        send({entries:this.db.ranking(mode,track,condition,url.searchParams.get('order') ?? 'time',identity?.account.id),rules:RANK_RULES});return true;
+        const rules=url.searchParams.get('rules')==='1'?1:RANK_RULES;
+        send({entries:this.db.ranking(mode,track,condition,url.searchParams.get('order') ?? 'time',identity?.account.id,rules),rules});return true;
       }
       if(method!=='POST')fail(405,'Operação não disponível.');
       if(!this.options.origins.includes(req.headers.origin ?? '') || !req.headers['content-type']?.startsWith('application/json'))fail(403,'Origem não permitida.');

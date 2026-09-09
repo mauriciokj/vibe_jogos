@@ -40,7 +40,8 @@ test('port traffic and works leave usable passing lanes; cones slow, concrete cr
   const s=createRace('porto');assert.ok(s.traffic.filter(t=>t.kind==='truck' && t.speed<0).length>=3);
   assert.ok(s.traffic.some(t=>t.kind==='truck' && t.speed>0));assert.ok(s.obstacles.some(o=>o.kind==='cone'));
   for(const t of s.traffic)assert.equal(Math.abs(t.x),1.75);
-  for(const o of s.obstacles)assert.ok(Math.abs(o.x)>=4.5);
+  for(const o of s.obstacles)assert.ok(Math.abs(o.x)<=7);
+  assert.equal(s.traffic.filter(t=>t.queued).length,10);
   for(const kind of ['cone','concrete'] as const){
     const race=createRace('porto');race.riders=race.riders.slice(0,1);race.traffic=[];race.obstacles=[{id:'test',x:0,z:100,kind}];race.mode='racing';Object.assign(race.riders[0],{z:99,x:0,speed:30});
     stepRace(race,{player:EMPTY_COMMAND});const p=race.riders[0];assert.ok(p.speed<28);

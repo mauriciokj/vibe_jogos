@@ -2,7 +2,7 @@ import { AccountClient, ApiError } from './client';
 import { RACE_ROUTES } from '../game/routes';
 import { clockString, getBike, money } from '../game/content';
 import { loadSave } from '../game/save';
-import type { RankingEntry } from './protocol';
+import { RANK_RULES, type RankingEntry } from './protocol';
 import './style.css';
 const escape=(text:string)=>text.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
 let googleScript:Promise<void>|undefined;
@@ -65,9 +65,10 @@ export function accountUI(client:AccountClient, canOpen:()=>boolean) {
   async function ranking(){
     const sequence=++request,route=RACE_ROUTES.find(r=>r.id===(board.querySelector('#rank-route') as HTMLSelectElement).value)!;
     const mode=(board.querySelector('#rank-mode') as HTMLSelectElement).value,order=(board.querySelector('#rank-order') as HTMLSelectElement).value;
+    const rules=(board.querySelector('#rank-rules') as HTMLSelectElement).value;
     const target=board.querySelector('[data-ranking]')!;target.textContent='Buscando pilotos…';
     try{
-      const data=await client.api(`/ranking?mode=${mode}&track=${route.track.id}&condition=${route.condition.id}&order=${order}`);
+      const data=await client.api(`/ranking?mode=${mode}&track=${route.track.id}&condition=${route.condition.id}&order=${order}&rules=${rules}`);
       if(sequence!==request)return;
       const rows=data.entries as RankingEntry[];
       target.innerHTML=rows.length?`<div class="rank-table"><table><thead><tr><th># / PILOTO</th><th>${order==='points'?'PONTOS':'TEMPO'}</th><th>MOTO</th></tr></thead><tbody>${rows.map(r=>`<tr class="${r.me?'me':''}"><td><b>${r.rank}. ${escape(r.nickname)}${r.me?' (você)':''}</b><small>${r.races} corrida(s) · ${r.points} pts</small></td><td>${order==='points'?r.points:clockString(r.time)}</td><td>${escape(getBike(r.bikeId).name)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="ranking-empty">A estrada ainda não tem recordista.<small>Entre na sua conta e conclua uma corrida para deixar sua marca.</small></div>';
@@ -75,7 +76,7 @@ export function accountUI(client:AccountClient, canOpen:()=>boolean) {
   }
   entry.querySelector('#ranking-btn')!.addEventListener('click',()=>{
     if(!canOpen())return;
-    board.innerHTML=header('Ranking permanente','ranking-title')+`<div class="dialog-body account-body"><div class="ranking-filters"><label>MODALIDADE<select id="rank-mode"><option value="solo">Individual</option><option value="multi">Multiplayer</option></select></label><label>CLASSIFICAÇÃO<select id="rank-order"><option value="time">Melhor tempo</option><option value="points">Pontos acumulados</option></select></label><label class="rank-route">PISTA<select id="rank-route">${RACE_ROUTES.map(r=>`<option value="${r.id}">${r.name}</option>`).join('')}</select></label></div><p class="account-note">Melhor tempo de cada piloto por pista e condição. Pontos por chegada: 25, 18, 15, 12, 10, 8, 6 e 4. Individual e multiplayer competem separados.</p><div data-ranking role="status"></div><button class="text-button" data-rank-refresh>ATUALIZAR ↻</button></div>`;
+    board.innerHTML=header('Ranking permanente','ranking-title')+`<div class="dialog-body account-body"><div class="ranking-filters"><label>PISTAS<select id="rank-rules"><option value="${RANK_RULES}">Atuais · novos obstáculos</option><option value="1">Histórico · antes dos obstáculos</option></select></label><label>MODALIDADE<select id="rank-mode"><option value="solo">Individual</option><option value="multi">Multiplayer</option></select></label><label>CLASSIFICAÇÃO<select id="rank-order"><option value="time">Melhor tempo</option><option value="points">Pontos acumulados</option></select></label><label class="rank-route">PISTA<select id="rank-route">${RACE_ROUTES.map(r=>`<option value="${r.id}">${r.name}</option>`).join('')}</select></label></div><p class="account-note">Melhor tempo de cada piloto por pista e condição. Pontos por chegada: 25, 18, 15, 12, 10, 8, 6 e 4. Individual e multiplayer competem separados. Tempos anteriores à mudança das pistas ficam no Histórico.</p><div data-ranking role="status"></div><button class="text-button" data-rank-refresh>ATUALIZAR ↻</button></div>`;
     board.querySelector('.close-btn')!.addEventListener('click',()=>board.close());board.querySelectorAll('select').forEach(s=>s.addEventListener('change',()=>void ranking()));board.querySelector('[data-rank-refresh]')!.addEventListener('click',()=>void ranking());
     board.showModal();void ranking();
   });
