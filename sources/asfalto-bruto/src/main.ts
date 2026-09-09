@@ -4,6 +4,7 @@ import { equippedWeapon, weaponName } from './game/weapons';
 import { jumpHeight, wheeliesLeft, stunting } from './game/stunts';
 import './multiplayer/style.css';
 import './menu.css';
+import { showVisitorCount } from './visitors';
 import './equipment.css';
 import './touch.css';
 import { supportsKneeDown } from './game/bikes';
@@ -49,6 +50,7 @@ root.innerHTML = `
         <h1>ASFALTO<span>BRUTO</span></h1><p>A estrada é de todos.<br>A chegada é de um só.</p>
         <div class="start-row"><button class="primary" id="start-btn">JOGAR SOZINHO ${icons.arrow}</button><button class="secondary online-entry" id="online-btn">MULTIPLAYER <span>2–8 PILOTOS ↗</span></button></div>
         <div class="bike-line"><span>NA SUA GARAGEM</span><b id="current-bike"></b><button id="change-bike">TROCAR ↗</button></div>
+        <div id="visitor-count" class="visitor-count" hidden role="status"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="9" cy="7" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M16 4a3 3 0 0 1 0 6m2 4a5 5 0 0 1 3 4v3"/></svg><div><strong data-visitor-message></strong><small data-visitor-since></small></div></div>
       </div>
       <div class="route-select"><div class="route-heading"><div><span>ESCOLHA A PISTA</span><span id="route-count"></span></div><div class="route-navigation"><button id="routes-prev" aria-label="Ver pistas anteriores" aria-controls="routes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M19 12H5m7-7-7 7 7 7"/></svg></button><button id="routes-next" aria-label="Ver próximas pistas" aria-controls="routes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 12h14m-7-7 7 7-7 7"/></svg></button></div></div><div class="routes" id="routes" role="group" aria-label="Pistas disponíveis"></div><p class="route-detail" id="route-detail"></p></div>
       <footer class="bottomline"><span>ESTRADAS ABERTAS. PUNHOS FECHADOS.</span><span><i class="live-dot"></i> PRONTO PARA A LARGADA</span></footer>
@@ -581,6 +583,7 @@ if (testMode) window.__game = {
   command: (cmd, frames) => { for (let i = 0; i < frames; i++) stepRace(race, { player: cmd }); syncSoloNitro();if (race.mode === 'finished') showResult(); draw(); },
 };
 syncSound(); renderMenu(); makeAttract(); draw(); requestAnimationFrame(frame);
+void showVisitorCount($('visitor-count'), testMode);
 if (testMode && new URLSearchParams(location.search).has('race')) startRace();
 
 const invite=new URLSearchParams(location.search).get('sala');

@@ -76,3 +76,10 @@
   #menu .route-heading>div:first-child { gap:7px; }
   #menu .route { flex-basis:195px; }
 }
+
+#menu .visitor-count { display:flex; align-items:center; gap:10px; margin-top:18px; color:#d1d7c9; }
+#menu .visitor-count[hidden] { display:none; }
+.visitor-count svg { width:24px; height:24px; color:var(--acid); flex:none; }
+.visitor-count strong { display:block; font-size:12px; font-weight:600; line-height:1.4; }
+.visitor-count small { display:block; margin-top:3px; color:#aebdb0; font:8px ui-monospace,monospace; letter-spacing:1px; }
+@media(max-height:740px) { #menu .visitor-count { margin-top:12px; } }

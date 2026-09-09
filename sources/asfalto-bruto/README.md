@@ -141,3 +141,13 @@ npm run test:browser
 Barlow e Barlow Condensed, de Jeremy Tribby, são distribuídas sob SIL Open Font License 1.1. As licenças estão em `public/fonts/`. A arte de pilotos, motos, veículos, paisagens e ícone foi criada neste projeto, sem assets da franquia de referência.
 
 `npm run test:stunts` valida compra e persistência de combate, poses dos três itens, empinada/salto/aterrissagem, três usos, colisão com caminhão de teste, controles nativos no celular e sala com dois humanos + seis bots, dano de corrente à distância e reconexão.
+
+## Contador de visitantes
+
+O menu mostra “X pessoas já tentaram a sorte”, uma estimativa de navegadores únicos desde a ativação do contador. A consulta roda em segundo plano e não interfere nas corridas. Se indisponível, o menu continua funcionando sem mostrar um total fictício.
+
+Na VPS, `POST /api/visitors?game=asfalto-bruto` registra a visita com cookie anônimo assinado, HttpOnly, SameSite=Lax e Secure em HTTPS; `GET` apenas consulta `{visitors,since,metric}`. O cookie compartilhado entre os domínios flowofdevelopment.com e asfaltobruto.flowofdevelopment.com evita duplicação ao alternar entre eles. Atualizações de página, novas abas e reinícios do servidor preservam a contagem. Outro navegador/dispositivo, modo anônimo ou limpeza/expiração de cookies podem contar novamente. Sem login, nomes, IPs ou histórico de navegação no banco do contador. A proteção de abuso usa IP apenas em memória por até um minuto.
+
+Os totais e hashes anônimos ficam no SQLite persistente do catálogo, incluído no backup existente. Não é possível recuperar visitantes anteriores à ativação por este contador. O cookie dura até 400 dias, renovados a cada visita, sujeito às políticas do navegador. O modo `?test` e navegadores sem cookies fazem somente leitura para não inflar o número.
+
+Para desenvolvimento, inicie o catálogo com um banco temporário e defina `VIBE_CATALOG_URL` ao iniciar o Vite (padrão http://127.0.0.1:4320). `npm run test:visitors` inicia uma base isolada e verifica contagem, recarga/abas, celular e corrida. Fora do checkout padrão, informe `VIBE_CATALOG_DIR` apontando para o repositório Jogos. Testes de persistência, concorrência e restrições HTTP: `npm run test:vps` no catálogo.

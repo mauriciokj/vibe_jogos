@@ -1,15 +1,17 @@
 const {createServer}=require('node:http');
 const path=require('node:path');
 const {SqliteStore}=require('./sqlite-store.cjs');
+const {createVisitorCounter}=require('./visitors.cjs');
 const {createHandler}=require('../../api/leaderboard.js');
 function createCatalogServer(filename){
-  const store=new SqliteStore(filename),handler=createHandler(store);
+  const store=new SqliteStore(filename),handler=createHandler(store),visitors=createVisitorCounter(store.db);
   let queue=Promise.resolve();
   // Serialize a full read/modify/write operation so concurrent scores are retained.
   const server=createServer((req,res)=>{
     res.setHeader('Cache-Control','no-store');
     const url=new URL(req.url,'http://localhost');
     if(url.pathname==='/health'){res.setHeader('Content-Type','application/json');res.end(JSON.stringify({service:'vibe-catalog',storage:'sqlite'}));return;}
+    if(/^\/api\/visitors\/?$/.test(url.pathname)){try{visitors(req,res);}catch(error){console.error('Visitor counter failed:',error.message);res.writeHead(500,{'Content-Type':'application/json'});res.end(JSON.stringify({error:'Contador temporariamente indisponível.'}));}return;}
     if(!/^\/api\/leaderboard\/?$/.test(url.pathname)){res.writeHead(404);res.end();return;}
     const length=Number(req.headers['content-length']);
     if(length>10000){res.writeHead(413);res.end();req.resume();return;}

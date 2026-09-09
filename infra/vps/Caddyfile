@@ -9,9 +9,11 @@
 			header_up X-Real-IP {remote_host}
 		}
 	}
-	@leaderboard path /api/leaderboard /api/leaderboard/
-	handle @leaderboard {
-		reverse_proxy 127.0.0.1:4320
+	@catalog path /api/leaderboard /api/leaderboard/ /api/visitors /api/visitors/
+	handle @catalog {
+		reverse_proxy 127.0.0.1:4320 {
+			header_up X-Real-IP {remote_host}
+		}
 	}
 	handle /healthz {
 		rewrite * /health

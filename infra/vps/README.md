@@ -11,10 +11,10 @@ O catálogo e os jogos versionados neste repositório podem ser publicados junto
 - `/srv/vibe-jogos/releases/<release>/public/`: apenas arquivos públicos. Código dos serviços fica em `services/`, fora da raiz web.
 - `/srv/vibe-jogos/current`: link para a release ativa; `previous` guarda a anterior.
 - `/etc/vibe-jogos/asfalto.env`: configuração do multiplayer, sem credenciais externas.
-- `/var/lib/vibe-jogos/catalog/leaderboards.sqlite`: placares persistentes, separados das releases.
+- `/var/lib/vibe-jogos/catalog/leaderboards.sqlite`: placares e contador de visitantes persistentes, separados das releases.
 - `/var/backups/vibe-jogos/`: backups diários de SQLite e configuração, com retenção de 14 dias. São cópias no próprio servidor; não substituem uma cópia externa.
 
-Caddy atende HTTP/HTTPS e encaminha `/api/asfalto/` para `127.0.0.1:4318` e `/api/leaderboard` para `127.0.0.1:4320`. Cada serviço roda com seu próprio usuário sem privilégios, com reinício automático. Apenas SSH e portas web ficam liberados no firewall.
+Caddy atende HTTP/HTTPS e encaminha `/api/asfalto/` para `127.0.0.1:4318` e `/api/leaderboard` e `/api/visitors` para `127.0.0.1:4320`. Cada serviço roda com seu próprio usuário sem privilégios, com reinício automático. Apenas SSH e portas web ficam liberados no firewall.
 
 ## Publicar atualizações
 
@@ -57,3 +57,11 @@ Para restaurar um placar, pare `vibe-catalog`, preserve o banco atual, restaure 
 A consulta de migração encontrou o placar Snake vazio. O placar antigo do Rio de Aço está bloqueado pela cota do Upstash; seus registros permanecem no provedor antigo e não foram apagados. O novo placar fica disponível na VPS e a importação histórica depende de recuperar acesso aos registros antigos.
 
 As bibliotecas Phaser 3.90.0 e Three.js 0.160.0 usadas por jogos antigos estão em `vendor/`, com licenças e integridade npm verificadas. `vendor.mjs` reproduz a coleta. A integração CrazyGames continua opcional para execução no portal. O endpoint legado de analytics Vercel retorna JavaScript vazio na VPS.
+
+## Visitantes do Asfalto Bruto
+
+O menu do jogo consulta o total estimado de navegadores únicos desde a ativação do contador. `GET /api/visitors?game=asfalto-bruto` devolve `{game,visitors,since,metric}` sem registrar visita; o `POST` com `X-Game-Visit: 1` registra e devolve o total. Não há analytics externo ou requisição durante a simulação. O armazenamento usa `game_visitors` e `visitor_meta` no mesmo SQLite dos placares, já incluído no backup diário. As tabelas são criadas sem alterar os placares existentes; o segredo de assinatura permanece entre releases.
+
+Cookie anônimo HttpOnly, SameSite=Lax e Secure em HTTPS, válido até 400 dias e compartilhado em flowofdevelopment.com. Recargas/abas e acesso pelo outro subdomínio não duplicam um cookie já emitido. Outro navegador, dispositivo, modo anônimo ou apagar/expirar cookies pode contar novamente; portanto não se trata de pessoas identificadas. O banco guarda só o hash do identificador e o primeiro acesso, sem nome, IP ou histórico. O limite de 30 novos visitantes/minuto/IP usa memória temporária e não impede leitura nem visitantes já registrados. O modo `?test` e navegador sem cookies só consultam.
+
+Mudanças em `Caddyfile` precisam ser enviadas separadamente do deploy do jogo: preserve a configuração atual, valide com `caddy validate --config <arquivo>` e recarregue apenas após o novo serviço estar saudável. Para instalar este contador, inclua `/api/visitors` no encaminhamento do catálogo. O endpoint de analytics Vercel legado permanece desativado.

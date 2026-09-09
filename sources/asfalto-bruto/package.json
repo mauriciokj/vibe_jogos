@@ -22,7 +22,8 @@
     "test:equipment": "tsx tests/equipment-browser.ts",
     "test:stunts": "tsx tests/stunts-weapons-browser.ts",
     "test:porto": "tsx tests/porto-browser.ts",
-    "test:wet-knee": "tsx tests/wet-knee-browser.ts"
+    "test:wet-knee": "tsx tests/wet-knee-browser.ts",
+    "test:visitors": "node tests/visitors-browser.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
