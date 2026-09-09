@@ -1,4 +1,10 @@
-import type { GameEvent, BikeStyle } from './types';
+import type { GameEvent, BikeStyle, Rider } from './types';
+
+// Stable through predicted frames and repeated online snapshots.
+export function jumpSoundKey(rider: Rider) {
+  return (rider.jumpTime ?? 0)>0 && rider.jumpTarget && !rider.crash && !rider.out && rider.finishedAt===null
+    ? `${rider.id}:${rider.wheeliesLeft ?? 3}:${rider.jumpTarget}` : '';
+}
 
 export class GameAudio {
   private context?: AudioContext;
@@ -7,7 +13,9 @@ export class GameAudio {
   private engine?: OscillatorNode;
   private engineFilter?: BiquadFilterNode;
   private windGain?: GainNode;
+  private lastJumpKey = '';
   muted = false;
+  resetStunts(currentJump = '') { this.lastJumpKey = currentJump; }
   async start() {
     if (!this.context) {
       this.context = new AudioContext();
@@ -30,14 +38,22 @@ export class GameAudio {
     this.muted = muted;
     if (this.master && this.context) this.master.gain.setTargetAtTime(muted ? 0 : .28, this.context.currentTime, .03);
   }
-  update(speed: number, running: boolean, police: boolean, time: number, style: BikeStyle = 'street') {
+  update(speed: number, running: boolean, police: boolean, time: number, style: BikeStyle = 'street', jumpKey = '') {
     if (!this.context || !this.engine || !this.engineGain) return;
+    if(jumpKey && jumpKey!==this.lastJumpKey) {
+      this.lastJumpKey=jumpKey;
+      if(running)this.metalImpact();
+    }
+    const airborne=running && !!jumpKey;
     const rpm = speed % 15;
     const custom=style==='cruiser'||style==='chopper';
     const pitch=custom?.72:style==='sport'?1.2:style==='muscle'?.84:style==='supermoto'?1.08:1;
-    this.engine.frequency.setTargetAtTime((35 + rpm * 4 + speed * .7) * pitch, this.context.currentTime, .06);
-    this.engineGain.gain.setTargetAtTime(running ? (.07 + speed / 850) * (custom ? 1 + .09 * Math.sin(time * 22) : 1) : 0, this.context.currentTime, .08);
-    this.engineFilter?.frequency.setTargetAtTime((260 + speed * 8) * pitch, this.context.currentTime, .1);
+    const groundPitch=35 + rpm * 4 + speed * .7;
+    // With no load on the rear wheel, revs flare independently of road speed.
+    const enginePitch=airborne ? Math.max(groundPitch+100,235+speed*.9)+Math.sin(time*45)*7 : groundPitch;
+    this.engine.frequency.setTargetAtTime(enginePitch * pitch, this.context.currentTime, airborne ? .045 : .06);
+    this.engineGain.gain.setTargetAtTime(running ? (.07 + speed / 850) * (airborne ? 1.25 : 1) * (custom ? 1 + .09 * Math.sin(time * 22) : 1) : 0, this.context.currentTime, .08);
+    this.engineFilter?.frequency.setTargetAtTime((260 + speed * 8 + (airborne ? 1500 : 0)) * pitch, this.context.currentTime, .1);
     this.windGain?.gain.setTargetAtTime(running ? Math.pow(Math.max(0, speed - 20) / 60, 2) * .16 : 0, this.context.currentTime, .15);
     if (police && running && Math.floor(time * 2) !== Math.floor((time - 1 / 60) * 2)) this.tone(Math.floor(time * 2) % 2 ? 630 : 810, .18, .05, 'sine');
   }
@@ -47,6 +63,20 @@ export class GameAudio {
     osc.type = type; osc.frequency.setValueAtTime(frequency, ctx.currentTime); gain.gain.setValueAtTime(volume, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + duration);
     osc.connect(gain); gain.connect(this.master); osc.start(); osc.stop(ctx.currentTime + duration);
+  }
+  private metalImpact() {
+    const ctx=this.context;if(!ctx || !this.master || this.muted)return;
+    // Inharmonic, decaying resonances give the short impact a sheet-metal ring.
+    this.noise(.045,.26);
+    for(const [frequency,volume,duration] of [[228,.20,.20],[403,.14,.32],[719,.10,.24],[1181,.055,.16]]) {
+      const osc=ctx.createOscillator(),gain=ctx.createGain();
+      osc.type='sine';osc.frequency.setValueAtTime(frequency,ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(frequency*.86,ctx.currentTime+duration);
+      gain.gain.setValueAtTime(.001,ctx.currentTime);gain.gain.linearRampToValueAtTime(volume,ctx.currentTime+.002);
+      gain.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+duration);
+      osc.connect(gain);gain.connect(this.master);osc.start();osc.stop(ctx.currentTime+duration);
+      osc.onended=()=>{osc.disconnect();gain.disconnect();};
+    }
   }
   private noise(duration: number, volume: number) {
     const ctx = this.context; if (!ctx || !this.master || this.muted) return;

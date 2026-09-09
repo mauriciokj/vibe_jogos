@@ -151,3 +151,9 @@ Na VPS, `POST /api/visitors?game=asfalto-bruto` registra a visita com cookie an�
 Os totais e hashes anônimos ficam no SQLite persistente do catálogo, incluído no backup existente. Não é possível recuperar visitantes anteriores à ativação por este contador. O cookie dura até 400 dias, renovados a cada visita, sujeito às políticas do navegador. O modo `?test` e navegadores sem cookies fazem somente leitura para não inflar o número.
 
 Para desenvolvimento, inicie o catálogo com um banco temporário e defina `VIBE_CATALOG_URL` ao iniciar o Vite (padrão http://127.0.0.1:4320). `npm run test:visitors` inicia uma base isolada e verifica contagem, recarga/abas, celular e corrida. Fora do checkout padrão, informe `VIBE_CATALOG_DIR` apontando para o repositório Jogos. Testes de persistência, concorrência e restrições HTTP: `npm run test:vps` no catálogo.
+
+### Áudio do salto
+
+Saltar sobre um carro dispara uma pancada metálica curta e eleva o giro e o brilho do motor enquanto a roda traseira está no ar. A aterrissagem restaura o timbre normal, preservando o som próprio de cada estilo de moto. A mudança é sonora, sem alterar a potência, a física ou o protocolo v9. Pausa/silenciamento são respeitados; o mesmo salto não repete o impacto ao receber snapshots nem ao retomar uma pausa ou uma corrida online em andamento.
+
+`npm run test:jump-audio` verifica os nós Web Audio reais no Chromium, giro no chão/no ar/após aterrissar, impacto único, pausa, mute, snapshots repetidos, caminhão e reinício. `AUDIO_CHECK_URL` permite usar uma instalação publicada, sempre em modo `?test` de leitura para o contador de visitas.
