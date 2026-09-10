@@ -24,6 +24,8 @@ const pkgPath=path.join(destination,'package.json'),pkg=JSON.parse(await fs.read
 const local=JSON.parse(await fs.readFile(path.join(source,'package.json'),'utf8'));
 pkg.dependencies={...pkg.dependencies,ws:local.dependencies.ws,ioredis:local.dependencies.ioredis,jose:local.dependencies.jose};await fs.writeFile(pkgPath,JSON.stringify(pkg,null,2)+'\n');
 const configPath=path.join(destination,'vercel.json'),config=JSON.parse(await fs.readFile(configPath,'utf8'));
+// Production is hosted on our VPS; exporting/pushing must not trigger legacy Vercel builds.
+config.git={...config.git,deploymentEnabled:false};
 config.functions={...config.functions,'api/asfalto.js':{maxDuration:300,regions:['gru1']}};await fs.writeFile(configPath,JSON.stringify(config,null,2)+'\n');
 const ignores=path.join(destination,'.vercelignore');const ignore=await fs.readFile(ignores,'utf8');if(!ignore.includes('sources/asfalto-bruto'))await fs.appendFile(ignores,'\nsources/asfalto-bruto\n');
 const catalogPath=path.join(destination,'index.html');let catalog=await fs.readFile(catalogPath,'utf8');

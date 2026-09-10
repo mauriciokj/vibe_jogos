@@ -20,6 +20,8 @@ Caddy atende HTTP/HTTPS e encaminha `/api/asfalto/` para `127.0.0.1:4318` e `/ap
 
 Use esta branch em um checkout limpo. Requer Node 22.18+ e `npm ci`. Os arquivos em `games/` são as versões publicáveis dos jogos. Os fontes do Asfalto ficam em `sources/asfalto-bruto/`; quando alterados, rode o exportador documentado no projeto para atualizar o build estático antes de publicar.
 
+A publicação é feita na VPS. Mantenha `git.deploymentEnabled: false` em `vercel.json`: as integrações antigas `vibe-games` e `vibe-jogos` com o GitHub estavam disparando builds em cada push, mesmo com os domínios migrados. O exportador preserva esse bloqueio. Branches antigas sem essa configuração ainda podem disparar builds se forem enviadas; para encerrar a integração em todas elas, desconecte o repositório em Settings → Git de ambos os projetos legados da Vercel. Não é necessário apagar os projetos nem alterar DNS.
+
 ```sh
 npm ci
 npm run test:vps
