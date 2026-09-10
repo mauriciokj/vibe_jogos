@@ -29,6 +29,21 @@ test('a broken bike cannot consume a championship heat or lock a new stage loado
  const save=freshSave();save.championship=newChampionship(7);save.condition.ferro=0;
  const before=JSON.stringify(save);assert.equal(startChampionshipRace(save),null);assert.equal(JSON.stringify(save),before);
 });
+test('broken CPU bikes repair before the next heat, while partially damaged bikes keep their wear',()=>{
+ const save=freshSave();save.championship=newChampionship(27);const c=save.championship;
+ const first=finishHeat(startChampionshipRace(save)!,1);for(const r of first.riders.slice(1,5))r.integrity=0;first.riders[5].integrity=19;
+ recordChampionshipHeat(c,first);const heats=JSON.stringify(c.heats),cash=save.cash;
+ const next=startChampionshipRace(save)!;assert.deepEqual(next.riders.slice(1,5).map(r=>r.integrity),[100,100,100,100]);assert.equal(next.riders[5].integrity,19);assert.equal(save.cash,cash);assert.equal(JSON.stringify(c.heats),heats);
+ const starts=next.riders.map(r=>r.z);for(let n=0;n<390;n++)stepRace(next);
+ for(const [i,r] of next.riders.entries())if(i){assert.ok(r.z>starts[i]+10,`${r.name} must leave the grid`);assert.equal(r.out,undefined);}
+});
+test('old championship countdowns also repair broken CPUs, without reviving a DNF during the race',()=>{
+ const save=freshSave();save.championship=newChampionship(28);const c=save.championship,race=startChampionshipRace(save)!;
+ race.riders[1].integrity=0;checkpointChampionship(c,race);
+ assert.equal(startChampionshipRace(save)!.riders[1].integrity,100);
+ race.mode='racing';race.time=60;race.tick=3600;race.riders[1].out='wrecked';checkpointChampionship(c,race);
+ assert.equal(startChampionshipRace(save)!.riders[1].integrity,0);assert.equal(startChampionshipRace(save)!.riders[1].out,'wrecked');
+});
 test('low integrity warns below 20; only exact zero unlocks repairs during a stage',()=>{
  const save=freshSave();save.cash=2000;save.championship=newChampionship(8);
  recordChampionshipHeat(save.championship,finishHeat(startChampionshipRace(save)!));

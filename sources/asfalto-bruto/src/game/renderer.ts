@@ -1,8 +1,8 @@
 import { drawTrackHazard } from './hazard-art';
 import { obstacleShape, trafficDirection } from './hazards';
 import { bankStrength } from './rural';
-import { finishScene } from './finish';
-import { finishBanner, finishFan } from './finish-art';
+import { finishScene, type FinishPoliceArrival, type FinishPolicePose } from './finish';
+import { finishBanner, finishFan, finishOfficer } from './finish-art';
 import { roadHalf, trafficShape } from './road-profile';
 import { farmSprite, tractorSprite, folkloreSprite, type FarmProp } from './rural-art';
 import { GUARD_RAIL_X, hasGuardRail } from './guardrails';
@@ -29,6 +29,7 @@ export class Renderer {
   private shake = 0;
   private localId = 'player';
   private winnerId: string | null = null;
+  private finishPolice:FinishPolicePose|null=null;
   private pullback = 0;
   private cinematic = false;
   private centerX = 640;
@@ -438,10 +439,14 @@ export class Renderer {
       c.rotate(1.25); c.translate(-height * .23, -width * .14);
       for (let i = 0; i < 8; i++) { c.fillStyle = i % 2 ? '#f9cd8b' : '#d2b78d'; c.fillRect(-width * .8 + Math.sin(state.time * 13 + i) * width, -height * .2 - i * 3, 4, 4); }
     } else { c.rotate(leanAngle); if (!this.reducedMotion) c.translate(0, Math.sin(r.z * 1.1) * Math.min(1, r.speed / 50) * height * .003); }
-    const champion=r.id===this.winnerId && r.finishedAt!==null;
-    const pose = champion?'celebrate':r.attack && r.attack.age > .08 ? r.attack.kind : 'ride';
-    const frame=champion?(this.reducedMotion?0:Math.floor(state.time*3)%3):r.speed > 8 ? Math.floor(r.z * 1.6) % 3 : 0;
+    const struck=this.finishPolice?.hit && this.finishPolice.targetId===r.id;
+    const parked=this.finishPolice?.id===r.id && this.finishPolice.phase!=='arriving';
+    if(struck)c.rotate(this.finishPolice!.side*.14);
+    const champion=r.id===this.winnerId && r.finishedAt!==null && !struck;
+    const pose = parked?'parked':champion?'celebrate':r.attack && r.attack.age > .08 ? r.attack.kind : 'ride';
+    const frame=parked?Math.floor(state.time*8)%2:champion?(this.reducedMotion?0:Math.floor(state.time*3)%3):r.speed > 8 ? Math.floor(r.z * 1.6) % 3 : 0;
     c.drawImage(bikeSprite(r.color, pose, r.attack?.side ?? 1, r.profile === 'police', frame, getBike(r.bikeId).style,getKneePad(r.kneePadId)?.color,kneeSide,r.weaponId,stunting(r),r.helmetId,r.helmetColorId), -width / 2, -height, width, height);
+    if(struck){c.strokeStyle='#ffeaa0';c.lineWidth=Math.max(1,height*.018);for(let i=0;i<5;i++){const a=i*Math.PI*.4;c.beginPath();c.moveTo(Math.cos(a)*width*.3,-height*.77+Math.sin(a)*width*.3);c.lineTo(Math.cos(a)*width*.48,-height*.77+Math.sin(a)*width*.48);c.stroke();}}
     if((r.nitroTime ?? 0)>0 && !r.crash){
       for(const side of [-1,1]){
         const x=side*width*.26,flicker=.8+Math.sin(state.time*45)*.2;
@@ -525,10 +530,10 @@ export class Renderer {
     }
     entities.push({z:length,draw:()=>{
       const p=this.project(length,0);if(!p || p.y>p.clip+4)return;
-      const left=p.road-(half+.8)*p.scale,width=(half*2+1.6)*p.scale,top=p.y-10.5*p.scale;
+      const left=p.road-(half+.8)*p.scale,width=(half*2+1.6)*p.scale,gantryHeight=14.5,top=p.y-gantryHeight*p.scale;
       c.save();c.beginPath();c.rect(0,0,this.w,p.clip);c.clip();
       for(const x of [left,left+width-.22*p.scale]){
-        c.fillStyle='#293e46';c.fillRect(x,top,.22*p.scale,10.5*p.scale);c.fillStyle='#d4d7bc';c.fillRect(x,top,.07*p.scale,10.5*p.scale);
+        c.fillStyle='#293e46';c.fillRect(x,top,.22*p.scale,gantryHeight*p.scale);c.fillStyle='#d4d7bc';c.fillRect(x,top,.07*p.scale,gantryHeight*p.scale);
       }
       c.drawImage(finishBanner(),left,top,width,p.scale*2.1);
       if(condition==='night' || condition==='rain')for(let i=0;i<10;i++){
@@ -537,10 +542,11 @@ export class Renderer {
       c.restore();
     }});
   }
-  render(state: RaceState, menu = false, localId = 'player', finishElapsed: number | null = null) {
+  render(state: RaceState, menu = false, localId = 'player', finishElapsed: number | null = null, officer?:FinishPoliceArrival|null) {
     this.localId = localId;
     this.cinematic=!menu && finishElapsed!==null;
-    const finish=finishScene(state,localId,menu?null:finishElapsed);
+    const finish=finishScene(state,localId,menu?null:finishElapsed,officer);
+    this.finishPolice=finish.police;
     this.winnerId=menu?null:finish.winnerId;this.pullback=menu?0:this.reducedMotion&&finishElapsed!==null?1:finish.pullback;state=finish.state;
     const c = this.ctx, track = conditionTrack(getTrack(state.trackId),state.condition), player = this.player(state);
     c.save();
@@ -604,6 +610,13 @@ export class Renderer {
     }});
     const target = nearestTarget(state, player, player.weapon ? 'weapon' : 'punch');
     for (const r of state.riders) if (r.z > this.camera.z && r.z < player.z + 1900) entities.push({ z: r.z, draw: () => this.rider(r, state, target?.id) });
+    const officerPose=this.finishPolice;
+    if(officerPose && officerPose.phase!=='arriving')entities.push({z:officerPose.z,draw:()=>{
+      const p=this.project(officerPose.z,officerPose.x);if(!p || p.y>p.clip+4)return;
+      const h=Math.min(p.scale*3,this.h*.31),w=h*60/84;
+      c.save();c.beginPath();c.rect(0,0,this.w,p.clip);c.clip();c.fillStyle='#15293680';c.beginPath();c.ellipse(p.x,p.y,w*.22,h*.055,0,0,Math.PI*2);c.fill();
+      c.drawImage(finishOfficer(officerPose.phase==='striking',this.reducedMotion?0:officerPose.frame,officerPose.side),p.x-w/2,p.y-h,w,h);c.restore();
+    }});
     entities.sort((a, b) => b.z - a.z).forEach(e => e.draw());
     this.atmosphere(state);
     // Subtle raster texture, with a soft lower edge for the instruments.

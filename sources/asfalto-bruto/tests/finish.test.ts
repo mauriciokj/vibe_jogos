@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { FINISH_SECONDS, finishPullback, finishScene, finishWinner } from '../src/game/finish';
+import { FINISH_SECONDS, finishPullback, finishScene, finishWinner, finishPoliceArrival } from '../src/game/finish';
 import { createMultiplayerRace, createRace, finishRider, stepRace } from '../src/game/simulation';
 import { getTrack } from '../src/game/content';
 import { EMPTY_COMMAND } from '../src/game/types';
@@ -68,9 +68,36 @@ test('visual solo arrivals exclude police and eliminated riders, and never extra
   Object.assign(s.riders[2],{z:8390,speed:40,profile:'police'});
   finishRider(s,s.riders[0],'finish');
   const view=finishScene(s,'player',60);
-  assert.deepEqual(view.state.riders[1],s.riders[1]);assert.deepEqual(view.state.riders[2],s.riders[2]);
+  assert.deepEqual(view.state.riders[1],s.riders[1]);assert.equal(view.state.riders[2].finishedAt,null);assert.ok(view.police);
   const multi=createMultiplayerRace('costa',[{id:'a',name:'A'},{id:'b',name:'B'}]);
   multi.mode='racing';multi.time=120;Object.assign(multi.riders[0],{z:8400,finishedAt:120});Object.assign(multi.riders[1],{z:8390,speed:40});
   finishRider(multi,multi.riders[0],'finish');
   assert.deepEqual(finishScene(multi,'a',60).state.riders[1],multi.riders[1]);
+});
+
+test('nearby police coast, dismount and strike every arrived rider without changing racing state or rewards',()=>{
+ for(const multi of [false,true]){
+  const s=multi?createMultiplayerRace('costa',[{id:'a',name:'A'},{id:'b',name:'B'}],42,true):createRace('costa');
+  s.mode='racing';s.time=120;const end=getTrack(s.trackId).distance;
+  s.riders.forEach((r,i)=>Object.assign(r,{z:end,finishedAt:118+i*.2,speed:40}));
+  s.riders[0].finishedAt=120;
+  const officer={...s.riders[0],id:'police',profile:'police' as const,finishedAt:null,z:end-20,x:-3,speed:50};s.riders.push(officer);s.policeActive=true;
+  finishRider(s,s.riders[0],'finish');const before=JSON.stringify(s),arrival=finishPoliceArrival(s,s.riders[0].id)!;
+  assert.equal(finishScene(s,s.riders[0].id,null,arrival).police,null);
+  assert.equal(finishScene(s,s.riders[0].id,0,arrival).police!.phase,'arriving');
+  assert.equal(finishScene(s,s.riders[0].id,2.6,arrival).police!.phase,'walking');
+  const targets=new Set<string>();for(let t=0;t<24;t+=.05){const view=finishScene(s,s.riders[0].id,t+2,arrival);if(view.police?.hit)targets.add(view.police.targetId!);}
+  assert.equal(targets.size,8);assert.equal(JSON.stringify(s),before);
+  assert.equal(finishScene(s,s.riders[0].id,25,arrival).state.riders.at(-1)!.speed,0);
+  // The cached arrival remains steady even if an online snapshot moves the cop.
+  const moved=structuredClone(s);moved.riders.at(-1)!.z=end-500;
+  assert.deepEqual(finishScene(moved,s.riders[0].id,8,arrival).police,finishScene(s,s.riders[0].id,8,arrival).police);
+ }
+});
+test('the finish ceremony never invents a cop, summons a distant cop or uses a fallen officer',()=>{
+ const s=createRace();s.time=120;s.riders[0].finishedAt=120;s.riders[0].z=8400;
+ assert.equal(finishPoliceArrival(s,'player'),null);
+ const cop={...s.riders[1],id:'police',profile:'police' as const,z:8000,speed:50};s.riders.push(cop);
+ assert.equal(finishPoliceArrival(s,'player'),null);cop.z=8380;assert.ok(finishPoliceArrival(s,'player'));
+ cop.crash=1;assert.equal(finishPoliceArrival(s,'player'),null);cop.crash=0;cop.integrity=0;assert.equal(finishPoliceArrival(s,'player'),null);
 });

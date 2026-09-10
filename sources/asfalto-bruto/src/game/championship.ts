@@ -45,10 +45,16 @@ export function nextChampionshipStage(c:Championship){
  if(c.status!=='service' || c.stage>=TRACKS.length-1)return false;
  c.stage++;c.heats=[];c.status='ready';c.damage={};delete c.entry;delete c.checkpoint;return true;
 }
+function repairBrokenGridRivals(c:Championship,race:RaceState){
+ // Rivals use the same zero-only repair exception between heats. Never repair
+ // an active race or bring an eliminated rider back during that race.
+ if(race.mode!=='countdown')return;
+ for(const r of race.riders)if(r.profile!=='player' && r.profile!=='police' && !r.out && r.integrity===0){r.integrity=100;c.damage[r.id]=100;}
+}
 export function startChampionshipRace(save:SaveData):RaceState|null {
  const c=save.championship;if(!c)return null;
  if(championshipBikeState(save).blocked)return null;
- if(c.status==='racing' && c.checkpoint)return structuredClone(c.checkpoint);
+ if(c.status==='racing' && c.checkpoint){repairBrokenGridRivals(c,c.checkpoint);return structuredClone(c.checkpoint);}
  if(!['ready','standings'].includes(c.status) || c.heats.length>=4)return null;
  if(!c.entry){const {championship:_,...garage}=save;c.entry=structuredClone(garage);}
  const entry=structuredClone(c.entry),bike=entry.bikeId;
@@ -57,6 +63,7 @@ export function startChampionshipRace(save:SaveData):RaceState|null {
  entry.nitro={...entry.nitro,[bike]:Math.min(entry.nitro?.[bike] ?? 0,save.nitro?.[bike] ?? 0)};
  const route=championshipRoute(c),race=createRace(route.track.id,entry,(c.seed+c.stage*1597+c.heats.length*733)>>>0,route.condition.id);
  for(const r of race.riders)if(c.damage[r.id]!==undefined)r.integrity=c.damage[r.id];
+ repairBrokenGridRivals(c,race);
  c.status='racing';checkpointChampionship(c,race);
  return race;
 }

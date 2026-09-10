@@ -2,6 +2,23 @@ import type { RaceCondition } from './types';
 
 const cache=new Map<string,HTMLCanvasElement>();
 const shirts=['#f2bb59','#62bccb','#d982a9','#a8cf68','#eee4c6','#b7a0e8'];
+export function finishOfficer(striking:boolean,frame:number,side:number){
+ const key=`officer/${striking}/${frame%4}/${side}`;if(cache.has(key))return cache.get(key)!;
+ const canvas=document.createElement('canvas');canvas.width=60;canvas.height=84;const c=canvas.getContext('2d')!;
+ if(side<0){c.translate(60,0);c.scale(-1,1);}
+ const rect=(x:number,y:number,w:number,h:number,color:string)=>{c.fillStyle=color;c.fillRect(x,y,w,h);};
+ const limb=(p:number[],color:string,width:number)=>{c.strokeStyle=color;c.lineWidth=width;c.lineJoin='miter';c.beginPath();for(let i=0;i<p.length;i+=2)i?c.lineTo(p[i],p[i+1]):c.moveTo(p[i],p[i+1]);c.stroke();};
+ const stride=striking?0:[-5,0,5,0][frame%4],bob=striking?0:frame%2;c.translate(0,bob);
+ limb([25,52,22-stride,65,19-stride,78],'#263846',8);limb([32,52,35+stride,65,38+stride,78],'#405566',8);
+ rect(13-stride,76,13,6,'#15222c');rect(33+stride,76,13,6,'#15222c');
+ rect(19,27,22,29,'#233d52');rect(21,29,17,18,'#b7c6ba');rect(27,31,6,8,'#e8c458');rect(19,51,22,5,'#142632');rect(28,51,6,4,'#c8c9b0');
+ limb([21,32,13,42,18,48],'#2d4759',7);rect(16,46,6,6,'#d9ad86');
+ const arm=striking?[[39,31,44,20,39,10],[39,31,49,23,54,32],[39,31,48,36,54,38],[39,31,47,29,49,20]][frame%4]:[39,31,45,42,43,49];
+ limb(arm,'#38576b',7);const hx=arm[4],hy=arm[5];rect(hx-3,hy-3,6,6,'#dfb78c');
+ const tip=striking?[[30,1],[59,13],[59,39],[49,3]][frame%4]:[46,66];limb([hx,hy,tip[0],tip[1]],'#131e28',4);rect(hx-2,hy-2,5,4,'#e0b38c');
+ rect(23,9,15,17,'#cda17e');rect(20,5,20,12,'#d7e1d4');rect(20,13,23,6,'#182f41');rect(37,19,4,5,'#deb88d');rect(23,6,3,7,'#f1f1df');rect(25,23,11,3,'#263b4a');
+ cache.set(key,canvas);return canvas;
+}
 export function finishFan(index: number, cheering: boolean, frame: number, condition: RaceCondition) {
   const key=`${index%6}/${cheering}/${frame%3}/${condition==='rain'}`;
   if(cache.has(key))return cache.get(key)!;

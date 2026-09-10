@@ -4,6 +4,8 @@ Ideias solicitadas pelo usuário em 2026-09-08. **Empinada/salto e equipamentos 
 
 O planejamento de cenários e traçados está em [planejamento-pistas.md](planejamento-pistas.md).
 
+Nova ideia avaliada: [quedas com deslizamento, recuperação a pé, atropelamentos e salto sobre motos caídas](planejamento-quedas.md). Viável e pendente de protótipo; exige teste e aprovação do usuário antes da produção.
+
 ## Empinar e saltar sobre carros
 
 Implementado: consumo ao ativar, janela de 280ms, mínimo de 72 km/h, empinada até 2,4s e salto automático de 1s sobre um carro na contramão. Vans/caminhões não são elegíveis; três usos preservados na reconexão. As questões originais abaixo ficam como histórico, com respostas completas no documento de equipamentos.

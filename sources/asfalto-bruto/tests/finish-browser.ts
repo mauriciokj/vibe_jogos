@@ -59,7 +59,17 @@ try{
     await p.click('#again-btn');assert.equal((await state(p)).mode,'countdown');assert.equal((await state(p)).track,'porto');assert.equal((await state(p)).condition,'rain');assert.equal((await state(p)).finish.stage,'none');
     const caught=fixture();caught.riders[0].finishedAt=null;finishRider(caught,caught.riders[0],'caught','fall');await restore(p,caught);await p.evaluate(cmd=>window.__game!.command(cmd,0),EMPTY_COMMAND);
     assert.equal((await state(p)).screen,'result');assert.equal((await state(p)).finish.stage,'none');assert.equal(await p.locator('#result-modal').isVisible(),true);assert.equal(await p.locator('#next-race-btn').count(),0);
-    await p.click('#result-menu-btn');assert.equal((await state(p)).screen,'menu');await context.close();
+    const ceremony=fixture('costa',false,'day');
+    ceremony.riders.forEach((r,i)=>{if(i)Object.assign(r,{z:8399-i*2,speed:45,immune:10});});
+    ceremony.riders.push({...ceremony.riders[1],id:'police',name:'POLÍCIA',profile:'police',bikeId:'estradeira',color:'#e7e9e5',z:8350,x:-5.5,speed:50,maxSpeed:85,weapon:true,finishedAt:null});ceremony.policeActive=true;
+    await restore(p,ceremony);await p.keyboard.down('w');await advance(p,900);await p.keyboard.up('w');assert.equal((await state(p)).screen,'finish');assert.ok((await state(p)).finish.police);
+    const policeFrozen=await p.evaluate(()=>window.__game!.snapshot()),policeCash=(await state(p)).save.cash,phases=new Set<string>();let hit=false;
+    for(let i=0;i<39;i++){await advance(p,100);const cop=(await state(p)).finish.police;phases.add(cop.phase);if(cop.phase==='dismounting'&&!phases.has('shot')){await shot(p,`${name}-police-dismount`);phases.add('shot');}if(cop.hit){hit=true;await shot(p,`${name}-police-hit`);break;}}
+    assert.ok(hit,'officer visibly strikes during the finish camera');assert.ok(phases.has('walking'));assert.ok(phases.has('dismounting'));
+    const struck=new Set<string>();for(let i=0;i<220;i++){await advance(p,100);const cop=(await state(p)).finish.police;if(cop.hit)struck.add(cop.targetId);}
+    assert.equal(struck.size,8);assert.equal(await p.evaluate(()=>window.__game!.snapshot()),policeFrozen);assert.equal((await state(p)).save.cash,policeCash);
+    await p.click('#again-btn');assert.equal((await state(p)).finish.police,null);await p.click('#pause-btn');await p.click('#menu-btn');
+    assert.equal((await state(p)).screen,'menu');await context.close();
   }
   const locked=await browser.newPage({viewport:{width:1280,height:800}});await setup(locked);
   for(const track of ['costa','terra']){

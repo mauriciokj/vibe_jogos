@@ -39,6 +39,11 @@ export function bikeSprite(color: string, pose = 'ride', side = 1, police = fals
   rect(35, 84, 21, 6, '#ff775c'); rect(39, 84, 12, 3, '#ffd2a0');
   rect(38, 93, 14, 8, '#e3dfbf'); rect(40, 95, 10, 3, '#5b6771');
   } else drawRearBody(c,color,style,frame);
+  if(pose==='parked'){
+    rect(33,48,23,19,'#172630');rect(18,42,52,4,metal);rect(14,41,9,6,dark);rect(66,41,8,6,dark);
+    if(police){rect(24,71,10,7,frame%2?'#75b9ff':'#416080');rect(55,71,10,7,frame%2?'#774e55':'#ff6b68');}
+    return rememberRider(key,canvas);
+  }
   c.save();
   if(wheelie)c.translate(-7,8);
   const low = style === 'cruiser' || style === 'chopper';

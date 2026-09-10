@@ -23,10 +23,11 @@ const snapshot=()=>page.evaluate(()=>JSON.parse(window.__game!.snapshot()));
 const persisted=()=>page.evaluate(()=>JSON.parse(window.__game!.save()));
 const advance=(ms:number)=>page.evaluate(ms=>window.advanceTime(ms),ms);
 const shot=async(name:string)=>{await page.screenshot({path:`${folder}/${name}.png`});await fs.writeFile(`${folder}/${name}.json`,JSON.stringify(await state(),null,2));};
-async function finish(place=1,integrity=67,reason='finish'){
+async function finish(place=1,integrity=67,reason='finish',brokenRivals=0){
  const s=await snapshot(),end=getTrack(s.trackId).distance;s.mode='racing';s.countdown=0;s.time=180;s.tick=10800;s.result=null;s.traffic=[];s.obstacles=[];s.heat=0;s.policeActive=false;s.riders=s.riders.filter((r:any)=>r.profile!=='police');
  s.riders.forEach((r:any,i:number)=>Object.assign(r,{x:i%2?-3:3,z:end-4-i*14,speed:40,integrity:i?80:integrity,health:100,finishedAt:i>0&&i<place?170+i:null,out:undefined,crash:0,immune:10,attack:null,cooldown:100}));
  s.riders.forEach((r:any)=>{if(r.finishedAt!==null)r.z=end;});
+ s.riders.slice(1,1+brokenRivals).forEach((r:any)=>r.integrity=0);
  if(reason!=='finish'){s.riders[0].out=reason;s.mode='finished';s.result={reason,place:8,time:180,reward:120,hits:0,falls:0};}
  await page.evaluate(s=>window.__game!.restore(JSON.stringify(s)),s);await page.evaluate(()=>window.__game!.command({throttle:1,brake:0,steer:0,attack:null},10));
  await page.waitForFunction(()=>{const s=JSON.parse(window.render_game_to_text());return !s.championship.settling && s.championship.status!=='racing';});
@@ -45,7 +46,7 @@ try{
    const race=await state();assert.equal(race.track,TRACKS[stage].id);assert.equal(race.condition,conditions[heat]);
    const broken=stage===0&&heat===3 || stage===1&&heat===0,low=stage===1&&heat===1;
    let carried=broken?0:low?15:67-heat*9;
-   await finish(1,carried,broken?'wrecked':'finish');const c=(await state()).championship;assert.equal(c.heats,heat+1);
+   await finish(1,carried,broken?'wrecked':'finish',stage===0&&heat===0?4:0);const c=(await state()).championship;assert.equal(c.heats,heat+1);
    assert.equal(c.standings.find((r:any)=>r.id==='player').points,stage===0&&heat===3?30:stage===1?heat*10:(heat+1)*10);assert.equal(c.garageOpen,heat===3);
    if(stage===1&&heat===0){
     assert.equal(c.bike.canRepair,true);assert.ok(await page.locator('dialog[open] #champ-start').isDisabled());assert.equal(await page.locator('dialog[open] #champ-garage').count(),0);
@@ -63,6 +64,7 @@ try{
    }
    if(stage===0){await shot(`costa-round-${heat+1}`);await layout();const cash=(await persisted()).cash;await advance(2000);assert.equal((await persisted()).cash,cash,'result never pays twice');}
    if(heat<3){assert.equal(await page.locator('dialog[open] #champ-garage').count(),0);await page.click('dialog[open] #champ-start');assert.equal((await state()).player.integrity,carried);if(low){await advance(100);assert.match(await page.locator('#toast').textContent()??'',/15% de integridade/);}}
+   if(stage===0&&heat===0){const grid=await snapshot();assert.deepEqual(grid.riders.slice(1,5).map((r:any)=>r.integrity),[100,100,100,100]);await advance(6500);const moving=await snapshot();for(let i=1;i<8;i++)assert.ok(moving.riders[i].z>grid.riders[i].z+10,`${moving.riders[i].name} left grid`);await shot('all-rivals-leave-grid');}
   }
   if(stage<4){
    assert.equal((await state()).championship.status,'service');await page.click('dialog[open] #champ-garage');assert.ok(await page.locator('#garage-modal').isVisible());await page.locator('#repair-btn').scrollIntoViewIfNeeded();await page.click('#repair-btn');assert.equal((await persisted()).condition.ferro,100);await page.locator('[data-close="garage-modal"]').click();await page.click('#championship-modal #champ-start');assert.equal((await state()).championship.stage,stage+1);assert.equal((await state()).player.integrity,100);assert.ok((await state()).championship.standings.every((r:any)=>r.points===0));
