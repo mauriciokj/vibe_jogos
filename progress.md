@@ -115,3 +115,8 @@ Original prompt: Build a classic Snake game in this repo.
 - Multiplayer protocolo13: predição de corpo/moto com correção suave e fases confirmadas no servidor; reconexão e comandos expirados tratados. Campeonato retoma checkpoint caído com integridade0. Contas/garagem e banco preservados.
 - Ranking atual regras3; históricos2/1 disponíveis sem apagar resultados anteriores. Replay determinístico e checkpoint autenticado entre dispositivos verificados.
 - Validação:173 testes na suíte completa e19 contas/campeonato/replay após novo caso, total174 casos; build/export TypeScript/Vite;9 testes VPS. Browser individual/celular e2 humanos+6 bots com latência/jitter, reconexão, atropelamento, salto e explosão. Cliente da skill e screenshots revisados; console sem erros. Produção será ativada com guarda de corridas e verificada via HTTPS.
+
+## 2026-09-09 — Ativação e QA público das quedas
+- Código `ddfdb19` publicado na release `20260910T024150Z-ddfdb19`, com guarda de corridas respeitada. Asfalto/Catálogo/Caddy ativos, protocolo13 e nenhuma corrida ativa após a verificação.
+- Ambos os domínios entregam `index-BShO43jD.js` com SHA256 idêntico ao build local. QA HTTPS completo passou: chuva/câmera/busca, explosão, checkpoint0 do campeonato, mobile/joelho, histórico, chegada e próxima condição. Screenshots revisadas, nenhum erro JS/console; contextos descartáveis ?test sem ranking/visitas artificiais.
+- WebSockets reais pelos dois domínios: sala privada com2 pessoas, todos prontos, largada e movimento confirmados; saída explícita ao terminar. Nenhum resultado de teste entrou no ranking. Conta/garagem, bancos, catálogo e demais jogos preservados. Aprovação implementada e publicada, sem pendências desta entrega.
