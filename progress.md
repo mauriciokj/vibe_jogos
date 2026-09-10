@@ -134,3 +134,8 @@ Original prompt: Build a classic Snake game in this repo.
 - Dois domínios confirmam appVersion1.1.0-beta, protocolo14 e asset `index-CdOUMMS8.js` com SHA256 `1046ebb1160e6ce7c529c20d15eccffa7b963164e0cdaa3e35405204a12160d8`, idêntico ao build.
 - Histórico/menu responsivo e corrida solo conferidos no HTTPS. WebSockets pelos dois domínios criaram uma sala privada, deram pronto, largaram e avançaram juntos; saída explícita. Sem contas falsas, resultados de teste no ranking ou visitas artificiais. Console/JS sem erros; capturas públicas revisadas.
 - Testes locais180/180, infraestrutura9/9 e navegador completos. Economia/versão entregues. Limites e manutenção documentados em `sources/asfalto-bruto/docs/progresso-autoritativo.md`; protótipo4390 segue separado.
+
+## 2026-09-10 — Beta1.1.1: menu sem rolagem vertical
+- Menu dimensionado pela altura disponível: título, espaçamentos e cartões menores; troféu do campeonato preservado. No celular deitado, pistas ao lado dos modos de jogo. Versão clicável e visitantes no rodapé.
+- 24 cenários de viewport/textos, de320x568 e568x320 até1920x1080, sem overflow vertical ou sobreposição. Garagem, conta, ranking, multiplayer, campeonato, ajuda, histórico/foco, carrossel, largada, pausa e retorno ao menu passaram; sem erros de console/JS. Imagens e estados conferidos; cliente da skill com corrida em movimento passou.
+- TypeScript/Vite e export passaram. Física, contas, protocolos e ranking sem mudanças. Preparando ativação e verificação pública; publicação respeita a guarda de corridas ativas.

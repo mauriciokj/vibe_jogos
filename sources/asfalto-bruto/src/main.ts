@@ -67,11 +67,10 @@ root.innerHTML = `
         <h1>ASFALTO<span>BRUTO</span></h1><p>A estrada é de todos.<br>A chegada é de um só.</p>
         <div class="start-row"><button class="primary" id="start-btn">JOGAR SOZINHO ${icons.arrow}</button><button class="secondary online-entry" id="online-btn">MULTIPLAYER <span>2–8 PILOTOS ↗</span></button></div>
         <div class="menu-meta"><div class="menu-profile"><div class="bike-line"><span>NA SUA GARAGEM</span><b id="current-bike"></b><button id="change-bike">TROCAR ↗</button></div>
-        <div id="visitor-count" class="visitor-count" hidden role="status"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="9" cy="7" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M16 4a3 3 0 0 1 0 6m2 4a5 5 0 0 1 3 4v3"/></svg><div><strong data-visitor-message></strong><small data-visitor-since></small></div></div>
         </div><button id="championship-btn" aria-label="Campeonato, 5 etapas e 20 corridas"><span id="champ-card-state" class="champ-card-state" hidden></span><span class="champ-card-arrow" aria-hidden="true">↗</span>${icons.trophy}<strong>CAMPEONATO</strong><span class="champ-card-detail">5 ETAPAS · 20 CORRIDAS</span></button></div>
       </div>
       <div class="route-select"><div class="route-heading"><div><span>ESCOLHA A PISTA</span><span id="route-count"></span></div><div class="route-navigation"><button id="routes-prev" aria-label="Ver pistas anteriores" aria-controls="routes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M19 12H5m7-7-7 7 7 7"/></svg></button><button id="routes-next" aria-label="Ver próximas pistas" aria-controls="routes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 12h14m-7-7 7 7-7 7"/></svg></button></div></div><div class="routes" id="routes" role="group" aria-label="Pistas disponíveis"></div><p class="route-detail" id="route-detail"></p></div>
-      <footer class="bottomline"><span>ESTRADAS ABERTAS. PUNHOS FECHADOS.</span><span><i class="live-dot"></i> PRONTO PARA A LARGADA</span></footer>
+      <footer class="bottomline"><div id="visitor-count" class="visitor-count" hidden role="status"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="9" cy="7" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M16 4a3 3 0 0 1 0 6m2 4a5 5 0 0 1 3 4v3"/></svg><div><strong data-visitor-message></strong><small data-visitor-since></small></div></div><span><i class="live-dot"></i> PRONTO PARA A LARGADA</span></footer>
     </section>
     <section id="finish-scene" hidden aria-label="Comemoração na chegada"><div class="finish-heading"><span id="finish-place"></span><strong id="finish-winner"></strong></div><button id="finish-skip" class="secondary">VER RESULTADO ↗</button></section>
     <section id="hud" hidden aria-label="Informações da corrida">
@@ -305,6 +304,7 @@ function renderMenu() {
   $('championship-btn').setAttribute('aria-label',continuing?`Continuar campeonato, etapa ${championship.stage+1} de ${TRACKS.length}`:'Campeonato, 5 etapas e 20 corridas');
   const selected=raceRoute(selectedTrack,selectedCondition),best=save.records[recordKey(selectedTrack,selectedCondition)];
   $('route-detail').textContent=`${selected.name} — ${selected.condition.description}`+(best ? ` · RECORDE ${clockString(best.time)}` : '');
+  $('route-detail').title=$('route-detail').textContent!;
   $('wallet').textContent=money(save.cash);
   $('current-bike').textContent=getBike(save.bikeId).name;
   $('route-count').textContent=`${String(RACE_ROUTES.indexOf(selected)+1).padStart(2,'0')} / ${RACE_ROUTES.length} PISTAS`;

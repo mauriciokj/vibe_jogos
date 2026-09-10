@@ -1,35 +1,25 @@
-#menu .menu-meta{display:grid;grid-template-columns:minmax(0,1fr) 184px;align-items:center;gap:22px;margin-top:20px}
+#menu .menu-meta{display:grid;grid-template-columns:minmax(0,1fr) var(--champ-size);align-items:center;gap:18px;margin-top:clamp(10px,1.8dvh,18px)}
 #menu .menu-profile{min-width:0}
 #menu .menu-profile .community-row>div{flex-wrap:wrap}
 #menu .menu-profile .bike-line{margin-top:0}
-#championship-btn{position:relative;width:184px;height:184px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;padding:22px 12px 14px;border:1px solid #deff708c;border-radius:5px;background:radial-gradient(ellipse at 50% 25%,#deff7020,transparent 70%),linear-gradient(145deg,#223936ed,#12292ceb);color:var(--acid);box-shadow:inset 0 0 24px #deff7008,0 6px 22px #071a2538;backdrop-filter:blur(6px);text-align:center;cursor:pointer;transition:transform .18s,border-color .18s,box-shadow .18s}
+#championship-btn{position:relative;width:var(--champ-size);height:var(--champ-size);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:18px 6px 9px;border:1px solid #deff708c;border-radius:5px;background:radial-gradient(ellipse at 50% 25%,#deff7020,transparent 70%),linear-gradient(145deg,#223936ed,#12292ceb);color:var(--acid);box-shadow:inset 0 0 24px #deff7008,0 6px 22px #071a2538;backdrop-filter:blur(6px);text-align:center;cursor:pointer;transition:transform .18s,border-color .18s,box-shadow .18s}
 #championship-btn:hover{transform:translateY(-2px);border-color:var(--acid);box-shadow:inset 0 0 24px #deff7010,0 8px 26px #deff7018}
 #championship-btn:focus-visible{outline:2px solid var(--acid);outline-offset:4px}
-#championship-btn .champ-trophy{width:76px;height:76px;flex:none;color:#e6f29e;filter:drop-shadow(0 3px 8px #deff7020)}
-#championship-btn strong{font:700 25px/1 'Barlow Condensed',Impact,sans-serif;letter-spacing:.6px}
-#championship-btn .champ-card-detail{font:8px/1.5 ui-monospace,monospace;letter-spacing:.5px;color:#d1ddbf;white-space:nowrap}
+#championship-btn .champ-trophy{width:calc(var(--champ-size) * .39);height:calc(var(--champ-size) * .39);flex:none;color:#e6f29e;filter:drop-shadow(0 3px 8px #deff7020)}
+#championship-btn strong{font:700 clamp(18px,2.8dvh,24px)/1 'Barlow Condensed',Impact,sans-serif;letter-spacing:.6px}
+#championship-btn .champ-card-detail{font:7px/1.5 ui-monospace,monospace;color:#d1ddbf;white-space:nowrap}
 #championship-btn .champ-card-arrow{position:absolute;top:10px;right:12px;font-size:16px;color:#c5d790}
 #championship-btn .champ-card-state{position:absolute;top:11px;left:12px;font:8px/1.3 ui-monospace,monospace;letter-spacing:.4px;color:#e1edb5}
 @media(max-width:700px){
- #menu .menu-meta{grid-template-columns:minmax(0,1fr) 140px;gap:14px;margin-top:18px}
- #championship-btn{width:140px;height:140px;padding:18px 8px 10px;gap:5px}
- #championship-btn .champ-trophy{width:59px;height:59px}
- #championship-btn strong{font-size:21px}
- #championship-btn .champ-card-detail{font-size:7px;letter-spacing:.3px}
- #championship-btn .champ-card-state{top:8px;left:8px;font-size:7px}
- #championship-btn .champ-card-arrow{top:6px;right:8px;font-size:13px}
- #menu .menu-profile .community-row>div{gap:10px;flex-wrap:wrap}
+ #menu .menu-profile .community-row>div{gap:10px}
  #menu .menu-profile .community-row button{font-size:10px;letter-spacing:.5px}
  #menu .menu-profile .community-row small{font-size:9px}
- #menu .menu-profile .visitor-count{gap:7px}
- #menu .menu-profile .visitor-count strong{font-size:10px}
- #menu .menu-profile .visitor-count small{font-size:7px;letter-spacing:.5px}
 }
-@media(max-width:360px){
- #menu .menu-meta{grid-template-columns:minmax(0,1fr) 124px;gap:12px}
- #championship-btn{width:124px;height:124px;padding-top:17px}
- #championship-btn .champ-trophy{width:49px;height:49px}
+@media(max-width:700px), (max-height:520px){
+ #menu .menu-meta{gap:12px;margin-top:10px}
  #championship-btn strong{font-size:19px}
+ #championship-btn .champ-card-state{top:6px;left:6px;font-size:7px}
+ #championship-btn .champ-card-arrow{top:4px;right:6px;font-size:12px}
 }
 #championship-modal{width:min(800px,calc(100vw - 28px))}
 #championship-modal h2{font-size:34px}

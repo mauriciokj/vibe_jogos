@@ -2,7 +2,11 @@ import './releases.css';
 import { GAME_VERSION } from './version';
 export { GAME_VERSION } from './version';
 export const RELEASES=[
-  {version:GAME_VERSION,date:'10/09/2026',title:'Sua garagem protegida',changes:[
+  {version:GAME_VERSION,date:'10/09/2026',title:'Menu mais compacto',changes:[
+    'Título, campeonato e cartões de pistas ajustados à altura da tela para o menu caber no computador e no celular.',
+    'Seleção de pistas ao lado dos modos de jogo no celular deitado. Versão, novidades e contador de visitantes reunidos no rodapé.'
+  ]},
+  {version:'1.1.0-beta',date:'10/09/2026',title:'Sua garagem protegida',changes:[
     'Créditos, compras, reparos e equipamentos da conta passam a ser confirmados pelo servidor.',
     'Corridas individuais e do campeonato são conferidas antes de conceder prêmios. O progresso das contas do beta foi preservado.',
     'O multiplayer consulta os equipamentos da conta e controla as cargas de nitro.',
@@ -52,7 +56,7 @@ export const RELEASES=[
 export function releaseUI(){
   const button=document.createElement('button');button.id='version-btn';button.textContent=`BETA ${GAME_VERSION.replace('-beta','')} · NOVIDADES ↗`;
   button.setAttribute('aria-haspopup','dialog');button.setAttribute('aria-controls','releases-modal');
-  document.querySelector('.menu-main>.eyebrow')!.before(button);
+  document.querySelector('#menu .bottomline')!.prepend(button);
   const modal=document.createElement('dialog');modal.id='releases-modal';modal.setAttribute('aria-labelledby','releases-title');
   modal.innerHTML=`<div class="dialog-header"><div><div class="eyebrow">ASFALTO BRUTO · EM DESENVOLVIMENTO</div><h2 id="releases-title">O que mudou</h2></div><button class="close-btn" aria-label="Fechar novidades">×</button></div><div class="dialog-body release-list"><p>Estamos no beta. A estrada continua crescendo a cada atualização.</p>${RELEASES.map((r,i)=>`<details ${i===0?'open':''}><summary><span class="release-meta">${i===0?'VERSÃO '+r.version:'REVISÃO '+r.version} · ${r.date}${i===0?' · ATUAL':''}</span><strong>${r.title}</strong></summary><ul>${r.changes.map(c=>`<li>${c}</li>`).join('')}</ul></details>`).join('')}<p class="release-footnote">Antes da versão 1.1.0, as atualizações não tinham numeração própria na tela. As revisões identificam essas publicações anteriores.</p></div>`;
   document.body.append(modal);
