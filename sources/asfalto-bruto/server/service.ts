@@ -1,4 +1,5 @@
 import type { AccountService } from './accounts';
+import { GAME_VERSION } from '../src/version';
 import { createServer } from 'node:http';
 import { randomBytes } from 'node:crypto';
 import { isIP } from 'node:net';
@@ -33,7 +34,7 @@ export function createGameServer(store: RoomStore, options: { origins?: string[]
       } catch {discovery=undefined;res.statusCode=503;res.end(JSON.stringify({error:'Não foi possível buscar salas. Tente atualizar a lista.'}));}
       return;
     }
-    res.statusCode = 200; res.end(JSON.stringify({service:'asfalto-bruto',version:NET_VERSION,multiplayer:true,sharedRooms:store.shared,storage:store.shared?'redis':'memory',region:process.env.VERCEL_REGION ?? 'local',activeRaces:[...latest.values()].filter(r=>r.phase==='racing' && [...peers].some(p=>p.code===r.code)).length}));
+    res.statusCode = 200; res.end(JSON.stringify({service:'asfalto-bruto',appVersion:GAME_VERSION,version:NET_VERSION,multiplayer:true,sharedRooms:store.shared,storage:store.shared?'redis':'memory',region:process.env.VERCEL_REGION ?? 'local',activeRaces:[...latest.values()].filter(r=>r.phase==='racing' && [...peers].some(p=>p.code===r.code)).length}));
   });
   const wss = new WebSocketServer({noServer:true,maxPayload:4096,perMessageDeflate:false});
   server.on('upgrade',(req,socket,head) => {
@@ -56,6 +57,8 @@ export function createGameServer(store: RoomStore, options: { origins?: string[]
     peer.ws.send(JSON.stringify(message));
   }
   function broadcast(room: Room) {
+    const previous=latest.get(room.code);
+    for(const member of previous?.members ?? [])if(!room.members.some(m=>m.id===member.id))options.accounts?.economy.releaseMember(member,previous?.race?.riders.find(r=>r.id===member.id)?.nitroUsed ?? 0);
     latest.set(room.code,room);
     try{options.accounts?.recordRoom(room);}catch{console.error('Falha ao gravar resultado no ranking; será tentado novamente.');}
     if ((revisions.get(room.code) ?? -1) >= room.revision) return;
@@ -75,7 +78,7 @@ export function createGameServer(store: RoomStore, options: { origins?: string[]
     finally { peer.writing = false; }
   }
   async function attach(peer: Peer, room: Room, member: Member) {
-    if (peer.ws.readyState !== WebSocket.OPEN) { await store.mutate(room.code,r=>depart(r,member.id,member.epoch,now())).catch(()=>{}); return; }
+    if (peer.ws.readyState !== WebSocket.OPEN) { await store.mutate(room.code,r=>depart(r,member.id,member.epoch,now(),true)).then(broadcast).catch(()=>{});options.accounts?.economy.releaseMember(member);return; }
     peer.code = room.code; peer.id = member.id; peer.epoch = member.epoch; peer.seq = room.ack[member.id] ?? 0;
     send(peer,{type:'welcome',id:member.id,token:member.token,room:viewRoom(room,now())}); broadcast(room);
   }
@@ -98,18 +101,21 @@ export function createGameServer(store: RoomStore, options: { origins?: string[]
         void flush(peer);return;
       }
       if (busy) return; busy = true;
+      let reservation:Member|undefined;
       try {
         if (['create','join','resume'].includes(data.type)) {
           if (peer.code) throw new Error('Você já está em uma sala.');
           if (data.version !== NET_VERSION) throw new Error('Atualize a página para entrar nesta versão.');
           if (data.type === 'create') {
             const member = makeMember(data.name,now(),data.bikeId,data.loadout); member.accountId=options.accounts?.identity(req)?.account.id; let room: Room;
+            options.accounts?.economy.equipMember(member.accountId,member);reservation=member;
             do { room = makeRoom(randomBytes(4).toString('hex').slice(0,6).toUpperCase(),data.trackId,member,now(),data.fillBots === true,data.condition,data.public === true); } while (!await store.create(room));
             await attach(peer,room,member);
           } else {
             const code = String(data.code ?? '').toUpperCase();
             if (!/^[A-F0-9]{6}$/.test(code)) throw new Error('Digite o código de 6 caracteres da sala.');
             let member = makeMember(data.name,now(),data.bikeId,data.loadout); member.accountId=options.accounts?.identity(req)?.account.id;
+            if(data.type==='join'){options.accounts?.economy.equipMember(member.accountId,member);reservation=member;}
             const room = await store.mutate(code,r => {
               if (data.type === 'join') {
                 if(data.publicOnly === true && !publicRoomView(r,now()))throw new Error('Esta sala não está mais disponível. Atualize a lista e escolha outra.');
@@ -136,6 +142,7 @@ export function createGameServer(store: RoomStore, options: { origins?: string[]
           send(peer,{type:'left'});
         }
       } catch (error) {
+        if(reservation&&!peer.code)options.accounts?.economy.releaseMember(reservation);
         const message=error instanceof Error && !(error instanceof TypeError) ? error.message : 'Não foi possível entrar na sala.';
         const fatal=data.type==='resume' && /vaga expirou|não encontrada|Atualize/.test(message);
         send(peer,{type:'error',message,fatal});
@@ -176,7 +183,13 @@ export function createGameServer(store: RoomStore, options: { origins?: string[]
           const m=r.members.find(m=>m.id===peer.id && m.epoch===peer.epoch); if(m){m.lastSeen=now();m.connected=true;}
         }).then(broadcast).catch(()=>{});
       }
-      for (const code of latest.keys()) if (!codes.has(code)) { latest.delete(code); revisions.delete(code); }
+      for (const [code,room] of latest) if (!codes.has(code) && room.members.every(m=>now()-m.lastSeen>RECONNECT_MS)) {
+        // Invalidate expired slots before refunding reserved, unused nitro.
+        void store.mutate(code,r=>{for(const m of [...r.members])depart(r,m.id,m.epoch,now(),true);}).then(r=>{
+          broadcast(r);for(const m of room.members)options.accounts?.economy.releaseMember(m,r.race?.riders.find(p=>p.id===m.id)?.nitroUsed ?? 0);
+          latest.delete(code);revisions.delete(code);
+        }).catch(()=>{});
+      }
       for (const [ip,l] of limits) if (now()-l.at>60_000) limits.delete(ip);
       if (store instanceof MemoryStore) store.sweep(now());
     }

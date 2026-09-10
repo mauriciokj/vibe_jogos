@@ -37,7 +37,7 @@ test('Cloud save CAS and retry receipts preserve purchased gear through restart 
     assert.equal(db.db.prepare('PRAGMA integrity_check').get()!.integrity_check,'ok');
   }finally{db.close();rmSync(dir,{recursive:true,force:true});}
 });
-test('Authenticated API: nonce, CSRF, import, conflicts, verified solo replay and durable separate rankings',async()=>{
+test('Authenticated API rejects browser imports and confirms races before crediting rewards',async()=>{
   let now=Date.now();const db=new AccountsDB(':memory:'),store=new MemoryStore();
   const origin='https://game.example';
   const accounts=new AccountService({db,clientId:'test-client',origins:[origin],now:()=>now,verify:async(credential,nonce)=>{if(credential!==`test:${nonce}`)throw new Error();return 'subject';}});
@@ -61,20 +61,26 @@ test('Authenticated API: nonce, CSRF, import, conflicts, verified solo replay an
     const oldCookie=cookie,oldCsrf=csrf;cookie=login.res.headers.get('set-cookie')!.split(';')[0];csrf=login.body.csrf;
     assert.equal((await call('/login',{credential:`test:${challenge.body.nonce}`},{Cookie:oldCookie,'X-Asfalto-CSRF':oldCsrf})).res.status,403);
     const id=login.body.account.id,save=freshSave();save.ownedKneePads=['gold'];save.kneePadId='gold';
-    const saved=await call('/save',{revision:0,request:'initial-import-0001',save});assert.equal(saved.res.status,200);
+    const saved=await call('/save',{revision:1,request:'initial-import-0001',save});assert.equal(saved.res.status,409);
     assert.equal((await call('/save',{revision:0,request:'stale-save-0000002',save})).res.status,409);
-    assert.equal((await call('/save',{revision:1,request:'forged-account-03',account:'other',save})).res.status,200);
+    assert.equal((await call('/save',{revision:1,request:'forged-account-03',account:'other',save})).res.status,409);
+    assert.equal(db.cloud(id).save!.kneePadId,undefined);
+    // Seed a legitimate beta garage through the trusted database fixture.
+    db.save(id,1,save,'trusted-beta-fixture');
     assert.equal(db.cloud(id).revision,2);
     const started=await call('/start',{trackId:'costa',condition:'day',revision:2});assert.equal(started.res.status,200);
-    const run=started.body,race=createRace(run.trackId,run.save,run.seed,run.condition),segments=[];
+    const run=started.body,race=structuredClone(run.initial),segments=[];
     while(race.mode!=='finished' && race.tick<72000){const command=safeDrivingCommand(race);segments.push({count:1,command});stepRace(race,{player:command});}
     assert.equal(race.result?.reason,'finish');
-    assert.equal((await call('/finish',{id:run.id,segments})).res.status,400,'cannot finish faster than wall time');
+    assert.equal((await call('/finish',{id:run.id,cursor:0,segments})).res.status,400,'cannot finish faster than wall time');
     now+=race.tick/60*1000+2000;
     let pulses=0;const heartbeat=setInterval(()=>pulses++,5);
-    const finish=await call('/finish',{id:run.id,segments});clearInterval(heartbeat);
+    const before=db.cloud(id).save!.cash;
+    const finish=await call('/finish',{id:run.id,cursor:0,segments});clearInterval(heartbeat);
     assert.equal(finish.res.status,200,JSON.stringify(finish.body));assert.ok(pulses>10,'replay yields to the realtime loop');
-    assert.equal((await call('/finish',{id:run.id,segments})).res.status,200,'idempotent');
+    assert.equal(db.cloud(id).save!.cash,before+race.result!.reward);
+    assert.equal((await call('/finish',{id:run.id,cursor:0,segments})).res.status,200,'idempotent');
+    assert.equal(db.cloud(id).save!.cash,before+race.result!.reward,'retry never awards twice');
     const board=await call('/ranking?mode=solo&track=costa&condition=day');assert.equal(board.body.entries.length,1);assert.equal(board.body.entries[0].races,1);assert.ok(board.body.entries[0].me);
     assert.equal(board.body.entries[0].time,race.result!.time);assert.equal((await call('/ranking?mode=multi&track=costa&condition=day')).body.entries.length,0);
     assert.equal((await call('/ranking?mode=solo&track=costa&condition=rain')).body.entries.length,0);

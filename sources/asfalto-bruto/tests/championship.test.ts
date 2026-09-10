@@ -118,7 +118,7 @@ test('mid-race checkpoints survive normalization and cloud storage without refil
  for(const field of ['time','rng']){const invalid=structuredClone(save);delete (invalid.championship!.checkpoint! as any)[field];assert.equal(normalizeSave(invalid).championship,undefined);}
  const brokenResult=structuredClone(save);brokenResult.championship!.checkpoint!.mode='finished';brokenResult.championship!.checkpoint!.result={} as any;assert.equal(normalizeSave(brokenResult).championship,undefined);
 });
-test('authenticated cloud API carries a large championship checkpoint to a second device and rejects stale overwrites',async()=>{
+test('authenticated cloud API preserves a trusted beta checkpoint and rejects browser replacements',async()=>{
  const db=new AccountsDB(':memory:'),origin='https://game.example';
  const accounts=new AccountService({db,clientId:'test-client',origins:[origin],verify:async(credential,nonce)=>{assert.equal(credential,`test:${nonce}`);return 'champion';}});
  const app=createGameServer(new MemoryStore(),{accounts,origins:[origin]});app.server.listen(0,'127.0.0.1');await once(app.server,'listening');
@@ -136,8 +136,10 @@ test('authenticated cloud API carries a large championship checkpoint to a secon
   // Exercise the HTTP body boundary with a valid, bounded collision cache.
   race.collisions=Object.fromEntries(Array.from({length:1100},(_,i)=>[`player:traffic-collision-${i}`,41]));checkpointChampionship(save.championship,race);
   const body={revision:0,request:'championship-device-001',save};assert.ok(Buffer.byteLength(JSON.stringify(body))>32_000);
-  assert.equal((await first('/save',body)).response.status,200);assert.equal((await first('/save',body)).response.status,200);
-  const remote=(await second('/session')).data.cloud;assert.equal(remote.revision,1);assert.equal(snapshot(startChampionshipRace(remote.save)!),snapshot(race));
+  const session=(await first('/session')).data;
+  db.save(session.account.id,session.cloud.revision,save,'trusted-championship-beta');
+  assert.equal((await first('/save',body)).response.status,409);assert.equal((await first('/save',body)).response.status,409);
+  const remote=(await second('/session')).data.cloud;assert.equal(remote.revision,2);assert.equal(snapshot(startChampionshipRace(remote.save)!),snapshot(race));
   assert.equal((await second('/save',{revision:0,request:'championship-stale-002',save:freshSave()})).response.status,409);
   assert.equal((await first('/save',{...body,request:'championship-oversize-3',padding:'x'.repeat(128_000)})).response.status,413);
  }finally{await app.close();db.close();}

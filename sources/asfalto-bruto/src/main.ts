@@ -1,8 +1,10 @@
 import './recovery.css';
+import { releaseUI } from './releases';
 import { newChampionship, championshipRoute, championshipGarageOpen, championshipBikeState, championshipStandings, startChampionshipRace, nextChampionshipStage, checkpointChampionship, finishChampionshipSimulation, recordChampionshipHeat } from './game/championship';
 import { championshipMarkup } from './championship-ui';
 import { pendingResults, queueResult, removeResult } from './account/pending-results';
 import { AccountClient, SoloRecorder, ApiError } from './account/client';
+import type { GarageAction } from './account/protocol';
 import { accountUI } from './account/ui';
 import { roadHalf, surfaceGrip } from './game/road-profile';
 import { equippedHelmet, getHelmet, getHelmetColor } from './game/helmets';
@@ -126,12 +128,13 @@ root.innerHTML = `
 `;
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
+releaseUI();
 const renderer = new Renderer($<HTMLCanvasElement>('game'));
 const instruments = new RaceInstruments($<HTMLCanvasElement>('rear-view'),$<HTMLCanvasElement>('race-map'));
 const audio = new GameAudio();
 const accounts = new AccountClient(next=>{
   save=structuredClone(next);selectedTrack=save.raceTrackId ?? 'costa';selectedCondition=raceCondition(save.raceCondition);
-  syncSound();renderMenu();makeAttract();
+  syncSound();renderMenu();if(screen==='menu'&&!startingRace)makeAttract();
 },()=>screen==='menu' && !online.active && !startingRace && !document.querySelector('dialog[open]:not(#account-modal)'));
 let save = accounts.initialSave();
 let soloRecorder:SoloRecorder|null=null;
@@ -177,7 +180,7 @@ const online = new OnlineClient({
     for (const id of ['online-create','online-join']) $<HTMLButtonElement>(id).disabled = status==='connecting' || status==='reconnecting';
   },
   error: message => { $('online-error').textContent=message; $('online-error').hidden=false; if(!$<HTMLDialogElement>('online-modal').open)toast(message); },
-  left: () => { onlineMode=false;onlineRaceStarted=false;showMenu(); },
+  left: () => { onlineMode=false;onlineRaceStarted=false;showMenu();void accounts.refresh(); },
 });
 const publicRooms=new PublicRoomBrowser($<HTMLDetailsElement>('online-discovery'),code=>enterOnline(false,code));
 function localId() { return onlineMode && online.id ? online.id : 'player'; }
@@ -186,15 +189,17 @@ const escapeHTML = (s: string) => s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt
 function openOnline() {
   clearControls();$('online-error').hidden=true;$('online-form').hidden=false;$('online-lobby').hidden=true;
   $<HTMLSelectElement>('online-track').value=raceRoute(selectedTrack,selectedCondition).id;
-  $<HTMLSelectElement>('online-bike').value=save.bikeId; updateOnlineBikePreview();
+  const available=accounts.session?.account?save.owned:['ferro'];
+  $<HTMLSelectElement>('online-bike').innerHTML=BIKES.filter(b=>available.includes(b.id)).map(b=>`<option value="${b.id}">${b.name}</option>`).join('');
+  $<HTMLSelectElement>('online-bike').value=available.includes(save.bikeId)?save.bikeId:'ferro'; updateOnlineBikePreview();
   try{$<HTMLInputElement>('online-name').value=localStorage.getItem('asfalto:nickname') ?? '';}catch{}
   $<HTMLDialogElement>('online-modal').showModal();
   publicRooms.setBusy(online.active);
 }
 function updateOnlineBikePreview() {
   const bike=getBike($<HTMLSelectElement>('online-bike').value);
-  const pad=equippedKneePad(save);
-  $('online-loadout').textContent=`Capacete ${equippedHelmet(save).name} ${getHelmetColor(save.helmetColorId).name.toLowerCase()} · ${equippedWeapon(save)?.name ?? 'Bastão básico'} · ${pad&&supportsKneeDown(bike.id)?'Joelheira '+pad.name:!supportsKneeDown(bike.id)?'Chopper: sem manobra de joelho':'Sem joelheira'} · Nitro ${nitroCount(bike.id,save.nitro?.[bike.id])}/${bike.nitroCapacity}`;
+  const equipment=accounts.session?.account?save:freshSave(),pad=equippedKneePad(equipment);
+  $('online-loadout').textContent=accounts.session?.account?`Capacete ${equippedHelmet(equipment).name} ${getHelmetColor(equipment.helmetColorId).name.toLowerCase()} · ${equippedWeapon(equipment)?.name ?? 'Bastão básico'} · ${pad&&supportsKneeDown(bike.id)?'Joelheira '+pad.name:!supportsKneeDown(bike.id)?'Chopper: sem manobra de joelho':'Sem joelheira'} · Nitro ${nitroCount(bike.id,equipment.nitro?.[bike.id])}/${bike.nitroCapacity}`:'Convidado: Ferro 500 com equipamento básico. Entre na conta para usar sua garagem no multiplayer.';
   $('online-bike-preview').innerHTML=`<img src="${bikePortrait(bike).toDataURL()}" alt="${bike.name} vista de lado"/><div><b>${bike.class} · ${Math.round(bike.speed*3.6)} KM/H</b><span>${handlingLabel(bike.handling)} · 0–100 EM ${zeroToHundred(bike).toFixed(1)}S</span><small>${bike.tagline}</small></div>`;
 }
 $<HTMLSelectElement>('online-bike').addEventListener('change',updateOnlineBikePreview);
@@ -232,7 +237,7 @@ function receiveOnlineRoom(room: RoomView) {
     drawLobbyClock();return;
   }
   if(!room.race)return;
-  const mine=room.race.riders.find(r=>r.id===online.id);if(mine && recordOnlineNitro(save,mine))saveNow();
+  const mine=room.race.riders.find(r=>r.id===online.id);if(!accounts.cache && mine && recordOnlineNitro(save,mine))saveNow();
   race=online.view()!;
   if(!onlineRaceStarted) {
     resetFinish();onlineRaceStarted=true;audio.resetRace(jumpSoundKey(localRider()),guardRailSoundSide(race.trackId,localRider()));closeDialogs();clearControls();screen='race';paused=false;settled=false;messageUntil=0;
@@ -336,33 +341,35 @@ function showMenu() {
 function closeDialogs() { document.querySelectorAll<HTMLDialogElement>('dialog[open]').forEach(d => d.close()); }
 async function startRace(championship=false) {
   if(startingRace || champSettling)return;
-  if(championship && championshipBikeState(save).blocked){showChampionship();return;}
   startingRace=true;
+  if(accounts.cache){await retryRankedResults();if(soloRecorder&&!settled){startingRace=false;toast('Retome ou abandone a corrida atual.');return;}}
+  if(championship && championshipBikeState(save).blocked){startingRace=false;showChampionship();return;}
   resetFinish();
   soloRecorder=null;
   if(onlineMode)online.leave();
   clearTimeout(toastTimer);$('toast').hidden=true;
   $('online-hud').hidden=true;
   closeDialogs(); clearControls();
-  if (!championship && (save.condition[save.bikeId] ?? 100) < 20) { save.bikeId = 'ferro'; save.condition.ferro = Math.max(55, save.condition.ferro); saveNow(); toast('Ferro 500 pronta: reparo básico gratuito para continuar.'); }
+  if (!accounts.cache && !championship && (save.condition[save.bikeId] ?? 100) < 20) { save.bikeId = 'ferro'; save.condition.ferro = Math.max(55, save.condition.ferro); saveNow(); toast('Ferro 500 pronta: reparo básico gratuito para continuar.'); }
   soloNitroSpent=0;lowIntegrityWarned=false;audio.resetRace();
   $('start-btn').textContent='PREPARANDO…';
   championshipMode=championship;
-  const run=championship || testMode || !accounts.session?.account?null:await accounts.startRun(selectedTrack,selectedCondition);
+  const run=accounts.cache?await accounts.startRun(selectedTrack,selectedCondition,championship):null;
+  if(accounts.cache&&!run){startingRace=false;$('start-btn').innerHTML=`JOGAR SOZINHO ${icons.arrow}`;toast(accounts.status);showMenu();return;}
   if(run)soloRecorder=new SoloRecorder(run,accounts.cache!.account.id);
-  if(championship){
+  if(run?.initial){race=structuredClone(run.initial);selectedTrack=race.trackId;selectedCondition=raceCondition(race.condition);championshipMode=!!run.championship;champCheckpointAt=race.time;}
+  else if(championship){
     const next=startChampionshipRace(save);if(!next){startingRace=false;showChampionship();return;}
     race=next;selectedTrack=race.trackId;selectedCondition=raceCondition(race.condition);soloNitroSpent=race.riders[0].nitroUsed ?? 0;champCheckpointAt=race.time;saveNow();
   }else race = createRace(selectedTrack, run?.save ?? save, run?.seed ?? (testMode ? 88117 : crypto.getRandomValues(new Uint32Array(1))[0]), selectedCondition);
   startingRace=false;$('start-btn').innerHTML=`JOGAR SOZINHO ${icons.arrow}`;
-  if(!championship && !testMode && accounts.cache && !run)toast('Corrida local: o progresso será salvo. Ranking indisponível nesta largada.');
   screen = 'race'; paused = false; settled = false; messageUntil = 0; lastCount = 4;
   $('menu').hidden = true; $('hud').hidden = false;
   setText('race-track', getTrack(selectedTrack).name.toUpperCase()); setText('race-region', getTrack(selectedTrack).region);
   setText('distance-total', `${(getTrack(selectedTrack).distance / 1000).toFixed(1)} KM ⚑`);
   setText('race-message', '');
   void audio.start(); updateHUD();
-  if(championship && race.mode==='finished')showResult();
+  if(race.mode==='finished')void showResult();
 }
 function requestStart() {
   void audio.start();
@@ -382,6 +389,7 @@ function input(): Command {
   return { throttle: keys.has('KeyW') || keys.has('ArrowUp') ? 1 : Math.max(0,analog.drive), brake: keys.has('KeyS') || keys.has('ArrowDown') ? 1 : Math.max(0,-analog.drive), steer: clamp((keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0)+analog.steer,-1,1), attack: keys.has('KeyL') ? 'weapon' : keys.has('KeyK') ? 'kick' : keys.has('KeyJ') ? 'punch' : null, action:pendingActions.shift() };
 }
 function syncSoloNitro() {
+  if(accounts.cache)return;
   if(onlineMode)return;
   const p=localRider(),used=p.nitroUsed ?? 0;
   if(used>soloNitroSpent){spendNitro(save,p.bikeId ?? 'ferro',used-soloNitroSpent);soloNitroSpent=used;saveNow();}
@@ -493,6 +501,7 @@ function showChampionship() {
 function launchChampionship(){
   // Validate before advancing the stage, capturing equipment or recording a race.
   if(championshipBikeState(save).blocked){showChampionship();return;}
+  if(accounts.cache){void startRace(true);return;}
   save.championship ??=newChampionship(crypto.getRandomValues(new Uint32Array(1))[0]);
   if(save.championship.status==='service')nextChampionshipStage(save.championship);
   saveNow();void startRace(true);
@@ -506,15 +515,21 @@ async function showChampionshipResult(){
   $('result-modal').innerHTML='<div class="dialog-body champ-body"><h2>FECHANDO A CLASSIFICAÇÃO…</h2><p>Os demais pilotos estão concluindo a corrida.</p></div>';
   beginResult(payoutResult.reason==='finish',payoutResult.place);
   try{
+    if(accounts.cache){
+      resultPayout=await submitSoloResult();
+      $('result-modal').innerHTML=championshipMarkup(save.championship,save,resultPayout?.total);$('result-modal').scrollTop=0;return;
+    }
     const completed=await finishChampionshipSimulation(completedRace);
     if(recordChampionshipHeat(c,completed)){
       resultPayout=settleRace(save,completedRace,{starterRepair:false}) ?? null;
       saveNow();
     }
     $('result-modal').innerHTML=championshipMarkup(c,save,resultPayout?.total);$('result-modal').scrollTop=0;
-  }finally{champSettling=false;}
+  }catch(e){$('result-modal').innerHTML=`<div class="dialog-body champ-body"><h2>CONFIRMAÇÃO PENDENTE</h2><p>${escapeHTML(e instanceof Error?e.message:'Confira sua conexão.')}</p><button id="retry-result" class="primary">TENTAR NOVAMENTE</button><button id="result-menu-btn" class="secondary">VOLTAR AO MENU</button></div>`;}
+  finally{champSettling=false;}
 }
 function saveChampionshipCheckpoint(){
+  if(soloRecorder&&!settled){void checkpointRun();return;}
   if(championshipMode && !settled && save.championship){syncSoloNitro();checkpointChampionship(save.championship,race);saveNow();}
 }
 window.addEventListener('pagehide',saveChampionshipCheckpoint);
@@ -522,37 +537,75 @@ window.addEventListener('beforeunload',saveChampionshipCheckpoint);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)saveChampionshipCheckpoint();});
 
 let retryingRanking=false;
+let savingRun:Promise<void>|null=null;
+async function checkpointRun(){
+  if(savingRun)return savingRun;
+  const recorder=soloRecorder,payload=recorder?.payload();if(!recorder||!payload)return;
+  savingRun=(async()=>{
+    try{
+      await queueResult({...payload,account:recorder.accountId,created:Date.now(),finish:false});
+      const response=await accounts.api('/checkpoint',payload,45_000);
+      if(response.resync)throw Error('A corrida avançou em outro aparelho. Retome pelo menu.');
+      recorder.acknowledge(response.cursor);
+      if(response.cloud)accounts.acceptCloud(response.cloud,false);
+      await removeResult(payload.id);
+    }catch(e){if(e instanceof Error && e.message.includes('outro aparelho')){pauseGame();toast(e.message);}}
+  })();
+  try{await savingRun;}finally{savingRun=null;}
+}
 async function retryRankedResults() {
-  if(retryingRanking || !accounts.session?.account)return;
+  if(retryingRanking || !accounts.session?.account||savingRun)return;
   retryingRanking=true;
   const accountId=accounts.session.account.id;
   try {
-    const pending=await pendingResults(accountId);
-    for(const entry of pending){
+    for(const entry of await pendingResults(accountId)){
       if(accounts.session?.account?.id!==accountId)break;
-      try{await accounts.api('/finish',{id:entry.id,segments:entry.segments},45_000);}
-      catch(e){if(!(e instanceof ApiError) || ![400,404,413].includes(e.status))break;toast('Esta corrida ficou nos seus recordes pessoais; o ranking não confirmou o resultado.');}
+      // Old pre-authority ranking packets cannot become economic rewards.
+      if(entry.cursor===undefined){await removeResult(entry.id);continue;}
+      try{
+        let response=await accounts.api(entry.finish?'/finish':'/checkpoint',entry,45_000);
+        if(response.resync){await removeResult(entry.id);toast('A corrida avançou em outro aparelho. Retome o progresso da conta.');break;}
+        if(!response.ok){
+          const skipped=response.cursor-entry.cursor;
+          if(skipped<0)throw Error('Corrida precisa ser retomada.');
+          let left=skipped;
+          const segments=entry.segments.flatMap(s=>{const cut=Math.min(left,s.count);left-=cut;return cut===s.count?[]:[{...s,count:s.count-cut}];});
+          if(left>0)throw Error('Corrida avançou em outro aparelho.');
+          response=await accounts.api(entry.finish?'/finish':'/checkpoint',{...entry,cursor:response.cursor,segments},45_000);
+          if(!response.ok)break;
+        }
+        if(response.cloud)accounts.acceptCloud(response.cloud,screen==='menu');
+      }catch(e){if(!(e instanceof ApiError)||![400,404,413].includes(e.status))break;toast('O trecho não foi confirmado. Retome a corrida salva na conta.');}
       await removeResult(entry.id);
     }
   }catch{}finally{retryingRanking=false;}
 }
-async function submitSoloResult(){
-  const recorder=soloRecorder;soloRecorder=null;
-  if(!recorder || race.result?.reason!=='finish')return;
-  const payload=recorder.payload();if(!payload)return;
-  try{
-    await queueResult({...payload,account:recorder.accountId,created:Date.now()});
-  }catch{toast('Sem espaço neste aparelho para guardar o envio ao ranking.');return;}
-  await retryRankedResults();
+async function submitSoloResult():Promise<RacePayout|null>{
+  await savingRun;
+  const recorder=soloRecorder,payload=recorder?.payload();
+  if(!recorder||!payload)return null;
+  const entry={...payload,account:recorder.accountId,created:Date.now(),finish:true,abandon:race.result?.reason==='left'};
+  await queueResult(entry);
+  let response=await accounts.api('/finish',entry,45_000);
+  if(response.resync)throw Error('A corrida avançou em outro aparelho. Retome pelo menu.');
+  if(!response.ok){recorder.acknowledge(response.cursor);response=await accounts.api('/finish',{...entry,...recorder.payload()},45_000);}
+  if(!response.ok)throw Error('Retome a corrida no aparelho em que estava jogando.');
+  if(response.cloud)accounts.acceptCloud(response.cloud);
+  await removeResult(entry.id);soloRecorder=null;
+  return response.payout ?? null;
 }
 window.addEventListener('online',()=>void accounts.refresh().then(()=>retryRankedResults()));
 window.addEventListener('focus',()=>{if(screen==='menu')void retryRankedResults();});
 
-function showResult() {
+async function showResult() {
   if (!race.result || settled) return;
   if(championshipMode){void showChampionshipResult();return;}
-  void submitSoloResult();
-  settled = true; resultPayout = settleRace(save, race) ?? null; saveNow(); screen = 'result'; clearControls();
+  settled = true; screen = 'result'; clearControls();
+  if(accounts.cache){
+    $('result-modal').innerHTML='<div class="dialog-body"><h2>CONFERINDO A CORRIDA…</h2><p>Confirmando o prêmio e sua garagem.</p></div>';beginResult(race.result.reason==='finish',race.result.place);
+    try{resultPayout=await submitSoloResult();}
+    catch(e){$('result-modal').innerHTML=`<div class="dialog-body"><h2>CONFIRMAÇÃO PENDENTE</h2><p>${escapeHTML(e instanceof Error?e.message:'Confira sua conexão.')}</p><button id="retry-result" class="primary">TENTAR NOVAMENTE</button><button id="result-menu-btn" class="secondary">VOLTAR AO MENU</button></div>`;return;}
+  }else{resultPayout = settleRace(save, race) ?? null; saveNow();}
   const r = race.result;
   const exploded=localRider().recovery?.phase==='exploding';
   const title = exploded ? 'MOTO <span>EXPLODIU.</span>' : r.reason === 'caught' ? 'FIM DA <span>LINHA.</span>' : r.reason === 'wrecked' ? 'MOTOR <span>APAGADO.</span>' : r.place === 1 ? 'A RUA É <span>SUA.</span>' : `${r.place}º NA <span>CHEGADA.</span>`;
@@ -627,7 +680,7 @@ function update() {
   const command=input();soloRecorder?.add(command);
   stepRace(race, { player: command });
   syncSoloNitro();
-  if(championshipMode && save.championship && race.time-champCheckpointAt>=3){checkpointChampionship(save.championship,race);champCheckpointAt=race.time;saveNow();}
+  if(race.time-champCheckpointAt>=3){champCheckpointAt=race.time;if(soloRecorder)void checkpointRun();else if(championshipMode && save.championship){checkpointChampionship(save.championship,race);saveNow();}}
   const count = Math.ceil(race.countdown - .5);
   if (race.mode === 'countdown' && count !== lastCount) { lastCount = count; audio.tone(count <= 0 ? 880 : 440, .15, .16, 'sine'); }
   for (const event of race.events) {
@@ -653,9 +706,33 @@ function frame(now: number) {
 }
 async function fullscreen() { try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); } catch { toast('Tela cheia indisponível neste navegador.'); } }
 
+function accountGarageAction(button:HTMLButtonElement):GarageAction|null {
+  for(const [field,kind] of [['bike','bike'],['helmet','helmet'],['helmetColor','color'],['weapon','weapon'],['kneePad','knee'],['upgrade','upgrade']] as const)
+    if(button.dataset[field])return {kind,item:button.dataset[field]};
+  const kind:Record<string,GarageAction['kind']>={'buy-nitro':'nitro','repair-btn':'repair','champ-repair':'champRepair','champ-restart':'champRestart','remove-weapon':'removeWeapon','remove-knee':'removeKnee','confirm-reset':'reset'};
+  return kind[button.id]?{kind:kind[button.id]}:null;
+}
+async function changeAccountGarage(action:GarageAction,button?:HTMLButtonElement){
+  if(button)button.disabled=true;
+  try{
+    await accounts.action(action);
+    if(action.kind==='champRepair'||action.kind==='champRestart')showChampionship();
+    else if(action.kind==='reset'){showMenu();toast('Garagem reiniciada.');}
+    else{renderGarage();renderMenu();if(screen==='menu')makeAttract();}
+  }catch(e){toast(e instanceof Error?e.message:'Não foi possível confirmar.');if(button)button.disabled=false;}
+}
+async function leaveAccountRace(restart=false){
+  if(startingRace)return;
+  startingRace=true;paused=true;clearControls();settled=true;
+  finishRider(race,localRider(),'left');
+  try{await submitSoloResult();startingRace=false;if(restart)await startRace();else showMenu();}
+  catch(e){startingRace=false;settled=false;toast(e instanceof Error?e.message:'Não foi possível confirmar a saída.');}
+}
 document.addEventListener('click', event => {
   const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button'); if (!button || button.disabled) return;
   if(startingRace || champSettling){event.preventDefault();event.stopImmediatePropagation();return;}
+  const action=accounts.cache?accountGarageAction(button):null;
+  if(action){void changeAccountGarage(action,button);return;}
   if (button.dataset.close) { $<HTMLDialogElement>(button.dataset.close).close();if(button.dataset.close==='garage-modal'&&champGarageReturn){champGarageReturn=false;showChampionship();}return; }
   if (button.dataset.action === 'mute') toggleMute();
   if (button.dataset.action === 'fullscreen') void fullscreen();
@@ -676,6 +753,7 @@ document.addEventListener('click', event => {
   if (button.dataset.bike && buyBike(save, button.dataset.bike)) { saveNow(); renderMenu(); renderGarage(); makeAttract(); }
   if (button.dataset.upgrade && ['engine', 'armor', 'handling'].includes(button.dataset.upgrade) && buyUpgrade(save, button.dataset.upgrade as keyof Upgrade)) { saveNow(); renderMenu(); renderGarage(); toast('Melhoria instalada. Hora de sentir a diferença.'); }
   switch (button.id) {
+    case 'retry-result': settled=false;void showResult();break;
     case 'routes-prev': case 'routes-next': $('routes').scrollBy({left:(button.id==='routes-next'?1:-1)*$('routes').clientWidth*.8,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'}); break;
     case 'online-btn': openOnline(); break;
     case 'online-create': enterOnline(true); break;
@@ -699,12 +777,12 @@ document.addEventListener('click', event => {
     case 'garage-btn': case 'change-bike': showGarage(); break;
     case 'pause-btn': pauseGame(); break;
     case 'resume-btn': resumeGame(); break;
-    case 'restart-btn': case 'again-btn': if(championshipMode)break;selectedTrack=race.trackId;selectedCondition=raceCondition(race.condition);startRace(); break;
+    case 'restart-btn': case 'again-btn': if(championshipMode)break;selectedTrack=race.trackId;selectedCondition=raceCondition(race.condition);if(soloRecorder&&!settled)void leaveAccountRace(true);else void startRace();break;
     case 'finish-skip': revealResult();break;
     case 'next-race-btn': nextSoloRace();break;
     case 'online-next-btn': nextOnlineRace(true);break;
     case 'online-again-btn': nextOnlineRace(false);break;
-    case 'menu-btn': if(championshipMode){finishRider(race,localRider(),'left');showResult();break;}showMenu();break;
+    case 'menu-btn': if(championshipMode){finishRider(race,localRider(),'left');void showResult();break;}if(soloRecorder){void leaveAccountRace();break;}showMenu();break;
     case 'result-menu-btn': showMenu(); break;
     case 'repair-btn': if (repair(save)) { saveNow(); renderGarage(); renderMenu(); toast('Moto reparada. Pronta para a próxima.'); } break;
     case 'reset-btn': $<HTMLDialogElement>('reset-modal').showModal(); break;
@@ -715,6 +793,7 @@ document.querySelectorAll<HTMLDialogElement>('dialog').forEach(dialog => dialog.
 document.addEventListener('change',event=>{
   const element=event.target;
   if(element instanceof HTMLSelectElement && element.id==='nitro-bike' && save.owned.includes(element.value)){
+    if(accounts.cache){void changeAccountGarage({kind:'bike',item:element.value});return;}
     buyBike(save,element.value);saveNow();renderGarage();renderMenu();makeAttract();
   }
 });
@@ -785,7 +864,7 @@ declare global {
   interface Window {
     render_game_to_text: () => string;
     advanceTime: (ms: number) => void;
-    __game?: { snapshot: () => string; restore: (raw: string) => void; start: () => void; save: () => string; command: (cmd: Command, frames: number) => void; };
+    __game?: { snapshot: () => string; restore: (raw: string) => void; start: () => void; save: () => string; command: (cmd: Command, frames: number, render?:boolean) => void; };
   }
 }
 window.render_game_to_text = () => {
@@ -798,7 +877,7 @@ if (testMode) window.__game = {
   restore: raw => { if(onlineMode)throw new Error('Use o servidor para testar uma corrida online.'); resetFinish();messageUntil=0;race = restoreSnapshot(raw); settled = false; screen = race.mode === 'finished' ? 'result' : 'race'; paused = false; closeDialogs(); $('menu').hidden = true; $('hud').hidden = false; draw(); },
   start: startRace,
   save: () => JSON.stringify(save),
-  command: (cmd, frames) => { for (let i = 0; i < frames; i++) stepRace(race, { player: cmd }); syncSoloNitro();if (race.mode === 'finished') showResult(); draw(); },
+  command: (cmd, frames, render=true) => { for (let i = 0; i < frames && race.mode!=='finished'; i++) {soloRecorder?.add(cmd);stepRace(race, { player: cmd });} syncSoloNitro();if (race.mode === 'finished') void showResult();if(render)draw(); },
 };
 document.addEventListener('click',e=>{if(startingRace){e.preventDefault();e.stopImmediatePropagation();}},true);
 accountUI(accounts,()=>screen==='menu' && !online.active && !startingRace);

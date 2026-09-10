@@ -1,0 +1,12 @@
+#version-btn { display:block; width:fit-content; margin:0 0 14px; padding:7px 10px; border:1px solid #d5ff6559; border-radius:4px; color:var(--acid); background:#162c2de6; font:600 10px/1.5 monospace; letter-spacing:.6px; }
+#version-btn:hover { background:#395245; border-color:var(--acid); }
+#releases-modal { width:min(660px,calc(100vw - 28px)); max-height:85dvh; }
+.release-list>p { color:#bbcbbf; line-height:1.6; margin:0 0 22px; }
+.release-list details { border-top:1px solid #c5d6b529; padding:15px 0; }
+.release-list summary { cursor:pointer; padding-right:14px; }
+.release-list summary strong { display:block; font-size:18px; margin-top:5px; }
+.release-meta { color:var(--acid); font:10px/1.7 monospace; letter-spacing:.6px; }
+.release-list ul { padding-left:20px; color:#e1e6d6; line-height:1.65; font-size:14px; }
+.release-list li+li { margin-top:7px; }
+.release-list .release-footnote { font-size:12px; margin:20px 0 0; }
+@media(max-width:700px) { #version-btn { font-size:9px; margin-bottom:12px; } .release-list summary strong { font-size:16px; } }

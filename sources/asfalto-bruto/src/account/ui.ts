@@ -18,7 +18,7 @@ export function accountUI(client:AccountClient, canOpen:()=>boolean) {
   const dialog=document.createElement('dialog');dialog.id='account-modal';dialog.setAttribute('aria-labelledby','account-title');document.body.append(dialog);
   const board=document.createElement('dialog');board.id='ranking-modal';board.setAttribute('aria-labelledby','ranking-title');document.body.append(board);
   let displayMode='',request=0,renderRevision=0;
-  function mode(){return client.conflict?'conflict':client.session?.account && !client.cache?'import':client.session?.account?'signed':'guest';}
+  function mode(){return client.session?.account?'signed':'guest';}
   function update(){
     entry.querySelector('small')!.textContent=client.status;
     entry.querySelector('#account-btn')!.textContent=client.cache ? 'MINHA CONTA ↗':'CONTA ↗';
@@ -35,11 +35,7 @@ export function accountUI(client:AccountClient, canOpen:()=>boolean) {
     const revision=++renderRevision;
     displayMode=mode();
     let body='';
-    if(displayMode==='import'){
-      const guest=loadSave();body=`<p>Como você quer começar sua conta?</p><div class="cloud-choice"><b>Garagem deste navegador</b><span>${money(guest.cash)} · ${guest.owned.length} moto(s) · ${guest.races} corrida(s)</span><button class="primary" data-import>LEVAR MEU PROGRESSO</button></div><button class="secondary" data-fresh>COMEÇAR UMA GARAGEM NOVA</button><p class="account-note">O progresso de convidado continuará guardado neste navegador. Recordes antigos continuam pessoais; o ranking conta novas corridas validadas.</p>`;
-    }else if(displayMode==='conflict'){
-      const local=client.cache!.save,cloud=client.conflict!;body=`<p>Os dois dispositivos jogaram desde a última sincronização. Escolha qual garagem deve continuar na conta.</p><div class="cloud-options"><div class="cloud-choice"><b>Este aparelho</b><span>${money(local.cash)} · ${local.owned.length} moto(s) · ${local.races} corrida(s)</span><button class="secondary" data-local>USAR ESTA GARAGEM</button></div><div class="cloud-choice"><b>Salva na conta</b><span>${money(cloud.save?.cash ?? 650)} · ${cloud.save?.owned.length ?? 1} moto(s) · ${cloud.save?.races ?? 0} corrida(s)</span><small>${new Date(cloud.updatedAt).toLocaleString('pt-BR')}</small><button class="primary" data-cloud>USAR A DA CONTA</button></div></div><p class="account-note">A escolha substitui a outra versão na conta. Créditos e consumíveis não são somados.</p>`;
-    }else if(displayMode==='signed'){
+    if(displayMode==='signed'){
       body=`<p>Suas motos, créditos e equipamentos acompanham esta conta no computador e no celular.</p><form id="nickname-form"><label for="account-nickname">APELIDO PÚBLICO NO RANKING</label><div class="nickname-row"><input id="account-nickname" maxlength="18" value="${escape(client.session!.account!.nickname)}" autocomplete="nickname" required><button class="secondary">SALVAR</button></div></form><p data-sync class="account-note">${escape(client.status)}</p><button class="secondary" data-refresh>SINCRONIZAR AGORA</button><button class="text-button" data-logout>SAIR DA CONTA NESTE APARELHO</button><p class="account-note">Ao sair, você volta à garagem de convidado. Alterações pendentes desta conta permanecem guardadas neste aparelho.</p>`;
     }else {
       body=`<p>Entre com o Google para levar sua garagem para outros dispositivos e participar dos rankings.</p>${client.cache?`<p>Há uma garagem de conta guardada neste aparelho. Entre na mesma conta para sincronizar.</p>`:''}<div id="google-button"></div><p data-sync class="account-note">${escape(client.status)}</p>${!client.session?.clientId?'<p>O login Google está sendo configurado. Você pode continuar jogando como convidado.</p>':''}<button class="secondary" data-refresh>TENTAR CONECTAR</button>${client.cache?'<button class="text-button" data-logout>VOLTAR AO CONVIDADO</button>':''}`;

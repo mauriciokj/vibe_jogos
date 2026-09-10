@@ -36,6 +36,9 @@ __export(asfalto_exports, {
 module.exports = __toCommonJS(asfalto_exports);
 var import_node_http2 = require("node:http");
 
+// src/version.ts
+var GAME_VERSION = "1.1.0-beta";
+
 // server/service.ts
 var import_node_http = require("node:http");
 var import_node_crypto2 = require("node:crypto");
@@ -1159,7 +1162,7 @@ function stepRace(state, commands = {}) {
 }
 
 // src/multiplayer/protocol.ts
-var NET_VERSION = 13;
+var NET_VERSION = 14;
 var MAX_PLAYERS = 8;
 var ROOM_WAIT_MS = 6e4;
 var PUBLIC_ROOM_WAIT_MS = 12e4;
@@ -1583,7 +1586,7 @@ function createGameServer(store, options = {}) {
       return;
     }
     res.statusCode = 200;
-    res.end(JSON.stringify({ service: "asfalto-bruto", version: NET_VERSION, multiplayer: true, sharedRooms: store.shared, storage: store.shared ? "redis" : "memory", region: process.env.VERCEL_REGION ?? "local", activeRaces: [...latest.values()].filter((r) => r.phase === "racing" && [...peers].some((p) => p.code === r.code)).length }));
+    res.end(JSON.stringify({ service: "asfalto-bruto", appVersion: GAME_VERSION, version: NET_VERSION, multiplayer: true, sharedRooms: store.shared, storage: store.shared ? "redis" : "memory", region: process.env.VERCEL_REGION ?? "local", activeRaces: [...latest.values()].filter((r) => r.phase === "racing" && [...peers].some((p) => p.code === r.code)).length }));
   });
   const wss = new import_ws.WebSocketServer({ noServer: true, maxPayload: 4096, perMessageDeflate: false });
   server2.on("upgrade", (req, socket, head) => {
@@ -1620,6 +1623,8 @@ function createGameServer(store, options = {}) {
     peer.ws.send(JSON.stringify(message));
   }
   function broadcast(room) {
+    const previous = latest.get(room.code);
+    for (const member of previous?.members ?? []) if (!room.members.some((m) => m.id === member.id)) options.accounts?.economy.releaseMember(member, previous?.race?.riders.find((r) => r.id === member.id)?.nitroUsed ?? 0);
     latest.set(room.code, room);
     try {
       options.accounts?.recordRoom(room);
@@ -1649,8 +1654,9 @@ function createGameServer(store, options = {}) {
   }
   async function attach(peer, room, member) {
     if (peer.ws.readyState !== import_ws.WebSocket.OPEN) {
-      await store.mutate(room.code, (r) => depart(r, member.id, member.epoch, now())).catch(() => {
+      await store.mutate(room.code, (r) => depart(r, member.id, member.epoch, now(), true)).then(broadcast).catch(() => {
       });
+      options.accounts?.economy.releaseMember(member);
       return;
     }
     peer.code = room.code;
@@ -1700,6 +1706,7 @@ function createGameServer(store, options = {}) {
       }
       if (busy) return;
       busy = true;
+      let reservation;
       try {
         if (["create", "join", "resume"].includes(data.type)) {
           if (peer.code) throw new Error("Voc\xEA j\xE1 est\xE1 em uma sala.");
@@ -1708,6 +1715,8 @@ function createGameServer(store, options = {}) {
             const member = makeMember(data.name, now(), data.bikeId, data.loadout);
             member.accountId = options.accounts?.identity(req)?.account.id;
             let room;
+            options.accounts?.economy.equipMember(member.accountId, member);
+            reservation = member;
             do {
               room = makeRoom((0, import_node_crypto2.randomBytes)(4).toString("hex").slice(0, 6).toUpperCase(), data.trackId, member, now(), data.fillBots === true, data.condition, data.public === true);
             } while (!await store.create(room));
@@ -1717,6 +1726,10 @@ function createGameServer(store, options = {}) {
             if (!/^[A-F0-9]{6}$/.test(code)) throw new Error("Digite o c\xF3digo de 6 caracteres da sala.");
             let member = makeMember(data.name, now(), data.bikeId, data.loadout);
             member.accountId = options.accounts?.identity(req)?.account.id;
+            if (data.type === "join") {
+              options.accounts?.economy.equipMember(member.accountId, member);
+              reservation = member;
+            }
             const room = await store.mutate(code, (r) => {
               if (data.type === "join") {
                 if (data.publicOnly === true && !publicRoomView(r, now())) throw new Error("Esta sala n\xE3o est\xE1 mais dispon\xEDvel. Atualize a lista e escolha outra.");
@@ -1748,6 +1761,7 @@ function createGameServer(store, options = {}) {
           send(peer, { type: "left" });
         }
       } catch (error) {
+        if (reservation && !peer.code) options.accounts?.economy.releaseMember(reservation);
         const message = error instanceof Error && !(error instanceof TypeError) ? error.message : "N\xE3o foi poss\xEDvel entrar na sala.";
         const fatal = data.type === "resume" && /vaga expirou|não encontrada|Atualize/.test(message);
         send(peer, { type: "error", message, fatal });
@@ -1807,9 +1821,16 @@ function createGameServer(store, options = {}) {
         }).then(broadcast).catch(() => {
         });
       }
-      for (const code of latest.keys()) if (!codes.has(code)) {
-        latest.delete(code);
-        revisions.delete(code);
+      for (const [code, room] of latest) if (!codes.has(code) && room.members.every((m) => now() - m.lastSeen > RECONNECT_MS)) {
+        void store.mutate(code, (r) => {
+          for (const m of [...r.members]) depart(r, m.id, m.epoch, now(), true);
+        }).then((r) => {
+          broadcast(r);
+          for (const m of room.members) options.accounts?.economy.releaseMember(m, r.race?.riders.find((p) => p.id === m.id)?.nitroUsed ?? 0);
+          latest.delete(code);
+          revisions.delete(code);
+        }).catch(() => {
+        });
       }
       for (const [ip, l] of limits) if (now() - l.at > 6e4) limits.delete(ip);
       if (store instanceof MemoryStore) store.sweep(now());

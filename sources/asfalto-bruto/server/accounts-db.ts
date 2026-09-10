@@ -21,6 +21,18 @@ export class AccountsDB {
       CREATE INDEX IF NOT EXISTS runs_account ON runs(account,created);
       CREATE TABLE IF NOT EXISTS results(race TEXT NOT NULL, account TEXT NOT NULL, mode TEXT NOT NULL, track TEXT NOT NULL, condition TEXT NOT NULL, bike TEXT NOT NULL, time REAL NOT NULL, place INTEGER NOT NULL, points INTEGER NOT NULL, rules INTEGER NOT NULL, created INTEGER NOT NULL, PRIMARY KEY(race,account));
       CREATE INDEX IF NOT EXISTS results_board ON results(rules,mode,track,condition,account,time);`);
+    // Freeze the trusted, pre-authority beta baseline once. Never import browser
+    // garages after this migration, and never rewrite existing balances/items.
+    this.db.exec(`CREATE TABLE IF NOT EXISTS economy_meta(version INTEGER PRIMARY KEY);
+      CREATE TABLE IF NOT EXISTS beta_baseline(account TEXT PRIMARY KEY,save TEXT,revision INTEGER,updated INTEGER);
+      CREATE TABLE IF NOT EXISTS economy_requests(account TEXT,request TEXT,digest TEXT,PRIMARY KEY(account,request));
+      CREATE TABLE IF NOT EXISTS economy_runs(id TEXT PRIMARY KEY,account TEXT,kind TEXT,state TEXT,cursor INTEGER,created INTEGER,completed INTEGER DEFAULT 0);
+      CREATE INDEX IF NOT EXISTS economy_runs_account ON economy_runs(account,completed);
+      CREATE TABLE IF NOT EXISTS economy_chunks(run TEXT,cursor INTEGER,digest TEXT,end_cursor INTEGER,PRIMARY KEY(run,cursor));
+      CREATE TABLE IF NOT EXISTS economy_completions(run TEXT PRIMARY KEY,payout TEXT);
+      CREATE TABLE IF NOT EXISTS economy_multiplayer(id TEXT PRIMARY KEY,account TEXT,bike TEXT,stock INTEGER,used INTEGER DEFAULT 0,closed INTEGER DEFAULT 0);
+      INSERT OR IGNORE INTO beta_baseline SELECT id,save,revision,updated FROM accounts WHERE NOT EXISTS(SELECT 1 FROM economy_meta WHERE version=1);
+      INSERT OR IGNORE INTO economy_meta VALUES(1);`);
   }
   account(id: string): Account | null {
     const row=this.db.prepare('SELECT id,nickname FROM accounts WHERE id=?').get(id);
@@ -52,6 +64,16 @@ export class AccountsDB {
     } catch(e) {this.db.exec('ROLLBACK');throw e;}
   }
   rename(id:string,name:string) {this.db.prepare('UPDATE accounts SET nickname=? WHERE id=?').run(name,id);}
+  // All callbacks are synchronous: save changes and their receipts/checkpoints
+  // commit together, including a crash between awarding cash and marking a run.
+  mutate<T>(id:string,change:(save:SaveData|null,revision:number)=>{save:SaveData|null;value:T},now=Date.now()):T {
+    this.db.exec('BEGIN IMMEDIATE');
+    try {
+      const cloud=this.cloud(id),result=change(cloud.save,cloud.revision);
+      if(JSON.stringify(result.save)!==JSON.stringify(cloud.save))this.db.prepare('UPDATE accounts SET save=?,revision=revision+1,updated=? WHERE id=?').run(JSON.stringify(normalizeSave(result.save)),now,id);
+      this.db.exec('COMMIT');return result.value;
+    }catch(e){this.db.exec('ROLLBACK');throw e;}
+  }
   session(id: string, now=Date.now()) {
     const value=token(),csrf=token();
     this.db.prepare('DELETE FROM sessions WHERE expires<?').run(now);

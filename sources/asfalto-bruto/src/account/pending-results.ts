@@ -1,5 +1,5 @@
 import type { ReplaySegment } from './protocol';
-export interface PendingResult { id:string; account:string; segments:ReplaySegment[]; created:number; }
+export interface PendingResult { id:string; account:string; segments:ReplaySegment[]; created:number; cursor?:number; finish?:boolean; abandon?:boolean; }
 let connection:Promise<IDBDatabase>|undefined;
 function database(){return connection ??=new Promise<IDBDatabase>((resolve,reject)=>{
   const request=indexedDB.open('asfalto-ranking',1);

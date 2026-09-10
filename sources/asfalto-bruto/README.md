@@ -1,5 +1,7 @@
 # Asfalto Bruto
 
+**Beta 1.1.0:** versão clicável e histórico no menu. A economia das contas agora é confirmada pelo servidor, preservando a base anterior do beta. Compras, nitro, prêmios e checkpoints não aceitam substituições do save do navegador. Detalhes, limites e migração em [docs/progresso-autoritativo.md](docs/progresso-autoritativo.md).
+
 Jogo original de corrida e combate de motos inspirado nos arcades dos anos 1990. Modo individual e multiplayer opcional para navegador, feito com **TypeScript, Vite e Canvas 2D**, com estrada em perspectiva 2.5D.
 
 ## Jogar localmente
@@ -179,7 +181,7 @@ Verificação Web Audio e corrida com dois clientes: `npm run test:guardrail-aud
 
 Garagem → Capacetes: Integral incluído, Retrô por 1.500 créditos, Cross por 3.000 e Racing por 5.000. As compras são permanentes; equipar novamente é gratuito. Oito cores (branco, preto, vermelho, laranja, amarelo, verde, azul e roxo) podem ser trocadas sem custo, com prévias de frente e costas.
 
-Os capacetes são cosméticos e compatíveis com todas as motos. Aparecem no piloto, nos adversários e no retrovisor, incluindo manobras e corridas online. Modelo/cor e propriedade ficam no save v1 do navegador, preservando os equipamentos já comprados. Saves anteriores recebem o Integral branco; IDs inválidos e modelos não comprados voltam ao básico. Não há sincronização de garagem entre navegadores.
+Os capacetes são cosméticos e compatíveis com todas as motos. Aparecem no piloto, nos adversários e no retrovisor, incluindo manobras e corridas online. Modelo/cor e propriedade ficam no save v1, preservando os equipamentos já comprados. Saves anteriores recebem o Integral branco; IDs inválidos e modelos não comprados voltam ao básico. A conta Google sincroniza a garagem entre dispositivos; no beta 1.1.0 o servidor confirma compras e cores. O progresso de convidado permanece neste navegador.
 
 Os campos opcionais de personalização no loadout/lobby/mundo são normalizados pelo servidor e preservados na reconexão, compatíveis com o protocolo v10. Bots usam variações determinísticas sem interferir na física ou no RNG da pista. O cache dos sprites de pilotos tem limite de 512 variantes.
 
