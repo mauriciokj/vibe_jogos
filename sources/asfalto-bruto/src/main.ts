@@ -1,5 +1,7 @@
 import './recovery.css';
 import { releaseUI } from './releases';
+import { raceOutcome } from './game/race-outcome';
+import { ARREST_SECONDS, arrestScene } from './game/arrest';
 import { newChampionship, championshipRoute, championshipGarageOpen, championshipBikeState, championshipStandings, startChampionshipRace, nextChampionshipStage, checkpointChampionship, finishChampionshipSimulation, recordChampionshipHeat } from './game/championship';
 import { championshipMarkup } from './championship-ui';
 import { pendingResults, queueResult, removeResult } from './account/pending-results';
@@ -41,7 +43,7 @@ import { Renderer } from './game/renderer';
 import { createRace, finishRider, nearestTarget, ranking, restoreSnapshot, snapshot, STEP, stepRace } from './game/simulation';
 import { bikePortrait } from './game/sprites';
 import { buyHelmet, paintHelmet, buyBike, buyWeapon, buyKneePad, buyNitro, spendNitro, recordOnlineNitro, buyUpgrade, freshSave, repair, repairChampionshipBike, repairCost, settleRace, upgradeCost } from './game/save';
-import type { Command, RaceState, RiderAction, Upgrade } from './game/types';
+import type { Command, RaceResult, RaceState, RiderAction, Upgrade } from './game/types';
 
 const icons = {
   trophy: '<svg class="champ-trophy" viewBox="0 0 80 80" fill="none" aria-hidden="true"><path d="M24 19H13v8c0 10 7 16 17 16m26-24h11v8c0 10-7 16-17 16" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><path d="M23 14h34l-3 20c-1 10-7 16-14 16s-13-6-14-16l-3-20Z" fill="currentColor" fill-opacity=".15" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M40 50v12m-11 4h22l4 6H25l4-6Z" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="m40 23 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1 3-6Z" fill="currentColor"/></svg>',
@@ -143,6 +145,7 @@ let selectedCondition = raceCondition(save.raceCondition);
 let race = createRace(selectedTrack, save, 88117, selectedCondition);
 let screen: 'menu' | 'race' | 'finish' | 'result' = 'menu';
 let finishElapsed: number | null = null;
+let arrestSource:RaceState|null=null;
 let finishOfficer:FinishPoliceArrival|null=null,lastFinishStrike=-1;
 let resultPayout: RacePayout | null = null;
 let paused = false;
@@ -260,12 +263,12 @@ function showOnlineResult(room: RoomView) {
     settled=true;screen='result';paused=false;clearControls();closeDialogs();
     const exploded=room.race!.riders.find(r=>r.id===online.id)?.recovery?.phase==='exploding';
     const title=exploded?'MOTO <span>EXPLODIU.</span>':result.reason==='finish'?`${result.place}º NA <span>CHEGADA.</span>`:result.reason==='caught'?'FIM DA <span>LINHA.</span>':'FIM DE <span>CORRIDA.</span>';
-    $('result-modal').innerHTML=`<div class="result-top"><div class="eyebrow">MULTIPLAYER / ${conditionName(room.condition).toUpperCase()} / SALA ${room.code}</div><h2 id="result-title" class="result-title">${title}</h2><p class="result-sub">${exploded?'A moto explodiu ao tentar pegá-la com integridade zero.':result.reason==='caught'?'Você foi preso e perdeu a corrida.':result.reason==='wrecked'?'Sua moto ficou sem integridade.':result.reason==='left'?'Você saiu da corrida.':result.reason==='timeout'?'O tempo máximo da corrida terminou.':'Você cruzou a linha de chegada.'}</p><p id="online-result-status" class="online-note"></p></div><div id="online-result-table" class="result-table"></div><div class="result-actions"><button id="online-menu-btn" class="primary">VOLTAR AO MENU ↗</button></div>`;
+    $('result-modal').innerHTML=`<div class="result-top"><div class="eyebrow">MULTIPLAYER / ${conditionName(room.condition).toUpperCase()} / SALA ${room.code}</div><h2 id="result-title" class="result-title">${title}</h2><p class="result-sub">${result.reason==='finish'?'Você cruzou a linha de chegada.':raceOutcome(result.reason,{...result,exploded}).description}</p><p id="online-result-status" class="online-note"></p></div><div id="online-result-table" class="result-table"></div><div class="result-actions"><button id="online-menu-btn" class="primary">VOLTAR AO MENU ↗</button></div>`;
     if(result.reason==='finish'){
       $('result-modal').querySelector('.result-actions')!.innerHTML=resultButtons(true,!!nextRaceRoute(room.trackId,room.condition));
       $('result-modal').querySelector('.result-actions')!.insertAdjacentHTML('beforebegin','<p class="finish-room-hint">Para correr outra vez, crie ou entre em uma nova sala.</p>');
     }
-    beginResult(result.reason==='finish',result.place);
+    beginResult(result);
   }
   $('online-result-status').textContent=room.phase==='finished'?'CORRIDA ENCERRADA':`${Object.keys(room.race!.multiplayer!.results).length} / ${ranking(room.race!).length} PILOTOS CONCLUÍRAM`;
   $('online-result-table').innerHTML=ranking(room.race!).map((r,i)=>{
@@ -362,6 +365,9 @@ async function startRace(championship=false) {
     const next=startChampionshipRace(save);if(!next){startingRace=false;showChampionship();return;}
     race=next;selectedTrack=race.trackId;selectedCondition=raceCondition(race.condition);soloNitroSpent=race.riders[0].nitroUsed ?? 0;champCheckpointAt=race.time;saveNow();
   }else race = createRace(selectedTrack, run?.save ?? save, run?.seed ?? (testMode ? 88117 : crypto.getRandomValues(new Uint32Array(1))[0]), selectedCondition);
+  // An awaited account request can redraw the old fall after resetFinish().
+  // Reset again only after the new/continued race has replaced that state.
+  renderer.resetCamera();
   startingRace=false;$('start-btn').innerHTML=`JOGAR SOZINHO ${icons.arrow}`;
   screen = 'race'; paused = false; settled = false; messageUntil = 0; lastCount = 4;
   $('menu').hidden = true; $('hud').hidden = false;
@@ -513,7 +519,7 @@ async function showChampionshipResult(){
   $('result-modal').classList.add('championship-result');
   $('result-modal').removeAttribute('aria-labelledby');$('result-modal').setAttribute('aria-label','Classificação do campeonato');
   $('result-modal').innerHTML='<div class="dialog-body champ-body"><h2>FECHANDO A CLASSIFICAÇÃO…</h2><p>Os demais pilotos estão concluindo a corrida.</p></div>';
-  beginResult(payoutResult.reason==='finish',payoutResult.place);
+  beginResult(payoutResult);
   try{
     if(accounts.cache){
       resultPayout=await submitSoloResult();
@@ -602,14 +608,14 @@ async function showResult() {
   if(championshipMode){void showChampionshipResult();return;}
   settled = true; screen = 'result'; clearControls();
   if(accounts.cache){
-    $('result-modal').innerHTML='<div class="dialog-body"><h2>CONFERINDO A CORRIDA…</h2><p>Confirmando o prêmio e sua garagem.</p></div>';beginResult(race.result.reason==='finish',race.result.place);
+    $('result-modal').innerHTML='<div class="dialog-body"><h2>CONFERINDO A CORRIDA…</h2><p>Confirmando o prêmio e sua garagem.</p></div>';beginResult(race.result);
     try{resultPayout=await submitSoloResult();}
     catch(e){$('result-modal').innerHTML=`<div class="dialog-body"><h2>CONFIRMAÇÃO PENDENTE</h2><p>${escapeHTML(e instanceof Error?e.message:'Confira sua conexão.')}</p><button id="retry-result" class="primary">TENTAR NOVAMENTE</button><button id="result-menu-btn" class="secondary">VOLTAR AO MENU</button></div>`;return;}
   }else{resultPayout = settleRace(save, race) ?? null; saveNow();}
   const r = race.result;
   const exploded=localRider().recovery?.phase==='exploding';
   const title = exploded ? 'MOTO <span>EXPLODIU.</span>' : r.reason === 'caught' ? 'FIM DA <span>LINHA.</span>' : r.reason === 'wrecked' ? 'MOTOR <span>APAGADO.</span>' : r.place === 1 ? 'A RUA É <span>SUA.</span>' : `${r.place}º NA <span>CHEGADA.</span>`;
-  const subtitle = exploded ? 'A moto estava com a integridade zerada e explodiu ao tentar levantá-la. Fim da corrida.' : r.reason === 'finish' ? r.place <= 5 && getTrack(race.trackId).index < TRACKS.length-1 ? 'Top 5 conquistado. A próxima estrada está liberada.' : 'Dinheiro no bolso. Mais uma história no asfalto.' : r.reason === 'caught' ? r.arrestCause === 'fall' ? 'Você caiu perto da polícia. Prisão imediata: corrida perdida.' : 'O policial ficou perto por 3 segundos enquanto você estava devagar.' : 'A integridade da moto chegou a zero. A Ferro 500 te leva de volta à pista.';
+  const subtitle = r.reason === 'finish' ? r.place <= 5 && getTrack(race.trackId).index < TRACKS.length-1 ? 'Top 5 conquistado. A próxima estrada está liberada.' : 'Dinheiro no bolso. Mais uma história no asfalto.' : raceOutcome(r.reason,{...r,exploded}).description;
   $('result-modal').innerHTML = `<div class="result-top"><div class="eyebrow">${getTrack(race.trackId).name.toUpperCase()} · ${conditionName(race.condition).toUpperCase()} / ${r.reason === 'finish' ? 'CORRIDA CONCLUÍDA' : r.reason === 'caught' ? 'CAPTURADO' : 'MOTO DESTRUÍDA'}</div><h2 class="result-title" id="result-title">${title}</h2><div class="result-sub">${subtitle}</div></div><div class="result-stats"><div><small>SEU TEMPO</small><b>${clockString(r.time)}</b></div><div><small>GOLPES / QUEDAS</small><b>${r.hits} / ${r.falls}</b></div><div><small>${r.reason === 'finish' ? 'RECOMPENSA' : 'AJUDA DA OFICINA'}</small><b class="prize">+ ${money(r.reward)}</b></div></div><div class="result-table">${ranking(race).map((rider, i) => `<div class="result-rider ${rider.id === localId() ? 'me' : ''}"><span>${rider.id === localId() && r.reason !== 'finish' ? '—' : i + 1}. ${rider.name}</span><span>${rider.id === localId() && r.reason !== 'finish' ? r.reason === 'caught' ? 'PRESO' : 'FORA DA CORRIDA' : rider.finishedAt !== null ? clockString(rider.finishedAt) : rider.out==='caught'?'PRESO':rider.out?'FORA DA CORRIDA':'NA PISTA'}</span></div>`).join('')}</div><div class="result-actions"><button class="primary" id="again-btn">CORRER DE NOVO ${icons.arrow}</button><button class="secondary" id="result-menu-btn">ESTRADAS & GARAGEM</button></div>`;
   if(resultPayout?.recordBonus){
     $('result-modal').querySelector('.prize')!.textContent=`+ ${money(resultPayout.total)}`;
@@ -618,22 +624,32 @@ async function showResult() {
   }
   const next=nextRaceRoute(race.trackId,race.condition);
   $('result-modal').querySelector('.result-actions')!.innerHTML=resultButtons(false,r.reason==='finish' && !!next && next.track.index<=save.unlocked);
-  beginResult(r.reason==='finish',r.place);
+  beginResult(r);
 }
 function resultButtons(multiplayer: boolean, hasNext: boolean) {
   return `${hasNext?`<button class="primary" id="${multiplayer?'online-next-btn':'next-race-btn'}">PRÓXIMA CORRIDA ${icons.arrow}</button>`:''}<button class="${hasNext?'secondary':'primary'}" id="${multiplayer?'online-again-btn':'again-btn'}">CORRER DE NOVO ${icons.arrow}</button><button class="secondary" id="${multiplayer?'online-menu-btn':'result-menu-btn'}">VOLTAR AO MENU</button>`;
 }
 function resetFinish() {
   renderer.resetCamera();
+  arrestSource=null;$('finish-scene').classList.remove('arrest-scene');$('finish-scene').setAttribute('aria-label','Comemoração na chegada');
   finishOfficer=null;lastFinishStrike=-1;
   $('result-modal').removeAttribute('aria-label');$('result-modal').setAttribute('aria-labelledby','result-title');
   $('result-modal').classList.remove('championship-result');resultPayout=null;finishElapsed=null;$('finish-scene').hidden=true;$('result-modal').classList.remove('finish-result');
 }
-function beginResult(finished: boolean, place: number) {
+function beginResult(result:RaceResult) {
+  // An account response can fill the result panel while its scene is playing.
+  if(finishElapsed!==null)return;
+  const finished=result.reason==='finish',arrested=result.reason==='caught',place=result.place;
   clearControls();closeDialogs();paused=false;audio.update(0,false,false,0);
-  $('result-modal').classList.toggle('finish-result',finished);
-  if(!finished){screen='result';finishElapsed=null;$<HTMLDialogElement>('result-modal').showModal();return;}
+  $('result-modal').classList.toggle('finish-result',finished||arrested);
+  if(!finished&&!arrested){screen='result';finishElapsed=null;$<HTMLDialogElement>('result-modal').showModal();return;}
   finishElapsed=0;finishOfficer=finishPoliceArrival(race,localId());lastFinishStrike=-1;screen='finish';$('hud').hidden=true;$('finish-scene').hidden=false;
+  if(arrested){
+    arrestSource=structuredClone(race);finishOfficer=null;
+    $('finish-scene').classList.add('arrest-scene');$('finish-scene').setAttribute('aria-label','Prisão do piloto');
+    setText('finish-place',result.arrestCause==='fall'?'QUEDA PERTO DA POLÍCIA':'CAPTURADO PELA POLÍCIA');setText('finish-winner','FIM DA LINHA.');
+    $('finish-skip').focus({preventScroll:true});return;
+  }
   const winner=finishWinner(race);
   setText('finish-place',`${place}º NA CHEGADA`);
   setText('finish-winner',winner?.id===localId()?'A RUA É SUA.':`${winner?.name ?? 'O PRIMEIRO COLOCADO'} VENCEU.`);
@@ -641,13 +657,14 @@ function beginResult(finished: boolean, place: number) {
 }
 function revealResult() {
   if(screen!=='finish')return;
-  finishElapsed=Math.max(finishElapsed ?? 0,FINISH_SECONDS);screen='result';$('finish-scene').hidden=true;
+  finishElapsed=Math.max(finishElapsed ?? 0,arrestSource?ARREST_SECONDS:FINISH_SECONDS);screen='result';$('finish-scene').hidden=true;
   $<HTMLDialogElement>('result-modal').showModal();
   if(championshipMode)$('result-modal').scrollTop=0;
 }
 function advanceFinish(dt: number) {
   if(finishElapsed===null)return;
   finishElapsed+=dt;
+  if(arrestSource){if(finishElapsed>=ARREST_SECONDS)revealResult();return;}
   const officer=finishScene(race,localId(),finishElapsed,finishOfficer).police;
   if(officer && officer.strike>lastFinishStrike){lastFinishStrike=officer.strike;audio.event({type:'hit',actor:officer.id,target:officer.targetId ?? undefined});}
   if(finishElapsed>=FINISH_SECONDS)revealResult();
@@ -693,7 +710,7 @@ function update() {
   audio.updateRecovery(localRider(),race.trackId);
   if (race.mode === 'finished') showResult();
 }
-function draw() { renderer.render(race, screen === 'menu',localId(),finishElapsed,finishOfficer); if (screen !== 'menu' && finishElapsed===null) { updateHUD(); instruments.draw(race,localId()); } updateRecoveryGuide(); }
+function draw() { renderer.render(race, screen === 'menu',localId(),finishElapsed,finishOfficer,arrestSource); if (screen !== 'menu' && finishElapsed===null) { updateHUD(); instruments.draw(race,localId()); } updateRecoveryGuide(); }
 function frame(now: number) {
   const dt = Math.min((now - last) / 1000, .1); last = now;
   if(onlineMode) {
@@ -869,7 +886,7 @@ declare global {
 }
 window.render_game_to_text = () => {
   const p = localRider(), target = nearestTarget(race, p, p.weapon ? 'weapon' : 'punch');
-  return JSON.stringify({ camera:renderer.cameraState(),championship:save.championship?{active:championshipMode,settling:champSettling,stage:save.championship.stage,status:save.championship.status,heats:save.championship.heats.length,garageOpen:championshipGarageOpen(save.championship),bike:championshipBikeState(save),standings:championshipStandings(save.championship.heats).map(r=>({id:r.id,points:r.points,rank:r.rank})),integrity:save.championship.entry?.condition[save.championship.entry.bikeId],checkpoint:!!save.championship.checkpoint}:null,payout:resultPayout, finish:{police:finishScene(race,localId(),finishElapsed,finishOfficer).police,stage:finishElapsed===null?'none':screen==='finish'?'camera':'result',elapsed:finishElapsed===null?null:+finishElapsed.toFixed(2),pullback:finishElapsed===null?0:+finishPullback(finishElapsed).toFixed(3),winnerId:finishWinner(race)?.id ?? null}, account:{signedIn:!!accounts.session?.account,status:accounts.status,pending:accounts.cache?.dirty ?? false,conflict:!!accounts.conflict,rankedRace:!!soloRecorder}, online: onlineMode?{status:online.status,syncing:online.syncing,id:online.id,code:online.code,phase:online.room?.phase,locked:online.room?.locked,deadline:online.room?.deadline,serverNow:online.serverNow(),members:online.room?.members,fillBots:online.room?.fillBots,public:online.room?.public,condition:online.room?.condition}:null, screen, paused, modal: document.querySelector('dialog[open]')?.id ?? null, mode: race.mode, coordinates: `x in metres: negative left, positive right; road ±${roadHalf(race.trackId)}. z forward in metres. speed m/s.`, road:{lanes:race.trackId==='terra'?2:4,halfWidth:roadHalf(race.trackId),surface:race.trackId==='terra'?'dirt':'asphalt'}, tick: race.tick, time: +race.time.toFixed(2), countdown: +race.countdown.toFixed(2), track: race.trackId, condition:raceCondition(race.condition), scenic:scenicAppearance(race), length: getTrack(race.trackId).distance, player: { recovery:p.recovery??null,helmetId:getHelmet(p.helmetId).id,helmetColorId:getHelmetColor(p.helmetColorId).id,weaponId:p.weaponId??null,weaponName:weaponName(p),wheeliesLeft:wheeliesLeft(p),wheelieTime:p.wheelieTime??0,jumpTime:p.jumpTime??0,jumpHeight:jumpHeight(p),jumpTarget:p.jumpTarget??null,kneePadId:p.kneePadId??null,kneeTime:p.kneeTime??0,wetKneeTime:(p.wetKneeTicks??0)*STEP,kneeSide:p.kneeSide??0,kneeSupport:kneeSupport(p,curveAt(p.z,race.trackId),race.trackId),nitro:p.nitro??0,nitroTime:p.nitroTime??0,nitroUsed:p.nitroUsed??0,speech:p.speech&&p.speech.until>race.time?TAUNTS[p.speech.index]:null,bikeId:getBike(p.bikeId).id,bike:getBike(p.bikeId).name,handling:p.handling,armor:p.armor,out:p.out ?? null, x: +p.x.toFixed(2), z: +p.z.toFixed(1), speed: +p.speed.toFixed(2), health: +p.health.toFixed(1), integrity: +p.integrity.toFixed(1), weapon: p.weapon, attack: p.attack, cooldown: +p.cooldown.toFixed(2), crash: p.recovery?p.crash:+p.crash.toFixed(2), immune: +p.immune.toFixed(2), hits: p.hits, falls: p.falls, place: ranking(onlineMode ? (online.room?.race ?? race) : race).findIndex(r => r.id === localId()) + 1 }, awareness:raceAwareness(race,localId()), corner:upcomingCorner(p.z,race.trackId,p.handling,race.condition,p.kneeTime!>0 && supportsKneeDown(p.bikeId)?p.kneePadId:undefined), curve: +curveAt(p.z, race.trackId).toFixed(2), target: target?.id ?? null, riders: race.riders.filter(r => r.id !== localId() && Math.abs(r.z - p.z) < 400).map(r => ({ id: r.id, name: r.name,helmetId:getHelmet(r.helmetId).id,helmetColorId:getHelmetColor(r.helmetColorId).id,weaponId:r.weaponId??null,wheeliesLeft:wheeliesLeft(r),wheelieTime:r.wheelieTime??0,jumpTime:r.jumpTime??0,jumpHeight:jumpHeight(r),kneePadId:r.kneePadId??null,kneeSupport:kneeSupport(r,curveAt(r.z,race.trackId),race.trackId),speech:r.speech&&r.speech.until>race.time?TAUNTS[r.speech.index]:null, bikeId:getBike(r.bikeId).id, x: +r.x.toFixed(1), dz: +(r.z - p.z).toFixed(1), speed: +r.speed.toFixed(1), health: +r.health.toFixed(1),recovery:r.recovery??null, weapon: r.weapon, attack: r.attack, crash: r.recovery?r.crash:+r.crash.toFixed(1) })), traffic: race.traffic.filter(t => t.z - p.z > -10 && t.z - p.z < 350).map(t => ({ id:t.id,kind:t.kind,x: t.x, dz: +(t.z - p.z).toFixed(1), direction: (t.heading ?? Math.sign(t.speed)) < 0 ? 'oncoming' : 'forward',queued:!!t.queued })), obstacles: race.obstacles.filter(o => o.z - p.z > -10 && o.z - p.z < 200).map(o => ({ id:o.id,kind: o.kind, x: o.x,width:o.width ?? null,moving:!!o.motion, dz: +(o.z - p.z).toFixed(1) })), heat: +race.heat.toFixed(1), police: race.policeActive, capture: +race.capture.toFixed(2), result: onlineMode?(race.multiplayer?.results[online.id] ?? null):race.result, save: { ownedHelmets:save.ownedHelmets??['integral'],helmetId:equippedHelmet(save).id,helmetColorId:getHelmetColor(save.helmetColorId).id,ownedWeapons:save.ownedWeapons??[],weaponId:save.weaponId??null,ownedKneePads:save.ownedKneePads??[],kneePadId:save.kneePadId??null,nitro:save.nitro??{},cash: save.cash, bike: save.bikeId, unlocked: save.unlocked, races: save.races } });
+  return JSON.stringify({ camera:renderer.cameraState(),arrest:arrestSource?(()=>{const a=arrestScene(arrestSource,localId(),finishElapsed ?? 0);return {phase:a.police.phase,police:a.police,cuffed:a.cuffed,pullback:a.pullback};})():null,championship:save.championship?{active:championshipMode,settling:champSettling,stage:save.championship.stage,status:save.championship.status,heats:save.championship.heats.length,garageOpen:championshipGarageOpen(save.championship),bike:championshipBikeState(save),standings:championshipStandings(save.championship.heats).map(r=>({id:r.id,points:r.points,rank:r.rank})),integrity:save.championship.entry?.condition[save.championship.entry.bikeId],checkpoint:!!save.championship.checkpoint}:null,payout:resultPayout, finish:{police:finishScene(race,localId(),finishElapsed,finishOfficer).police,stage:finishElapsed===null?'none':screen==='finish'?'camera':'result',elapsed:finishElapsed===null?null:+finishElapsed.toFixed(2),pullback:finishElapsed===null?0:+finishPullback(finishElapsed).toFixed(3),winnerId:finishWinner(race)?.id ?? null}, account:{signedIn:!!accounts.session?.account,status:accounts.status,pending:accounts.cache?.dirty ?? false,conflict:!!accounts.conflict,rankedRace:!!soloRecorder}, online: onlineMode?{status:online.status,syncing:online.syncing,id:online.id,code:online.code,phase:online.room?.phase,locked:online.room?.locked,deadline:online.room?.deadline,serverNow:online.serverNow(),members:online.room?.members,fillBots:online.room?.fillBots,public:online.room?.public,condition:online.room?.condition}:null, screen, paused, modal: document.querySelector('dialog[open]')?.id ?? null, mode: race.mode, coordinates: `x in metres: negative left, positive right; road ±${roadHalf(race.trackId)}. z forward in metres. speed m/s.`, road:{lanes:race.trackId==='terra'?2:4,halfWidth:roadHalf(race.trackId),surface:race.trackId==='terra'?'dirt':'asphalt'}, tick: race.tick, time: +race.time.toFixed(2), countdown: +race.countdown.toFixed(2), track: race.trackId, condition:raceCondition(race.condition), scenic:scenicAppearance(race), length: getTrack(race.trackId).distance, player: { recovery:p.recovery??null,helmetId:getHelmet(p.helmetId).id,helmetColorId:getHelmetColor(p.helmetColorId).id,weaponId:p.weaponId??null,weaponName:weaponName(p),wheeliesLeft:wheeliesLeft(p),wheelieTime:p.wheelieTime??0,jumpTime:p.jumpTime??0,jumpHeight:jumpHeight(p),jumpTarget:p.jumpTarget??null,kneePadId:p.kneePadId??null,kneeTime:p.kneeTime??0,wetKneeTime:(p.wetKneeTicks??0)*STEP,kneeSide:p.kneeSide??0,kneeSupport:kneeSupport(p,curveAt(p.z,race.trackId),race.trackId),nitro:p.nitro??0,nitroTime:p.nitroTime??0,nitroUsed:p.nitroUsed??0,speech:p.speech&&p.speech.until>race.time?TAUNTS[p.speech.index]:null,bikeId:getBike(p.bikeId).id,bike:getBike(p.bikeId).name,handling:p.handling,armor:p.armor,out:p.out ?? null, x: +p.x.toFixed(2), z: +p.z.toFixed(1), speed: +p.speed.toFixed(2), health: +p.health.toFixed(1), integrity: +p.integrity.toFixed(1), weapon: p.weapon, attack: p.attack, cooldown: +p.cooldown.toFixed(2), crash: p.recovery?p.crash:+p.crash.toFixed(2), immune: +p.immune.toFixed(2), hits: p.hits, falls: p.falls, place: ranking(onlineMode ? (online.room?.race ?? race) : race).findIndex(r => r.id === localId()) + 1 }, awareness:raceAwareness(race,localId()), corner:upcomingCorner(p.z,race.trackId,p.handling,race.condition,p.kneeTime!>0 && supportsKneeDown(p.bikeId)?p.kneePadId:undefined), curve: +curveAt(p.z, race.trackId).toFixed(2), target: target?.id ?? null, riders: race.riders.filter(r => r.id !== localId() && Math.abs(r.z - p.z) < 400).map(r => ({ id: r.id, name: r.name,helmetId:getHelmet(r.helmetId).id,helmetColorId:getHelmetColor(r.helmetColorId).id,weaponId:r.weaponId??null,wheeliesLeft:wheeliesLeft(r),wheelieTime:r.wheelieTime??0,jumpTime:r.jumpTime??0,jumpHeight:jumpHeight(r),kneePadId:r.kneePadId??null,kneeSupport:kneeSupport(r,curveAt(r.z,race.trackId),race.trackId),speech:r.speech&&r.speech.until>race.time?TAUNTS[r.speech.index]:null, bikeId:getBike(r.bikeId).id, x: +r.x.toFixed(1), dz: +(r.z - p.z).toFixed(1), speed: +r.speed.toFixed(1), health: +r.health.toFixed(1),recovery:r.recovery??null, weapon: r.weapon, attack: r.attack, crash: r.recovery?r.crash:+r.crash.toFixed(1) })), traffic: race.traffic.filter(t => t.z - p.z > -10 && t.z - p.z < 350).map(t => ({ id:t.id,kind:t.kind,x: t.x, dz: +(t.z - p.z).toFixed(1), direction: (t.heading ?? Math.sign(t.speed)) < 0 ? 'oncoming' : 'forward',queued:!!t.queued })), obstacles: race.obstacles.filter(o => o.z - p.z > -10 && o.z - p.z < 200).map(o => ({ id:o.id,kind: o.kind, x: o.x,width:o.width ?? null,moving:!!o.motion, dz: +(o.z - p.z).toFixed(1) })), heat: +race.heat.toFixed(1), police: race.policeActive, capture: +race.capture.toFixed(2), result: onlineMode?(race.multiplayer?.results[online.id] ?? null):race.result, save: { ownedHelmets:save.ownedHelmets??['integral'],helmetId:equippedHelmet(save).id,helmetColorId:getHelmetColor(save.helmetColorId).id,ownedWeapons:save.ownedWeapons??[],weaponId:save.weaponId??null,ownedKneePads:save.ownedKneePads??[],kneePadId:save.kneePadId??null,nitro:save.nitro??{},cash: save.cash, bike: save.bikeId, unlocked: save.unlocked, races: save.races } });
 };
 window.advanceTime = ms => { if(onlineMode){advanceFinish(ms/1000);draw();return;} testMode = true; for (let i = 0; i < Math.round(ms / (STEP * 1000)); i++) {update();advanceFinish(STEP);} draw(); };
 if (testMode) window.__game = {

@@ -142,3 +142,10 @@ Original prompt: Build a classic Snake game in this repo.
 
 - Código `f5fc3cf`, release `20260910T183221Z-f5fc3cf` ativa. Asfalto/Catálogo/Caddy saudáveis; appVersion1.1.1-beta/protocolo14. Ambos os domínios entregam JS `index-D7ZNLmqh.js` e CSS `index-L9hSRFDI.css` idênticos ao build.
 - QA HTTPS repetiu24 verificações de viewport/textos e navegação de menus/corrida/retorno; sem rolagem vertical, sobreposição ou erros JS/console. Imagens públicas conferidas. ?test sem visitas artificiais, conta ou ranking de teste. Trabalho concluído; QA4325/4382 encerrado e protótipo4390 preservado.
+
+## 2026-09-10 — Beta1.2.0: prisão, motivos e obras do Porto
+- Investigação: não existe eliminação exclusiva do Porto; regra existente prende quedas a até30m de um policial. Sem dados para afirmar o motivo das duas perdas antigas. Testes confirmam recuperação normal sem polícia próxima em todas as pistas.
+- Câmera reiniciada após carregar a próxima corrida, corrigindo posição de queda reaplicada durante a espera pelo servidor; relógio reiniciado também descarta a recuperação anterior. Campeonato apresenta motivo antes da tabela e salva causa da prisão/explosão com cada corrida, compatível com saves antigos.
+- Cena de prisão de6,4s: câmera recua, policial estaciona, desce, caminha e algema. Fonte visual é cópia do resultado oficial; sem alterar física, dados ou prêmios. No multiplayer, outros pilotos continuam normalmente. Confirmação da conta não reinicia a animação.
+- Porto tem6 trabalhadores nas obras e2 sinalizadores PARE ao lado do primeiro carro das filas nos dois sentidos. Elementos visuais sem colisão.
+-185/185 testes passaram; navegador validou prisão por queda/devagar, fases/algemas, desktop/mobile, pular, próximo grid, motivo no campeonato após reload, quatro condições nas obras e multiplayer com segundo humano ainda correndo. Imagens/estados/client skill conferidos, sem erros JS/console. Build/export aprovado; protocolo14/ranking3 preservados. Preparando publicação com guarda de corridas.

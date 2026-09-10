@@ -4,6 +4,11 @@ import {RaceCamera,type CameraPose} from '../src/game/race-camera';
 import {createRace,crashRider} from '../src/game/simulation';
 const pose=(z=590):CameraPose=>({x:1,y:5,z,horizon:.31,focal:.73});
 function setup(){const state=createRace('costa');state.time=12;const rider=state.riders[0];Object.assign(rider,{z:600,x:1.5,speed:45});const camera=new RaceCamera();return {state,rider,camera};}
+test('new countdown discards the fall redrawn while the next race awaited the server',()=>{
+ const {state,rider,camera}=setup();crashRider(state,rider,true);camera.update(state,rider,pose(),pose(),pose());
+ camera.reset();state.time+=1;camera.update(state,rider,pose(),pose(),pose());assert.equal(camera.mode,'fall');
+ const next=createRace('costa'),start=pose(-12);assert.deepEqual(camera.update(next,next.riders[0],start,start,start),start);assert.equal(camera.mode,'riding');
+});
 test('crash keeps the exact previous riding view while rider and bike slide away; simulation is untouched',()=>{
  const {state,rider,camera}=setup(),normal=pose();camera.update(state,rider,normal,pose(100),pose(650));crashRider(state,rider,true);const origin={...rider.recovery!.origin};
  for(let i=0;i<100;i++){state.time+=1/60;rider.z+=.6;rider.recovery!.bikeZ+=.4;const snapshot=JSON.stringify(state);assert.deepEqual(camera.update(state,rider,pose(rider.z-12),pose(100),pose(650)),normal);assert.equal(JSON.stringify(state),snapshot);}

@@ -2,12 +2,13 @@ import { TRACKS, clamp } from './content';
 import { CONDITIONS } from './conditions';
 import { createRace, finishRider, stepRace } from './simulation';
 import type { RaceState, SaveData } from './types';
+import type { OutcomeDetail } from './race-outcome';
 
 export const CHAMP_POINTS=[10,6,4,3,2,1] as const;
 const IDS=['player',...Array.from({length:7},(_,i)=>`rival-${i}`)];
 const NAMES=['VOCÊ','NINA','COBRA','DANTE','LUNA','ROCHA','FAÍSCA','ZECA'];
 export interface ChampFinish { id:string; place:number|null; time:number|null; }
-export interface ChampHeat { finishes:ChampFinish[]; reason:string; }
+export interface ChampHeat extends OutcomeDetail { finishes:ChampFinish[]; reason:string; }
 export interface ChampStage { stage:number; heats:ChampHeat[]; place:number; }
 export interface Championship {
  version:1; seed:number; stage:number;
@@ -104,7 +105,7 @@ export function recordChampionshipHeat(c:Championship,finished:RaceState){
  if(c.status!=='racing' || c.heats.length>=4 || finished.mode!=='finished' || finished.trackId!==TRACKS[c.stage].id || finished.condition!==CONDITIONS[c.heats.length].id)return false;
  const results=finished.multiplayer?.results;if(!results || !IDS.every(id=>results[id]))return false;
  const finishers=IDS.filter(id=>results[id].reason==='finish').sort((a,b)=>results[a].time-results[b].time || IDS.indexOf(b)-IDS.indexOf(a));
- c.heats.push({reason:results.player.reason,finishes:IDS.map(id=>({id,place:finishers.includes(id)?finishers.indexOf(id)+1:null,time:results[id].reason==='finish'?results[id].time:null}))});
+ c.heats.push({reason:results.player.reason,...results.player.arrestCause?{arrestCause:results.player.arrestCause}:{},...finished.riders.find(r=>r.id==='player')?.recovery?.phase==='exploding'?{exploded:true}:{},finishes:IDS.map(id=>({id,place:finishers.includes(id)?finishers.indexOf(id)+1:null,time:results[id].reason==='finish'?results[id].time:null}))});
  c.damage=Object.fromEntries(finished.riders.filter(r=>IDS.includes(r.id)).map(r=>[r.id,clamp(r.integrity,0,100)]));
  if(c.entry)c.entry.condition[c.entry.bikeId]=c.damage.player;
  delete c.checkpoint;
@@ -127,7 +128,7 @@ export function normalizeChampionship(value:any,normalizeGarage:(v:any)=>SaveDat
    if(!h || !Array.isArray(h.finishes) || h.finishes.length!==8 || !['finish','caught','wrecked','left','timeout'].includes(h.reason))throw Error();
    const rows=IDS.map(id=>{const f=h.finishes.find((r:any)=>r?.id===id);if(!f || !(f.place===null && f.time===null || Number.isInteger(f.place)&&f.place>=1&&f.place<=8&&Number.isFinite(f.time)&&f.time>0&&f.time<=1200))throw Error();return {id,place:f.place,time:f.time};});
    const places=rows.filter(f=>f.place!==null).map(f=>f.place);if(new Set(places).size!==places.length)throw Error();
-   return {reason:h.reason,finishes:rows};
+   return {reason:h.reason,finishes:rows,...h.reason==='caught'&&['fall','stopped'].includes(h.arrestCause)?{arrestCause:h.arrestCause}:{},...h.reason==='wrecked'&&h.exploded===true?{exploded:true}:{}};
   };
   if(!Array.isArray(value.heats)||value.heats.length>4 || !Array.isArray(value.history)||value.history.length>5)return;
   const c:Championship={version:1,seed:value.seed>>>0,stage:value.stage,status:value.status,heats:value.heats.map(heat),history:value.history.map((h:any,i:number)=>{

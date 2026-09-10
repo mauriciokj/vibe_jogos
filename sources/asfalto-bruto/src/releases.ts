@@ -2,7 +2,13 @@ import './releases.css';
 import { GAME_VERSION } from './version';
 export { GAME_VERSION } from './version';
 export const RELEASES=[
-  {version:GAME_VERSION,date:'10/09/2026',title:'Menu mais compacto',changes:[
+  {version:GAME_VERSION,date:'10/09/2026',title:'Prisão, resultados e obras na pista',changes:[
+    'A câmera da próxima corrida começa na largada, mesmo após uma queda e uma espera pelo servidor.',
+    'O campeonato explica quando a corrida termina por prisão, moto quebrada, explosão, abandono ou tempo esgotado. O motivo fica salvo junto aos pontos.',
+    'Ao ser preso, a câmera se afasta e o policial desce da moto para algemar o piloto antes de mostrar o resultado. Os outros jogadores online continuam correndo.',
+    'Trabalhadores nas obras do Porto Ferrugem e sinalizadores com placa de PARE junto ao primeiro carro das filas nos dois sentidos.'
+  ]},
+  {version:'1.1.1-beta',date:'10/09/2026',title:'Menu mais compacto',changes:[
     'Título, campeonato e cartões de pistas ajustados à altura da tela para o menu caber no computador e no celular.',
     'Seleção de pistas ao lado dos modos de jogo no celular deitado. Versão, novidades e contador de visitantes reunidos no rodapé.'
   ]},

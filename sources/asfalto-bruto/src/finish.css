@@ -1,4 +1,7 @@
 #finish-scene{position:absolute;inset:0;pointer-events:none}
+.race-outcome{margin:14px 0;padding:13px 15px;border-left:3px solid #ffc388;background:#ffc38812;color:#ffd7b0;font-size:12px;line-height:1.5}
+.race-outcome strong{font-size:12px;letter-spacing:.5px}.race-outcome p{margin:5px 0 0;color:#e6d9c9}
+#finish-scene.arrest-scene .finish-heading strong{color:#ffc388}
 .finish-heading{position:absolute;top:8%;left:0;right:0;text-align:center;text-shadow:0 2px 12px #10252c}
 .finish-heading span{display:block;font:11px ui-monospace,monospace;letter-spacing:3px;color:#eef0dc}
 .finish-heading strong{display:block;margin-top:8px;font:800 clamp(24px,4vw,48px)/1 'Barlow Condensed',sans-serif;color:var(--acid)}

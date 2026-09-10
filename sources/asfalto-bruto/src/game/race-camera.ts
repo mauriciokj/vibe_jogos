@@ -15,6 +15,7 @@ export class RaceCamera {
  mode:'riding'|'fall'|'walking'|'returning'='riding';
  reset(){this.pose=null;this.frozen=null;this.key='';this.following=false;this.returnFrom=null;this.lastTime=0;this.mode='riding';}
  update(state:RaceState,r:Rider,normal:CameraPose,origin:CameraPose,walking:CameraPose){
+  if(state.time<this.lastTime)this.reset();
   const dt=Math.max(0,state.time-this.lastTime),f=r.recovery;
   if(f){
    const key=`${state.trackId}/${r.id}/${r.falls}/${f.hits}`;
