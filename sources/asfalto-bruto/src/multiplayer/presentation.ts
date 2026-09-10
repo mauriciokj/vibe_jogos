@@ -1,4 +1,5 @@
 import { obstacleX } from '../game/hazards';
+import { advanceRecovery, RUN_SPEED } from '../game/recovery';
 import { guardRailPosition } from '../game/guardrails';
 import { attackSpec, predictMovement, STEP, nearestTarget } from '../game/simulation';
 import { clamp } from '../game/content';
@@ -6,9 +7,9 @@ import { NITRO_MULTIPLIER } from '../game/equipment';
 import { EMPTY_COMMAND, type AttackKind, type Command, type RaceState, type Rider } from '../game/types';
 import type { RoomView } from './protocol';
 
-interface Correction { x: number; z: number; at: number; zDecay: number; }
+interface Correction { x: number; z: number; bikeX?:number; bikeZ?:number; at: number; zDecay: number; }
 const MAX_LEAD = .35;
-const copyRider = (r: Rider): Rider => ({...r,attack:r.attack?{...r.attack}:null});
+const copyRider = (r: Rider): Rider => ({...r,attack:r.attack?{...r.attack}:null,recovery:r.recovery?{...r.recovery,origin:r.recovery.origin?{...r.recovery.origin}:undefined}:undefined});
 
 /** All bikes are presented on one timeline. Snapshot corrections start from
  * the currently drawn pose, including any correction still being blended out. */
@@ -17,7 +18,7 @@ export class RacePresentation {
   private receivedAt = 0;
   private ageAtReceipt = 0;
   private controls: {at:number;command:Command}[] = [];
-  private velocity = new Map<string,{x:number;acceleration:number}>();
+  private velocity = new Map<string,{x:number;z:number;acceleration:number}>();
   private corrections = new Map<string,Correction>();
   private swing?: {kind:AttackKind;at:number;side:number;seq:number};
   private lastSwing = 0;
@@ -47,14 +48,16 @@ export class RacePresentation {
       const old=previous?.race?.riders.find(p=>p.id===r.id);
       if(old && elapsed>0) this.velocity.set(r.id,{
         x:clamp((r.x-old.x)/elapsed,-9,9),
+        z:clamp((r.z-old.z)/elapsed,-RUN_SPEED,RUN_SPEED),
         acceleration:clamp((r.speed-old.speed)/elapsed,-29,r.acceleration),
       });
       const drawn=before?.riders.find(p=>p.id===r.id);
       const projected=this.project(r,now);
-      const discontinuity=!drawn || !!drawn.crash!==!!r.crash || drawn.out!==r.out || drawn.finishedAt!==r.finishedAt || Math.abs(drawn.z-projected.z)>40;
+      const discontinuity=!drawn || !!drawn.crash!==!!r.crash || drawn.falls!==r.falls || drawn.recovery?.hits!==r.recovery?.hits || drawn.out!==r.out || drawn.finishedAt!==r.finishedAt || Math.abs(drawn.z-projected.z)>40;
       if(discontinuity)this.corrections.delete(r.id);
       else this.corrections.set(r.id,{
         x:drawn.x-projected.x,z:drawn.z-projected.z,at:now,
+        ...(drawn.recovery && projected.recovery?{bikeX:drawn.recovery.bikeX-projected.recovery.bikeX,bikeZ:drawn.recovery.bikeZ-projected.recovery.bikeZ}:{}),
         // Limit the rate of forward-position correction so ordinary updates
         // cannot pull a travelling bike backwards through the camera.
         zDecay:Math.max(150,Math.abs(drawn.z-projected.z)/Math.max(4,r.speed*.65)*1000),
@@ -65,7 +68,19 @@ export class RacePresentation {
   private project(source: Rider, now: number): Rider {
     const r=copyRider(source),race=this.room!.race!;
     const age=this.age(now),canMove=!r.out && r.finishedAt===null;
-    if(r.id===this.id && canMove && !r.crash) {
+    if(r.recovery && canMove){
+      const steps=Math.floor(age/STEP),start=now-age*1000;let index=0;
+      const velocity=this.velocity.get(r.id);
+      const remote={...EMPTY_COMMAND,throttle:Math.max(0,(velocity?.z ?? 0)/RUN_SPEED),brake:Math.max(0,-(velocity?.z ?? 0)/RUN_SPEED),steer:(velocity?.x ?? 0)/RUN_SPEED};
+      for(let i=0;i<=steps;i++){
+        const dt=i===steps?age-steps*STEP:STEP;if(dt<=0)continue;
+        const at=start+Math.min(age,(i+1)*STEP)*1000;
+        while(index+1<this.controls.length && this.controls[index+1].at<=at)index++;
+        const command=r.id===this.id?(this.controls[index]?.command ?? EMPTY_COMMAND):remote;
+        // Position/animation only. Pickup, damage and all phase changes wait for authority.
+        advanceRecovery(race,r,command,dt,false);
+      }
+    } else if(r.id===this.id && canMove && !r.crash) {
       const steps=Math.floor(age/STEP),start=now-age*1000;let index=0;
       for(let i=0;i<steps;i++) {
         const at=start+(i+1)*STEP*1000;
@@ -104,6 +119,10 @@ export class RacePresentation {
         const lastMotion=this.receivedAt+(MAX_LEAD-this.ageAtReceipt)*1000;
         const zElapsed=correction.z>0?Math.max(0,Math.min(now,lastMotion)-correction.at):elapsed;
         r.x+=correction.x*Math.exp(-elapsed/110);r.z+=correction.z*Math.exp(-zElapsed/correction.zDecay);
+        if(r.recovery){
+          r.recovery.bikeX+=(correction.bikeX ?? 0)*Math.exp(-elapsed/110);
+          r.recovery.bikeZ+=(correction.bikeZ ?? 0)*Math.exp(-elapsed/150);
+        }
       }
       if(r.id===this.id) {
         if(r.attack?.id && r.attack.id<=this.lastSwing)r.attack=null;

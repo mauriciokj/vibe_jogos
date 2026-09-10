@@ -1,3 +1,4 @@
+import { beginRecovery, advanceRecovery, recoveryCommand, hitPedestrian } from './recovery';
 import { roadHalf, roadLanes, lateralLimit, surfaceGrip, surfaceBraking, surfaceDrag, trafficShape } from './road-profile';
 import { trackHazards, obstacleX, obstacleShape, dangerClearance } from './hazards';
 import { ruralTraffic, ruralObstacles, ruralEvent, ruralSlope } from './rural';
@@ -109,15 +110,14 @@ export function nearestTarget(state: RaceState, rider: Rider, kind: AttackKind =
     .sort((a, b) => Math.abs(a.z - rider.z) + Math.abs(a.x - rider.x) - Math.abs(b.z - rider.z) - Math.abs(b.x - rider.x))[0];
 }
 
-function crashRider(state: RaceState, rider: Rider, force = false) {
+export function crashRider(state: RaceState, rider: Rider, force = false, kind:'spill'|'impact'='spill') {
   if (rider.crash || (rider.immune && !force)) return;
-  rider.crash = 2.1 + rider.speed / 110;
-  rider.speed *= .17;
+  beginRecovery(state,rider,kind);
   rider.integrity = Math.max(0, rider.integrity - 13 / rider.armor);
   rider.attack = null;
   rider.kneeTime=0;rider.wetKneeTicks=0;rider.nitroTime=0;rider.speech=undefined;cancelStunt(rider);
   rider.falls++;
-  state.events.push({ type: 'crash', actor: rider.id, text: 'NO CHÃO! −TEMPO · −MOTO' });
+  state.events.push({ type: 'crash', actor: rider.id, text: 'NO CHÃO! VOLTE ATÉ A MOTO' });
 }
 
 export function performAction(state: RaceState, rider: Rider, action: RiderAction) {
@@ -151,6 +151,7 @@ function impact(state: RaceState, rider: Rider, damage: number, push: number) {
 }
 
 export function botCommand(state: RaceState, rider: Rider): Command {
+  if(rider.recovery && !rider.out)return recoveryCommand(rider);
   if (rider.out || rider.crash || rider.finishedAt !== null) return EMPTY_COMMAND;
   const police = rider.profile === 'police';
   const player = police ? policeTarget(state, rider) : state.riders.filter(r => r.id !== rider.id && r.profile !== 'police' && !r.out && r.finishedAt === null)
@@ -203,6 +204,7 @@ export function policeTarget(state: RaceState, officer: Rider): Rider | undefine
 }
 
 function applyCommand(state: RaceState, rider: Rider, command: Command) {
+  if(rider.recovery && !rider.out){advanceRecovery(state,rider,command,STEP);return;}
   contactGuardRail(state.trackId,rider);
   if (rider.out) { rider.speed = 0; rider.attack = null; return; }
   rider.cooldown = Math.max(0, rider.cooldown - STEP);
@@ -300,7 +302,7 @@ function resolveCollisions(state: RaceState, oldZ: Map<string, number>) {
       const relNow = t.z - r.z;
       if ((Math.abs(relNow) < trafficShape(state.trackId,t.kind).length || relBefore * relNow < 0) && Math.abs(t.x - r.x) < trafficShape(state.trackId,t.kind).contact && mayCollide(state, r.id, t.id)) {
         r.integrity = Math.max(0, r.integrity - (t.speed < 0 ? 22 : 14) / r.armor);
-        crashRider(state, r);
+        crashRider(state, r, false, 'impact');
       }
     }
     for (const o of state.obstacles) {
@@ -312,7 +314,7 @@ function resolveCollisions(state: RaceState, oldZ: Map<string, number>) {
         else if(o.kind==='armadillo'){crashRider(state,r);state.events[state.events.length-1].text='TATU NA PISTA · QUEDA!';}
         else if(o.kind==='gravel' || o.kind==='mud'){r.speed*=o.kind==='mud'?.78:.85;state.events.push({type:'hit',actor:o.id,text:o.kind==='mud'?'LAMA · PERDEU TRAÇÃO':'CASCALHO · PERDEU TRAÇÃO'});}
         else if (o.kind === 'oil') { impact(state, r, 23, r.x < 0 ? -.8 : .8); r.speed *= .64; state.events.push({ type: 'hit', actor: o.id, text: 'ÓLEO · SEM ADERÊNCIA' }); }
-        else { r.integrity -= 15 / r.armor; crashRider(state, r); }
+        else { r.integrity = Math.max(0,r.integrity-15/r.armor); crashRider(state, r, false, 'impact'); }
       }
     }
     for (const other of state.riders) {
@@ -325,6 +327,25 @@ function resolveCollisions(state: RaceState, oldZ: Map<string, number>) {
       }
     }
   }
+}
+
+// Swept contacts catch fast vehicles passing through a pedestrian in one tick.
+function resolvePedestrians(state:RaceState,oldZ:Map<string,number>){
+ for(const r of state.riders){
+  if(!r.recovery || r.out)continue;
+  for(const t of state.traffic){
+   const now=t.z-r.z,before=t.z-t.speed*STEP-(oldZ.get(r.id)??r.z);
+   if((Math.abs(now)<trafficShape(state.trackId,t.kind).length || before*now<0) && Math.abs(t.x-r.x)<trafficShape(state.trackId,t.kind).contact)
+    if(mayCollide(state,r.id,t.id,1.4))hitPedestrian(state,r,t.id,t.speed,r.x-t.x);
+  }
+  for(const other of state.riders){
+   if(other.id===r.id || other.out || other.recovery || other.crash || other.finishedAt!==null || other.jumpTime!>0 || other.speed<6)continue;
+   const now=other.z-r.z,before=(oldZ.get(other.id)??other.z)-(oldZ.get(r.id)??r.z);
+   if((Math.abs(now)<1.6 || before*now<0) && Math.abs(other.x-r.x)<1 && mayCollide(state,r.id,other.id,1.4)){
+    if(hitPedestrian(state,r,other.id,other.speed,r.x-other.x)){other.speed*=.92;other.hits++;}
+   }
+  }
+ }
 }
 
 export function createMultiplayerRace(trackId: string, players: { id: string; name: string; helmetId?: string; helmetColorId?: string; bikeId?: string; kneePadId?: string; nitro?: number; weaponId?: string }[], seed = 88117, fillBots = false, condition: RaceCondition = 'sunset'): RaceState {
@@ -366,7 +387,7 @@ export function finishRider(state: RaceState, rider: Rider, reason: RaceResult['
 
 function arrestFallenRiders(state: RaceState): boolean {
   for (const p of state.riders) {
-    if (p.profile === 'police' || p.out || p.finishedAt !== null || p.crash <= 0) continue;
+    if (p.profile === 'police' || p.out || p.finishedAt !== null || p.crash <= 0 || p.recovery?.phase==='exploding') continue;
     const near = state.riders.some(r => r.profile === 'police' && !r.out && r.crash <= 0 && r.integrity > 0 && Math.hypot(r.z-p.z,r.x-p.x) <= FALL_ARREST_RADIUS);
     if (near) { p.capture = 3; if (p.id === 'player') state.capture = 3; finishRider(state,p,'caught','fall'); }
   }
@@ -376,6 +397,7 @@ function arrestFallenRiders(state: RaceState): boolean {
 // Client prediction reuses movement only. Hits, damage, arrests and results are
 // always confirmed by the authoritative simulation, never by the browser.
 export function predictMovement(state: RaceState, rider: Rider, command: Command) {
+  if(rider.recovery){advanceRecovery(state,rider,command,STEP,false);return;}
   applyCommand(state, rider, { ...command, attack: null, action: undefined });
 }
 
@@ -405,7 +427,7 @@ export function stepRace(state: RaceState, commands: Record<string, Command> = {
   if(state.trackId==='porto')stopAtPortQueue(state.traffic,STEP);
   for (const t of state.traffic) { t.z += t.speed*STEP; if (!t.queued && t.z < back-100) t.z += getTrack(state.trackId).distance+1800; }
   for (const o of state.obstacles)if(o.motion)o.x=obstacleX(o,state.time);
-  resolveAttacks(state); resolveCollisions(state,oldZ);
+  resolveAttacks(state); resolveCollisions(state,oldZ); resolvePedestrians(state,oldZ);
   if (arrestFallenRiders(state)) return;
   if (active.some(r => r.profile === 'player' && r.speed > 49)) state.heat = clamp(state.heat+STEP*.37,0,100);
   else state.heat = Math.max(0,state.heat-STEP*.15);
@@ -419,7 +441,7 @@ export function stepRace(state: RaceState, commands: Record<string, Command> = {
   const officers = state.riders.filter(r => r.profile === 'police' && !r.crash && r.integrity > 0);
   const length = getTrack(state.trackId).distance;
   // Record all crossings before assigning places, including ties within a tick.
-  for (const r of state.riders) if (r.profile !== 'police' && !r.out && r.finishedAt === null && r.z >= length) {
+  for (const r of state.riders) if (r.profile !== 'police' && !r.out && !r.recovery && r.finishedAt === null && r.z >= length) {
     r.finishedAt = state.time-(r.z-length)/Math.max(.1,r.speed); r.z = length;
   }
   for (const r of state.riders) {
@@ -429,8 +451,8 @@ export function stepRace(state: RaceState, commands: Record<string, Command> = {
     if (r.id === 'player') state.capture = r.capture;
     if (r.finishedAt !== null) {
       if (state.multiplayer ? !state.multiplayer.results[r.id] : r.id === 'player') finishRider(state,r,'finish');
-    } else if (r.integrity <= 0) finishRider(state,r,'wrecked');
-    else if (r.capture >= 3) finishRider(state,r,'caught');
+    } else if (r.integrity <= 0 && (!r.recovery || r.recovery.phase==='exploding' && r.recovery.timer===0)) finishRider(state,r,'wrecked');
+    else if (r.capture >= 3 && r.recovery?.phase!=='exploding') finishRider(state,r,'caught');
     else if (state.multiplayer && state.time >= 360) finishRider(state,r,'timeout');
   }
   advanceScenicEvent(state);

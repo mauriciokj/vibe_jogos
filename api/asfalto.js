@@ -75,61 +75,6 @@ function advanceScenicEvent(state) {
   } else if (humans.some((r) => r.z >= event.z - 180)) event.startedAt = state.time;
 }
 
-// src/game/road-profile.ts
-var roadHalf = (trackId) => trackId === "terra" ? 4.2 : 7;
-var lateralLimit = (trackId) => roadHalf(trackId) + 3.5;
-var roadLanes = (trackId) => trackId === "terra" ? [-2.1, 2.1] : [-5.25, -1.75, 1.75, 5.25];
-var surfaceGrip = (trackId, condition) => roadGrip(condition) * (trackId === "terra" ? 0.92 : 1);
-var surfaceBraking = (trackId, condition) => brakeGrip(condition) * (trackId === "terra" ? 0.94 : 1);
-var surfaceDrag = (trackId, condition) => trackId === "terra" ? raceCondition(condition) === "rain" ? 1.1 : 0.6 : 0;
-function trafficShape(trackId, kind) {
-  const width = kind === "tractor" ? 3 : kind === "truck" ? 4.5 : trackId === "terra" ? 3.1 : 3.7;
-  return { width, height: width * (kind === "tractor" ? 1.08 : kind === "truck" ? 1.25 : 0.94), contact: kind === "tractor" ? 1.95 : kind === "truck" ? 2.7 : trackId === "terra" ? 2 : 2.3, length: kind === "tractor" ? 4.2 : kind === "truck" ? 5.5 : 3.2 };
-}
-function trafficAvoidance(trackId, kind, braking = false) {
-  if (trackId !== "terra") return kind === "truck" ? braking ? 3.1 : 3.2 : braking ? 2.5 : 2.8;
-  return trafficShape(trackId, kind === "tractor" ? "tractor" : "car").contact + (braking ? 0.2 : 0.5);
-}
-
-// src/game/hazards.ts
-var TREE_SITES = [{ z: 2040, x: -1.75 }, { z: 4530, x: 1.75 }, { z: 7150, x: -1.75 }];
-var RAMP_SITES = [{ z: 2060, x: 2.1 }, { z: 3560, x: -2.1 }, { z: 5130, x: 2.1 }, { z: 6730, x: -2.1 }];
-var isRamp = (o) => o.kind === "dirtRamp" || o.kind === "woodRamp";
-var trafficDirection = (t) => t.heading ?? (t.speed < 0 ? -1 : 1);
-function trackHazards(track, seed) {
-  if (track === "serra") return TREE_SITES.map((site, i) => ({ id: `fallen-tree-${i}`, kind: "fallenTree", width: 10.5, ...site }));
-  if (track === "terra") return RAMP_SITES.map((site, i) => ({ id: `ramp-${i}`, kind: i % 2 ? "woodRamp" : "dirtRamp", ...site }));
-  if (track !== "deserto") return [];
-  return [1450, 2350, 3650, 4750, 5950, 7150, 8250].map((z, i) => {
-    const animal = i % 3 === 1, from = i % 2 ? 14 : -14, speed = animal ? 2.6 : 5.4, period = animal ? 23 : 13;
-    return {
-      id: `desert-crossing-${i}`,
-      kind: animal ? "armadillo" : "tumbleweed",
-      x: from,
-      z,
-      motion: { from, to: -from, speed, phase: decorHash(seed ^ 20954 + i * 719) * period, period }
-    };
-  });
-}
-function obstacleX(o, time) {
-  const m = o.motion;
-  if (!m) return o.x;
-  const age = ((time + m.phase) % m.period + m.period) % m.period;
-  return m.from + Math.sign(m.to - m.from) * Math.min(Math.abs(m.to - m.from), age * m.speed);
-}
-function obstacleShape(o) {
-  const width = o.width ?? (o.kind === "fallenTree" ? 10.5 : isRamp(o) ? 2.3 : o.kind === "armadillo" ? 1.6 : o.kind === "tumbleweed" ? 1.8 : o.kind === "cone" ? 1.1 : 2);
-  return {
-    width,
-    contact: o.kind === "fallenTree" ? width / 2 + 0.5 : o.width ? width / 2 + 0.3 : o.kind === "cone" ? 0.55 : o.kind === "armadillo" ? 0.95 : isRamp(o) ? 1.1 : 1,
-    length: o.kind === "fallenTree" ? 1.7 : isRamp(o) ? 1.8 : o.kind === "armadillo" ? 0.85 : o.kind === "tumbleweed" ? 0.9 : 2
-  };
-}
-function dangerClearance(track, danger, braking = false) {
-  if (!("speed" in danger) && isRamp(danger)) return 0;
-  return Math.max(trafficAvoidance(track, danger.kind, braking), "speed" in danger ? 0 : obstacleShape(danger).contact + 0.2);
-}
-
 // src/game/rural.ts
 var RURAL_CORNERS = [
   [650, 990, 1.8],
@@ -186,59 +131,59 @@ function ruralEvent(seed, condition) {
   return { kind: raceCondition(condition) === "night" ? "boitata" : "saci", z: sites[Math.floor(decorHash(seed ^ 461729) * sites.length)], startedAt: null, duration: 8 };
 }
 
-// src/game/helmets.ts
-var HELMETS = [
-  { id: "integral", name: "Integral", price: 0, description: "Casco fechado, linhas cl\xE1ssicas e faixa central." },
-  { id: "retro", name: "Retr\xF4", price: 1500, description: "Casco arredondado e \xF3culos com tira de couro." },
-  { id: "cross", name: "Cross", price: 3e3, description: "Pala larga, \xF3culos escuros e queixeira alongada." },
-  { id: "racing", name: "Racing", price: 5e3, description: "Perfil angular, entradas de ar e spoiler traseiro." }
-];
-var HELMET_COLORS = [
-  { id: "white", name: "Branco", color: "#e4e9dc" },
-  { id: "black", name: "Preto", color: "#424d5a" },
-  { id: "red", name: "Vermelho", color: "#ed6557" },
-  { id: "orange", name: "Laranja", color: "#f39c48" },
-  { id: "yellow", name: "Amarelo", color: "#f1d955" },
-  { id: "green", name: "Verde", color: "#96db69" },
-  { id: "blue", name: "Azul", color: "#62a9ed" },
-  { id: "purple", name: "Roxo", color: "#ba8fe4" }
-];
-function getHelmet(id) {
-  return HELMETS.find((h) => h.id === id) ?? HELMETS[0];
+// src/game/road-profile.ts
+var roadHalf = (trackId) => trackId === "terra" ? 4.2 : 7;
+var lateralLimit = (trackId) => roadHalf(trackId) + 3.5;
+var roadLanes = (trackId) => trackId === "terra" ? [-2.1, 2.1] : [-5.25, -1.75, 1.75, 5.25];
+var surfaceGrip = (trackId, condition) => roadGrip(condition) * (trackId === "terra" ? 0.92 : 1);
+var surfaceBraking = (trackId, condition) => brakeGrip(condition) * (trackId === "terra" ? 0.94 : 1);
+var surfaceDrag = (trackId, condition) => trackId === "terra" ? raceCondition(condition) === "rain" ? 1.1 : 0.6 : 0;
+function trafficShape(trackId, kind) {
+  const width = kind === "tractor" ? 3 : kind === "truck" ? 4.5 : trackId === "terra" ? 3.1 : 3.7;
+  return { width, height: width * (kind === "tractor" ? 1.08 : kind === "truck" ? 1.25 : 0.94), contact: kind === "tractor" ? 1.95 : kind === "truck" ? 2.7 : trackId === "terra" ? 2 : 2.3, length: kind === "tractor" ? 4.2 : kind === "truck" ? 5.5 : 3.2 };
 }
-function getHelmetColor(id) {
-  return HELMET_COLORS.find((c) => c.id === id) ?? HELMET_COLORS[0];
-}
-function ownsHelmet(save, id) {
-  return id === "integral" || !!save?.ownedHelmets?.includes(id);
-}
-function equippedHelmet(save) {
-  const helmet = getHelmet(save?.helmetId);
-  return ownsHelmet(save, helmet.id) ? helmet : HELMETS[0];
+function trafficAvoidance(trackId, kind, braking = false) {
+  if (trackId !== "terra") return kind === "truck" ? braking ? 3.1 : 3.2 : braking ? 2.5 : 2.8;
+  return trafficShape(trackId, kind === "tractor" ? "tractor" : "car").contact + (braking ? 0.2 : 0.5);
 }
 
-// src/game/guardrails.ts
-var GUARD_RAIL_X = 7.75;
-var GUARD_RAIL_CLEARANCE = 0.75;
-var GUARD_RAIL_LIMIT = GUARD_RAIL_X - GUARD_RAIL_CLEARANCE;
-function hasGuardRail(trackId, side) {
-  return trackId === "serra" || (trackId === "costa" || trackId === "porto") && side < 0;
+// src/game/hazards.ts
+var TREE_SITES = [{ z: 2040, x: -1.75 }, { z: 4530, x: 1.75 }, { z: 7150, x: -1.75 }];
+var RAMP_SITES = [{ z: 2060, x: 2.1 }, { z: 3560, x: -2.1 }, { z: 5130, x: 2.1 }, { z: 6730, x: -2.1 }];
+var isRamp = (o) => o.kind === "dirtRamp" || o.kind === "woodRamp";
+var trafficDirection = (t) => t.heading ?? (t.speed < 0 ? -1 : 1);
+function trackHazards(track, seed) {
+  if (track === "serra") return TREE_SITES.map((site, i) => ({ id: `fallen-tree-${i}`, kind: "fallenTree", width: 10.5, ...site }));
+  if (track === "terra") return RAMP_SITES.map((site, i) => ({ id: `ramp-${i}`, kind: i % 2 ? "woodRamp" : "dirtRamp", ...site }));
+  if (track !== "deserto") return [];
+  return [1450, 2350, 3650, 4750, 5950, 7150, 8250].map((z, i) => {
+    const animal = i % 3 === 1, from = i % 2 ? 14 : -14, speed = animal ? 2.6 : 5.4, period = animal ? 23 : 13;
+    return {
+      id: `desert-crossing-${i}`,
+      kind: animal ? "armadillo" : "tumbleweed",
+      x: from,
+      z,
+      motion: { from, to: -from, speed, phase: decorHash(seed ^ 20954 + i * 719) * period, period }
+    };
+  });
 }
-function roadsideBarrier(trackId, side, z) {
-  if (hasGuardRail(trackId, side)) return { limit: GUARD_RAIL_LIMIT, material: "metal" };
-  const strength = trackId === "terra" ? bankStrength(z, side) : 0;
-  return strength > 0 ? { limit: roadHalf(trackId) + (1 - strength) * 3.5, material: "earth" } : null;
+function obstacleX(o, time) {
+  const m = o.motion;
+  if (!m) return o.x;
+  const age = ((time + m.phase) % m.period + m.period) % m.period;
+  return m.from + Math.sign(m.to - m.from) * Math.min(Math.abs(m.to - m.from), age * m.speed);
 }
-function guardRailPosition(trackId, x, z = 0) {
-  const side = Math.sign(x), barrier = roadsideBarrier(trackId, side, z);
-  return barrier ? side * Math.min(Math.abs(x), barrier.limit) : x;
+function obstacleShape(o) {
+  const width = o.width ?? (o.kind === "fallenTree" ? 10.5 : isRamp(o) ? 2.3 : o.kind === "armadillo" ? 1.6 : o.kind === "tumbleweed" ? 1.8 : o.kind === "cone" ? 1.1 : 2);
+  return {
+    width,
+    contact: o.kind === "fallenTree" ? width / 2 + 0.5 : o.width ? width / 2 + 0.3 : o.kind === "cone" ? 0.55 : o.kind === "armadillo" ? 0.95 : isRamp(o) ? 1.1 : 1,
+    length: o.kind === "fallenTree" ? 1.7 : isRamp(o) ? 1.8 : o.kind === "armadillo" ? 0.85 : o.kind === "tumbleweed" ? 0.9 : 2
+  };
 }
-function contactGuardRail(trackId, rider, dt = 0) {
-  const x = guardRailPosition(trackId, rider.x, rider.z), penetration = Math.abs(rider.x - x);
-  if (!penetration) return false;
-  rider.x = x;
-  rider.speed = Math.max(0, rider.speed - penetration * 6 - dt * 12);
-  return true;
+function dangerClearance(track, danger, braking = false) {
+  if (!("speed" in danger) && isRamp(danger)) return 0;
+  return Math.max(trafficAvoidance(track, danger.kind, braking), "speed" in danger ? 0 : obstacleShape(danger).contact + 0.2);
 }
 
 // src/game/port.ts
@@ -314,76 +259,6 @@ function portPassengerEvent(seed, traffic) {
   if (!trucks.length) return void 0;
   const truck = trucks[Math.floor(decorHash(seed ^ 3250839) * trucks.length)];
   return { kind: "truckPassenger", trafficId: truck.id, z: truck.z, startedAt: null, duration: 8 };
-}
-
-// src/game/weapons.ts
-var WEAPONS = [
-  { id: "bottle", name: "Garrafa", price: 650, damage: 24, reach: 2.7, longitudinal: 4.8, windup: 0.12, duration: 0.34, cooldown: 0.5, push: 0.35, action: "GARRAFADA", description: "R\xE1pida e de curto alcance. Boa para golpes seguidos." },
-  { id: "bat", name: "Bast\xE3o de beisebol", price: 1500, damage: 38, reach: 3.4, longitudinal: 5.7, windup: 0.23, duration: 0.5, cooldown: 0.78, push: 0.75, action: "BASTONADA", description: "O golpe mais forte. Exige chegar perto e acertar o tempo." },
-  { id: "chain", name: "Corrente", price: 2400, damage: 32, reach: 4.5, longitudinal: 6.2, windup: 0.3, duration: 0.64, cooldown: 0.94, push: 0.55, action: "CORRENTADA", description: "Maior alcance, com mais tempo entre os golpes." }
-];
-function getWeapon(id) {
-  return WEAPONS.find((w) => w.id === id);
-}
-function equippedWeapon(save) {
-  return save?.ownedWeapons?.includes(save.weaponId ?? "") ? getWeapon(save.weaponId) : void 0;
-}
-
-// src/game/stunts.ts
-var WHEELIE_USES = 3;
-var WHEELIE_DURATION = 2.4;
-var WHEELIE_MIN_SPEED = 20;
-var JUMP_DURATION = 1;
-var wheeliesLeft = (r) => r.wheeliesLeft ?? WHEELIE_USES;
-var stunting = (r) => (r.wheelieTime ?? 0) > 0 || (r.jumpTime ?? 0) > 0;
-function jumpHeight(r) {
-  return !(r.jumpTime > 0) || r.crash || r.out || r.finishedAt !== null ? 0 : Math.max(0, Math.sin(Math.PI * (1 - (r.jumpTime ?? 0) / JUMP_DURATION))) * 2.2;
-}
-function cancelStunt(r) {
-  r.wheelieTime = 0;
-  r.jumpTime = 0;
-  r.jumpTarget = void 0;
-}
-function launch(rider, target) {
-  rider.wheelieTime = 0;
-  rider.jumpTime = JUMP_DURATION;
-  rider.jumpTarget = target;
-  rider.attack = null;
-  rider.kneeTime = 0;
-  rider.wetKneeTicks = 0;
-}
-function advanceStunt(state, rider, command, dt) {
-  if (rider.jumpTime) {
-    rider.jumpTime = Math.max(0, rider.jumpTime - dt);
-    if (!rider.jumpTime) rider.jumpTarget = void 0;
-  }
-  if (rider.crash || rider.out || rider.finishedAt !== null) return;
-  if (!(rider.jumpTime > 0) && rider.speed >= 8) {
-    const ramp2 = state.obstacles.find((o) => isRamp(o) && o.z >= rider.z && o.z - rider.z <= 1.5 + rider.speed * dt && Math.abs(o.x - rider.x) < obstacleShape(o).contact);
-    if (ramp2) {
-      launch(rider, ramp2.id);
-      return;
-    }
-  }
-  if (!rider.wheelieTime) return;
-  rider.wheelieTime = Math.max(0, rider.wheelieTime - dt);
-  if (command.brake > 0.2 || rider.speed < WHEELIE_MIN_SPEED || Math.abs(rider.x) > roadHalf(state.trackId)) rider.wheelieTime = 0;
-  if (!rider.wheelieTime) return;
-  const targets = [
-    ...state.traffic.filter((t) => t.kind === "car" && t.speed < 0 && Math.abs(t.x - rider.x) < 1.7),
-    ...state.obstacles.filter((o) => o.kind === "fallenTree" && Math.abs(o.x - rider.x) < obstacleShape(o).contact)
-  ];
-  const target = targets.map((t) => ({ t, ttc: (t.z - rider.z) / (rider.speed - ("speed" in t ? t.speed : 0)) })).filter(({ ttc }) => ttc >= 0.16 && ttc <= 0.38).sort((a, b) => a.ttc - b.ttc)[0]?.t;
-  if (!target) return;
-  launch(rider, target.id);
-}
-function clearsObstacle(rider, obstacle) {
-  if (isRamp(obstacle)) return true;
-  if (obstacle.kind === "fallenTree") return rider.jumpTarget === obstacle.id && (rider.jumpTime ?? 0) > 0 && jumpHeight(rider) > 1.1;
-  return (obstacle.kind === "armadillo" || obstacle.kind === "tumbleweed") && jumpHeight(rider) > 0.65;
-}
-function clearsCar(rider, traffic) {
-  return traffic.kind === "car" && traffic.speed < 0 && rider.jumpTarget === traffic.id && (rider.jumpTime ?? 0) > 0 && jumpHeight(rider) > 1.1;
 }
 
 // src/game/bikes.ts
@@ -493,6 +368,258 @@ function cornerForces(speed, handling, curve, shoulder = false) {
     drift: Math.sign(curve) * (4 * load + 4 * excess * excess),
     sliding: excess > 0.2
   };
+}
+
+// src/game/guardrails.ts
+var GUARD_RAIL_X = 7.75;
+var GUARD_RAIL_CLEARANCE = 0.75;
+var GUARD_RAIL_LIMIT = GUARD_RAIL_X - GUARD_RAIL_CLEARANCE;
+function hasGuardRail(trackId, side) {
+  return trackId === "serra" || (trackId === "costa" || trackId === "porto") && side < 0;
+}
+function roadsideBarrier(trackId, side, z) {
+  if (hasGuardRail(trackId, side)) return { limit: GUARD_RAIL_LIMIT, material: "metal" };
+  const strength = trackId === "terra" ? bankStrength(z, side) : 0;
+  return strength > 0 ? { limit: roadHalf(trackId) + (1 - strength) * 3.5, material: "earth" } : null;
+}
+function guardRailPosition(trackId, x, z = 0) {
+  const side = Math.sign(x), barrier = roadsideBarrier(trackId, side, z);
+  return barrier ? side * Math.min(Math.abs(x), barrier.limit) : x;
+}
+function contactGuardRail(trackId, rider, dt = 0) {
+  const x = guardRailPosition(trackId, rider.x, rider.z), penetration = Math.abs(rider.x - x);
+  if (!penetration) return false;
+  rider.x = x;
+  rider.speed = Math.max(0, rider.speed - penetration * 6 - dt * 12);
+  return true;
+}
+
+// src/game/recovery.ts
+var RUN_SPEED = 7.2;
+var MOUNT_DISTANCE = 1.35;
+var MOUNT_SECONDS = 0.65;
+var EXPLOSION_SECONDS = 1.8;
+var reachableX = (s, x, z) => guardRailPosition(s.trackId, clamp(x, -lateralLimit(s.trackId) + 0.5, lateralLimit(s.trackId) - 0.5), z);
+var move = (v, drag, dt) => Math.sign(v) * Math.max(0, Math.abs(v) - drag * dt);
+function beginRecovery(s, r, kind = "spill") {
+  const speed = clamp(r.speed, 0, 80), side = r.lean < 0 ? -1 : 1;
+  r.recovery = { origin: { x: r.x, z: r.z, speed: r.speed, lean: r.lean }, phase: "sliding", bikeX: r.x, bikeZ: r.z, bikeVX: r.lean * 1.5, bikeVZ: speed * (kind === "impact" ? 0.2 : 0.8), vx: r.lean * 1.5, vz: Math.min(35, speed * 0.58), timer: 0, age: 0, cycle: 0, facingX: 0, facingZ: 1, hitCooldown: 0.65, hits: 0 };
+  r.x = reachableX(s, r.x + side * 0.7, r.z);
+  r.crash = 1e-3;
+  r.speed = 0;
+  r.health = Math.max(24, r.health);
+  r.lean = 0;
+}
+function recoveryCommand(r) {
+  const f = r.recovery;
+  if (!f) return { throttle: 0, brake: 0, steer: 0, attack: null };
+  const dx = f.bikeX - r.x, dz = f.bikeZ - r.z, len = Math.max(1, Math.hypot(dx, dz));
+  return { throttle: Math.max(0, dz / len), brake: Math.max(0, -dz / len), steer: clamp(dx / len, -1, 1), attack: null };
+}
+function advanceRecovery(s, r, cmd, dt, confirm = true) {
+  const f = r.recovery;
+  if (!f) return;
+  f.age += dt;
+  f.hitCooldown = Math.max(0, f.hitCooldown - dt);
+  r.crash = 1e-3;
+  r.speed = 0;
+  r.attack = null;
+  if (f.phase === "exploding") {
+    f.timer = Math.max(0, f.timer - dt);
+    r.z = clamp(r.z + f.vz * dt, 0, getTrack(s.trackId).distance + 35);
+    r.x = reachableX(s, r.x + f.vx * dt, r.z);
+    f.vx = move(f.vx, 5, dt);
+    f.vz = move(f.vz, 5, dt);
+    return;
+  }
+  const wet = s.condition === "rain", ground = s.trackId === "terra";
+  const bikeDrag = (ground ? 12 : 10) * (wet ? 0.8 : 1), bodyDrag = (ground ? 13 : 12) * (wet ? 0.82 : 1);
+  const bx = f.bikeX + f.bikeVX * dt, bz = f.bikeZ + f.bikeVZ * dt;
+  f.bikeX = reachableX(s, bx, bz);
+  f.bikeZ = clamp(bz, 0, getTrack(s.trackId).distance + 35);
+  if (Math.abs(bx - f.bikeX) > 1e-3) f.bikeVX = 0;
+  f.bikeVX = move(f.bikeVX, bikeDrag, dt);
+  f.bikeVZ = move(f.bikeVZ, bikeDrag, dt);
+  if (f.phase === "sliding") {
+    const x = r.x + f.vx * dt;
+    r.z = clamp(r.z + f.vz * dt, 0, getTrack(s.trackId).distance + 35);
+    r.x = reachableX(s, x, r.z);
+    if (Math.abs(x - r.x) > 1e-3) f.vx = 0;
+    f.vx = move(f.vx, bodyDrag, dt);
+    f.vz = move(f.vz, bodyDrag, dt);
+    if (confirm && Math.hypot(f.vx, f.vz) < 0.15) {
+      f.phase = "gettingUp";
+      f.timer = 0.75;
+    }
+  } else if (f.phase === "gettingUp") {
+    f.timer = Math.max(0, f.timer - dt);
+    if (confirm && f.timer === 0) f.phase = "walking";
+  } else if (f.phase === "walking") {
+    if (!confirm && Math.hypot(r.x - f.bikeX, r.z - f.bikeZ) <= MOUNT_DISTANCE && Math.hypot(f.bikeVX, f.bikeVZ) < 0.2) return;
+    const dz = clamp(cmd.throttle - cmd.brake, -1, 1), dx = clamp(cmd.steer, -1, 1), norm = Math.max(1, Math.hypot(dx, dz));
+    if (Math.hypot(dx, dz) > 0.05) {
+      f.facingX = dx / norm;
+      f.facingZ = dz / norm;
+      f.cycle += dt * 9 * Math.hypot(dx, dz) / norm;
+    }
+    r.z = clamp(r.z + RUN_SPEED * dt * dz / norm, 0, getTrack(s.trackId).distance + 35);
+    r.x = reachableX(s, r.x + RUN_SPEED * dt * dx / norm, r.z);
+    if (confirm && Math.hypot(r.x - f.bikeX, r.z - f.bikeZ) <= MOUNT_DISTANCE && Math.hypot(f.bikeVX, f.bikeVZ) < 0.2) {
+      if (r.integrity <= 0) explodeBike(s, r);
+      else {
+        f.phase = "mounting";
+        f.timer = MOUNT_SECONDS;
+      }
+    }
+  } else {
+    if (r.integrity <= 0) {
+      if (confirm) explodeBike(s, r);
+      return;
+    }
+    f.timer = Math.max(0, f.timer - dt);
+    r.x += (f.bikeX - r.x) * Math.min(1, dt * 9);
+    r.z += (f.bikeZ - r.z) * Math.min(1, dt * 9);
+    if (confirm && f.timer === 0) {
+      r.x = f.bikeX;
+      r.z = f.bikeZ;
+      r.speed = 0;
+      r.crash = 0;
+      r.immune = 1.1;
+      delete r.recovery;
+      s.events.push({ type: "pass", actor: r.id, text: "DE VOLTA \xC0 MOTO!" });
+    }
+  }
+}
+function explodeBike(s, r) {
+  const f = r.recovery;
+  f.phase = "exploding";
+  f.timer = EXPLOSION_SECONDS;
+  f.bikeVX = 0;
+  f.bikeVZ = 0;
+  f.vx = (r.x < f.bikeX ? -1 : 1) * 3;
+  f.vz = r.z < f.bikeZ ? -3 : 3;
+  f.hitCooldown = EXPLOSION_SECONDS;
+  s.events.push({ type: "explosion", actor: r.id, text: "A MOTO EXPLODIU!" });
+}
+function hitPedestrian(s, r, source, speed, pushX) {
+  const f = r.recovery;
+  if (!f || f.phase === "exploding" || f.hitCooldown > 0 || r.out) return false;
+  f.origin = { x: r.x, z: r.z, speed: 0, lean: pushX };
+  f.hitCooldown = 1.4;
+  f.hits++;
+  f.phase = "sliding";
+  f.timer = 0;
+  f.vz = Math.sign(speed) * clamp(Math.abs(speed) * 0.12, 2, 7);
+  f.vx = clamp(pushX, -1, 1) * 1.5;
+  r.health = Math.max(1, r.health - clamp(9 + Math.abs(speed) * 0.24, 12, 27));
+  s.events.push({ type: "hit", actor: source, target: r.id, text: r.id === "player" ? "ATROPELADO!" : void 0 });
+  return true;
+}
+
+// src/game/helmets.ts
+var HELMETS = [
+  { id: "integral", name: "Integral", price: 0, description: "Casco fechado, linhas cl\xE1ssicas e faixa central." },
+  { id: "retro", name: "Retr\xF4", price: 1500, description: "Casco arredondado e \xF3culos com tira de couro." },
+  { id: "cross", name: "Cross", price: 3e3, description: "Pala larga, \xF3culos escuros e queixeira alongada." },
+  { id: "racing", name: "Racing", price: 5e3, description: "Perfil angular, entradas de ar e spoiler traseiro." }
+];
+var HELMET_COLORS = [
+  { id: "white", name: "Branco", color: "#e4e9dc" },
+  { id: "black", name: "Preto", color: "#424d5a" },
+  { id: "red", name: "Vermelho", color: "#ed6557" },
+  { id: "orange", name: "Laranja", color: "#f39c48" },
+  { id: "yellow", name: "Amarelo", color: "#f1d955" },
+  { id: "green", name: "Verde", color: "#96db69" },
+  { id: "blue", name: "Azul", color: "#62a9ed" },
+  { id: "purple", name: "Roxo", color: "#ba8fe4" }
+];
+function getHelmet(id) {
+  return HELMETS.find((h) => h.id === id) ?? HELMETS[0];
+}
+function getHelmetColor(id) {
+  return HELMET_COLORS.find((c) => c.id === id) ?? HELMET_COLORS[0];
+}
+function ownsHelmet(save, id) {
+  return id === "integral" || !!save?.ownedHelmets?.includes(id);
+}
+function equippedHelmet(save) {
+  const helmet = getHelmet(save?.helmetId);
+  return ownsHelmet(save, helmet.id) ? helmet : HELMETS[0];
+}
+
+// src/game/weapons.ts
+var WEAPONS = [
+  { id: "bottle", name: "Garrafa", price: 650, damage: 24, reach: 2.7, longitudinal: 4.8, windup: 0.12, duration: 0.34, cooldown: 0.5, push: 0.35, action: "GARRAFADA", description: "R\xE1pida e de curto alcance. Boa para golpes seguidos." },
+  { id: "bat", name: "Bast\xE3o de beisebol", price: 1500, damage: 38, reach: 3.4, longitudinal: 5.7, windup: 0.23, duration: 0.5, cooldown: 0.78, push: 0.75, action: "BASTONADA", description: "O golpe mais forte. Exige chegar perto e acertar o tempo." },
+  { id: "chain", name: "Corrente", price: 2400, damage: 32, reach: 4.5, longitudinal: 6.2, windup: 0.3, duration: 0.64, cooldown: 0.94, push: 0.55, action: "CORRENTADA", description: "Maior alcance, com mais tempo entre os golpes." }
+];
+function getWeapon(id) {
+  return WEAPONS.find((w) => w.id === id);
+}
+function equippedWeapon(save) {
+  return save?.ownedWeapons?.includes(save.weaponId ?? "") ? getWeapon(save.weaponId) : void 0;
+}
+
+// src/game/stunts.ts
+var WHEELIE_USES = 3;
+var WHEELIE_DURATION = 2.4;
+var WHEELIE_MIN_SPEED = 20;
+var JUMP_DURATION = 1;
+var wheeliesLeft = (r) => r.wheeliesLeft ?? WHEELIE_USES;
+var stunting = (r) => (r.wheelieTime ?? 0) > 0 || (r.jumpTime ?? 0) > 0;
+function jumpHeight(r) {
+  return !(r.jumpTime > 0) || r.crash || r.out || r.finishedAt !== null ? 0 : Math.max(0, Math.sin(Math.PI * (1 - (r.jumpTime ?? 0) / JUMP_DURATION))) * 2.2;
+}
+function cancelStunt(r) {
+  r.wheelieTime = 0;
+  r.jumpTime = 0;
+  r.jumpTarget = void 0;
+}
+function launch(rider, target) {
+  rider.wheelieTime = 0;
+  rider.jumpTime = JUMP_DURATION;
+  rider.jumpTarget = target;
+  rider.attack = null;
+  rider.kneeTime = 0;
+  rider.wetKneeTicks = 0;
+}
+function advanceStunt(state, rider, command, dt) {
+  if (rider.jumpTime) {
+    rider.jumpTime = Math.max(0, rider.jumpTime - dt);
+    if (!rider.jumpTime) rider.jumpTarget = void 0;
+  }
+  if (rider.crash || rider.out || rider.finishedAt !== null) return;
+  if (!(rider.jumpTime > 0) && rider.speed >= 8) {
+    const fallen = state.riders.find((other) => other.id !== rider.id && other.recovery && other.recovery.bikeZ >= rider.z && other.recovery.bikeZ - rider.z <= 2 + rider.speed * dt && Math.abs(other.recovery.bikeX - rider.x) < 1.65);
+    if (fallen) {
+      launch(rider, `fallen:${fallen.id}:${fallen.falls}`);
+      return;
+    }
+    const ramp2 = state.obstacles.find((o) => isRamp(o) && o.z >= rider.z && o.z - rider.z <= 1.5 + rider.speed * dt && Math.abs(o.x - rider.x) < obstacleShape(o).contact);
+    if (ramp2) {
+      launch(rider, ramp2.id);
+      return;
+    }
+  }
+  if (!rider.wheelieTime) return;
+  rider.wheelieTime = Math.max(0, rider.wheelieTime - dt);
+  if (command.brake > 0.2 || rider.speed < WHEELIE_MIN_SPEED || Math.abs(rider.x) > roadHalf(state.trackId)) rider.wheelieTime = 0;
+  if (!rider.wheelieTime) return;
+  const targets = [
+    ...state.traffic.filter((t) => t.kind === "car" && t.speed < 0 && Math.abs(t.x - rider.x) < 1.7),
+    ...state.obstacles.filter((o) => o.kind === "fallenTree" && Math.abs(o.x - rider.x) < obstacleShape(o).contact)
+  ];
+  const target = targets.map((t) => ({ t, ttc: (t.z - rider.z) / (rider.speed - ("speed" in t ? t.speed : 0)) })).filter(({ ttc }) => ttc >= 0.16 && ttc <= 0.38).sort((a, b) => a.ttc - b.ttc)[0]?.t;
+  if (!target) return;
+  launch(rider, target.id);
+}
+function clearsObstacle(rider, obstacle) {
+  if (isRamp(obstacle)) return true;
+  if (obstacle.kind === "fallenTree") return rider.jumpTarget === obstacle.id && (rider.jumpTime ?? 0) > 0 && jumpHeight(rider) > 1.1;
+  return (obstacle.kind === "armadillo" || obstacle.kind === "tumbleweed") && jumpHeight(rider) > 0.65;
+}
+function clearsCar(rider, traffic) {
+  return traffic.kind === "car" && traffic.speed < 0 && rider.jumpTarget === traffic.id && (rider.jumpTime ?? 0) > 0 && jumpHeight(rider) > 1.1;
 }
 
 // src/game/banter.ts
@@ -635,10 +762,9 @@ function nearestTarget(state, rider, kind = "weapon") {
   const info = attackSpec(rider, kind);
   return state.riders.filter((r) => r.id !== rider.id && !(r.jumpTime > 0) && !r.out && !r.crash && !r.immune && r.finishedAt === null && Math.abs(r.z - rider.z) < info.longitudinal && Math.abs(r.x - rider.x) < info.reach).sort((a, b) => Math.abs(a.z - rider.z) + Math.abs(a.x - rider.x) - Math.abs(b.z - rider.z) - Math.abs(b.x - rider.x))[0];
 }
-function crashRider(state, rider, force = false) {
+function crashRider(state, rider, force = false, kind = "spill") {
   if (rider.crash || rider.immune && !force) return;
-  rider.crash = 2.1 + rider.speed / 110;
-  rider.speed *= 0.17;
+  beginRecovery(state, rider, kind);
   rider.integrity = Math.max(0, rider.integrity - 13 / rider.armor);
   rider.attack = null;
   rider.kneeTime = 0;
@@ -647,7 +773,7 @@ function crashRider(state, rider, force = false) {
   rider.speech = void 0;
   cancelStunt(rider);
   rider.falls++;
-  state.events.push({ type: "crash", actor: rider.id, text: "NO CH\xC3O! \u2212TEMPO \xB7 \u2212MOTO" });
+  state.events.push({ type: "crash", actor: rider.id, text: "NO CH\xC3O! VOLTE AT\xC9 A MOTO" });
 }
 function performAction(state, rider, action) {
   if (state.mode !== "racing" || rider.out || rider.crash || rider.finishedAt !== null) return;
@@ -685,6 +811,7 @@ function impact(state, rider, damage, push) {
   if (rider.health <= 0) crashRider(state, rider);
 }
 function botCommand(state, rider) {
+  if (rider.recovery && !rider.out) return recoveryCommand(rider);
   if (rider.out || rider.crash || rider.finishedAt !== null) return EMPTY_COMMAND;
   const police = rider.profile === "police";
   const player = police ? policeTarget(state, rider) : state.riders.filter((r) => r.id !== rider.id && r.profile !== "police" && !r.out && r.finishedAt === null).sort((a, b) => Math.abs(a.z - rider.z) - Math.abs(b.z - rider.z))[0];
@@ -730,6 +857,10 @@ function policeTarget(state, officer) {
   return state.riders.filter((r) => r.id !== officer.id && r.profile !== "police" && !r.out && r.finishedAt === null).sort((a, b) => Math.hypot(a.z - officer.z, a.x - officer.x) - Math.hypot(b.z - officer.z, b.x - officer.x) || a.id.localeCompare(b.id))[0];
 }
 function applyCommand(state, rider, command) {
+  if (rider.recovery && !rider.out) {
+    advanceRecovery(state, rider, command, STEP);
+    return;
+  }
   contactGuardRail(state.trackId, rider);
   if (rider.out) {
     rider.speed = 0;
@@ -829,7 +960,7 @@ function resolveCollisions(state, oldZ) {
       const relNow = t.z - r.z;
       if ((Math.abs(relNow) < trafficShape(state.trackId, t.kind).length || relBefore * relNow < 0) && Math.abs(t.x - r.x) < trafficShape(state.trackId, t.kind).contact && mayCollide(state, r.id, t.id)) {
         r.integrity = Math.max(0, r.integrity - (t.speed < 0 ? 22 : 14) / r.armor);
-        crashRider(state, r);
+        crashRider(state, r, false, "impact");
       }
     }
     for (const o of state.obstacles) {
@@ -854,8 +985,8 @@ function resolveCollisions(state, oldZ) {
           r.speed *= 0.64;
           state.events.push({ type: "hit", actor: o.id, text: "\xD3LEO \xB7 SEM ADER\xCANCIA" });
         } else {
-          r.integrity -= 15 / r.armor;
-          crashRider(state, r);
+          r.integrity = Math.max(0, r.integrity - 15 / r.armor);
+          crashRider(state, r, false, "impact");
         }
       }
     }
@@ -866,6 +997,27 @@ function resolveCollisions(state, oldZ) {
         impact(state, r, 7, side * 0.35);
         impact(state, other, 7, -side * 0.35);
         state.events.push({ type: "hit", actor: r.id, text: "CONTATO!" });
+      }
+    }
+  }
+}
+function resolvePedestrians(state, oldZ) {
+  for (const r of state.riders) {
+    if (!r.recovery || r.out) continue;
+    for (const t of state.traffic) {
+      const now = t.z - r.z, before = t.z - t.speed * STEP - (oldZ.get(r.id) ?? r.z);
+      if ((Math.abs(now) < trafficShape(state.trackId, t.kind).length || before * now < 0) && Math.abs(t.x - r.x) < trafficShape(state.trackId, t.kind).contact) {
+        if (mayCollide(state, r.id, t.id, 1.4)) hitPedestrian(state, r, t.id, t.speed, r.x - t.x);
+      }
+    }
+    for (const other of state.riders) {
+      if (other.id === r.id || other.out || other.recovery || other.crash || other.finishedAt !== null || other.jumpTime > 0 || other.speed < 6) continue;
+      const now = other.z - r.z, before = (oldZ.get(other.id) ?? other.z) - (oldZ.get(r.id) ?? r.z);
+      if ((Math.abs(now) < 1.6 || before * now < 0) && Math.abs(other.x - r.x) < 1 && mayCollide(state, r.id, other.id, 1.4)) {
+        if (hitPedestrian(state, r, other.id, other.speed, r.x - other.x)) {
+          other.speed *= 0.92;
+          other.hits++;
+        }
       }
     }
   }
@@ -921,7 +1073,7 @@ function finishRider(state, rider, reason, arrestCause) {
 }
 function arrestFallenRiders(state) {
   for (const p of state.riders) {
-    if (p.profile === "police" || p.out || p.finishedAt !== null || p.crash <= 0) continue;
+    if (p.profile === "police" || p.out || p.finishedAt !== null || p.crash <= 0 || p.recovery?.phase === "exploding") continue;
     const near = state.riders.some((r) => r.profile === "police" && !r.out && r.crash <= 0 && r.integrity > 0 && Math.hypot(r.z - p.z, r.x - p.x) <= FALL_ARREST_RADIUS);
     if (near) {
       p.capture = 3;
@@ -965,6 +1117,7 @@ function stepRace(state, commands = {}) {
   for (const o of state.obstacles) if (o.motion) o.x = obstacleX(o, state.time);
   resolveAttacks(state);
   resolveCollisions(state, oldZ);
+  resolvePedestrians(state, oldZ);
   if (arrestFallenRiders(state)) return;
   if (active.some((r) => r.profile === "player" && r.speed > 49)) state.heat = clamp(state.heat + STEP * 0.37, 0, 100);
   else state.heat = Math.max(0, state.heat - STEP * 0.15);
@@ -982,7 +1135,7 @@ function stepRace(state, commands = {}) {
   }
   const officers = state.riders.filter((r) => r.profile === "police" && !r.crash && r.integrity > 0);
   const length = getTrack(state.trackId).distance;
-  for (const r of state.riders) if (r.profile !== "police" && !r.out && r.finishedAt === null && r.z >= length) {
+  for (const r of state.riders) if (r.profile !== "police" && !r.out && !r.recovery && r.finishedAt === null && r.z >= length) {
     r.finishedAt = state.time - (r.z - length) / Math.max(0.1, r.speed);
     r.z = length;
   }
@@ -993,8 +1146,8 @@ function stepRace(state, commands = {}) {
     if (r.id === "player") state.capture = r.capture;
     if (r.finishedAt !== null) {
       if (state.multiplayer ? !state.multiplayer.results[r.id] : r.id === "player") finishRider(state, r, "finish");
-    } else if (r.integrity <= 0) finishRider(state, r, "wrecked");
-    else if (r.capture >= 3) finishRider(state, r, "caught");
+    } else if (r.integrity <= 0 && (!r.recovery || r.recovery.phase === "exploding" && r.recovery.timer === 0)) finishRider(state, r, "wrecked");
+    else if (r.capture >= 3 && r.recovery?.phase !== "exploding") finishRider(state, r, "caught");
     else if (state.multiplayer && state.time >= 360) finishRider(state, r, "timeout");
   }
   advanceScenicEvent(state);
@@ -1006,7 +1159,7 @@ function stepRace(state, commands = {}) {
 }
 
 // src/multiplayer/protocol.ts
-var NET_VERSION = 12;
+var NET_VERSION = 13;
 var MAX_PLAYERS = 8;
 var ROOM_WAIT_MS = 6e4;
 var PUBLIC_ROOM_WAIT_MS = 12e4;
@@ -1186,7 +1339,8 @@ function pulseRoom(room, inputs, now) {
   const commands = {};
   for (const m of room.members) {
     const latest = inputs[inputKey(m)];
-    commands[m.id] = m.connected && latest && now - latest.at < 500 ? latest.command : { ...EMPTY_COMMAND, brake: 1 };
+    const onFoot = !!room.race.riders.find((r) => r.id === m.id)?.recovery;
+    commands[m.id] = m.connected && latest && now - latest.at < 500 ? latest.command : onFoot ? EMPTY_COMMAND : { ...EMPTY_COMMAND, brake: 1 };
     if (latest && steps > 0) room.ack[m.id] = latest.seq;
   }
   const events = room.race.events.filter((e) => e.tick !== void 0 && e.tick > room.race.tick - 60);

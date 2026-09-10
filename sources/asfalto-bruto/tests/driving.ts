@@ -1,3 +1,4 @@
+import { recoveryCommand } from '../src/game/recovery';
 import { dangerClearance } from '../src/game/hazards';
 import { roadHalf, surfaceGrip, trafficShape } from '../src/game/road-profile';
 import { clamp, cornerForces, cornerPace, curveAt } from '../src/game/content';
@@ -15,7 +16,7 @@ export function safeDrivingTarget(s: RaceState) {
   return lanes.sort((a, b) => cost(a) - cost(b))[0];
 }
 export function safeDrivingCommand(s: RaceState): Command {
-  const p=s.riders[0],target=safeDrivingTarget(s);
+  const p=s.riders[0];if(p.recovery)return recoveryCommand(p);const target=safeDrivingTarget(s);
   const pace=cornerPace(p.z,s.trackId,p.handling,s.condition), forces=cornerForces(p.speed,p.handling*surfaceGrip(s.trackId,s.condition),curveAt(p.z,s.trackId),Math.abs(p.x)>roadHalf(s.trackId));
   return { throttle: p.speed>pace-.5?0:1, brake: clamp((p.speed-pace)*.3,0,1), steer: clamp((target-p.x)*.9+forces.drift/forces.lateral,-1,1), attack:null };
 }

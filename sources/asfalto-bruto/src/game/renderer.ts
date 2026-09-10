@@ -1,3 +1,7 @@
+import { RaceCamera, type CameraPose } from './race-camera';
+import { drawFallenRider } from './fallen-rider-art';
+import { EXPLOSION_SECONDS } from './recovery';
+import { pedestrianSprite } from './recovery-art';
 import { drawTrackHazard } from './hazard-art';
 import { obstacleShape, trafficDirection } from './hazards';
 import { bankStrength } from './rural';
@@ -36,6 +40,9 @@ export class Renderer {
   private player(state: RaceState) { return state.riders.find(r => r.id === this.localId) ?? state.riders[0]; }
   private focal = .9;
   private reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  private raceCamera=new RaceCamera();
+  resetCamera(){this.raceCamera.reset();}
+  cameraState(){return {...this.camera,focal:this.focal,mode:this.raceCamera.mode};}
   private camera = { z: 0, y: 0, x: 0, horizon: 0, trackId: 'costa' };
   constructor(public canvas: HTMLCanvasElement) {
     this.ctx = canvas.getContext('2d', { alpha: false })!;
@@ -123,26 +130,25 @@ export class Renderer {
   }
   private buildRoad(state: RaceState) {
     const player = this.player(state);
-    const pace = this.reducedMotion ? 0 : clamp(player.speed / 70, 0, 1);
-    // A low chase camera brings the passing asphalt closer. Widen the lens and
-    // move forward together so acceleration doesn't shrink the player's bike.
-    const blend=(from:number,to:number)=>from+(to-from)*this.pullback;
-    this.focal = blend(.9 - pace * .2,.9);
-    const followDistance = blend(12 - pace * 3.4,54);
-    const camZ = player.z - followDistance;
-    const height = blend(6.5 - pace * 1.7,12);
-    const camY = elevationAt(player.z, state.trackId) + height;
-    const road: RoadPoint[] = [];
-    const segment = 3;
-    const start = Math.floor(camZ / segment) * segment;
-    let wx = 0, dx = 0;
-    const slope = (elevationAt(player.z + 35, state.trackId) - elevationAt(player.z, state.trackId)) / 35;
-    const vibration = this.reducedMotion ? 0 : Math.sin(player.z * .7) * pace * .55;
-    const playerScale = this.focal * this.projectionWidth / (2 * followDistance);
-    const horizon = blend(this.h * .8 - height * playerScale + slope * this.w * .25 + vibration,this.h*.3);
-    const cameraX=blend(player.x*.6,0);
+    const pose=(x:number,z:number,speed:number,walking=false):CameraPose=>{
+      const pace=this.reducedMotion?0:clamp(speed/70,0,1),blend=(a:number,b:number)=>a+(b-a)*this.pullback;
+      const follow=walking?12:blend(12-pace*3.4,54),height=walking?6.3:blend(6.5-pace*1.7,12),focal=walking?.9:blend(.9-pace*.2,.9);
+      const slope=(elevationAt(z+35,state.trackId)-elevationAt(z,state.trackId))/35;
+      const vibration=this.reducedMotion?0:Math.sin(z*.7)*pace*.55;
+      const scale=focal*this.projectionWidth/(2*follow);
+      return {x:walking?x*.6:blend(x*.6,0),z:z-follow,y:elevationAt(z,state.trackId)+height,focal,horizon:blend(this.h*.8-height*scale+slope*this.w*.25+vibration,this.h*.3)/this.h};
+    };
+    const f=player.recovery,o=f?.origin;
+    const normal=pose(player.x,player.z,player.speed);
+    const origin=pose(o?.x ?? f?.bikeX ?? player.x,o?.z ?? Math.min(player.z,f?.bikeZ ?? player.z),o?.speed ?? 0);
+    const walking=pose(player.x,Math.min(player.z,f?.bikeZ ?? player.z),0,true);
+    const selected=this.raceCamera.update(state,player,normal,origin,walking);
+    const camZ=selected.z,camY=selected.y,cameraX=selected.x,horizon=selected.horizon*this.h;
+    this.focal=selected.focal;
+    const road: RoadPoint[] = [],segment=3,start=Math.floor(camZ/segment)*segment;
+    let wx=0,dx=0;
     this.centerX=this.w*(.5-(this.w>this.h?.17:0)*this.pullback);
-    this.camera = { z: camZ, y: camY, x: cameraX, horizon, trackId: state.trackId };
+    this.camera={z:camZ,y:camY,x:cameraX,horizon,trackId:state.trackId};
     const nearZ = camZ + 1.01;
     const nearScale = this.focal / 1.01 * this.projectionWidth / 2;
     road.push({ z: nearZ, x: this.centerX - cameraX * nearScale, y: horizon - (elevationAt(nearZ, state.trackId) - camY) * nearScale, scale: nearScale, worldX: 0, clip: this.h });
@@ -321,7 +327,7 @@ export class Renderer {
     c.restore();
   }
   private roadside(state: RaceState) {
-    const c = this.ctx, pz = this.player(state).z;
+    const c = this.ctx, pz = this.camera.z;
     // Real projected points make markers sweep past faster as they approach the camera.
     if(state.trackId!=='terra')for (let i = Math.floor(pz / 8) + 100; i >= Math.floor((pz - 12) / 8); i--) {
       const z = i * 8;
@@ -416,7 +422,67 @@ export class Renderer {
       c.beginPath(); c.moveTo(x - dx * length, y - dy * length); c.lineTo(x, y); c.stroke();
     }
   }
+  private pedestrian(r:Rider,state:RaceState){
+    const f=r.recovery!,p=this.project(r.z,r.x);if(!p || p.y>p.clip+80)return;
+    const c=this.ctx,h=Math.min(p.scale*3.15,this.h*.34),w=h*88/128,sliding=f.phase==='sliding';
+    c.save();c.beginPath();c.rect(0,0,this.w,r.id===this.localId?this.h:p.clip);c.clip();
+    const rising=f.phase==='gettingUp'?clamp(1-f.timer/.75,0,1):0;
+    const fallen=sliding || f.phase==='gettingUp' || f.phase==='exploding';
+    if(fallen){
+      drawFallenRider(c,r,rising,(x,z,height)=>{const point=this.project(z,x);return point?{x:point.x,y:point.y-height*point.scale}:null;});
+      c.restore();
+      return;
+    }
+    c.fillStyle='#13232c70';c.beginPath();c.ellipse(p.x,p.y,w*.4,h*.055,0,0,Math.PI*2);c.fill();
+    c.translate(p.x,p.y-h*.5);
+    if(f.phase==='mounting')c.scale(1,.75);
+    c.drawImage(pedestrianSprite(r,f.phase==='walking'?Math.floor(f.cycle*2)%8:-1,f.facingZ<-.1),-w/2,-h/2,w,h);
+    c.restore();
+    if(f.hitCooldown>.7){c.fillStyle='#ffe09b';c.font=`bold ${Math.max(11,h*.19)}px monospace`;c.textAlign='center';c.fillText('✦',p.x,p.y-h-5);}
+  }
+  private fallenBike(r:Rider,state:RaceState){
+    const f=r.recovery!,p=this.project(f.bikeZ,f.bikeX);if(!p || p.y>p.clip+55)return;
+    const c=this.ctx,h=Math.min(p.scale*3.55,this.h*.36),w=h*88/128;
+    c.save();c.beginPath();c.rect(0,0,this.w,p.clip);c.clip();c.fillStyle='#17293380';c.beginPath();c.ellipse(p.x,p.y,h*.36,h*.07,0,0,Math.PI*2);c.fill();
+    c.translate(p.x,p.y-h*.07);c.scale(1,.6);c.rotate(1.4);
+    if(f.phase==='exploding')c.filter='grayscale(1) brightness(.27)';
+    c.drawImage(bikeSprite(r.color,'parked',1,r.profile==='police',0,getBike(r.bikeId).style),-w/2,-h/2,w,h);c.restore();
+    if(f.bikeVZ>1 || Math.abs(f.bikeVX)>1){c.fillStyle=state.trackId==='terra'?'#bd9d67':'#ffd998';for(let i=0;i<6;i++)c.fillRect(p.x+(Math.sin(state.time*22+i)*w*.4),p.y+(i%3)*2,Math.max(1,p.scale*.06),2);}
+    if(f.phase==='exploding'){this.bikeExplosion(p.x,p.y,h,EXPLOSION_SECONDS-f.timer);return;}
+    if(r.id===this.localId){
+      const distance=Math.round(Math.hypot(r.x-f.bikeX,r.z-f.bikeZ)),label=`SUA MOTO · ${distance}m`,y=p.y-h*.58;
+      c.font=`700 ${this.w<500?11:13}px Barlow,sans-serif`;c.textAlign='center';const tw=c.measureText(label).width,x=clamp(p.x,tw/2+8,this.w-tw/2-8);
+      c.fillStyle='#172f36ed';c.fillRect(x-tw/2-7,y-20,tw+14,23);c.fillStyle='#deff70';c.fillText(label,x,y-4);this.polygon([p.x-5,y+4,p.x+5,y+4,p.x,y+12],'#deff70');
+    }
+  }
+  private bikeExplosion(x:number,y:number,size:number,age:number){
+    const c=this.ctx,t=clamp(age/EXPLOSION_SECONDS,0,1),s=size*1.25;
+    c.save();
+    // A single deterministic burst; expanding smoke replaces fire as it cools.
+    for(let i=0;i<9;i++){
+      const a=i*2.399,spread=.2+t*.65,rx=x+Math.cos(a)*s*spread*.55,ry=y-s*(.15+t*.7)+Math.sin(a)*s*.17;
+      const radius=s*(.12+t*.22)*(i%2?.8:1);
+      c.globalAlpha=(.6-t*.26)*Math.min(1,age*6);c.fillStyle=i%2?'#394247':'#606164';
+      c.beginPath();c.ellipse(rx,ry,radius,radius*.8,0,0,Math.PI*2);c.fill();
+    }
+    if(t<.66){
+      c.globalAlpha=Math.min(1,age*15)*(1-t/.66);
+      const radius=s*(.18+Math.sin(Math.min(1,t*2)*Math.PI)*.57);
+      for(let i=0;i<7;i++){
+        const a=i*2.399,rx=x+Math.cos(a)*radius*.47,ry=y-s*.2+Math.sin(a)*radius*.4;
+        c.fillStyle=i%2?'#ff742d':'#ffb33e';c.beginPath();c.arc(rx,ry,radius*.52,0,Math.PI*2);c.fill();
+      }
+      c.fillStyle='#fff0a3';c.beginPath();c.ellipse(x,y-s*.2,radius*.42,radius*.36,0,0,Math.PI*2);c.fill();
+    }
+    c.globalAlpha=1-t;
+    for(let i=0;i<16;i++){
+      const a=i*2.399,travel=s*t*(.8+(i%3)*.25),px=x+Math.cos(a)*travel,py=y-s*.2-Math.abs(Math.sin(a))*travel+s*t*t*.8;
+      c.fillStyle=i%3?'#ffd878':'#3e3934';c.fillRect(px,py,Math.max(2,s*.025),Math.max(2,s*.018));
+    }
+    c.restore();
+  }
   private rider(r: Rider, state: RaceState, targetId: string | undefined) {
+    if(r.recovery){this.pedestrian(r,state);return;}
     const p = this.project(r.z, r.x);
     if (!p || p.y < 0 || p.y > p.clip + 100) return;
     const c = this.ctx, player = r.id === this.localId;
@@ -552,7 +618,7 @@ export class Renderer {
     c.save();
     if (this.shake > .1 && !this.reducedMotion) { c.translate(this.w / 2, this.h / 2); c.scale(1.016, 1.016); c.translate(-this.w / 2, -this.h / 2); c.translate(Math.sin(state.tick * 8) * this.shake, Math.cos(state.tick * 7) * this.shake * .6); this.shake *= .83; }
     this.buildRoad(state);
-    this.background(track, player.z, state);
+    this.background(track, this.camera.z, state);
     this.road(state, track); this.roadside(state);
     this.speedFlow(state, menu);
     const entities: { z: number; draw: () => void }[] = [];
@@ -560,14 +626,14 @@ export class Renderer {
     for (let i = first; i < first + 55; i++) if(Math.abs(i*28+12-track.distance)>65)entities.push({ z: i * 28 + 12, draw: () => this.scenery(state, track, i * 28 + 12, i) });
     if(!menu)this.finishArea(state,entities);
     const scenic=menu?null:scenicAppearance(state);
-    for (const t of state.traffic) if (t.z > player.z - 12 && t.z < player.z + 1900) entities.push({ z: t.z, draw: () => {
+    for (const t of state.traffic) if (t.z > this.camera.z && t.z < player.z + 1900) entities.push({ z: t.z, draw: () => {
       const p = this.project(t.z, t.x); if (!p || p.y > p.clip + 35) return;
       c.save(); c.beginPath(); c.rect(0, 0, this.w, p.clip); c.clip();
       const shape=trafficShape(state.trackId,t.kind),width=p.scale*shape.width,height=p.scale*shape.height;
       c.fillStyle = '#233a4055'; c.beginPath(); c.ellipse(p.x, p.y, width * .5, height * .1, 0, 0, Math.PI * 2); c.fill();
       c.drawImage(t.kind==='tractor'?tractorSprite(t.color,trafficDirection(t)<0,Math.floor(t.z*.8)%2):t.kind==='truck'?truckSprite(t.color,trafficDirection(t)<0,scenic?.kind==='truckPassenger'&&scenic.trafficId===t.id,Math.floor(state.time*4)%2):carSprite(t.color, trafficDirection(t)<0, t.kind === 'van'), p.x - width / 2, p.y - height, width, height); c.restore();
     } });
-    for (const o of state.obstacles) if (o.z > player.z - 8 && o.z < player.z + 1700) entities.push({ z: o.z, draw: () => {
+    for (const o of state.obstacles) if (o.z > this.camera.z && o.z < player.z + 1700) entities.push({ z: o.z, draw: () => {
       const p = this.project(o.z, o.x); if (!p || p.y > p.clip + 4) return;
       c.save();c.beginPath();c.rect(0,0,this.w,p.clip);c.clip();
       if(drawTrackHazard(c,o,p.x,p.y,p.scale,state.time,this.reducedMotion)){}
@@ -610,6 +676,7 @@ export class Renderer {
     }});
     const target = nearestTarget(state, player, player.weapon ? 'weapon' : 'punch');
     for (const r of state.riders) if (r.z > this.camera.z && r.z < player.z + 1900) entities.push({ z: r.z, draw: () => this.rider(r, state, target?.id) });
+    for(const r of state.riders)if(r.recovery)entities.push({z:r.recovery.bikeZ,draw:()=>this.fallenBike(r,state)});
     const officerPose=this.finishPolice;
     if(officerPose && officerPose.phase!=='arriving')entities.push({z:officerPose.z,draw:()=>{
       const p=this.project(officerPose.z,officerPose.x);if(!p || p.y>p.clip+4)return;

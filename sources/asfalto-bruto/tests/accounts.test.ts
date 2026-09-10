@@ -45,7 +45,7 @@ test('Authenticated API: nonce, CSRF, import, conflicts, verified solo replay an
   const url=`http://127.0.0.1:${(app.server.address() as {port:number}).port}/api/asfalto/account`;
   let cookie='',csrf='';
   async function call(path:string,body?:unknown,headers:Record<string,string>={}){
-    const res=await fetch(url+path,{method:body===undefined?'GET':'POST',headers:{Origin:origin,Cookie:cookie,'Content-Type':'application/json','X-Asfalto-CSRF':csrf,...headers},body:body===undefined?undefined:JSON.stringify(body)});
+    const res=await fetch(url+path,{method:body===undefined?'GET':'POST',headers:{Origin:origin,Cookie:cookie,'Content-Type':'application/json','X-Asfalto-CSRF':csrf,Connection:'close',...headers},body:body===undefined?undefined:JSON.stringify(body)});
     return {res,body:await res.json()};
   }
   try{
@@ -78,6 +78,8 @@ test('Authenticated API: nonce, CSRF, import, conflicts, verified solo replay an
     const board=await call('/ranking?mode=solo&track=costa&condition=day');assert.equal(board.body.entries.length,1);assert.equal(board.body.entries[0].races,1);assert.ok(board.body.entries[0].me);
     assert.equal(board.body.entries[0].time,race.result!.time);assert.equal((await call('/ranking?mode=multi&track=costa&condition=day')).body.entries.length,0);
     assert.equal((await call('/ranking?mode=solo&track=costa&condition=rain')).body.entries.length,0);
+    db.result('historic-before-falls',id,'solo','costa','day','ferro',{...race.result!,time:120},now);db.db.prepare('UPDATE results SET rules=2 WHERE race=?').run('historic-before-falls');
+    const historic=await call('/ranking?mode=solo&track=costa&condition=day&rules=2');assert.equal(historic.body.rules,2);assert.equal(historic.body.entries[0].time,120);assert.equal((await call('/ranking?mode=solo&track=costa&condition=day')).body.entries[0].time,race.result!.time);
     assert.ok(!JSON.stringify(board.body).includes(id));assert.ok(!JSON.stringify(board.body).includes('subject'));
     assert.equal((await call('/logout',{})).res.status,200);assert.equal((await call('/session')).body.account,null);
   }finally{await app.close();db.close();}
@@ -92,6 +94,6 @@ test('Multiplayer ranking binds private member account, never leaks identity, de
     room.race!.multiplayer!.results[member.id]={reason:'finish',time:200,place:1,reward:0,hits:3,falls:0};
     service.recordRoom(room);service.recordRoom(room);
     const result=db.ranking('multi','costa','night','points',account.id);assert.equal(result.length,1);assert.equal(result[0].races,1);assert.equal(result[0].points,25);
-    assert.ok(!JSON.stringify(viewRoom(room,6000)).includes(account.id));assert.equal(RANK_RULES,2);
+    assert.ok(!JSON.stringify(viewRoom(room,6000)).includes(account.id));assert.equal(RANK_RULES,3);
   }finally{db.close();}
 });

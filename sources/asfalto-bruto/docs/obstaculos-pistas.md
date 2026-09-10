@@ -17,4 +17,4 @@ Geometria e posição em `src/game/hazards.ts` e `src/game/port.ts`; colisões e
 
 Validação: `npm test`, `npm run test:hazards`, loop de ações da skill. O browser aceita `PUBLIC_URL` e `QA_DIR` para conferir HTTPS com contextos descartáveis em `?test`, sem enviar corridas artificiais ao ranking.
 
-Ranking atual usa regras2; regras1 permanecem acessíveis no Histórico. A atualização não altera créditos, garagem ou recordes pessoais. Protocolo multiplayer12 impede misturar clientes com regras antigas.
+Os obstáculos entraram em regras2. Após as novas quedas, o ranking atual usa regras3; regras2 e regras1 permanecem acessíveis no Histórico. A atualização não altera créditos, garagem ou recordes pessoais. Protocolo multiplayer13 impede misturar clientes com regras antigas.

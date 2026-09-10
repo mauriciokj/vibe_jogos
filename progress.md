@@ -108,3 +108,10 @@ Original prompt: Build a classic Snake game in this repo.
 - Corrida entre domínio principal e subdomínio com 2 navegadores + 6 bots, curvas e reconexão passou. Serviços não reiniciados.
 - Propagação ainda apresentava cache antigo na conexão local; testes apontaram temporariamente para a VPS mantendo a validação TLS. Nenhuma ação adicional de DNS necessária. Detalhes em infra/vps/VALIDATION.md.
 - Única pendência da migração de dados: recuperar placares históricos do Rio de Aço quando o Upstash permitir leitura.
+
+## 2026-09-09 — Asfalto Bruto: quedas aprovadas e integradas
+- Aprovação explícita após teste manual da chuva. Integrados deslizamento separado, câmera fixa, corpo com volume, corrida a pé nos dois sentidos, montagem, atropelamento, salto sobre motos caídas e explosão ao pegar moto com integridade0.
+- Fonte canônica em `/Users/mauriciokj/projetos/road rash`; prévia4390 continua isolada e seus atalhos, saldo/save de teste e serviços desativados não entram neste release.
+- Multiplayer protocolo13: predição de corpo/moto com correção suave e fases confirmadas no servidor; reconexão e comandos expirados tratados. Campeonato retoma checkpoint caído com integridade0. Contas/garagem e banco preservados.
+- Ranking atual regras3; históricos2/1 disponíveis sem apagar resultados anteriores. Replay determinístico e checkpoint autenticado entre dispositivos verificados.
+- Validação:173 testes na suíte completa e19 contas/campeonato/replay após novo caso, total174 casos; build/export TypeScript/Vite;9 testes VPS. Browser individual/celular e2 humanos+6 bots com latência/jitter, reconexão, atropelamento, salto e explosão. Cliente da skill e screenshots revisados; console sem erros. Produção será ativada com guarda de corridas e verificada via HTTPS.

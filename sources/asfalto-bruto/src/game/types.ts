@@ -7,7 +7,14 @@ export type BikeStyle = 'street' | 'sport' | 'muscle' | 'supermoto' | 'cruiser' 
 export type RiderAction = 'kneeLeft' | 'kneeRight' | 'nitro' | 'horn' | 'taunt' | 'wheelie';
 export interface Command { throttle: number; brake: number; steer: number; attack: AttackKind | null; action?: RiderAction; }
 export interface Attack { kind: AttackKind; age: number; side: number; hit: boolean; id?: number; }
+export interface Recovery {
+ origin?:{x:number;z:number;speed:number;lean:number};
+ phase:'sliding'|'gettingUp'|'walking'|'mounting'|'exploding';
+ bikeX:number;bikeZ:number;bikeVX:number;bikeVZ:number;vx:number;vz:number;
+ timer:number;age:number;cycle:number;facingX:number;facingZ:number;hitCooldown:number;hits:number;
+}
 export interface Rider {
+ recovery?:Recovery;
   helmetId?: string; helmetColorId?: string;
   id: string; name: string; color: string; profile: Profile; bikeId?: string; kneePadId?: string;
   x: number; z: number; speed: number; lean: number;
@@ -20,7 +27,7 @@ export interface Rider {
 }
 export interface Traffic { id: string; x: number; z: number; speed: number; color: string; kind: 'car' | 'van' | 'truck' | 'tractor'; heading?: 1 | -1; queued?: boolean; }
 export interface Obstacle { id: string; x: number; z: number; kind: 'oil' | 'barrier' | 'cone' | 'concrete' | 'gravel' | 'mud' | 'fallenTree' | 'tumbleweed' | 'armadillo' | 'dirtRamp' | 'woodRamp'; width?: number; motion?: { from: number; to: number; speed: number; phase: number; period: number }; }
-export interface GameEvent { type: 'hit' | 'crash' | 'pass' | 'finish' | 'attack' | 'steal' | 'police' | 'horn' | 'nitro'; actor: string; target?: string; text?: string; tick?: number; }
+export interface GameEvent { type: 'hit' | 'crash' | 'pass' | 'finish' | 'attack' | 'steal' | 'police' | 'horn' | 'nitro' | 'explosion'; actor: string; target?: string; text?: string; tick?: number; }
 export interface RaceResult { reason: 'finish' | 'wrecked' | 'caught' | 'left' | 'timeout'; arrestCause?: 'fall' | 'stopped'; place: number; time: number; reward: number; hits: number; falls: number; }
 export interface RaceState {
   version: 1; condition?: RaceCondition; scenicEvent?: { kind: 'mermaid' | 'saci' | 'boitata'; z: number; startedAt: number | null; duration: number } | { kind: 'truckPassenger'; trafficId: string; z: number; startedAt: number | null; duration: number }; tick: number; rng: number; trackId: string; mode: RaceMode; countdown: number; time: number;

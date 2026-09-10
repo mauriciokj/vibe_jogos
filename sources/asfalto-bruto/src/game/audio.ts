@@ -35,6 +35,7 @@ export class GameAudio {
   private lastRailSide = 0;
   private lastRailContactAt = -Infinity;
   muted = false;
+  private recoveryStep=-1;
   resetRace(currentJump = '', currentRailSide = 0) {
     this.lastJumpKey=currentJump;this.lastRailSide=currentRailSide;this.lastRailContactAt=-Infinity;
     if(this.context)this.scrapeGain?.gain.setTargetAtTime(0,this.context.currentTime,.035);
@@ -100,6 +101,15 @@ export class GameAudio {
     this.windGain?.gain.setTargetAtTime(running ? Math.pow(Math.max(0, speed - 20) / 60, 2) * .16 : 0, this.context.currentTime, .15);
     if (police && running && Math.floor(time * 2) !== Math.floor((time - 1 / 60) * 2)) this.tone(Math.floor(time * 2) % 2 ? 630 : 810, .18, .05, 'sine');
   }
+  updateRecovery(r:Rider,track:string){
+    const f=r.recovery;if(!f){this.recoveryStep=-1;return;}
+    if(!this.context)return;
+    const moving=f.bikeVZ>1 || Math.abs(f.bikeVX)>1,level=moving?Math.min(.22,f.bikeVZ/150):0;
+    this.scrapeGain?.gain.setTargetAtTime(level,this.context.currentTime,.05);
+    if(f.phase==='walking'){
+      const step=Math.floor(f.cycle/2);if(step!==this.recoveryStep){this.recoveryStep=step;this.noise(.045,track==='terra'?.04:.025);this.tone(step%2?92:76,.045,.025,'triangle');}
+    }
+  }
   tone(frequency: number, duration: number, volume = .2, type: OscillatorType = 'square') {
     const ctx = this.context; if (!ctx || !this.master || this.muted) return;
     const osc = ctx.createOscillator(), gain = ctx.createGain();
@@ -134,6 +144,7 @@ export class GameAudio {
     if (event.type === 'horn') { this.tone(370,.4,.14,'sawtooth');this.tone(465,.4,.1,'square'); }
     if (event.type === 'nitro') { this.noise(.5,.17);this.tone(185,.3,.08,'triangle'); }
     if (event.type === 'hit') { this.noise(.1, .38); this.tone(90, .1, .3, 'triangle'); }
+    if (event.type === 'explosion') { this.noise(.9,.6);this.metalImpact(1.2,.65);this.tone(48,.75,.4,'sine'); }
     if (event.type === 'crash') this.noise(.45, .42);
     if (event.type === 'attack') this.noise(.07, .1);
     if (event.type === 'pass') this.tone(550, .09, .08, 'sine');

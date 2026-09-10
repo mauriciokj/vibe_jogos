@@ -101,7 +101,8 @@ export function pulseRoom(room: Room, inputs: Inputs, now: number) {
   const commands: Record<string,Command> = {};
   for (const m of room.members) {
     const latest = inputs[inputKey(m)];
-    commands[m.id] = m.connected && latest && now-latest.at < 500 ? latest.command : { ...EMPTY_COMMAND, brake: 1 };
+    const onFoot=!!room.race.riders.find(r=>r.id===m.id)?.recovery;
+    commands[m.id] = m.connected && latest && now-latest.at < 500 ? latest.command : onFoot ? EMPTY_COMMAND : { ...EMPTY_COMMAND, brake: 1 };
     if (latest && steps > 0) room.ack[m.id] = latest.seq;
   }
   // Keep short taps until a simulation step can execute them. Input packets can

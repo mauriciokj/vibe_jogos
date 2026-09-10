@@ -1,28 +1,34 @@
-# Quedas, deslizamento e recuperação a pé
+# Quedas e recuperação a pé
 
-Pedido de 2026-09-09. **Viável; ainda não implementado.** O usuário pediu primeiro a correção dos rivais na largada e a cena do policial na chegada. Esta mecânica deve ser apresentada em uma versão de teste antes de qualquer publicação em produção: “antes de ir pra produção quero aprovar como ficou”.
+Mecânica aprovada pelo usuário após testar o protótipo, a câmera fixa e a queda de joelho na chuva. Integrada à fonte principal; validação e publicação registradas em `progress.md` do projeto/catálogo.
 
-## Comportamento desejado
+## Durante a corrida
 
-- Na queda, piloto e moto deslizam separados; velocidade da batida determina a distância e o tempo de deslizamento.
-- Depois de parar e levantar, o piloto precisa correr até a moto e montá-la para continuar. Enquanto isso, pode ser preso pela polícia.
-- Carros, motos de outros competidores e o próprio jogador podem atropelar quem está caído ou a pé. O impacto causa dano e atrasa a recuperação, sem violência gráfica.
-- Passar por cima da moto caída de um rival provoca um salto, como as rampas da Terra Brava. O salto não deve gastar cargas de empinar.
-- Jogador e rivais obedecem às mesmas regras.
+- Piloto e moto deslizam separados. Velocidade da queda, asfalto/terra e chuva determinam as distâncias. Uma colisão segura mais a moto; uma derrapagem pode deixá-la à frente do piloto.
+- A câmera fica no ponto do impacto enquanto os dois se afastam. Ao começar a correr, passa a acompanhar suavemente; ao montar, volta gradualmente ao enquadramento de pilotagem. Corpo caído tem geometria 3D com sombras; corrida tem poses de frente e costas.
+- Depois de levantar, W/↑ avança, S/↓ volta e A/D move para os lados. No celular, o analógico esquerdo controla os lados e o direito frente/trás. Encostar na moto parada inicia montagem (0,65 s). O jogador precisa buscá-la; os bots fazem a própria recuperação.
+- Os mesmos guard rails/barrancos mantêm piloto e moto em locais alcançáveis. Não há chegada válida a pé.
+- Carros e competidores podem atropelar pilotos caídos ou correndo: dano, novo deslocamento e atraso, com proteção entre impactos. A resistência fica no mínimo em 1 nesse contato; isso não adiciona eliminação por vida zerada.
+- A moto caída de outro piloto funciona como rampa e não consome empinadas. Saltar não concede imunidade geral ao trânsito.
+- A polícia pode prender o piloto a pé, inclusive se a moto estiver longe. Raio existente de 30 m preservado.
+- Se uma queda zera a integridade, o piloto ainda pode buscar a moto. Ao tentar levantá-la, ela explode com som/fogo/fumaça e encerra a corrida após 1,8 s. Isso vale também para CPUs. Uma explosão iniciada não é substituída por prisão ou novo atropelamento.
+- A manobra de joelho continua com 4 s de duração; mais de 2 s contínuos de contato na chuva provocam a queda. Choppers não fazem a manobra.
 
-## Base existente e mudanças necessárias
+## Progresso e modo online
 
-Hoje `crashRider` reduz a velocidade para 17% e mantém um pequeno deslizamento, mas piloto e moto compartilham posição e temporizador; a remontagem é automática. Separar posição e velocidade da moto das do piloto e introduzir os estados pilotando → deslizando → levantando → a pé → remontando.
+Garagem, dinheiro, equipamentos e consumíveis não são reiniciados por essa atualização. A recuperação não reabastece a moto nem equipamentos. Checkpoints do campeonato guardam fase, posições/velocidades separadas e origem do impacto. Um checkpoint de corrida em andamento com moto zerada permite retomar para concluir a recuperação; reparo durante a etapa continua restrito à moto em 0% entre corridas. Checkpoints antigos sem os campos novos continuam válidos.
 
-Proposta para o primeiro teste: direcionais e analógico controlam a caminhada; ao alcançar a moto, uma animação curta faz a remontagem. Câmera acompanha o piloto a pé e mostra onde ficou a moto. A moto precisa parar em local alcançável, inclusive junto de guard rails e barrancos.
+Multiplayer usa protocolo13. Posição/velocidade do corpo e da moto vêm da simulação autoritativa; o cliente prevê o movimento e suaviza correções de ambos, sem confirmar sozinho montagem, dano, prisão ou explosão. Cópias profundas impedem a apresentação de modificar snapshots. Sem comandos recentes, um piloto a pé para; a frenagem de segurança de quem está montado não o faz correr para trás. Salas continuam opcionais, para 2–8 pessoas, com CPUs opcionais.
 
-Atropelamentos precisam de intervalo por impacto para evitar dano em cada frame e aprisionamento infinito sob um veículo. O salto aproveita a trajetória de `stunts.ts`, mas a moto caída vira um obstáculo móvel da simulação; não pode permitir saltos repetidos sobre o mesmo contato nem proteção contra outros veículos. A captura policial deve acompanhar a posição do piloto a pé, sem esperar a remontagem.
+Ranking atual usa regras3, com replays verificados pela nova física. Regras2 e regras1 continuam consultáveis no Histórico; nenhuma linha de resultado antiga é apagada ou misturada com a classificação atual. Recordes pessoais do save são preservados.
 
-## Sequência de validação proposta
+## Arquivos e testes
 
-1. Protótipo individual isolado da publicação: deslizar, levantar, caminhar e remontar. Comparar quedas lentas/rápidas, todos os climas, estrada estreita, guard rail e barranco.
-2. Acrescentar prisão, atropelamento, atraso/dano e salto sobre motos caídas. Conferir comportamento dos bots, colisões na aterrissagem, limite de tempo e desgaste no campeonato.
-3. Validar teclado/celular, câmera, leitura visual e duração da recuperação com o usuário. **Aprovação de jogabilidade pendente; não publicar automaticamente.**
-4. Adaptar a simulação autoritativa, previsão e snapshots do multiplayer. Testar dois clientes com latência, oito pilotos, reconexão e retomada do campeonato/conta. Campos novos do save exigem valores padrão e validação de checkpoints antigos. Mudança de física exige revisão do protocolo e da validação de replay/ranking antes da publicação aprovada.
+- Física: `src/game/recovery.ts`, `simulation.ts`, `stunts.ts`, `types.ts`.
+- Apresentação: `race-camera.ts`, `fallen-rider-art.ts`, `recovery-art.ts`, `renderer.ts`, `audio.ts`, `src/recovery.css`.
+- Online: `src/multiplayer/presentation.ts`, `protocol.ts`, `server/room.ts`.
+- Campeonato/conta: `championship.ts`, `championship-ui.ts`, protocolo/UI de ranking e API.
+- `npm test`: recuperação, replay, câmera, protocolo, oito humanos, snapshot imutável, retomada, campeonato e regressões existentes.
+- `npm run test:falls`: navegador individual/celular e dois clientes online com atraso/jitter. Artefatos em `output/falls-integration/`.
 
-A cena do policial na chegada é uma animação posterior ao resultado. Ela não implementa estes estados físicos nem substitui o protótipo de quedas.
+O laboratório `output/prototipo-quedas` continua isolado. Seus atalhos, créditos de teste, save separado, contas desativadas e configuração sem API não são publicados.

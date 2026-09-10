@@ -1,6 +1,6 @@
 import type { AttackKind, Command, RaceState, RaceCondition, RiderAction } from '../game/types';
 
-export const NET_VERSION = 12;
+export const NET_VERSION = 13;
 export const MAX_PLAYERS = 8;
 export const ROOM_WAIT_MS = 60_000;
 export const PUBLIC_ROOM_WAIT_MS = 120_000;

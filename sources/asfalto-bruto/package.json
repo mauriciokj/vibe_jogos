@@ -37,7 +37,8 @@
     "test:finish": "tsx tests/finish-browser.ts",
     "test:rewards": "tsx tests/rewards-browser.ts",
     "test:hazards": "tsx tests/hazards-browser.ts",
-    "test:championship": "tsx tests/championship-browser.ts"
+    "test:championship": "tsx tests/championship-browser.ts",
+    "test:falls": "tsx tests/falls-solo-browser.ts && tsx tests/falls-browser.ts"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

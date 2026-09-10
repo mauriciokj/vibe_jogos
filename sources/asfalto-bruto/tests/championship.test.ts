@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { newChampionship, championshipPoints, championshipStandings, championshipRoute, championshipGarageOpen, startChampionshipRace, nextChampionshipStage, checkpointChampionship, championshipRemainder, advanceChampionshipRemainder, recordChampionshipHeat, type ChampHeat } from '../src/game/championship';
-import { createRace, finishRider, stepRace, snapshot } from '../src/game/simulation';
+import { createRace, crashRider, finishRider, stepRace, snapshot } from '../src/game/simulation';
 import { freshSave, normalizeSave, repair, repairChampionshipBike, settleRace } from '../src/game/save';
 import { championshipBikeState } from '../src/game/championship';
 import { TRACKS } from '../src/game/content';
@@ -132,7 +132,7 @@ test('authenticated cloud API carries a large championship checkpoint to a secon
  }
  try{
   const first=await device(),second=await device(),save=freshSave();save.championship=newChampionship(452);const race=startChampionshipRace(save)!;
-  race.time=42;race.tick=2520;race.mode='racing';race.riders[0].integrity=31;race.riders[0].wheeliesLeft=0;
+  race.time=42;race.tick=2520;race.mode='racing';Object.assign(race.riders[0],{x:2,z:600,speed:45,integrity:10,wheeliesLeft:0});crashRider(race,race.riders[0],true,'impact');
   // Exercise the HTTP body boundary with a valid, bounded collision cache.
   race.collisions=Object.fromEntries(Array.from({length:1100},(_,i)=>[`player:traffic-collision-${i}`,41]));checkpointChampionship(save.championship,race);
   const body={revision:0,request:'championship-device-001',save};assert.ok(Buffer.byteLength(JSON.stringify(body))>32_000);

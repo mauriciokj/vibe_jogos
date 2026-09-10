@@ -1,3 +1,4 @@
+import {recoveryCommand} from '../src/game/recovery';
 import { safeDrivingCommand } from './driving';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -43,7 +44,7 @@ test('kick displaces target and depleted resistance triggers a recoverable fall'
   for (let i = 0; i < 20; i++) stepRace(s, { player: { ...EMPTY_COMMAND, attack: 'kick' }, [target.id]: EMPTY_COMMAND });
   assert.ok(target.x > 2.5); assert.ok(target.crash > 0); assert.equal(target.falls, 1);
   for (let i = 0; i < 200; i++) stepRace(s, { player: EMPTY_COMMAND, [target.id]: EMPTY_COMMAND });
-  assert.equal(target.crash, 0); assert.ok(target.health > 90); assert.ok(target.integrity < 100);
+  assert.equal(target.crash, 0); assert.ok(target.health >= 24 && target.health < 90); assert.ok(target.integrity < 100);
 });
 test('a telegraphed rival attack gives the player time to steer out of reach', () => {
   const s = createRace(); s.mode = 'racing'; s.traffic = []; s.obstacles = []; s.riders = s.riders.slice(0, 2);
@@ -57,7 +58,7 @@ test('opposing traffic collisions cannot tunnel between ticks and recover withou
   const s = isolated(), p = s.riders[0]; p.speed = 57; p.x = -3.8;
   s.traffic = [{ id: 'test-car', x: -3.8, z: 3.7, speed: -25, kind: 'car', color: '#fff' }];
   run(s, 3); assert.ok(p.crash > 0); const integrity = p.integrity; assert.ok(integrity < 70);
-  run(s, 80); assert.equal(p.integrity, integrity); run(s, 130); assert.equal(p.crash, 0); assert.ok(p.speed > 0);
+  run(s, 80); assert.equal(p.integrity, integrity); for(let i=0;i<1200&&p.recovery;i++)stepRace(s,{player:recoveryCommand(p)}); assert.equal(p.crash, 0); assert.equal(p.recovery,undefined); run(s,60); assert.ok(p.speed > 0);
 });
 test('oil slows and damages the pilot; barriers force a fall', () => {
   const oil = isolated(); oil.riders[0].speed = 45; oil.obstacles.push({ id: 'oil', x: 1.7, z: 1, kind: 'oil' }); run(oil, 1);
@@ -122,11 +123,11 @@ function fallArrestSetup(distance = 25) {
   Object.assign(cop, { id: 'police', profile: 'police', x: 0, z: p.z - distance, speed: 0, cooldown: 999 });
   s.policeActive = true; return s;
 }
-test('fall during a traffic collision near police immediately loses, even with residual speed', () => {
+test('fall during a traffic collision near police immediately loses, even while the body slides', () => {
   const s = fallArrestSetup(); const p = s.riders[0]; p.speed = 64;
   s.traffic = [{ id: 'arrest-car', x: 0, z: 1803, speed: -20, kind: 'car', color: '#fff' }];
   stepRace(s, { player: accelerate, police: EMPTY_COMMAND });
-  assert.ok(p.crash > 0); assert.ok(p.speed > 8);
+  assert.ok(p.crash > 0); assert.ok(p.recovery!.vz > 8);
   assert.equal(s.result?.reason, 'caught'); assert.equal(s.result?.arrestCause, 'fall'); assert.equal(s.mode, 'finished');
 });
 test('30m fall arrest boundary is inclusive and checked across the road', () => {
