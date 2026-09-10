@@ -139,3 +139,6 @@ Original prompt: Build a classic Snake game in this repo.
 - Menu dimensionado pela altura disponível: título, espaçamentos e cartões menores; troféu do campeonato preservado. No celular deitado, pistas ao lado dos modos de jogo. Versão clicável e visitantes no rodapé.
 - 24 cenários de viewport/textos, de320x568 e568x320 até1920x1080, sem overflow vertical ou sobreposição. Garagem, conta, ranking, multiplayer, campeonato, ajuda, histórico/foco, carrossel, largada, pausa e retorno ao menu passaram; sem erros de console/JS. Imagens e estados conferidos; cliente da skill com corrida em movimento passou.
 - TypeScript/Vite e export passaram. Física, contas, protocolos e ranking sem mudanças. Preparando ativação e verificação pública; publicação respeita a guarda de corridas ativas.
+
+- Código `f5fc3cf`, release `20260910T183221Z-f5fc3cf` ativa. Asfalto/Catálogo/Caddy saudáveis; appVersion1.1.1-beta/protocolo14. Ambos os domínios entregam JS `index-D7ZNLmqh.js` e CSS `index-L9hSRFDI.css` idênticos ao build.
+- QA HTTPS repetiu24 verificações de viewport/textos e navegação de menus/corrida/retorno; sem rolagem vertical, sobreposição ou erros JS/console. Imagens públicas conferidas. ?test sem visitas artificiais, conta ou ranking de teste. Trabalho concluído; QA4325/4382 encerrado e protótipo4390 preservado.
