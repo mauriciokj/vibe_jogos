@@ -128,3 +128,9 @@ Original prompt: Build a classic Snake game in this repo.
 - Versão do produto 1.1.0-beta visível no menu e API de saúde, com histórico por publicação antiga e revisão real. Página de privacidade e documentação do vídeo atualizadas.
 - 180/180 testes unitários passaram, incluindo API autenticada, migração, compra duplicada, checkpoint/recompensa, campeonato e WebSocket com fraude/reserva. Browser desktop,390px e320px passou com duas contas de navegador, compra com resposta perdida, reload adulterado, corrida real conferida, campeonato retomado, reinício/abandono e convidado. Cliente da skill e imagens revisados. Build/export e9/9 testes de VPS passaram.
 - Backup remoto concluído antes da ativação; serviço antigo saudável e sem corrida multiplayer ativa. Próximo passo: publicar commit/release e conferir migração, assets e interfaces públicas sem criar contas/resultados de teste em produção.
+
+## 2026-09-10 — Beta1.1.0: ativação e QA público
+- Commit de código `d061978`, release `20260910T140919Z-d061978` ativa. Backup prévio concluído; guarda de corridas respeitada. Serviços Asfalto/Catálogo/Caddy ativos. SQLite íntegro e zero diferenças entre save/revisão da base beta e contas após migração, sem reset.
+- Dois domínios confirmam appVersion1.1.0-beta, protocolo14 e asset `index-CdOUMMS8.js` com SHA256 `1046ebb1160e6ce7c529c20d15eccffa7b963164e0cdaa3e35405204a12160d8`, idêntico ao build.
+- Histórico/menu responsivo e corrida solo conferidos no HTTPS. WebSockets pelos dois domínios criaram uma sala privada, deram pronto, largaram e avançaram juntos; saída explícita. Sem contas falsas, resultados de teste no ranking ou visitas artificiais. Console/JS sem erros; capturas públicas revisadas.
+- Testes locais180/180, infraestrutura9/9 e navegador completos. Economia/versão entregues. Limites e manutenção documentados em `sources/asfalto-bruto/docs/progresso-autoritativo.md`; protótipo4390 segue separado.
