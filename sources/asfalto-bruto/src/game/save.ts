@@ -3,7 +3,7 @@ import { HELMETS, HELMET_COLORS, equippedHelmet, getHelmetColor, ownsHelmet } fr
 import { WEAPONS, equippedWeapon, getWeapon } from './weapons';
 import { CONDITIONS, raceCondition, recordKey } from './conditions';
 import { BIKES, TRACKS, clamp, getTrack } from './content';
-import { KNEE_PADS, NITRO_PRICE, equippedKneePad, getKneePad, nitroCount } from './equipment';
+import { KNEE_PADS, NITRO_PRICE, equippedKneePad, getKneePad, kneePadPrerequisite, nitroCount } from './equipment';
 import type { RaceState, SaveData, Upgrade } from './types';
 import { racePayout } from './rewards';
 
@@ -92,7 +92,7 @@ export function buyKneePad(save: SaveData, id: string): boolean {
   const pad=getKneePad(id);if(!pad)return false;
   const owned=save.ownedKneePads ?? [];
   if(!owned.includes(id)) {
-    if(save.cash<pad.price)return false;
+    if(kneePadPrerequisite(save,id) || save.cash<pad.price)return false;
     save.cash-=pad.price;save.ownedKneePads=[...owned,id];
   }
   save.kneePadId=id;return true;

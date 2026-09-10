@@ -2,7 +2,11 @@ import './releases.css';
 import { GAME_VERSION } from './version';
 export { GAME_VERSION } from './version';
 export const RELEASES=[
-  {version:GAME_VERSION,date:'10/09/2026',title:'Prisão, resultados e obras na pista',changes:[
+  {version:GAME_VERSION,date:'10/09/2026',title:'Joelheiras liberadas em sequência',changes:[
+    'Compre as joelheiras na ordem: branca, verde, azul, roxa e dourada. Cada compra libera a próxima cor.',
+    'A garagem mostra qual joelheira libera cada modelo. Equipamentos já comprados continuam disponíveis.'
+  ]},
+  {version:'1.2.0-beta',date:'10/09/2026',title:'Prisão, resultados e obras na pista',changes:[
     'A câmera da próxima corrida começa na largada, mesmo após uma queda e uma espera pelo servidor.',
     'O campeonato explica quando a corrida termina por prisão, moto quebrada, explosão, abandono ou tempo esgotado. O motivo fica salvo junto aos pontos.',
     'Ao ser preso, a câmera se afasta e o policial desce da moto para algemar o piloto antes de mostrar o resultado. Os outros jogadores online continuam correndo.',

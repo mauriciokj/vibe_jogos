@@ -19,6 +19,13 @@ export const KNEE_PADS = [
   { id: 'gold', name: 'Dourada', color: '#ffd16a', price: 4000, grip: .55 },
 ] as const;
 export function getKneePad(id: unknown) { return KNEE_PADS.find(p=>p.id===id); }
+export function kneePadPrerequisite(save: SaveData, id: unknown) {
+  const index=KNEE_PADS.findIndex(p=>p.id===id),owned=save.ownedKneePads ?? [];
+  // Previously purchased tiers remain usable, including older beta saves.
+  if(index<=0 || owned.includes(KNEE_PADS[index].id))return undefined;
+  const previous=KNEE_PADS[index-1];
+  return owned.includes(previous.id)?undefined:previous;
+}
 export function equippedKneePad(save?: SaveData) {
   return save?.ownedKneePads?.includes(save.kneePadId ?? '') ? getKneePad(save.kneePadId) : undefined;
 }

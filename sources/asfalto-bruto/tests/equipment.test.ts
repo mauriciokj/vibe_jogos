@@ -12,7 +12,9 @@ import { inputKey, joinRoom, lobbyClock, makeMember, makeRoom, pulseRoom, viewRo
 import { cleanActions } from '../src/multiplayer/protocol';
 
 function solo(condition: RaceCondition='day',bikeId='ferro',pad='gold') {
-  const save=freshSave();save.cash=1000000;buyBike(save,bikeId);buyKneePad(save,pad);buyNitro(save);buyNitro(save);
+  const save=freshSave();save.cash=1000000;buyBike(save,bikeId);
+  for(const tier of KNEE_PADS.slice(0,KNEE_PADS.findIndex(p=>p.id===pad)+1))buyKneePad(save,tier.id);
+  buyNitro(save);buyNitro(save);
   const s=createRace('costa',save,321,condition);s.mode='racing';s.riders=s.riders.slice(0,1);s.traffic=[];s.obstacles=[];
   Object.assign(s.riders[0],{x:0,z:1320,speed:43});return s;
 }

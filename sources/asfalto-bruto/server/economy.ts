@@ -6,6 +6,7 @@ import { buyBike, buyHelmet, buyKneePad, buyNitro, buyUpgrade, buyWeapon, freshS
 import { championshipBikeState, checkpointChampionship, finishChampionshipSimulation, newChampionship, nextChampionshipStage, recordChampionshipHeat, startChampionshipRace } from '../src/game/championship';
 import { CONDITIONS } from '../src/game/conditions';
 import { TRACKS } from '../src/game/content';
+import { kneePadPrerequisite } from '../src/game/equipment';
 import { createRace, finishRider, stepRace } from '../src/game/simulation';
 import { cleanCommand } from '../src/multiplayer/protocol';
 import type { RaceState, SaveData } from '../src/game/types';
@@ -46,7 +47,11 @@ export class Economy {
         case 'helmet':ok=buyHelmet(save,a.item!);break;
         case 'color':ok=paintHelmet(save,a.item!);break;
         case 'weapon':ok=buyWeapon(save,a.item!);break;
-        case 'knee':ok=buyKneePad(save,a.item!);break;
+        case 'knee': {
+          const required=kneePadPrerequisite(save,a.item);
+          if(required)fail(`Compre a joelheira ${required.name.toLowerCase()} antes desta.`,400);
+          ok=buyKneePad(save,a.item!);break;
+        }
         case 'nitro':ok=buyNitro(save);break;
         case 'upgrade':if(['engine','armor','handling'].includes(a.item!))ok=buyUpgrade(save,a.item as 'engine'|'armor'|'handling');break;
         case 'repair':ok=repair(save);break;

@@ -58,7 +58,7 @@ try{
   await a.evaluate(()=>window.__game!.command({throttle:0,brake:0,steer:.25,attack:null},1));assert.equal((await state()).player.falls,1);assert.ok((await state()).player.crash>0);await shot('rain-fall');await back();
   // Native multi-touch: steering and throttle at the same time, including the double flick.
   const mobile=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});observe(mobile);
-  const mobileSave=freshSave();mobileSave.cash=10000;mobileSave.races=1;buyKneePad(mobileSave,'gold');buyNitro(mobileSave);mobileSave.raceCondition='day';
+  const mobileSave=freshSave();mobileSave.cash=15000;mobileSave.races=1;for(const pad of KNEE_PADS)buyKneePad(mobileSave,pad.id);buyNitro(mobileSave);mobileSave.raceCondition='day';
   await mobile.goto(base+'?test');await mobile.evaluate(({key,save})=>localStorage.setItem(key,JSON.stringify(save)),{key:SAVE_KEY,save:mobileSave});await mobile.reload();await mobile.click('#start-btn');await fixture(mobile);
   const cd=await mobile.context().newCDPSession(mobile),left=(await mobile.locator('#steering-stick').boundingBox())!,right=(await mobile.locator('#drive-stick').boundingBox())!;
   const centerL={x:left.x+left.width/2,y:left.y+left.height/2,id:1},centerR={x:right.x+right.width/2,y:right.y+right.height/2,id:2};
@@ -82,7 +82,7 @@ try{
   await mobile.setViewportSize({width:844,height:390});await shot('mobile-landscape',mobile);await mobile.close();
   // Purchased loadouts in a real room; actions and consumption survive reload.
   await a.click('[data-route="costa:day"]');await a.click('#online-btn');await a.fill('#online-name','Ana');await a.check('#online-bots');await a.click('#online-create');await a.waitForFunction(()=>JSON.parse(window.render_game_to_text()).online?.phase==='lobby');const code=(await state()).online.code;
-  const blue=freshSave();blue.cash=100000;buyBike(blue,'falcao');buyKneePad(blue,'blue');buyNitro(blue);
+  const blue=freshSave();blue.cash=100000;buyBike(blue,'falcao');for(const pad of KNEE_PADS.slice(0,3))buyKneePad(blue,pad.id);buyNitro(blue);
   await b.goto(base+'?test');await b.evaluate(({key,save})=>localStorage.setItem(key,JSON.stringify(save)),{key:SAVE_KEY,save:blue});await b.goto(base+`?test&sala=${code}`);await b.fill('#online-name','Bia');await b.click('#online-join');await b.waitForFunction(()=>JSON.parse(window.render_game_to_text()).online?.phase==='lobby');
   await a.click('#online-ready');await b.click('#online-ready');await a.waitForFunction(()=>JSON.parse(window.render_game_to_text()).online?.locked);offset+=5001;
   for(const p of [a,b])await p.waitForFunction(()=>JSON.parse(window.render_game_to_text()).screen==='race');
