@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { setImmediate as yieldTurn } from 'node:timers/promises';
 import { AccountsDB, hash, token } from './accounts-db';
 import { RANK_RULES, type GarageAction, type RankedRun, type ReplaySegment } from '../src/account/protocol';
-import { buyBike, buyHelmet, buyKneePad, buyNitro, buyUpgrade, buyWeapon, freshSave, paintHelmet, repair, repairChampionshipBike, settleRace } from '../src/game/save';
+import { buyBike, buyHelmet, buyKneePad, buyNitro, buyUpgrade, buyWeapon, freshSave, paintHelmet, repair, repairChampionshipBike, settleRace, soloBikeStatus } from '../src/game/save';
 import { championshipBikeState, checkpointChampionship, finishChampionshipSimulation, newChampionship, nextChampionshipStage, recordChampionshipHeat, startChampionshipRace } from '../src/game/championship';
 import { CONDITIONS } from '../src/game/conditions';
 import { TRACKS } from '../src/game/content';
@@ -97,7 +97,9 @@ export class Economy {
       }else{
         const track=TRACKS.find(t=>t.id===body.trackId),condition=CONDITIONS.find(c=>c.id===body.condition);
         if(!track||!condition||track.index>save.unlocked)fail('Pista indisponível.',400);
-        if((save.condition[save.bikeId] ?? 100)<20){save.bikeId='ferro';save.condition.ferro=Math.max(55,save.condition.ferro ?? 100);}
+        const bike=soloBikeStatus(save);
+        if(bike.blocked)fail('A moto equipada está em 0%. Repare na garagem ou equipe outra moto antes de iniciar.');
+        if(bike.starterRepair)save.condition.ferro=55;
         race=createRace(track!.id,save,seed(),condition!.id);
       }
       // Reserve consumables before racing. Only verified remaining stock is

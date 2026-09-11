@@ -42,7 +42,7 @@ import { RaceInstruments } from './game/instruments';
 import { Renderer } from './game/renderer';
 import { createRace, finishRider, nearestTarget, ranking, restoreSnapshot, snapshot, STEP, stepRace } from './game/simulation';
 import { bikePortrait } from './game/sprites';
-import { buyHelmet, paintHelmet, buyBike, buyWeapon, buyKneePad, buyNitro, spendNitro, recordOnlineNitro, buyUpgrade, freshSave, repair, repairChampionshipBike, repairCost, settleRace, upgradeCost } from './game/save';
+import { buyHelmet, paintHelmet, buyBike, buyWeapon, buyKneePad, buyNitro, spendNitro, recordOnlineNitro, buyUpgrade, freshSave, repair, repairChampionshipBike, repairCost, settleRace, upgradeCost, soloBikeStatus } from './game/save';
 import type { Command, RaceResult, RaceState, RiderAction, Upgrade } from './game/types';
 
 const icons = {
@@ -347,18 +347,26 @@ async function startRace(championship=false) {
   startingRace=true;
   if(accounts.cache){await retryRankedResults();if(soloRecorder&&!settled){startingRace=false;toast('Retome ou abandone a corrida atual.');return;}}
   if(championship && championshipBikeState(save).blocked){startingRace=false;showChampionship();return;}
+  if(!accounts.cache && !championship && soloBikeStatus(save).blocked){
+    startingRace=false;showMenu();showGarage();return;
+  }
   resetFinish();
   soloRecorder=null;
   if(onlineMode)online.leave();
   clearTimeout(toastTimer);$('toast').hidden=true;
   $('online-hud').hidden=true;
   closeDialogs(); clearControls();
-  if (!accounts.cache && !championship && (save.condition[save.bikeId] ?? 100) < 20) { save.bikeId = 'ferro'; save.condition.ferro = Math.max(55, save.condition.ferro); saveNow(); toast('Ferro 500 pronta: reparo básico gratuito para continuar.'); }
+  if (!accounts.cache && !championship && soloBikeStatus(save).starterRepair) { save.condition.ferro=55;saveNow();toast('Ferro 500 pronta: reparo básico gratuito para continuar.'); }
   soloNitroSpent=0;lowIntegrityWarned=false;audio.resetRace();
   $('start-btn').textContent='PREPARANDO…';
   championshipMode=championship;
   const run=accounts.cache?await accounts.startRun(selectedTrack,selectedCondition,championship):null;
-  if(accounts.cache&&!run){startingRace=false;$('start-btn').innerHTML=`JOGAR SOZINHO ${icons.arrow}`;toast(accounts.status);showMenu();return;}
+  if(accounts.cache&&!run){
+    startingRace=false;$('start-btn').innerHTML=`JOGAR SOZINHO ${icons.arrow}`;showMenu();
+    if(!championship && soloBikeStatus(save).blocked){showGarage();garageFeedback(accounts.status,true);}
+    else toast(accounts.status);
+    return;
+  }
   if(run)soloRecorder=new SoloRecorder(run,accounts.cache!.account.id);
   if(run?.initial){race=structuredClone(run.initial);selectedTrack=race.trackId;selectedCondition=raceCondition(race.condition);championshipMode=!!run.championship;champCheckpointAt=race.time;}
   else if(championship){
@@ -375,6 +383,7 @@ async function startRace(championship=false) {
   setText('distance-total', `${(getTrack(selectedTrack).distance / 1000).toFixed(1)} KM ⚑`);
   setText('race-message', '');
   void audio.start(); updateHUD();
+  if(!championshipMode && localRider().integrity>0 && localRider().integrity<20)toast(`${getBike(localRider().bikeId).name}: ${Math.max(1,Math.floor(localRider().integrity))}% de integridade. Cuidado: a moto pode quebrar.`);
   if(race.mode==='finished')void showResult();
 }
 function requestStart() {
@@ -485,9 +494,24 @@ function updateHUD() {
     $('rival-list').innerHTML = order.slice(start, start + 4).map((r, i) => `<div class="rival-entry ${r.id === localId() ? 'me' : ''}"><span>${start + i + 1}</span><span>${escapeHTML(r.name)}</span><span class="gap">${r.out==='caught'?'PRESO':r.out?'FORA':r.id === localId() ? '◂' : `${r.z >= standingZ ? '+' : '−'}${Math.round(Math.abs(r.z - standingZ))}m`}</span></div>`).join('');
   }
 }
+function garageFeedback(message:string,error=false) {
+  const dialog=$<HTMLDialogElement>('garage-modal');
+  let notice=dialog.querySelector<HTMLElement>('.garage-feedback');
+  if(!notice){notice=document.createElement('div');notice.className='garage-feedback';dialog.querySelector('.dialog-header')!.after(notice);}
+  notice.textContent=message;notice.setAttribute('role',error?'alert':'status');
+  if(error)dialog.scrollTop=0;
+}
+function garageNotes() {
+  const bike=soloBikeStatus(save),name=getBike(save.bikeId).name,notes:string[]=[];
+  if(bike.blocked)notes.push(`${name} · 0% de integridade. Repare na garagem ou equipe outra moto antes de iniciar uma corrida livre.`);
+  else if(bike.low)notes.push(`${name} · ${Math.max(1,Math.floor(bike.integrity))}% de integridade. Recomendamos reparar antes de correr.`);
+  const championship=championshipBikeState(save);
+  if(championship.locked && championship.bikeId!==save.bikeId)notes.push(`No campeonato, ${getBike(championship.bikeId).name} continua inscrita nesta etapa. A moto escolhida na garagem vale para corridas livres e para a próxima etapa.`);
+  if(notes.length)garageFeedback(notes.join('\n'));
+}
 function renderGarage() {
   if(garageTab!=='bikes'){
-    $('garage-modal').innerHTML=`<div class="dialog-header"><div><div class="eyebrow">SUA OFICINA. SUAS REGRAS.</div><h2 id="garage-title">Garagem</h2></div><button class="close-btn" data-close="garage-modal" aria-label="Fechar garagem">×</button></div><div class="dialog-body">${garageNav(garageTab)}${equipmentShop(save,garageTab)}<div class="garage-footer"><span>SALDO <b>${money(save.cash)}</b></span></div></div>`;return;
+    $('garage-modal').innerHTML=`<div class="dialog-header"><div><div class="eyebrow">SUA OFICINA. SUAS REGRAS.</div><h2 id="garage-title">Garagem</h2></div><button class="close-btn" data-close="garage-modal" aria-label="Fechar garagem">×</button></div><div class="dialog-body">${garageNav(garageTab)}${equipmentShop(save,garageTab)}<div class="garage-footer"><span>SALDO <b>${money(save.cash)}</b></span></div></div>`;garageNotes();return;
   }
   $('garage-modal').innerHTML = `<div class="dialog-header"><div><div class="eyebrow">SUA OFICINA. SUAS REGRAS.</div><h2 id="garage-title">Garagem</h2></div><button class="close-btn" data-close="garage-modal" aria-label="Fechar garagem">×</button></div><div class="dialog-body">${garageNav(garageTab)}<div class="garage-intro"><div><b>${BIKES.length} MOTOS. ESCOLHA SEU ESTILO.</b><p>Compare os dados de fábrica. As melhorias valem para a moto equipada.</p></div><button class="secondary" id="garage-workshop">MELHORIAS & REPAROS ↓</button></div><div class="garage-grid">${BIKES.slice().sort((a,b)=>a.price-b.price).map((b,index) => {
     const owned = save.owned.includes(b.id), equipped = save.bikeId === b.id;
@@ -496,6 +520,7 @@ function renderGarage() {
     const level = save.upgrades[save.bikeId][k], label = { engine: 'Motor', armor: 'Resistência', handling: 'Dirigibilidade' }[k];
     return `<div class="upgrade"><span>${label}<span class="levels">${'▰'.repeat(level)}${'▱'.repeat(3 - level)}</span></span><button class="secondary" data-upgrade="${k}" ${level >= 3 || save.cash < upgradeCost(save, k) ? 'disabled' : ''}>${level >= 3 ? 'MÁXIMO' : `+ ${money(upgradeCost(save, k))}`}</button></div>`;
   }).join('')}</div><div class="repair-panel"><h3>MOTO EM ${Math.round(save.condition[save.bikeId])}%</h3><p>Nas corridas livres, a Ferro 500 recebe reparos gratuitos até 55% após cada corrida. No campeonato, os reparos ficam entre as etapas ou quando a moto chega a 0%.</p><button class="secondary" id="repair-btn" ${repairCost(save) === 0 || save.cash < repairCost(save) ? 'disabled' : ''}>${repairCost(save) === 0 ? '✓ NENHUM REPARO NECESSÁRIO' : `REPARAR 100% · ${money(repairCost(save))}`}</button></div></div><div class="garage-footer"><span>SALDO <b>${money(save.cash)}</b></span><button class="text-button danger" id="reset-btn">Reiniciar progresso</button></div></div>`;
+  garageNotes();
 }
 function showGarage() { if(championshipMode && save.championship && !championshipGarageOpen(save.championship))return;renderGarage(); $<HTMLDialogElement>('garage-modal').showModal(); }
 
@@ -736,7 +761,11 @@ async function changeAccountGarage(action:GarageAction,button?:HTMLButtonElement
     if(action.kind==='champRepair'||action.kind==='champRestart')showChampionship();
     else if(action.kind==='reset'){showMenu();toast('Garagem reiniciada.');}
     else{renderGarage();renderMenu();if(screen==='menu')makeAttract();}
-  }catch(e){toast(e instanceof Error?e.message:'Não foi possível confirmar.');if(button)button.disabled=false;}
+  }catch(e){
+    const message=e instanceof Error?e.message:'Não foi possível confirmar.';
+    if($<HTMLDialogElement>('garage-modal').open){renderGarage();garageFeedback(message,true);}
+    else{toast(message);if(button)button.disabled=false;}
+  }
 }
 async function leaveAccountRace(restart=false){
   if(startingRace)return;

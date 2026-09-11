@@ -37,7 +37,7 @@ module.exports = __toCommonJS(asfalto_exports);
 var import_node_http2 = require("node:http");
 
 // src/version.ts
-var GAME_VERSION = "1.2.1-beta";
+var GAME_VERSION = "1.2.2-beta";
 
 // server/service.ts
 var import_node_http = require("node:http");

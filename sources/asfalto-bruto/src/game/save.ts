@@ -58,6 +58,10 @@ export function persist(save: SaveData): boolean {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); return true; } catch { return false; }
 }
 export function repairCost(save: SaveData, bikeId = save.bikeId, integrity = save.condition[bikeId] ?? 100) { return Math.ceil((100 - integrity) * 4); }
+export function soloBikeStatus(save: SaveData) {
+  const integrity=save.condition[save.bikeId] ?? 100,starterRepair=save.bikeId==='ferro' && integrity<20;
+  return {integrity,starterRepair,blocked:integrity===0&&!starterRepair,low:integrity>0&&integrity<20&&!starterRepair};
+}
 export function repairChampionshipBike(save:SaveData):boolean {
   const bike=championshipBikeState(save);if(!bike.canRepair)return false;
   const cost=repairCost(save,bike.bikeId,bike.integrity);if(save.cash<cost)return false;

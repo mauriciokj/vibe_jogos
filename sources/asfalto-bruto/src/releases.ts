@@ -2,7 +2,12 @@ import './releases.css';
 import { GAME_VERSION } from './version';
 export { GAME_VERSION } from './version';
 export const RELEASES=[
-  {version:GAME_VERSION,date:'10/09/2026',title:'Joelheiras liberadas em sequência',changes:[
+  {version:GAME_VERSION,date:'10/09/2026',title:'Sua moto na largada',changes:[
+    'Corridas livres respeitam a moto equipada mesmo abaixo de 20% de integridade, com aviso de desgaste. A largada não troca mais sua moto pela Ferro 500.',
+    'Motos compradas com integridade zero precisam de reparo ou troca antes da largada. O reparo básico gratuito continua disponível ao escolher a Ferro 500.',
+    'Erros ao equipar aparecem dentro da garagem. O campeonato explica quando mantém a moto inscrita até terminar as quatro corridas da etapa.'
+  ]},
+  {version:'1.2.1-beta',date:'10/09/2026',title:'Joelheiras liberadas em sequência',changes:[
     'Compre as joelheiras na ordem: branca, verde, azul, roxa e dourada. Cada compra libera a próxima cor.',
     'A garagem mostra qual joelheira libera cada modelo. Equipamentos já comprados continuam disponíveis.'
   ]},
