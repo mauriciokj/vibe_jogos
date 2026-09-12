@@ -31,6 +31,7 @@ export class AccountsDB {
       CREATE TABLE IF NOT EXISTS economy_chunks(run TEXT,cursor INTEGER,digest TEXT,end_cursor INTEGER,PRIMARY KEY(run,cursor));
       CREATE TABLE IF NOT EXISTS economy_completions(run TEXT PRIMARY KEY,payout TEXT);
       CREATE TABLE IF NOT EXISTS economy_multiplayer(id TEXT PRIMARY KEY,account TEXT,bike TEXT,stock INTEGER,used INTEGER DEFAULT 0,closed INTEGER DEFAULT 0);
+      CREATE TABLE IF NOT EXISTS achievement_imports(account TEXT PRIMARY KEY);
       INSERT OR IGNORE INTO beta_baseline SELECT id,save,revision,updated FROM accounts WHERE NOT EXISTS(SELECT 1 FROM economy_meta WHERE version=1);
       INSERT OR IGNORE INTO economy_meta VALUES(1);`);
   }

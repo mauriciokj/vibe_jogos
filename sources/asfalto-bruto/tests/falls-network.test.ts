@@ -10,7 +10,7 @@ import {makeRoom,makeMember,joinRoom,lobbyClock,pulseRoom,viewRoom} from '../ser
 function setup(){const state=createMultiplayerRace('costa',[{id:'a',name:'Ana'},{id:'b',name:'Bia'}],19,false,'rain');state.mode='racing';state.time=12;state.traffic=[];state.obstacles=[];state.riders.forEach((r,i)=>{Object.assign(r,{z:600+i*5,x:1.5,speed:45,immune:0});crashRider(state,r,true,'spill');});const presentation=new RacePresentation('a');return {state,presentation};}
 function room(state:RaceState,at=10000):RoomView{return {code:'ABCDEF',trackId:state.trackId,condition:state.condition,fillBots:false,phase:'racing',locked:true,deadline:null,serverNow:at,simulationAt:at,revision:state.tick,members:[],race:structuredClone(state),ack:{},attackAck:{}};}
 test('protocol15 retains continuous sliding of both bodies without changing snapshots or events',()=>{
- assert.equal(NET_VERSION,15);const {state,presentation}=setup(),received=room(state),raw=JSON.stringify(received);presentation.accept(received,0,10000);
+ assert.equal(NET_VERSION,16);const {state,presentation}=setup(),received=room(state),raw=JSON.stringify(received);presentation.accept(received,0,10000);
  const start=presentation.view(0)!,next=presentation.view(100)!;for(let i=0;i<2;i++){assert.ok(next.riders[i].z>start.riders[i].z);assert.ok(next.riders[i].recovery!.bikeZ>start.riders[i].recovery!.bikeZ);}
  for(let t=0;t<400;t+=7)presentation.view(t);assert.equal(JSON.stringify(received),raw);
  const frozen=presentation.view(400)!,late=presentation.view(4000)!;assert.deepEqual(late.riders,frozen.riders);

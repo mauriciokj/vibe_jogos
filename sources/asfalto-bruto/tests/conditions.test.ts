@@ -13,7 +13,7 @@ test('legacy saves preserve garage, progression and sunset records; new conditio
   Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:(k:string)=>data.get(k)??null,setItem:(k:string,v:string)=>data.set(k,v)}});
   try{
     const old=freshSave();delete old.raceCondition;delete old.raceTrackId;old.cash=7345;old.unlocked=2;old.races=15;old.owned.push('veneno');old.bikeId='veneno';old.condition.veneno=73;old.upgrades.veneno={engine:2,armor:1,handling:3};old.records.costa={time:140,place:1};persist(old);
-    const save=loadSave();assert.deepEqual(save,{...old,raceCondition:'sunset',raceTrackId:'costa'});
+    const save=loadSave();assert.deepEqual(save,{...old,raceCondition:'sunset',raceTrackId:'costa',achievements:{...old.achievements,finishedTracks:['costa'],conditionWins:['costa']}});
     for(const [i,condition] of CONDITIONS.entries()){
       const s=createRace('costa',save,42,condition.id);s.result={reason:'finish',place:3,time:180+i,reward:10,hits:1,falls:0};settleRace(save,s);
     }

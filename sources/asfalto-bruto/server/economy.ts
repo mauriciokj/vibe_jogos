@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import { awardRaceAchievements, importRecordedAchievements } from '../src/game/achievements';
 import { setImmediate as yieldTurn } from 'node:timers/promises';
 import { AccountsDB, hash, token } from './accounts-db';
 import { RANK_RULES, type GarageAction, type RankedRun, type ReplaySegment } from '../src/account/protocol';
@@ -26,7 +27,17 @@ export class Economy {
     for(const row of this.db.db.prepare('SELECT id,account FROM economy_multiplayer WHERE closed=0').all())
       this.releaseMember({id:String(row.id),accountId:String(row.account)} as Member);
   }
-  initialize(id:string){this.db.mutate(id,save=>({save:save ?? freshSave(),value:null}),this.now());return this.db.cloud(id);}
+  initialize(id:string){
+    this.db.mutate(id,stored=>{
+      const save=structuredClone(stored ?? freshSave());
+      if(!this.db.db.prepare('SELECT 1 FROM achievement_imports WHERE account=?').get(id)){
+        const rows=this.db.db.prepare('SELECT DISTINCT mode,track,condition,place FROM results WHERE account=?').all(id);
+        importRecordedAchievements(save,rows.map(r=>({mode:String(r.mode),track:String(r.track),condition:String(r.condition),place:Number(r.place)})));
+        this.db.db.prepare('INSERT INTO achievement_imports VALUES(?)').run(id);
+      }
+      return {save,value:null};
+    },this.now());return this.db.cloud(id);
+  }
   private active(id:string){return this.db.db.prepare('SELECT * FROM economy_runs WHERE account=? AND completed=0 ORDER BY created DESC LIMIT 1').get(id);}
   private ensureIdle(id:string){
     if(this.busy.has(id) || this.active(id))fail('Conclua ou abandone a corrida da conta antes de alterar a garagem.');
@@ -162,7 +173,7 @@ export class Economy {
           // Abandoning is not an income source. Legitimate defeats retain the
           // existing workshop assistance computed by the simulation.
           if(body.abandon===true)race.result!.reward=0;
-          payout=settleRace(save,race,{starterRepair:row!.kind!=='championship'});
+          payout=settleRace(save,race,{starterRepair:row!.kind!=='championship',mode:row!.kind==='championship'?'championship':'solo'});
           const p=race.riders[0],bike=p.bikeId!;
           save.nitro={...save.nitro,[bike]:(save.nitro?.[bike] ?? 0)+(p.nitro ?? 0)};
           if(row!.kind==='solo')this.db.result(String(row!.id),id,'solo',race.trackId,race.condition!,bike,race.result!,this.now());
@@ -189,18 +200,19 @@ export class Economy {
       return {save:next,value:null};
     },this.now());
   }
-  releaseMember(member:Member,used=0,result?:import('../src/game/types').RaceResult){
+  releaseMember(member:Member,used=0,result?:import('../src/game/types').RaceResult,race?:RaceState){
     if(!member.accountId||this.closedSlots.has(member.id))return;
-    const unlocked=this.db.mutate(member.accountId,stored=>{
+    const awarded=this.db.mutate(member.accountId,stored=>{
       const row=this.db.db.prepare('SELECT * FROM economy_multiplayer WHERE id=? AND closed=0').get(member.id);
-      if(!row)return {save:stored,value:false};
+      if(!row)return {save:stored,value:null};
       const save=structuredClone(stored!),remaining=Math.max(0,Number(row.stock)-Math.max(Number(row.used),used));
       const unlocked=!!result && unlockBicycle(save,result);
+      const achievements=race&&result?awardRaceAchievements(save,race,member.id,'multi'):[];
       save.nitro={...save.nitro,[String(row.bike)]:(save.nitro?.[String(row.bike)] ?? 0)+remaining};
       this.db.db.prepare('UPDATE economy_multiplayer SET closed=1 WHERE id=?').run(member.id);
-      return {save,value:unlocked};
+      return {save,value:{unlocked,achievements}};
     },this.now());
-    if(unlocked && result)result.secretUnlocked=true;
+    if(awarded && result){if(awarded.unlocked)result.secretUnlocked=true;if(awarded.achievements.length)result.achievements=awarded.achievements;}
     this.closedSlots.add(member.id);this.onlineUsage.delete(member.id);
     if(this.closedSlots.size>4096)this.closedSlots.delete(this.closedSlots.values().next().value!);
   }
@@ -213,7 +225,7 @@ export class Economy {
         this.onlineUsage.set(member.id,used);
       }
       const result=room.race?.multiplayer?.results[member.id];
-      if(result)this.releaseMember(member,used,result);
+      if(result)this.releaseMember(member,used,result,room.race ?? undefined);
     }
   }
 }

@@ -2,7 +2,12 @@ import './releases.css';
 import { GAME_VERSION } from './version';
 export { GAME_VERSION } from './version';
 export const RELEASES=[
-  {version:GAME_VERSION,date:'12/09/2026',title:'Um segredo na garagem',changes:[
+  {version:GAME_VERSION,date:'12/09/2026',title:'Seu legado na estrada',changes:[
+    '25 conquistas ao lado do campeonato, com objetivos visíveis e desafios secretos revelados ao conquistar.',
+    'Conquistas ficam salvas no navegador ou na conta. Feitos antigos são reconhecidos quando existe registro que os comprove.',
+    'Veículo secreto ajustado para 60 km/h de fábrica, mantendo o ganho proporcional das melhorias de transmissão.'
+  ]},
+  {version:'1.3.0-beta',date:'12/09/2026',title:'Um segredo na garagem',changes:[
     'Uma vaga misteriosa apareceu na garagem. Uma conquista especial revela um veículo com um jeito diferente de acelerar.',
     'Agora é possível concluir uma corrida cruzando a linha de chegada a pé. A conquista fica salva e acompanha sua conta entre aparelhos.'
   ]},

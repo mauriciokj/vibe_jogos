@@ -54,8 +54,8 @@ try{
  await page.click('[data-close="garage-modal"]');await page.reload();assert.equal((await state()).save.bike,'bicicleta');await page.click('#start-btn');await page.evaluate(()=>window.advanceTime(3550));
  await page.keyboard.down('w');await page.evaluate(()=>window.advanceTime(3000));assert.equal((await state()).player.speed,0);await page.keyboard.up('w');
  for(let i=0;i<20;i++){await page.keyboard.press('w');await page.evaluate(()=>window.advanceTime(180));}
- assert.ok((await state()).player.speed>30);assert.equal((await state()).player.wheeliesLeft,3);assert.equal((await state()).player.nitro,0);await shot('pedaling');
- await page.keyboard.down('s');await page.evaluate(()=>window.advanceTime(500));await page.keyboard.up('s');assert.ok((await state()).player.speed<25);
+ assert.ok((await state()).player.speed>15&& (await state()).player.speed<=60/3.6+.01);assert.equal((await state()).player.wheeliesLeft,3);assert.equal((await state()).player.nitro,0);await shot('pedaling');
+ await page.keyboard.down('s');await page.evaluate(()=>window.advanceTime(500));await page.keyboard.up('s');assert.ok((await state()).player.speed<5);
  await page.click('#pause-btn');await page.click('#menu-btn');
  const unlocked=JSON.parse(await page.evaluate(()=>window.__game!.save()));
   const mobile=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});await prepare(mobile,unlocked);await mobile.click('#start-btn');await mobile.evaluate(()=>window.advanceTime(3550));
@@ -63,7 +63,7 @@ try{
  assert.equal(await mobile.locator('#drive-label').innerText(),'TOQUE PARA PEDALAR');assert.equal(await mobile.locator('#touch-nitro').isVisible(),false);
  const rect=await mobile.locator('#drive-stick').boundingBox();assert.ok(rect);
  for(let i=0;i<20;i++){await mobile.touchscreen.tap(rect.x+rect.width/2,rect.y+rect.height*.22);await mobile.evaluate(()=>window.advanceTime(180));}
- assert.ok((await state(mobile)).player.speed>30);await shot('mobile-pedaling',mobile);
+ assert.ok((await state(mobile)).player.speed>15&& (await state(mobile)).player.speed<=60/3.6+.01);await shot('mobile-pedaling',mobile);
  const beforeHold=(await state(mobile)).player.speed;
  await mobile.mouse.move(rect.x+rect.width/2,rect.y+rect.height*.22);await mobile.mouse.down();await mobile.evaluate(()=>window.advanceTime(3000));await mobile.mouse.up();assert.ok((await state(mobile)).player.speed<beforeHold-3);assert.equal((await state(mobile)).player.pedalTime,0);
  await mobile.click('#pause-btn');await mobile.click('#menu-btn');

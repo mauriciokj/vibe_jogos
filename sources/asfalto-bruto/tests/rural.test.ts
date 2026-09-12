@@ -75,7 +75,7 @@ test('a prior Porto top-five record unlocks Terra and preserves purchased equipm
   Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:(k:string)=>data.get(k)??null,setItem:(k:string,v:string)=>data.set(k,v)}});
   try{
     for(const condition of CONDITIONS){const save=freshSave();save.unlocked=3;save.cash=6734;save.ownedHelmets=['integral','cross'];save.helmetId='cross';save.helmetColorId='purple';save.ownedKneePads=['gold'];save.kneePadId='gold';save.ownedWeapons=['chain'];save.weaponId='chain';
-      save.records[condition.id==='sunset'?'porto':`porto:${condition.id}`]={time:240,place:5};persist(save);assert.deepEqual(loadSave(),{...save,unlocked:4});}
+      save.records[condition.id==='sunset'?'porto':`porto:${condition.id}`]={time:240,place:5};persist(save);assert.deepEqual(loadSave(),{...save,unlocked:4,achievements:{...save.achievements,finishedTracks:['porto']}});}
   }finally{if(descriptor)Object.defineProperty(globalThis,'localStorage',descriptor);else delete (globalThis as any).localStorage;}
 });
 test('every stock bike finishes Terra in dry and wet conditions using ordinary controls',()=>{

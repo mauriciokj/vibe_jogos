@@ -8,10 +8,11 @@ import type { RaceState, SaveData, Upgrade } from './types';
 import { racePayout } from './rewards';
 import { BICYCLE_ID } from './bikes';
 import type { RaceResult } from './types';
+import { awardRaceAchievements, normalizeAchievements, reconcileAchievements, type AchievementMode } from './achievements';
 
 export const SAVE_KEY = 'asfalto-bruto:v1';
 export function freshSave(): SaveData {
-  return { version: 1, ownedHelmets: ['integral'], helmetId: 'integral', helmetColorId: 'white', raceTrackId: 'costa', raceCondition: 'sunset', cash: 650, owned: ['ferro'], bikeId: 'ferro', upgrades: { ferro: { engine: 0, armor: 0, handling: 0 } }, condition: { ferro: 100 }, unlocked: 0, records: {}, races: 0, muted: false };
+  return { version: 1, achievements:normalizeAchievements(null), ownedHelmets: ['integral'], helmetId: 'integral', helmetColorId: 'white', raceTrackId: 'costa', raceCondition: 'sunset', cash: 650, owned: ['ferro'], bikeId: 'ferro', upgrades: { ferro: { engine: 0, armor: 0, handling: 0 } }, condition: { ferro: 100 }, unlocked: 0, records: {}, races: 0, muted: false };
 }
 export function loadSave(): SaveData {
   try {
@@ -53,6 +54,7 @@ export function normalizeSave(saved: any): SaveData {
     for(const track of TRACKS)if(CONDITIONS.some(c=>(valid.records[recordKey(track.id,c.id)]?.place ?? 99)<=5))valid.unlocked=Math.max(valid.unlocked,Math.min(TRACKS.length-1,track.index+1));
     valid.raceTrackId=TRACKS.find(t=>t.id===saved.raceTrackId && t.index<=valid.unlocked)?.id ?? 'costa';
     const championship=normalizeChampionship(saved.championship,normalizeSave);if(championship)valid.championship=championship;
+    valid.achievements=normalizeAchievements(saved.achievements);reconcileAchievements(valid);
     return valid;
   } catch { return freshSave(); }
 }
@@ -132,7 +134,7 @@ export function buyBike(save: SaveData, id: string): boolean {
     save.cash -= bike.price; save.owned.push(id); save.condition[id] = 100;
     save.upgrades[id] = { engine: 0, armor: 0, handling: 0 };
   }
-  save.bikeId = id; return true;
+  save.bikeId = id; reconcileAchievements(save); return true;
 }
 // Called only for a settled local result or a server-confirmed account result.
 export function unlockBicycle(save:SaveData,result:RaceResult):boolean {
@@ -148,10 +150,12 @@ export function buyUpgrade(save: SaveData, key: keyof Upgrade): boolean {
   const cost = upgradeCost(save, key); if (save.cash < cost) return false;
   up[key]++; save.cash -= cost; return true;
 }
-export function settleRace(save: SaveData, state: RaceState, options: {starterRepair?:boolean} = {}) {
+export function settleRace(save: SaveData, state: RaceState, options: {starterRepair?:boolean;mode?:AchievementMode} = {}) {
   if (!state.result || state.multiplayer) return;
   const payout = racePayout(state.trackId, state.result, save.records[recordKey(state.trackId,state.condition)]?.time);
   if(unlockBicycle(save,state.result))payout.secretUnlocked=true;
+  const achievements=awardRaceAchievements(save,state,state.riders[0].id,options.mode ?? 'solo');
+  if(achievements.length)payout.achievements=achievements;
   save.cash += payout.total; save.races++;
   save.condition[state.riders[0].bikeId ?? save.bikeId] = clamp(state.riders[0].integrity, 0, 100);
   const result = state.result;

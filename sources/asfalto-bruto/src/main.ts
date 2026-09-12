@@ -22,6 +22,9 @@ import './touch.css';
 import './hud.css';
 import './finish.css';
 import './championship.css';
+import './achievements.css';
+import { ACHIEVEMENTS, awardRaceAchievements } from './game/achievements';
+import { medalIcon, achievementsMarkup, achievementRewardMarkup, type AchievementFilter } from './achievements-ui';
 import { FINISH_SECONDS, finishPullback, finishWinner, finishScene, finishPoliceArrival, type FinishPoliceArrival } from './game/finish';
 import type { RacePayout } from './game/rewards';
 import { BICYCLE_ID, MOTORBIKES, isBicycle, supportsKneeDown } from './game/bikes';
@@ -69,7 +72,7 @@ root.innerHTML = `
         <h1>ASFALTO<span>BRUTO</span></h1><p>A estrada é de todos.<br>A chegada é de um só.</p>
         <div class="start-row"><button class="primary" id="start-btn">JOGAR SOZINHO ${icons.arrow}</button><button class="secondary online-entry" id="online-btn">MULTIPLAYER <span>2–8 PILOTOS ↗</span></button></div>
         <div class="menu-meta"><div class="menu-profile"><div class="bike-line"><span>NA SUA GARAGEM</span><b id="current-bike"></b><button id="change-bike">TROCAR ↗</button></div>
-        </div><button id="championship-btn" aria-label="Campeonato, 5 etapas e 20 corridas"><span id="champ-card-state" class="champ-card-state" hidden></span><span class="champ-card-arrow" aria-hidden="true">↗</span>${icons.trophy}<strong>CAMPEONATO</strong><span class="champ-card-detail">5 ETAPAS · 20 CORRIDAS</span></button></div>
+        </div><div class="menu-awards"><button id="championship-btn" aria-label="Campeonato, 5 etapas e 20 corridas"><span id="champ-card-state" class="champ-card-state" hidden></span><span class="champ-card-arrow" aria-hidden="true">↗</span>${icons.trophy}<strong>CAMPEONATO</strong><span class="champ-card-detail">5 ETAPAS · 20 CORRIDAS</span></button><button id="achievements-btn" aria-label="Ver conquistas">${medalIcon}<strong>CONQUISTAS</strong><small id="achievement-count">0 / 25</small></button></div></div>
       </div>
       <div class="route-select"><div class="route-heading"><div><span>ESCOLHA A PISTA</span><span id="route-count"></span></div><div class="route-navigation"><button id="routes-prev" aria-label="Ver pistas anteriores" aria-controls="routes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M19 12H5m7-7-7 7 7 7"/></svg></button><button id="routes-next" aria-label="Ver próximas pistas" aria-controls="routes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 12h14m-7-7 7 7-7 7"/></svg></button></div></div><div class="routes" id="routes" role="group" aria-label="Pistas disponíveis"></div><p class="route-detail" id="route-detail"></p></div>
       <footer class="bottomline"><div id="visitor-count" class="visitor-count" hidden role="status"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="9" cy="7" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M16 4a3 3 0 0 1 0 6m2 4a5 5 0 0 1 3 4v3"/></svg><div><strong data-visitor-message></strong><small data-visitor-since></small></div></div><span><i class="live-dot"></i> PRONTO PARA A LARGADA</span></footer>
@@ -100,6 +103,7 @@ root.innerHTML = `
       <div class="touch-controls"><div class="analog-control"><span>VIRAR</span><div id="steering-stick" class="analog-stick" role="slider" tabindex="0" aria-label="Direção" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0"><i></i><b class="analog-knob"></b></div></div><div class="touch-combat"><div class="touch-group"><button data-touch="KeyJ" aria-label="Socar">J</button><button data-touch="KeyK" aria-label="Chutar">K</button><button data-touch="KeyL" aria-label="Bastão">L</button></div><button id="touch-nitro" aria-label="Ativar nitro">NITRO 0</button></div><div class="analog-control"><span id="drive-label">ACELERAR / FREAR</span><div id="drive-stick" class="analog-stick drive-stick" role="slider" tabindex="0" aria-orientation="vertical" aria-label="Acelerar e frear" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0"><i></i><b class="analog-knob"></b></div></div></div>
     </section>
   </div>
+  <dialog id="achievements-modal" aria-labelledby="achievements-title"></dialog>
   <dialog id="help-modal" aria-labelledby="help-title"><div class="dialog-header"><div><div class="eyebrow">ANTES DE DAR A PARTIDA</div><h2 id="help-title">Conheça as regras da rua.</h2></div><button class="close-btn" data-close="help-modal" aria-label="Fechar">×</button></div><div class="dialog-body"><div class="help-grid">
     <div class="control">Acelerar <span class="keys"><kbd>W</kbd><kbd>↑</kbd></span></div><div class="control">Frear <span class="keys"><kbd>S</kbd><kbd>↓</kbd></span></div>
     <div class="control">Pilotar <span class="keys"><kbd>A</kbd><kbd>D</kbd><kbd>←</kbd><kbd>→</kbd></span></div><div class="control">Soco rápido <span class="keys"><kbd>J</kbd></span></div>
@@ -170,6 +174,12 @@ const analog = {steer:0,drive:0};
 const resetPointers: (()=>void)[]=[];
 let pendingActions: RiderAction[] = [], soloNitroSpent=0;
 let garageTab: GarageTab = 'bikes';
+let achievementFilter:AchievementFilter='all';
+let achievementRoom:RoomView|null=null,achievementRiderId='';
+function bankGuestOnlineAchievements(){const last=achievementRoom;achievementRoom=null;if(accounts.cache||settled||!last?.race||!last.race.multiplayer)return;const s=structuredClone(last.race),r=s.riders.find(r=>r.id===achievementRiderId);if(!r)return;if(!s.multiplayer!.results[r.id])finishRider(s,r,'left');awardRaceAchievements(save,s,r.id,'multi');saveNow();}
+function showAchievements(){ $('achievements-modal').innerHTML=achievementsMarkup(save,achievementFilter);if(!$<HTMLDialogElement>('achievements-modal').open)$<HTMLDialogElement>('achievements-modal').showModal(); }
+function showAchievementRewards(ids:import('./game/achievements').AchievementId[]=[]){const html=achievementRewardMarkup(ids);if(html&&!$('result-modal').querySelector('.achievement-rewards'))$('result-modal').insertAdjacentHTML('beforeend',html);}
+function bankGuestAchievements(){if(!onlineMode&&!race.multiplayer&&!accounts.cache&&!settled&&screen==='race'&&race.mode==='racing'){finishRider(race,localRider(),'left');awardRaceAchievements(save,race,localId(),championshipMode?'championship':'solo');settled=true;saveNow();}}
 const displayCache: Record<string, string> = {};
 let lastStandingsTick = -Infinity, lastStandingsPlace = 0;
 const setText = (id: string, value: string) => { if (displayCache[id] !== value) { $(id).textContent = value; displayCache[id] = value; } };
@@ -182,7 +192,7 @@ const online = new OnlineClient({
     for (const id of ['online-create','online-join']) $<HTMLButtonElement>(id).disabled = status==='connecting' || status==='reconnecting';
   },
   error: message => { $('online-error').textContent=message; $('online-error').hidden=false; if(!$<HTMLDialogElement>('online-modal').open)toast(message); },
-  left: () => { onlineMode=false;onlineRaceStarted=false;showMenu();void accounts.refresh(); },
+  left: () => { bankGuestOnlineAchievements();onlineMode=false;onlineRaceStarted=false;showMenu();void accounts.refresh(); },
 });
 const publicRooms=new PublicRoomBrowser($<HTMLDetailsElement>('online-discovery'),code=>enterOnline(false,code));
 function localId() { return onlineMode && online.id ? online.id : 'player'; }
@@ -224,6 +234,7 @@ function drawLobbyClock() {
   $('online-clock-label').textContent=count<2?'AGUARDANDO OUTRO PILOTO':room.locked?'LARGADA FECHADA':'SEGUNDOS PARA LARGAR';
 }
 function receiveOnlineRoom(room: RoomView) {
+  achievementRoom=room;achievementRiderId=online.id;
   if(!onlineMode)return;
   if(room.phase==='lobby') {
     publicRooms.stop();$('online-visibility').textContent=room.public?'SALA PÚBLICA · OUTROS PILOTOS PODEM ENCONTRAR VOCÊ':'SALA POR CONVITE · COMPARTILHE O CÓDIGO';
@@ -269,7 +280,9 @@ function showOnlineResult(room: RoomView) {
       $('result-modal').querySelector('.result-actions')!.insertAdjacentHTML('beforebegin','<p class="finish-room-hint">Para correr outra vez, crie ou entre em uma nova sala.</p>');
     }
     const unlocked=accounts.cache?result.secretUnlocked===true:unlockBicycle(save,result);
-    if(unlocked){if(accounts.cache)void accounts.refresh();else saveNow();showSecretUnlock();}
+    const achievements=accounts.cache?result.achievements:awardRaceAchievements(save,room.race!,online.id,'multi');
+    if(accounts.cache){if(unlocked||achievements?.length)void accounts.refresh();}else saveNow();
+    if(unlocked)showSecretUnlock();showAchievementRewards(achievements);
     beginResult(result);
   }
   $('online-result-status').textContent=room.phase==='finished'?'CORRIDA ENCERRADA':`${Object.keys(room.race!.multiplayer!.results).length} / ${ranking(room.race!).length} PILOTOS CONCLUÍRAM`;
@@ -306,6 +319,8 @@ function revealSelectedRoute() {
 $('routes').addEventListener('scroll',updateRouteNavigation,{passive:true});
 window.addEventListener('resize',()=>requestAnimationFrame(revealSelectedRoute));
 function renderMenu() {
+  setText('achievement-count',`${save.achievements?.unlocked.length ?? 0} / ${ACHIEVEMENTS.length}`);
+  if($<HTMLDialogElement>('achievements-modal').open)$('achievements-modal').innerHTML=achievementsMarkup(save,achievementFilter);
   const championship=save.championship;
   const continuing=championship && !['eliminated','complete'].includes(championship.status);
   $('champ-card-state').hidden=!continuing;
@@ -337,6 +352,7 @@ function makeAttract() {
   menuTime = 0;
 }
 function showMenu() {
+  bankGuestAchievements();
   championshipMode=false;
   resetFinish();
   soloRecorder=null;
@@ -349,6 +365,7 @@ function showMenu() {
 }
 function closeDialogs() { document.querySelectorAll<HTMLDialogElement>('dialog[open]').forEach(d => d.close()); }
 async function startRace(championship=false) {
+  bankGuestAchievements();
   if(startingRace || champSettling)return;
   startingRace=true;
   if(accounts.cache){await retryRankedResults();if(soloRecorder&&!settled){startingRace=false;toast('Retome ou abandone a corrida atual.');return;}}
@@ -560,14 +577,14 @@ async function showChampionshipResult(){
   try{
     if(accounts.cache){
       resultPayout=await submitSoloResult();
-      $('result-modal').innerHTML=championshipMarkup(save.championship,save,resultPayout?.total);if(resultPayout?.secretUnlocked)showSecretUnlock();$('result-modal').scrollTop=0;return;
+      $('result-modal').innerHTML=championshipMarkup(save.championship,save,resultPayout?.total);if(resultPayout?.secretUnlocked)showSecretUnlock();showAchievementRewards(resultPayout?.achievements);$('result-modal').scrollTop=0;return;
     }
     const completed=await finishChampionshipSimulation(completedRace);
     if(recordChampionshipHeat(c,completed)){
-      resultPayout=settleRace(save,completedRace,{starterRepair:false}) ?? null;
+      resultPayout=settleRace(save,completedRace,{starterRepair:false,mode:'championship'}) ?? null;
       saveNow();
     }
-    $('result-modal').innerHTML=championshipMarkup(c,save,resultPayout?.total);if(resultPayout?.secretUnlocked)showSecretUnlock();$('result-modal').scrollTop=0;
+    $('result-modal').innerHTML=championshipMarkup(c,save,resultPayout?.total);if(resultPayout?.secretUnlocked)showSecretUnlock();showAchievementRewards(resultPayout?.achievements);$('result-modal').scrollTop=0;
   }catch(e){$('result-modal').innerHTML=`<div class="dialog-body champ-body"><h2>CONFIRMAÇÃO PENDENTE</h2><p>${escapeHTML(e instanceof Error?e.message:'Confira sua conexão.')}</p><button id="retry-result" class="primary">TENTAR NOVAMENTE</button><button id="result-menu-btn" class="secondary">VOLTAR AO MENU</button></div>`;}
   finally{champSettling=false;}
 }
@@ -661,7 +678,7 @@ async function showResult() {
   }
   const next=nextRaceRoute(race.trackId,race.condition);
   $('result-modal').querySelector('.result-actions')!.innerHTML=resultButtons(false,r.reason==='finish' && !!next && next.track.index<=save.unlocked);
-  if(resultPayout?.secretUnlocked)showSecretUnlock();
+  if(resultPayout?.secretUnlocked)showSecretUnlock();showAchievementRewards(resultPayout?.achievements);
   beginResult(r);
 }
 function resultButtons(multiplayer: boolean, hasNext: boolean) {
@@ -800,6 +817,7 @@ document.addEventListener('click', event => {
     const route=routeFromId(button.dataset.route);
     if(route.track.index<=save.unlocked){selectedTrack=route.track.id;selectedCondition=route.condition.id;save.raceTrackId=selectedTrack;save.raceCondition=selectedCondition;saveNow();renderMenu();makeAttract();}
   }
+  if(button.dataset.achievementFilter){achievementFilter=button.dataset.achievementFilter as AchievementFilter;showAchievements();return;}
   if(button.dataset.garageTab){garageTab=button.dataset.garageTab as GarageTab;renderGarage();return;}
   if(button.dataset.helmet || button.dataset.helmetColor){
     const model=button.dataset.helmet,color=button.dataset.helmetColor,dialog=$<HTMLDialogElement>('garage-modal'),scroll=dialog.scrollTop;
@@ -820,6 +838,7 @@ document.addEventListener('click', event => {
     case 'online-ready': online.ready(!online.room?.members.find(m=>m.id===online.id)?.ready); break;
     case 'online-leave': case 'online-close': case 'online-menu-btn': if(onlineMode)online.leave();else closeDialogs(); break;
     case 'online-copy': { const url=new URL(location.href);url.search='';url.searchParams.set('sala',online.code);void navigator.clipboard.writeText(url.toString()).then(()=>{$('online-status').textContent='CONVITE COPIADO';}).catch(()=>{$('online-status').textContent=`COMPARTILHE O CÓDIGO ${online.code}`;});break;}
+    case 'achievements-btn': case 'view-achievements': achievementFilter='all';showAchievements();break;
     case 'championship-btn': showChampionship();break;
     case 'champ-start': launchChampionship();break;
     case 'champ-repair': if(repairChampionshipBike(save)){saveNow();showChampionship();}break;
@@ -928,7 +947,7 @@ declare global {
 }
 window.render_game_to_text = () => {
   const p = localRider(), target = nearestTarget(race, p, p.weapon ? 'weapon' : 'punch');
-  return JSON.stringify({ camera:renderer.cameraState(),arrest:arrestSource?(()=>{const a=arrestScene(arrestSource,localId(),finishElapsed ?? 0);return {phase:a.police.phase,police:a.police,cuffed:a.cuffed,pullback:a.pullback};})():null,championship:save.championship?{active:championshipMode,settling:champSettling,stage:save.championship.stage,status:save.championship.status,heats:save.championship.heats.length,garageOpen:championshipGarageOpen(save.championship),bike:championshipBikeState(save),standings:championshipStandings(save.championship.heats).map(r=>({id:r.id,points:r.points,rank:r.rank})),integrity:save.championship.entry?.condition[save.championship.entry.bikeId],checkpoint:!!save.championship.checkpoint}:null,payout:resultPayout, finish:{police:finishScene(race,localId(),finishElapsed,finishOfficer).police,stage:finishElapsed===null?'none':screen==='finish'?'camera':'result',elapsed:finishElapsed===null?null:+finishElapsed.toFixed(2),pullback:finishElapsed===null?0:+finishPullback(finishElapsed).toFixed(3),winnerId:finishWinner(race)?.id ?? null}, account:{signedIn:!!accounts.session?.account,status:accounts.status,pending:accounts.cache?.dirty ?? false,conflict:!!accounts.conflict,rankedRace:!!soloRecorder}, online: onlineMode?{status:online.status,syncing:online.syncing,id:online.id,code:online.code,phase:online.room?.phase,locked:online.room?.locked,deadline:online.room?.deadline,serverNow:online.serverNow(),members:online.room?.members,fillBots:online.room?.fillBots,public:online.room?.public,condition:online.room?.condition}:null, screen, paused, modal: document.querySelector('dialog[open]')?.id ?? null, mode: race.mode, coordinates: `x in metres: negative left, positive right; road ±${roadHalf(race.trackId)}. z forward in metres. speed m/s.`, road:{lanes:race.trackId==='terra'?2:4,halfWidth:roadHalf(race.trackId),surface:race.trackId==='terra'?'dirt':'asphalt'}, tick: race.tick, time: +race.time.toFixed(2), countdown: +race.countdown.toFixed(2), track: race.trackId, condition:raceCondition(race.condition), scenic:scenicAppearance(race), length: getTrack(race.trackId).distance, player: { pedalTime:p.pedalTime??0,pedalPhase:p.pedalPhase??0,finishedOnFoot:!!p.finishedOnFoot,recovery:p.recovery??null,helmetId:getHelmet(p.helmetId).id,helmetColorId:getHelmetColor(p.helmetColorId).id,weaponId:p.weaponId??null,weaponName:weaponName(p),wheeliesLeft:wheeliesLeft(p),wheelieTime:p.wheelieTime??0,jumpTime:p.jumpTime??0,jumpHeight:jumpHeight(p),jumpTarget:p.jumpTarget??null,kneePadId:p.kneePadId??null,kneeTime:p.kneeTime??0,wetKneeTime:(p.wetKneeTicks??0)*STEP,kneeSide:p.kneeSide??0,kneeSupport:kneeSupport(p,curveAt(p.z,race.trackId),race.trackId),nitro:p.nitro??0,nitroTime:p.nitroTime??0,nitroUsed:p.nitroUsed??0,speech:p.speech&&p.speech.until>race.time?TAUNTS[p.speech.index]:null,bikeId:getBike(p.bikeId).id,bike:getBike(p.bikeId).name,handling:p.handling,armor:p.armor,out:p.out ?? null, x: +p.x.toFixed(2), z: +p.z.toFixed(1), speed: +p.speed.toFixed(2), health: +p.health.toFixed(1), integrity: +p.integrity.toFixed(1), weapon: p.weapon, attack: p.attack, cooldown: +p.cooldown.toFixed(2), crash: p.recovery?p.crash:+p.crash.toFixed(2), immune: +p.immune.toFixed(2), hits: p.hits, falls: p.falls, place: ranking(onlineMode ? (online.room?.race ?? race) : race).findIndex(r => r.id === localId()) + 1 }, awareness:raceAwareness(race,localId()), corner:upcomingCorner(p.z,race.trackId,p.handling,race.condition,p.kneeTime!>0 && supportsKneeDown(p.bikeId)?p.kneePadId:undefined), curve: +curveAt(p.z, race.trackId).toFixed(2), target: target?.id ?? null, riders: race.riders.filter(r => r.id !== localId() && Math.abs(r.z - p.z) < 400).map(r => ({ id: r.id, name: r.name,helmetId:getHelmet(r.helmetId).id,helmetColorId:getHelmetColor(r.helmetColorId).id,weaponId:r.weaponId??null,wheeliesLeft:wheeliesLeft(r),wheelieTime:r.wheelieTime??0,jumpTime:r.jumpTime??0,jumpHeight:jumpHeight(r),kneePadId:r.kneePadId??null,kneeSupport:kneeSupport(r,curveAt(r.z,race.trackId),race.trackId),speech:r.speech&&r.speech.until>race.time?TAUNTS[r.speech.index]:null, bikeId:getBike(r.bikeId).id, x: +r.x.toFixed(1), dz: +(r.z - p.z).toFixed(1), speed: +r.speed.toFixed(1), health: +r.health.toFixed(1),recovery:r.recovery??null, weapon: r.weapon, attack: r.attack, crash: r.recovery?r.crash:+r.crash.toFixed(1) })), traffic: race.traffic.filter(t => t.z - p.z > -10 && t.z - p.z < 350).map(t => ({ id:t.id,kind:t.kind,x: t.x, dz: +(t.z - p.z).toFixed(1), direction: (t.heading ?? Math.sign(t.speed)) < 0 ? 'oncoming' : 'forward',queued:!!t.queued })), obstacles: race.obstacles.filter(o => o.z - p.z > -10 && o.z - p.z < 200).map(o => ({ id:o.id,kind: o.kind, x: o.x,width:o.width ?? null,moving:!!o.motion, dz: +(o.z - p.z).toFixed(1) })), heat: +race.heat.toFixed(1), police: race.policeActive, capture: +race.capture.toFixed(2), result: onlineMode?(race.multiplayer?.results[online.id] ?? null):race.result, save: { bicycleUnlocked:save.owned.includes(BICYCLE_ID),ownedHelmets:save.ownedHelmets??['integral'],helmetId:equippedHelmet(save).id,helmetColorId:getHelmetColor(save.helmetColorId).id,ownedWeapons:save.ownedWeapons??[],weaponId:save.weaponId??null,ownedKneePads:save.ownedKneePads??[],kneePadId:save.kneePadId??null,nitro:save.nitro??{},cash: save.cash, bike: save.bikeId, unlocked: save.unlocked, races: save.races } });
+  return JSON.stringify({ camera:renderer.cameraState(),arrest:arrestSource?(()=>{const a=arrestScene(arrestSource,localId(),finishElapsed ?? 0);return {phase:a.police.phase,police:a.police,cuffed:a.cuffed,pullback:a.pullback};})():null,championship:save.championship?{active:championshipMode,settling:champSettling,stage:save.championship.stage,status:save.championship.status,heats:save.championship.heats.length,garageOpen:championshipGarageOpen(save.championship),bike:championshipBikeState(save),standings:championshipStandings(save.championship.heats).map(r=>({id:r.id,points:r.points,rank:r.rank})),integrity:save.championship.entry?.condition[save.championship.entry.bikeId],checkpoint:!!save.championship.checkpoint}:null,payout:resultPayout, finish:{police:finishScene(race,localId(),finishElapsed,finishOfficer).police,stage:finishElapsed===null?'none':screen==='finish'?'camera':'result',elapsed:finishElapsed===null?null:+finishElapsed.toFixed(2),pullback:finishElapsed===null?0:+finishPullback(finishElapsed).toFixed(3),winnerId:finishWinner(race)?.id ?? null}, account:{signedIn:!!accounts.session?.account,status:accounts.status,pending:accounts.cache?.dirty ?? false,conflict:!!accounts.conflict,rankedRace:!!soloRecorder}, online: onlineMode?{status:online.status,syncing:online.syncing,id:online.id,code:online.code,phase:online.room?.phase,locked:online.room?.locked,deadline:online.room?.deadline,serverNow:online.serverNow(),members:online.room?.members,fillBots:online.room?.fillBots,public:online.room?.public,condition:online.room?.condition}:null, screen, paused, modal: document.querySelector('dialog[open]')?.id ?? null, mode: race.mode, coordinates: `x in metres: negative left, positive right; road ±${roadHalf(race.trackId)}. z forward in metres. speed m/s.`, road:{lanes:race.trackId==='terra'?2:4,halfWidth:roadHalf(race.trackId),surface:race.trackId==='terra'?'dirt':'asphalt'}, tick: race.tick, time: +race.time.toFixed(2), countdown: +race.countdown.toFixed(2), track: race.trackId, condition:raceCondition(race.condition), scenic:scenicAppearance(race), length: getTrack(race.trackId).distance, player: { pedalTime:p.pedalTime??0,pedalPhase:p.pedalPhase??0,finishedOnFoot:!!p.finishedOnFoot,recovery:p.recovery??null,helmetId:getHelmet(p.helmetId).id,helmetColorId:getHelmetColor(p.helmetColorId).id,weaponId:p.weaponId??null,weaponName:weaponName(p),wheeliesLeft:wheeliesLeft(p),wheelieTime:p.wheelieTime??0,jumpTime:p.jumpTime??0,jumpHeight:jumpHeight(p),jumpTarget:p.jumpTarget??null,kneePadId:p.kneePadId??null,kneeTime:p.kneeTime??0,wetKneeTime:(p.wetKneeTicks??0)*STEP,kneeSide:p.kneeSide??0,kneeSupport:kneeSupport(p,curveAt(p.z,race.trackId),race.trackId),nitro:p.nitro??0,nitroTime:p.nitroTime??0,nitroUsed:p.nitroUsed??0,speech:p.speech&&p.speech.until>race.time?TAUNTS[p.speech.index]:null,bikeId:getBike(p.bikeId).id,bike:getBike(p.bikeId).name,handling:p.handling,armor:p.armor,out:p.out ?? null, x: +p.x.toFixed(2), z: +p.z.toFixed(1), speed: +p.speed.toFixed(2), health: +p.health.toFixed(1), integrity: +p.integrity.toFixed(1), weapon: p.weapon, attack: p.attack, cooldown: +p.cooldown.toFixed(2), crash: p.recovery?p.crash:+p.crash.toFixed(2), immune: +p.immune.toFixed(2), hits: p.hits, falls: p.falls, place: ranking(onlineMode ? (online.room?.race ?? race) : race).findIndex(r => r.id === localId()) + 1 }, awareness:raceAwareness(race,localId()), corner:upcomingCorner(p.z,race.trackId,p.handling,race.condition,p.kneeTime!>0 && supportsKneeDown(p.bikeId)?p.kneePadId:undefined), curve: +curveAt(p.z, race.trackId).toFixed(2), target: target?.id ?? null, riders: race.riders.filter(r => r.id !== localId() && Math.abs(r.z - p.z) < 400).map(r => ({ id: r.id, name: r.name,helmetId:getHelmet(r.helmetId).id,helmetColorId:getHelmetColor(r.helmetColorId).id,weaponId:r.weaponId??null,wheeliesLeft:wheeliesLeft(r),wheelieTime:r.wheelieTime??0,jumpTime:r.jumpTime??0,jumpHeight:jumpHeight(r),kneePadId:r.kneePadId??null,kneeSupport:kneeSupport(r,curveAt(r.z,race.trackId),race.trackId),speech:r.speech&&r.speech.until>race.time?TAUNTS[r.speech.index]:null, bikeId:getBike(r.bikeId).id, x: +r.x.toFixed(1), dz: +(r.z - p.z).toFixed(1), speed: +r.speed.toFixed(1), health: +r.health.toFixed(1),recovery:r.recovery??null, weapon: r.weapon, attack: r.attack, crash: r.recovery?r.crash:+r.crash.toFixed(1) })), traffic: race.traffic.filter(t => t.z - p.z > -10 && t.z - p.z < 350).map(t => ({ id:t.id,kind:t.kind,x: t.x, dz: +(t.z - p.z).toFixed(1), direction: (t.heading ?? Math.sign(t.speed)) < 0 ? 'oncoming' : 'forward',queued:!!t.queued })), obstacles: race.obstacles.filter(o => o.z - p.z > -10 && o.z - p.z < 200).map(o => ({ id:o.id,kind: o.kind, x: o.x,width:o.width ?? null,moving:!!o.motion, dz: +(o.z - p.z).toFixed(1) })), heat: +race.heat.toFixed(1), police: race.policeActive, capture: +race.capture.toFixed(2), result: onlineMode?(race.multiplayer?.results[online.id] ?? null):race.result, save: { achievements:save.achievements,bicycleUnlocked:save.owned.includes(BICYCLE_ID),ownedHelmets:save.ownedHelmets??['integral'],helmetId:equippedHelmet(save).id,helmetColorId:getHelmetColor(save.helmetColorId).id,ownedWeapons:save.ownedWeapons??[],weaponId:save.weaponId??null,ownedKneePads:save.ownedKneePads??[],kneePadId:save.kneePadId??null,nitro:save.nitro??{},cash: save.cash, bike: save.bikeId, unlocked: save.unlocked, races: save.races } });
 };
 window.advanceTime = ms => { if(onlineMode){advanceFinish(ms/1000);draw();return;} testMode = true; for (let i = 0; i < Math.round(ms / (STEP * 1000)); i++) {update();advanceFinish(STEP);} draw(); };
 if (testMode) window.__game = {

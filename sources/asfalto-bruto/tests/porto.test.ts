@@ -32,7 +32,7 @@ test('old Vale top-five record unlocks Porto while preserving the entire garage 
       const old=freshSave();old.cash=321;old.unlocked=2;old.owned=['ferro','brutal'];old.bikeId='brutal';old.upgrades.brutal={engine:2,armor:1,handling:3};old.condition.brutal=72;
       old.ownedWeapons=['chain'];old.weaponId='chain';old.ownedKneePads=['gold'];old.kneePadId='gold';old.nitro={brutal:4};
       const key=condition.id==='sunset'?'deserto':`deserto:${condition.id}`;old.records[key]={time:280,place:6};persist(old);assert.equal(loadSave().unlocked,2);
-      old.records[key].place=5;persist(old);assert.deepEqual(loadSave(),{...old,unlocked:3});const s=loadSave();assert.ok(buyBike(s,'brutal'));assert.equal(s.cash,321);
+      old.records[key].place=5;persist(old);assert.deepEqual(loadSave(),{...old,unlocked:3,achievements:{...old.achievements,finishedTracks:['deserto']}});const s=loadSave();assert.ok(buyBike(s,'brutal'));assert.equal(s.cash,321);
     }
     const save=freshSave();save.unlocked=2;const race=createRace('deserto',save);race.result={reason:'finish',place:5,time:260,reward:400,hits:0,falls:0};settleRace(save,race);assert.equal(save.unlocked,3);
   }finally{if(descriptor)Object.defineProperty(globalThis,'localStorage',descriptor);else delete (globalThis as any).localStorage;}

@@ -67,7 +67,7 @@ test('held acceleration cannot keep a bicycle moving; repeated pedal actions can
   stepRace(tapped,{player:{...EMPTY_COMMAND,...i%18===0?{action:'pedal' as const}:{}}});
   stepRace(idle,{player:{...EMPTY_COMMAND,throttle:1}});
  }
- assert.equal(held.riders[0].speed,0);assert.equal(idle.riders[0].z,0);assert.ok(tapped.riders[0].speed>35);assert.equal(tapped.riders[0].wheeliesLeft,3);
+ assert.equal(held.riders[0].speed,0);assert.equal(idle.riders[0].z,0);assert.ok(tapped.riders[0].speed>15&&tapped.riders[0].speed<=60/3.6+.01);assert.equal(tapped.riders[0].wheeliesLeft,3);
  const restored=restoreSnapshot(snapshot(tapped));
  for(let i=0;i<60;i++){const command={...EMPTY_COMMAND,...i%18===0?{action:'pedal' as const}:{}};stepRace(tapped,{player:command});stepRace(restored,{player:command});}
  assert.equal(snapshot(tapped),snapshot(restored));assert.ok(tapped.riders[0].pedalPhase!>=0);
@@ -112,7 +112,7 @@ test('reliable pedal packets apply once and cannot turn a held or retransmitted 
  for(let i=0;i<20;i++){
   at+=180;pulseRoom(room,{[inputKey(a)]:{seq:36+i,at,command:EMPTY_COMMAND,actions:[{seq:2+i,kind:'pedal'}]},[inputKey(b)]:{seq:36+i,at,command:EMPTY_COMMAND}},at);
  }
- assert.ok(p.speed>25);assert.equal(room.actionAck![a.id],21);assert.equal(p.wheeliesLeft,3);
+ assert.ok(p.speed>15&&p.speed<=60/3.6+.01);assert.equal(room.actionAck![a.id],21);assert.equal(p.wheeliesLeft,3);
 });
 test('the bicycle can complete each road in dry and wet weather with repeated strokes and normal steering',()=>{
  for(const track of TRACKS)for(const condition of ['day','rain'] as const){

@@ -1,6 +1,7 @@
 import { roadHalf } from './road-profile';
 import { isRamp, obstacleShape } from './hazards';
 import type { Command, RaceState, Rider, Traffic, Obstacle } from './types';
+import { newRaceFeats } from './race-feats';
 
 export const WHEELIE_USES = 3;
 export const WHEELIE_DURATION = 2.4;
@@ -25,7 +26,7 @@ export function advanceStunt(state: RaceState, rider: Rider, command: Command, d
     const fallen=state.riders.find(other=>other.id!==rider.id && other.recovery && other.recovery.bikeZ>=rider.z && other.recovery.bikeZ-rider.z<=2+rider.speed*dt && Math.abs(other.recovery.bikeX-rider.x)<1.65);
     if(fallen){launch(rider,`fallen:${fallen.id}:${fallen.falls}`);return;}
     const ramp=state.obstacles.find(o=>isRamp(o) && o.z>=rider.z && o.z-rider.z<=1.5+rider.speed*dt && Math.abs(o.x-rider.x)<obstacleShape(o).contact);
-    if(ramp){launch(rider,ramp.id);return;}
+    if(ramp){launch(rider,ramp.id);if(state.trackId==='terra')(rider.feats ??=newRaceFeats(false)).terraJump=true;return;}
   }
   if(!rider.wheelieTime)return;
   rider.wheelieTime=Math.max(0,rider.wheelieTime-dt);

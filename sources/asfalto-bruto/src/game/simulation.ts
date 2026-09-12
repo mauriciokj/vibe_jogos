@@ -12,6 +12,7 @@ import { BIKES, clamp, cornerForces, cornerPace, curveAt, getBike, getTrack } fr
 import { cornerHandling, equippedKneePad, getKneePad, kneeContact, KNEE_DURATION, WET_KNEE_LIMIT, NITRO_DURATION, NITRO_MULTIPLIER, nitroCount } from './equipment';
 import { isBicycle, MOTORBIKES, supportsKneeDown } from './bikes';
 import { advancePedaling, pedal } from './pedaling';
+import { newRaceFeats, creditKnock, creditCarJump, trackRaceFeats } from './race-feats';
 import { advanceBanter, sayTaunt } from './banter';
 import { EMPTY_COMMAND, type AttackKind, type Command, type RaceResult, type RaceState, type RaceCondition, type Rider, type RiderAction, type SaveData } from './types';
 
@@ -61,7 +62,7 @@ export function createRace(trackId = 'costa', save?: SaveData, seed = 88117, con
   const weapon=equippedWeapon(save);if(weapon)player.weaponId=weapon.id;
   const pad=equippedKneePad(save);if(pad)player.kneePadId=pad.id;
   const nitro=nitroCount(bike.id,save?.nitro?.[bike.id]);if(nitro)player.nitro=nitro;
-  Object.assign(player, { bikeId: bike.id, maxSpeed: bike.speed + up.engine * 2.5, acceleration: bike.acceleration + up.engine * .7, handling: bike.handling + up.handling * .1, armor: bike.armor + up.armor * .15, integrity: save?.condition[bike.id] ?? 100, weapon: true });
+  Object.assign(player, { bikeId: bike.id, maxSpeed: bike.speed + up.engine * (isBicycle(bike.id)?bike.speed*2.5/58:2.5), acceleration: bike.acceleration + up.engine * .7, handling: bike.handling + up.handling * .1, armor: bike.armor + up.armor * .15, integrity: save?.condition[bike.id] ?? 100, weapon: true });
   const names = ['NINA', 'COBRA', 'DANTE', 'LUNA', 'ROCHA', 'FAÍSCA', 'ZECA'];
   const colors = ['#d87bfa', '#f28451', '#6cdace', '#ebbc5c', '#a4bde2', '#ef6f8a', '#e7e6dc'];
   const profiles: Rider['profile'][] = ['aggressive', 'fast', 'careful', 'aggressive', 'careful', 'fast', 'aggressive'];
@@ -75,6 +76,7 @@ export function createRace(trackId = 'costa', save?: SaveData, seed = 88117, con
     return r;
   })];
   const state: RaceState = { version: 1, condition: raceCondition(condition), scenicEvent: coastalEvent(trackId, seed), tick: 0, rng: seed || 1, trackId, mode: 'countdown', countdown: 3.5, time: 0, riders, traffic: [], obstacles: [], events: [], collisions: {}, heat: 0, capture: 0, policeActive: false, result: null };
+  for(const r of riders)r.feats=newRaceFeats();
   const length = getTrack(trackId).distance;
   for (let z = 400, i = 0; z < length + 1800; z += 230 + random(state) * 160, i++) {
     const oncoming = i % 3 === 1;
@@ -119,6 +121,7 @@ export function crashRider(state: RaceState, rider: Rider, force = false, kind:'
   rider.kneeTime=0;rider.wetKneeTicks=0;rider.nitroTime=0;rider.speech=undefined;cancelStunt(rider);
   if(isBicycle(rider.bikeId))rider.pedalTime=0;
   rider.falls++;
+  (rider.feats ??=newRaceFeats(false)).clean=false;
   state.events.push({ type: 'crash', actor: rider.id, text: 'NO CHÃO! VOLTE ATÉ A MOTO' });
 }
 
@@ -281,7 +284,9 @@ function resolveAttacks(state: RaceState) {
       attack.hit = true;
       const target = nearestTarget(state, rider, attack.kind);
       if (target && (Math.sign(target.x - rider.x) === attack.side || Math.abs(target.x - rider.x) < .4)) {
+        const falls=target.falls;
         impact(state, target, spec.damage, attack.side * spec.push);
+        creditKnock(rider,target,falls);
         rider.hits++;
         const action = attack.kind === 'kick' ? 'CHUTE' : attack.kind === 'weapon' ? getWeapon(rider.weaponId)?.action ?? 'BASTONADA' : 'SOCO';
         state.events.push({ type: 'hit', actor: rider.id, target: target.id, text: target.id === 'player' ? `VOCÊ LEVOU ${action} · ${rider.name}` : `${target.name} · ${action}!` });
@@ -307,7 +312,11 @@ function resolveCollisions(state: RaceState, oldZ: Map<string, number>) {
   for (const r of state.riders) {
     if (r.out || r.crash || r.immune || r.finishedAt !== null) continue;
     for (const t of state.traffic) {
-      if(clearsCar(r,t))continue;
+      if(clearsCar(r,t)){
+        const before=t.z-t.speed*STEP-(oldZ.get(r.id) ?? r.z),after=t.z-r.z;
+        if(before>=0&&after<=0&&Math.abs(t.x-r.x)<trafficShape(state.trackId,t.kind).contact)creditCarJump(r,t.id);
+        continue;
+      }
       const relBefore = t.z - t.speed * STEP - (oldZ.get(r.id) ?? r.z);
       const relNow = t.z - r.z;
       if ((Math.abs(relNow) < trafficShape(state.trackId,t.kind).length || relBefore * relNow < 0) && Math.abs(t.x - r.x) < trafficShape(state.trackId,t.kind).contact && mayCollide(state, r.id, t.id)) {
@@ -331,8 +340,10 @@ function resolveCollisions(state: RaceState, oldZ: Map<string, number>) {
       if (other.id <= r.id || other.out || other.crash || other.immune || other.finishedAt !== null) continue;
       if (Math.abs(other.z - r.z) < 2.1 && Math.abs(other.x - r.x) < .8 && mayCollide(state, r.id, other.id)) {
         const side = Math.sign(r.x - other.x) || 1;
+        const rFalls=r.falls,otherFalls=other.falls;
         impact(state, r, 7, side * .35);
         impact(state, other, 7, -side * .35);
+        creditKnock(other,r,rFalls);creditKnock(r,other,otherFalls);
         state.events.push({ type: 'hit', actor: r.id, text: 'CONTATO!' });
       }
     }
@@ -371,6 +382,7 @@ export function createMultiplayerRace(trackId: string, players: { id: string; na
     const bike=MOTORBIKES[i%MOTORBIKES.length],pad=rivalKneePad(bike.id,bot.profile,getTrack(trackId).level);
     state.riders.push({ ...base, ...stockBike(bike.id), ...(pad?{kneePadId:pad}:{}), helmetId:bot.helmetId, helmetColorId:bot.helmetColorId, id: `cpu-${i}`, name: `${bot.name} CPU`, profile: bot.profile, color: colors[i], x: grid[i%grid.length], targetX: grid[i%grid.length], z: -(Math.floor(i/grid.length)*(trackId==='terra'?10:8)) });
   }
+  for(const r of state.riders)r.feats=newRaceFeats();
   state.multiplayer = { humanIds: players.map(p => p.id), results: {} };
   return state;
 }
@@ -426,6 +438,7 @@ export function stepRace(state: RaceState, commands: Record<string, Command> = {
   const player = state.riders[0];
   const oldOrder = ranking(state).map(r => r.id);
   const oldZ = new Map(state.riders.map(r => [r.id,r.z]));
+  const beforeFeats=new Map(state.riders.map(r=>[r.id,{z:r.z,health:r.health,integrity:r.integrity}]));
   for (const r of state.riders) {
     applyCommand(state,r,commands[r.id] ?? (r.profile === 'player' ? EMPTY_COMMAND : botCommand(state,r)));
     if(!r.out && !r.crash && r.finishedAt===null && (r.wetKneeTicks ?? 0)*STEP>WET_KNEE_LIMIT) {
@@ -439,6 +452,7 @@ export function stepRace(state: RaceState, commands: Record<string, Command> = {
   for (const t of state.traffic) { t.z += t.speed*STEP; if (!t.queued && t.z < back-100) t.z += getTrack(state.trackId).distance+1800; }
   for (const o of state.obstacles)if(o.motion)o.x=obstacleX(o,state.time);
   resolveAttacks(state); resolveCollisions(state,oldZ); resolvePedestrians(state,oldZ);
+  trackRaceFeats(state,beforeFeats,oldOrder,STEP);
   if (arrestFallenRiders(state)) return;
   if (active.some(r => r.profile === 'player' && r.speed > 49)) state.heat = clamp(state.heat+STEP*.37,0,100);
   else state.heat = Math.max(0,state.heat-STEP*.15);
@@ -468,7 +482,7 @@ export function stepRace(state: RaceState, commands: Record<string, Command> = {
       if (state.multiplayer ? !state.multiplayer.results[r.id] : r.id === 'player') finishRider(state,r,'finish');
     } else if (r.integrity <= 0 && (!r.recovery || r.recovery.phase==='exploding' && r.recovery.timer===0)) finishRider(state,r,'wrecked');
     else if (r.capture >= 3 && r.recovery?.phase!=='exploding') finishRider(state,r,'caught');
-    else if (state.multiplayer && state.time >= 360) finishRider(state,r,'timeout');
+    else if (state.multiplayer && state.time >= (isBicycle(r.bikeId)?Math.max(360,getTrack(state.trackId).distance/(60/3.6)*1.7+90):360)) finishRider(state,r,'timeout');
   }
   advanceScenicEvent(state);
   advanceBanter(state);

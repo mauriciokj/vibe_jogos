@@ -31,7 +31,7 @@ test('two WebSocket peers see the unlocked bicycle and reliable pedal taps, with
   for(let i=1;i<=20;i++){
    const ack=receive(rider,m=>m.room?.actionAck?.[id]>=i);rider.send(JSON.stringify({type:'input',seq:i,command:EMPTY_COMMAND,actions:[{seq:i,kind:'pedal'}]}));offset+=180;await ack;
   }
-  const beforeHold=latest.get(rider).race.riders.find((r:any)=>r.id===id).speed;assert.ok(beforeHold>25);
+  const beforeHold=latest.get(rider).race.riders.find((r:any)=>r.id===id).speed;assert.ok(beforeHold>15&&beforeHold<=60/3.6+.01);
   const visible=latest.get(guest).race.riders.find((r:any)=>r.id===id);assert.equal(visible.bikeId,'bicicleta');assert.ok(visible.pedalPhase>=0);assert.equal(visible.wheeliesLeft,3);
   // Acknowledged strokes may be retransmitted, but cannot sustain acceleration.
   for(let i=21;i<=55;i++){

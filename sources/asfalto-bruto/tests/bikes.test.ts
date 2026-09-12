@@ -38,7 +38,7 @@ test('version-one campaign saves retain cash, old bikes, upgrades and new purcha
  Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:(k:string)=>data.get(k)??null,setItem:(k:string,v:string)=>data.set(k,v)}});
  try{
   const old=freshSave();old.cash=16000;old.owned.push('veneno');old.bikeId='veneno';old.condition.veneno=100;old.upgrades.veneno={engine:0,armor:0,handling:0};buyUpgrade(old,'engine');old.unlocked=2;old.records.costa={time:150,place:2};persist(old);
-  const restored=loadSave();assert.deepEqual(restored,old);assert.ok(buyBike(restored,'veneno'));assert.equal(restored.cash,old.cash);restored.cash=100000;assert.ok(buyBike(restored,'lobo'));buyUpgrade(restored,'handling');persist(restored);assert.deepEqual(loadSave(),restored);
+  const restored=loadSave();assert.deepEqual(restored,{...old,achievements:{...old.achievements,finishedTracks:['costa']}});assert.ok(buyBike(restored,'veneno'));assert.equal(restored.cash,old.cash);restored.cash=100000;assert.ok(buyBike(restored,'lobo'));buyUpgrade(restored,'handling');persist(restored);assert.deepEqual(loadSave(),restored);
   assert.equal(JSON.parse(data.get(SAVE_KEY)!).version,1);
  }finally{if(descriptor)Object.defineProperty(globalThis,'localStorage',descriptor);else delete (globalThis as any).localStorage;}
 });

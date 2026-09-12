@@ -1,0 +1,29 @@
+#menu{--champ-size:clamp(102px,15dvh,132px)}
+#menu .menu-meta{grid-template-columns:minmax(0,1fr) auto;gap:12px}
+.menu-awards{display:flex;gap:8px;align-items:center}
+#achievements-btn{position:relative;width:var(--champ-size);height:var(--champ-size);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:10px 5px;border:1px solid #e3c0788c;border-radius:5px;background:radial-gradient(ellipse at 50% 25%,#efc86c20,transparent 70%),linear-gradient(145deg,#2e3934ed,#12292ceb);color:#efce87;cursor:pointer;backdrop-filter:blur(6px);transition:transform .18s,border-color .18s}
+#achievements-btn:hover{transform:translateY(-2px);border-color:#f4d793}
+#achievements-btn:focus-visible{outline:2px solid #f4d793;outline-offset:4px}
+#achievements-btn .achievement-medal{width:calc(var(--champ-size)*.4);height:calc(var(--champ-size)*.4)}
+#achievements-btn strong,#championship-btn strong{font:700 clamp(16px,2.5dvh,22px)/1 'Barlow Condensed',Impact,sans-serif}
+#achievements-btn small{font:8px ui-monospace,monospace;color:#daceaf}
+#achievements-modal{width:min(920px,calc(100% - 32px));max-height:calc(100dvh - 32px)}
+.achievement-summary{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:20px;color:#f3d48b}
+.achievement-summary .achievement-medal{width:54px;height:54px;flex:none}
+.achievement-summary strong{font:700 42px/1 'Barlow Condensed',sans-serif}.achievement-summary strong span{font-size:23px;color:#bac9be}
+.achievement-summary p{font:9px ui-monospace,monospace;letter-spacing:1px;margin:6px 0 0}
+.achievement-summary progress{margin-left:auto;width:40%;height:8px;accent-color:#efd087;background:#102526}
+.achievement-summary progress::-webkit-progress-bar{background:#314440}.achievement-summary progress::-webkit-progress-value{background:#efd087}.achievement-summary progress::-moz-progress-bar{background:#efd087}
+.achievement-filters{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}.achievement-filters button{min-height:36px;padding:8px 12px;font-size:11px}.achievement-filters [aria-pressed=true]{border-color:#efd087;color:#efd087;background:#efd08712}
+.achievement-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.achievement-card{display:flex;align-items:flex-start;gap:13px;padding:18px 15px;border:1px solid #62756866;border-radius:4px;background:#152a2bd9;color:#cad6cc}
+.achievement-stamp{display:grid;place-items:center;flex:none;width:35px;height:35px;border:1px solid #889b7766;border-radius:50%;font-size:22px;color:#adbb9d}
+.achievement-card h3{font:700 23px/1.15 'Barlow Condensed',sans-serif;margin:5px 0 8px;color:#edf0d8}.achievement-card small{font:8px ui-monospace,monospace;letter-spacing:1px}.achievement-card p{font-size:12px;line-height:1.5;margin:0}
+.achievement-card.earned{border-color:#e3c07888;background:linear-gradient(140deg,#a4853624,#192f2ae6)}.achievement-card.earned .achievement-stamp{color:#f5d58e;border-color:#efce8799}.achievement-card.earned small{color:#f0d08b}
+.achievement-card.secret{background:#101f22;color:#9aafa7}.achievement-card.secret h3{letter-spacing:5px;color:#acbdb4}
+.achievement-detail{display:block;margin-top:9px;font:9px ui-monospace,monospace;color:#e6cd8b}.achievement-note,.achievement-empty{font-size:12px;line-height:1.6;color:#b5c5bc}.achievement-note{margin-top:20px}
+.achievement-rewards{display:flex;gap:14px;align-items:center;margin:0 24px 18px;padding:16px;border:1px solid #e3c07866;background:#efc86c0c;border-radius:4px;color:#efd087}.achievement-rewards .achievement-medal{width:38px;height:38px;flex:none}.achievement-rewards strong{font-size:11px;letter-spacing:.7px}.achievement-rewards p{font-size:13px;line-height:1.5;margin:7px 0}.achievement-rewards button{font-size:10px}
+@media(max-width:700px){#menu{--champ-size:clamp(78px,12dvh,108px)}#menu .menu-meta{gap:10px}.menu-awards{gap:6px}#achievements-btn strong,#championship-btn strong{font-size:clamp(13px,2.3dvh,18px)}#championship-btn .champ-card-detail{font-size:6px}#achievements-btn small{font-size:7px}.achievement-grid{grid-template-columns:1fr}.achievement-summary progress{width:100%;margin:0}.achievement-summary{gap:12px}.achievement-card{padding:15px 12px}.achievement-rewards{margin:0 16px 14px}}
+@media(min-width:540px) and (max-height:520px){#menu{--champ-size:72px}#menu .menu-meta{gap:6px}.menu-awards{gap:4px}#achievements-btn strong,#championship-btn strong{font-size:12px}#championship-btn .champ-card-detail{font-size:5px}#championship-btn{padding:13px 3px 5px}#achievements-btn{padding:5px 3px;gap:4px}#menu .menu-profile .community-row>div{gap:4px}}
+@media(prefers-reduced-motion:reduce){#achievements-btn{transition:none}}
+@media(max-width:360px) and (max-height:650px){#menu .menu-meta{margin-top:6px}#menu .bottomline{padding-bottom:6px}}
