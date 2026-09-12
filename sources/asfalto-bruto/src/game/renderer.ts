@@ -343,15 +343,24 @@ export class Renderer {
     if(state.trackId!=='terra')for (let i = Math.floor(pz / 8) + 100; i >= Math.floor((pz - 12) / 8); i--) {
       const z = i * 8;
       for (const side of [-1, 1]) {
-        const p = this.project(z, side * GUARD_RAIL_X); if (!p || p.y > p.clip + 2 || p.y < 0) continue;
+        const p = this.project(z, side * GUARD_RAIL_X);
         const next = this.project(z + 8, side * GUARD_RAIL_X);
         if (next && hasGuardRail(state.trackId,side)) {
-          c.save(); c.beginPath(); c.rect(0, 0, this.w, p.clip); c.clip();
-          this.polygon([p.x,p.y-p.scale*.65,p.x,p.y-p.scale*.92,next.x,next.y-next.scale*.92,next.x,next.y-next.scale*.65], '#a3aaa1');
-          c.strokeStyle = '#e4dfc0'; c.lineWidth = Math.max(.5,p.scale*.025); c.beginPath(); c.moveTo(p.x,p.y-p.scale*.91); c.lineTo(next.x,next.y-next.scale*.91); c.stroke(); c.restore();
+          // The beam can still cross the viewport after its nearest post has left it.
+          // Clip its length at the camera plane and its projected face at the terrain.
+          const near = p ?? this.project(this.points[0].z, side * GUARD_RAIL_X);
+          if (near) {
+            c.save(); c.beginPath(); c.rect(0, 0, this.w, near.clip); c.clip();
+            this.polygon([near.x,near.y-near.scale*.65,near.x,near.y-near.scale*.92,next.x,next.y-next.scale*.92,next.x,next.y-next.scale*.65], '#a3aaa1');
+            this.polygon([near.x,near.y-near.scale*.895,near.x,near.y-near.scale*.92,next.x,next.y-next.scale*.92,next.x,next.y-next.scale*.895], '#e4dfc0');
+            c.restore();
+          }
         }
+        if (!p || p.y-p.scale*1.08 >= p.clip || p.y < 0) continue;
+        c.save(); c.beginPath(); c.rect(0, 0, this.w, p.clip); c.clip();
         c.fillStyle = '#e3dfc7'; c.fillRect(p.x-p.scale*.055,p.y-p.scale*1.08,Math.max(1,p.scale*.11),p.scale*1.08);
         c.fillStyle = '#f0a372'; c.fillRect(p.x-p.scale*.055,p.y-p.scale*.96,Math.max(1,p.scale*.11),p.scale*.2);
+        c.restore();
       }
     }
     if(state.trackId==='terra') {
