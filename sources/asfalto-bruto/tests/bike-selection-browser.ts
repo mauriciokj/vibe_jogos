@@ -7,7 +7,7 @@ import {AccountsDB} from '../server/accounts-db';
 import {AccountService} from '../server/accounts';
 import {createGameServer} from '../server/service';
 import {MemoryStore} from '../server/store';
-import {BIKES} from '../src/game/bikes';
+import {MOTORBIKES as BIKES} from '../src/game/bikes';
 import {freshSave,buyBike,SAVE_KEY} from '../src/game/save';
 import {newChampionship,startChampionshipRace} from '../src/game/championship';
 

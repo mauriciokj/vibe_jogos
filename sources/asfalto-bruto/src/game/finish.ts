@@ -41,6 +41,7 @@ export function finishScene(state: RaceState, localId: string, elapsed: number |
     if(Number.isFinite(arrival) && (r.finishedAt!==null || time>=arrival)){
       const age=Math.max(0,time-arrival),t=1-Math.pow(1-clamp(age/2.4,0,1),3);
       const place=finishers.indexOf(r),x=place===0?0:(place%2?1:-1)*2.8,z=length+18+(place===0?0:Math.floor((place-1)/2)*5-4);
+      if(r.finishedOnFoot && r.recovery)return {...r,x:r.x+(x-r.x)*t,z:length+(z-length)*t,speed:7.2*(1-t),recovery:{...r.recovery,phase:'walking' as const,cycle:r.recovery.cycle+Math.min(age,2.4)*9,facingZ:1,facingX:0},attack:null};
       return {...r,x:r.x+(x-r.x)*t,z:length+(z-length)*t,speed:r.speed*(1-t),lean:0,attack:null,crash:0,immune:0,kneeTime:0,jumpTime:0,wheelieTime:0,nitroTime:0,speech:undefined};
     }
     if(soloFinish && Number.isFinite(arrival))return {...r,z:r.z+r.speed*Math.max(0,time-state.time),attack:null,lean:0};

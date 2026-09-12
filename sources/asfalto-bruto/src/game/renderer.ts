@@ -447,7 +447,7 @@ export class Renderer {
     c.fillStyle='#13232c70';c.beginPath();c.ellipse(p.x,p.y,w*.4,h*.055,0,0,Math.PI*2);c.fill();
     c.translate(p.x,p.y-h*.5);
     if(f.phase==='mounting')c.scale(1,.75);
-    c.drawImage(pedestrianSprite(r,f.phase==='walking'?Math.floor(f.cycle*2)%8:-1,f.facingZ<-.1),-w/2,-h/2,w,h);
+    c.drawImage(pedestrianSprite(r,f.phase==='walking'&&(!r.finishedOnFoot || r.speed>.1)?Math.floor(f.cycle*2)%8:-1,f.facingZ<-.1,!!r.finishedOnFoot&&r.id===this.winnerId),-w/2,-h/2,w,h);
     c.restore();
     if(f.hitCooldown>.7){c.fillStyle='#ffe09b';c.font=`bold ${Math.max(11,h*.19)}px monospace`;c.textAlign='center';c.fillText('✦',p.x,p.y-h-5);}
   }
@@ -460,7 +460,7 @@ export class Renderer {
     c.drawImage(bikeSprite(r.color,'parked',1,r.profile==='police',0,getBike(r.bikeId).style),-w/2,-h/2,w,h);c.restore();
     if(f.bikeVZ>1 || Math.abs(f.bikeVX)>1){c.fillStyle=state.trackId==='terra'?'#bd9d67':'#ffd998';for(let i=0;i<6;i++)c.fillRect(p.x+(Math.sin(state.time*22+i)*w*.4),p.y+(i%3)*2,Math.max(1,p.scale*.06),2);}
     if(f.phase==='exploding'){this.bikeExplosion(p.x,p.y,h,EXPLOSION_SECONDS-f.timer);return;}
-    if(r.id===this.localId && !this.arrest){
+    if(r.id===this.localId && !this.arrest && r.finishedAt===null){
       const distance=Math.round(Math.hypot(r.x-f.bikeX,r.z-f.bikeZ)),label=`SUA MOTO · ${distance}m`,y=p.y-h*.58;
       c.font=`700 ${this.w<500?11:13}px Barlow,sans-serif`;c.textAlign='center';const tw=c.measureText(label).width,x=clamp(p.x,tw/2+8,this.w-tw/2-8);
       c.fillStyle='#172f36ed';c.fillRect(x-tw/2-7,y-20,tw+14,23);c.fillStyle='#deff70';c.fillText(label,x,y-4);this.polygon([p.x-5,y+4,p.x+5,y+4,p.x,y+12],'#deff70');
@@ -525,7 +525,7 @@ export class Renderer {
     if(struck)c.rotate(this.finishPolice!.side*.14);
     const champion=r.id===this.winnerId && r.finishedAt!==null && !struck;
     const pose = parked?'parked':champion?'celebrate':r.attack && r.attack.age > .08 ? r.attack.kind : 'ride';
-    const frame=parked?Math.floor(state.time*8)%2:champion?(this.reducedMotion?0:Math.floor(state.time*3)%3):r.speed > 8 ? Math.floor(r.z * 1.6) % 3 : 0;
+    const frame=parked?Math.floor(state.time*8)%2:champion?(this.reducedMotion?0:Math.floor(state.time*3)%3):getBike(r.bikeId).style==='bicycle'?Math.floor((r.pedalPhase ?? 0)*4/Math.PI)%8:r.speed > 8 ? Math.floor(r.z * 1.6) % 3 : 0;
     c.drawImage(bikeSprite(r.color, pose, r.attack?.side ?? 1, r.profile === 'police', frame, getBike(r.bikeId).style,getKneePad(r.kneePadId)?.color,kneeSide,r.weaponId,stunting(r),r.helmetId,r.helmetColorId), -width / 2, -height, width, height);
     if(struck){c.strokeStyle='#ffeaa0';c.lineWidth=Math.max(1,height*.018);for(let i=0;i<5;i++){const a=i*Math.PI*.4;c.beginPath();c.moveTo(Math.cos(a)*width*.3,-height*.77+Math.sin(a)*width*.3);c.lineTo(Math.cos(a)*width*.48,-height*.77+Math.sin(a)*width*.48);c.stroke();}}
     if((r.nitroTime ?? 0)>0 && !r.crash){

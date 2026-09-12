@@ -5,7 +5,8 @@ import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import {createGameServer} from '../server/service';
 import {MemoryStore} from '../server/store';
-import {BIKES,getBike} from '../src/game/content';
+import {getBike} from '../src/game/content';
+import {MOTORBIKES as BIKES} from '../src/game/bikes';
 const folder='output/bike-roster';await fs.mkdir(folder,{recursive:true});
 let offset=0;const store=new MemoryStore(),app=createGameServer(store,{now:()=>Date.now()+offset});app.server.listen(0,'127.0.0.1');await once(app.server,'listening');
 const vite=spawn(process.execPath,['node_modules/vite/bin/vite.js','--host','127.0.0.1','--port','4355','--strictPort'],{env:{...process.env,ASFALTO_SERVER_URL:`http://127.0.0.1:${(app.server.address() as {port:number}).port}`},stdio:'ignore'});
@@ -15,7 +16,7 @@ for(const p of [a,b]){p.on('pageerror',e=>errors.push(e.message));p.on('console'
 const state=(p=a)=>p.evaluate(()=>JSON.parse(window.render_game_to_text()));
 const shot=(name:string)=>a.screenshot({path:`${folder}/${name}.png`});
 try{
- await a.goto('http://127.0.0.1:4355/?test');await a.click('#garage-btn');assert.equal(await a.locator('.bike-card').count(),7);assert.ok(await a.locator('[data-bike="lobo"]').isDisabled());
+ await a.goto('http://127.0.0.1:4355/?test');await a.click('#garage-btn');assert.equal(await a.locator('[data-bike]').count(),7);assert.equal(await a.locator('.secret-vehicle').count(),1);assert.ok(await a.locator('[data-bike="lobo"]').isDisabled());
  await a.evaluate(()=>{const s=JSON.parse(window.__game!.save());s.cash=1000000;localStorage.setItem('asfalto-bruto:v1',JSON.stringify(s));});await a.reload();await a.click('#garage-btn');
  const races=[];
  for(const bike of BIKES){

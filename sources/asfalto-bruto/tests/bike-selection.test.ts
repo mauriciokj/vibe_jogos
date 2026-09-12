@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {AccountsDB} from '../server/accounts-db';
 import {Economy} from '../server/economy';
-import {BIKES} from '../src/game/bikes';
+import {MOTORBIKES as BIKES} from '../src/game/bikes';
 import {buyBike,freshSave,soloBikeStatus} from '../src/game/save';
 import {newChampionship} from '../src/game/championship';
 

@@ -1,6 +1,6 @@
 {
   "name": "asfalto-bruto",
-  "version": "1.2.2-beta",
+  "version": "1.3.0-beta",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,6 +9,7 @@
     "preview": "vite preview --host 0.0.0.0",
     "test": "tsx --test tests/*.test.ts",
     "test:browser": "node tests/browser.mjs && node tests/extended.mjs",
+    "test:bicycle": "tsx --test tests/bicycle.test.ts tests/bicycle-network.test.ts && tsx tests/bicycle-browser.ts",
     "dev:server": "tsx watch server/dev.ts",
     "start:server": "tsx server/dev.ts",
     "export:jogos": "node scripts/export-jogos.mjs",

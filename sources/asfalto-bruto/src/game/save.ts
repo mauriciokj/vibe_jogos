@@ -6,6 +6,8 @@ import { BIKES, TRACKS, clamp, getTrack } from './content';
 import { KNEE_PADS, NITRO_PRICE, equippedKneePad, getKneePad, kneePadPrerequisite, nitroCount } from './equipment';
 import type { RaceState, SaveData, Upgrade } from './types';
 import { racePayout } from './rewards';
+import { BICYCLE_ID } from './bikes';
+import type { RaceResult } from './types';
 
 export const SAVE_KEY = 'asfalto-bruto:v1';
 export function freshSave(): SaveData {
@@ -124,12 +126,20 @@ export function repair(save: SaveData): boolean {
 export function buyBike(save: SaveData, id: string): boolean {
   const bike = BIKES.find(b => b.id === id);
   if (!bike) return false;
+  if(bike.secret && !save.owned.includes(id))return false;
   if (!save.owned.includes(id)) {
     if (save.cash < bike.price) return false;
     save.cash -= bike.price; save.owned.push(id); save.condition[id] = 100;
     save.upgrades[id] = { engine: 0, armor: 0, handling: 0 };
   }
   save.bikeId = id; return true;
+}
+// Called only for a settled local result or a server-confirmed account result.
+export function unlockBicycle(save:SaveData,result:RaceResult):boolean {
+  if(result.reason!=='finish' || result.onFoot!==true || save.owned.includes(BICYCLE_ID))return false;
+  save.owned.push(BICYCLE_ID);save.condition[BICYCLE_ID]=100;
+  save.upgrades[BICYCLE_ID]={engine:0,armor:0,handling:0};
+  return true;
 }
 export function upgradeCost(save: SaveData, key: keyof Upgrade) { return 450 + (save.upgrades[save.bikeId]?.[key] ?? 0) * 350; }
 export function buyUpgrade(save: SaveData, key: keyof Upgrade): boolean {
@@ -141,6 +151,7 @@ export function buyUpgrade(save: SaveData, key: keyof Upgrade): boolean {
 export function settleRace(save: SaveData, state: RaceState, options: {starterRepair?:boolean} = {}) {
   if (!state.result || state.multiplayer) return;
   const payout = racePayout(state.trackId, state.result, save.records[recordKey(state.trackId,state.condition)]?.time);
+  if(unlockBicycle(save,state.result))payout.secretUnlocked=true;
   save.cash += payout.total; save.races++;
   save.condition[state.riders[0].bikeId ?? save.bikeId] = clamp(state.riders[0].integrity, 0, 100);
   const result = state.result;

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { BIKES, curveAt, cornerSpeed, cornerForces } from '../src/game/content';
+import { curveAt, cornerSpeed, cornerForces } from '../src/game/content';
+import { MOTORBIKES as BIKES } from '../src/game/bikes';
 import { KNEE_PADS, KNEE_DURATION, NITRO_PRICE, cornerHandling, kneeSupport } from '../src/game/equipment';
 import { roadGrip } from '../src/game/conditions';
 import { DoubleTap } from '../src/game/controls';

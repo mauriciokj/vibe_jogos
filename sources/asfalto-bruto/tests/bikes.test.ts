@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { BIKES, clamp, curveAt, getBike, upcomingCorner, zeroToHundred } from '../src/game/content';
+import { clamp, curveAt, getBike, upcomingCorner, zeroToHundred } from '../src/game/content';
+import { MOTORBIKES as BIKES } from '../src/game/bikes';
 import { createRace, createMultiplayerRace, predictMovement, restoreSnapshot, snapshot, STEP, stepRace } from '../src/game/simulation';
 import { buyBike, buyUpgrade, freshSave, loadSave, persist, SAVE_KEY } from '../src/game/save';
 import { makeMember, makeRoom, joinRoom, lobbyClock, viewRoom } from '../server/room';

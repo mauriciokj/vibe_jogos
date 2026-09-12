@@ -10,7 +10,8 @@ import { advanceStunt, cancelStunt, clearsCar, clearsObstacle, stunting, WHEELIE
 import { advanceScenicEvent, coastalEvent, raceCondition } from './conditions';
 import { BIKES, clamp, cornerForces, cornerPace, curveAt, getBike, getTrack } from './content';
 import { cornerHandling, equippedKneePad, getKneePad, kneeContact, KNEE_DURATION, WET_KNEE_LIMIT, NITRO_DURATION, NITRO_MULTIPLIER, nitroCount } from './equipment';
-import { supportsKneeDown } from './bikes';
+import { isBicycle, MOTORBIKES, supportsKneeDown } from './bikes';
+import { advancePedaling, pedal } from './pedaling';
 import { advanceBanter, sayTaunt } from './banter';
 import { EMPTY_COMMAND, type AttackKind, type Command, type RaceResult, type RaceState, type RaceCondition, type Rider, type RiderAction, type SaveData } from './types';
 
@@ -67,7 +68,7 @@ export function createRace(trackId = 'costa', save?: SaveData, seed = 88117, con
   const riders = [player, ...names.map((name, i) => {
     const r = makeRider(`rival-${i}`, name, profiles[i], colors[i], i % 2 ? -1.5 : 3.8, 7 + i * 9);
     r.helmetId=HELMETS[i%HELMETS.length].id;r.helmetColorId=HELMET_COLORS[(i+2)%HELMET_COLORS.length].id;
-    Object.assign(r,stockBike(BIKES[(i+1)%BIKES.length].id));
+    Object.assign(r,stockBike(MOTORBIKES[(i+1)%MOTORBIKES.length].id));
     r.maxSpeed *= .98 + getTrack(trackId).level * .01;
     const pad=rivalKneePad(r.bikeId,r.profile,getTrack(trackId).level);if(pad)r.kneePadId=pad;
     r.weapon = i === 1 || i === 3 || i === 6;
@@ -116,13 +117,17 @@ export function crashRider(state: RaceState, rider: Rider, force = false, kind:'
   rider.integrity = Math.max(0, rider.integrity - 13 / rider.armor);
   rider.attack = null;
   rider.kneeTime=0;rider.wetKneeTicks=0;rider.nitroTime=0;rider.speech=undefined;cancelStunt(rider);
+  if(isBicycle(rider.bikeId))rider.pedalTime=0;
   rider.falls++;
   state.events.push({ type: 'crash', actor: rider.id, text: 'NO CHÃO! VOLTE ATÉ A MOTO' });
 }
 
 export function performAction(state: RaceState, rider: Rider, action: RiderAction) {
   if(state.mode!=='racing' || rider.out || rider.crash || rider.finishedAt!==null)return;
-  if(action==='wheelie') {
+  if(action==='pedal') {
+    if(isBicycle(rider.bikeId))pedal(rider);
+  } else if(action==='wheelie') {
+    if(isBicycle(rider.bikeId))return;
     if(stunting(rider) || wheeliesLeft(rider)<=0 || rider.speed<WHEELIE_MIN_SPEED || Math.abs(rider.x)>roadHalf(state.trackId) || rider.immune)return;
     rider.wheeliesLeft=wheeliesLeft(rider)-1;rider.wheelieTime=WHEELIE_DURATION;rider.kneeTime=0;rider.wetKneeTicks=0;
   } else if(action==='kneeLeft' || action==='kneeRight') {
@@ -132,6 +137,7 @@ export function performAction(state: RaceState, rider: Rider, action: RiderActio
     if((rider.kneeTime ?? 0)>0 && rider.kneeSide===side)return;
     rider.kneeSide=side;rider.kneeTime=KNEE_DURATION;
   } else if(action==='nitro') {
+    if(isBicycle(rider.bikeId))return;
     if(!(rider.nitro!>0) || (rider.nitroTime ?? 0)>0)return;
     rider.nitro!--;rider.nitroUsed=(rider.nitroUsed ?? 0)+1;rider.nitroTime=NITRO_DURATION;
     state.events.push({type:'nitro',actor:rider.id});
@@ -204,6 +210,8 @@ export function policeTarget(state: RaceState, officer: Rider): Rider | undefine
 }
 
 function applyCommand(state: RaceState, rider: Rider, command: Command) {
+  if(rider.finishedAt!==null){rider.speed=Math.max(0,rider.speed-STEP*12);return;}
+  if(isBicycle(rider.bikeId))advancePedaling(rider,STEP);
   if(rider.recovery && !rider.out){advanceRecovery(state,rider,command,STEP);return;}
   contactGuardRail(state.trackId,rider);
   if (rider.out) { rider.speed = 0; rider.attack = null; return; }
@@ -238,8 +246,10 @@ function applyCommand(state: RaceState, rider: Rider, command: Command) {
   const topSpeed=rider.maxSpeed*boost;
   const shoulderLimit = Math.abs(curve) > .8 ? .38 : .56;
   const max = topSpeed * (onShoulder ? shoulderLimit : 1) * (.92 + rider.integrity / 1250);
-  const acceleration = command.throttle * rider.acceleration * boost * (onShoulder ? .55 : 1) * (1 - .35 * rider.speed / topSpeed);
-  rider.speed = clamp(rider.speed + (acceleration - command.brake * 29 * surfaceBraking(state.trackId,state.condition) - (command.throttle ? 1.2 : 3.6) - surfaceDrag(state.trackId,state.condition) - (state.trackId==='terra'?9.8*ruralSlope(rider.z):0)) * STEP, 0, Math.max(rider.speed,topSpeed));
+  if(isBicycle(rider.bikeId) && command.brake>.1)rider.pedalTime=0;
+  const effort=isBicycle(rider.bikeId)?((rider.pedalTime ?? 0)>0?1:0):command.throttle;
+  const acceleration = effort * rider.acceleration * boost * (onShoulder ? .55 : 1) * (1 - .35 * rider.speed / topSpeed);
+  rider.speed = clamp(rider.speed + (acceleration - command.brake * 29 * surfaceBraking(state.trackId,state.condition) - (effort ? 1.2 : 3.6) - surfaceDrag(state.trackId,state.condition) - (state.trackId==='terra'?9.8*ruralSlope(rider.z):0)) * STEP, 0, Math.max(rider.speed,topSpeed));
   if (rider.speed > max) rider.speed = Math.max(max, rider.speed - STEP * (onShoulder ? 34 : 4));
   const steering = clamp(command.steer, -1, 1);
   const forces = cornerForces(rider.speed, cornerHandling(rider,curve,state.trackId) * surfaceGrip(state.trackId,state.condition), curve, onShoulder);
@@ -332,7 +342,7 @@ function resolveCollisions(state: RaceState, oldZ: Map<string, number>) {
 // Swept contacts catch fast vehicles passing through a pedestrian in one tick.
 function resolvePedestrians(state:RaceState,oldZ:Map<string,number>){
  for(const r of state.riders){
-  if(!r.recovery || r.out)continue;
+  if(!r.recovery || r.out || r.finishedAt!==null)continue;
   for(const t of state.traffic){
    const now=t.z-r.z,before=t.z-t.speed*STEP-(oldZ.get(r.id)??r.z);
    if((Math.abs(now)<trafficShape(state.trackId,t.kind).length || before*now<0) && Math.abs(t.x-r.x)<trafficShape(state.trackId,t.kind).contact)
@@ -358,7 +368,7 @@ export function createMultiplayerRace(trackId: string, players: { id: string; na
   state.riders = players.map((p,i) => ({ ...base, ...stockBike(p.bikeId), helmetId:getHelmet(p.helmetId).id, helmetColorId:getHelmetColor(p.helmetColorId).id, weaponId:getWeapon(p.weaponId)?.id, kneePadId:getKneePad(p.kneePadId)?.id, nitro:nitroCount(p.bikeId,p.nitro), id: p.id, name: p.name, color: colors[i], x: grid[i%grid.length], z: -(Math.floor(i/grid.length)*(trackId==='terra'?10:8)), profile: 'player' }));
   if (fillBots) for (let i = players.length; i < 8; i++) {
     const bot = bots[i - players.length];
-    const bike=BIKES[i%BIKES.length],pad=rivalKneePad(bike.id,bot.profile,getTrack(trackId).level);
+    const bike=MOTORBIKES[i%MOTORBIKES.length],pad=rivalKneePad(bike.id,bot.profile,getTrack(trackId).level);
     state.riders.push({ ...base, ...stockBike(bike.id), ...(pad?{kneePadId:pad}:{}), helmetId:bot.helmetId, helmetColorId:bot.helmetColorId, id: `cpu-${i}`, name: `${bot.name} CPU`, profile: bot.profile, color: colors[i], x: grid[i%grid.length], targetX: grid[i%grid.length], z: -(Math.floor(i/grid.length)*(trackId==='terra'?10:8)) });
   }
   state.multiplayer = { humanIds: players.map(p => p.id), results: {} };
@@ -370,7 +380,7 @@ export function finishRider(state: RaceState, rider: Rider, reason: RaceResult['
   cancelStunt(rider);rider.kneeTime=0;rider.wetKneeTicks=0;
   if (reason !== 'finish') { rider.out = reason; rider.attack = null; }
   const place = ranking(state).findIndex(r => r.id === rider.id) + 1;
-  const result: RaceResult = { reason, ...(reason === 'caught' ? { arrestCause: arrestCause ?? 'stopped' } : {}), place,
+  const result: RaceResult = { reason, ...(reason==='finish' && rider.finishedOnFoot?{onFoot:true}:{}), ...(reason === 'caught' ? { arrestCause: arrestCause ?? 'stopped' } : {}), place,
     time: rider.finishedAt ?? state.time, reward: state.multiplayer ? 0 : reason === 'finish' ? Math.round(getTrack(state.trackId).prize * ([1,.8,.64,.5,.4,.32,.25,.2][place-1] ?? .2)) : 120,
     hits: rider.hits, falls: rider.falls };
   if (state.multiplayer) {
@@ -397,6 +407,7 @@ function arrestFallenRiders(state: RaceState): boolean {
 // Client prediction reuses movement only. Hits, damage, arrests and results are
 // always confirmed by the authoritative simulation, never by the browser.
 export function predictMovement(state: RaceState, rider: Rider, command: Command) {
+  if(rider.finishedAt!==null || rider.out)return;
   if(rider.recovery){advanceRecovery(state,rider,command,STEP,false);return;}
   applyCommand(state, rider, { ...command, attack: null, action: undefined });
 }
@@ -441,8 +452,12 @@ export function stepRace(state: RaceState, commands: Record<string, Command> = {
   const officers = state.riders.filter(r => r.profile === 'police' && !r.crash && r.integrity > 0);
   const length = getTrack(state.trackId).distance;
   // Record all crossings before assigning places, including ties within a tick.
-  for (const r of state.riders) if (r.profile !== 'police' && !r.out && !r.recovery && r.finishedAt === null && r.z >= length) {
-    r.finishedAt = state.time-(r.z-length)/Math.max(.1,r.speed); r.z = length;
+  for (const r of state.riders) if (r.profile !== 'police' && !r.out && r.finishedAt === null && r.z >= length) {
+    const before=oldZ.get(r.id) ?? r.z;
+    const walking=r.recovery?.phase==='walking' && r.falls>0 && before<length;
+    if(r.recovery && !walking)continue;
+    if(walking)r.finishedOnFoot=true;
+    r.finishedAt = walking ? state.time-STEP*(r.z-length)/Math.max(.001,r.z-before) : state.time-(r.z-length)/Math.max(.1,r.speed); r.z = length;
   }
   for (const r of state.riders) {
     if (r.profile === 'police' || r.out) continue;

@@ -15,3 +15,4 @@
 @media(max-width:600px){.helmet-palette>div{grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}.helmet-grid{grid-template-columns:1fr;gap:12px}.helmet-card{padding:16px}.helmet-card img{height:144px}.helmet-palette legend span{margin-left:8px}.garage-nav button{flex:1 1 auto}.garage-nav{row-gap:7px}}
 
 .helmet-views{display:flex;margin:-7px 0 16px;font:8px monospace;letter-spacing:1px;color:#a0b49f}.helmet-views span{flex:1;text-align:center}
+.bike-card.secret-vehicle{background:#020405;display:flex;align-items:center;justify-content:center;min-height:420px;border-color:#233334}.bike-card.secret-vehicle p{color:#a4aaa6;text-align:center;margin:0;font-size:13px}.secret-unlock{margin:24px;padding:20px;border:1px solid var(--acid);background:#dfff7112;color:var(--cream)}.secret-unlock strong{color:var(--acid);font-size:18px}.secret-unlock p{font-size:13px;line-height:1.6;margin:8px 0 0}

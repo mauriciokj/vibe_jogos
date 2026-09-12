@@ -1,6 +1,6 @@
 import type { AttackKind, Command, RaceState, RaceCondition, RiderAction } from '../game/types';
 
-export const NET_VERSION = 14;
+export const NET_VERSION = 15;
 export const MAX_PLAYERS = 8;
 export const ROOM_WAIT_MS = 60_000;
 export const PUBLIC_ROOM_WAIT_MS = 120_000;
@@ -63,7 +63,7 @@ export function cleanActions(value: unknown): ActionInput[] | null {
   if(!Array.isArray(value) || value.length>8)return null;
   let previous=0;const actions:ActionInput[]=[];
   for(const a of value){
-    if(!a || !Number.isSafeInteger(a.seq) || a.seq<=previous || !['kneeLeft','kneeRight','nitro','horn','taunt','wheelie'].includes(a.kind))return null;
+    if(!a || !Number.isSafeInteger(a.seq) || a.seq<=previous || !['kneeLeft','kneeRight','nitro','horn','taunt','wheelie','pedal'].includes(a.kind))return null;
     actions.push({seq:a.seq,kind:a.kind});previous=a.seq;
   }
   return actions;

@@ -96,7 +96,7 @@ export class GameAudio {
     // With no load on the rear wheel, revs flare independently of road speed.
     const enginePitch=airborne ? Math.max(groundPitch+100,235+speed*.9)+Math.sin(time*45)*7 : groundPitch;
     this.engine.frequency.setTargetAtTime(enginePitch * pitch, this.context.currentTime, airborne ? .045 : .06);
-    this.engineGain.gain.setTargetAtTime(running ? (.07 + speed / 850) * (airborne ? 1.25 : 1) * (custom ? 1 + .09 * Math.sin(time * 22) : 1) : 0, this.context.currentTime, .08);
+    this.engineGain.gain.setTargetAtTime(running && style!=='bicycle' ? (.07 + speed / 850) * (airborne ? 1.25 : 1) * (custom ? 1 + .09 * Math.sin(time * 22) : 1) : 0, this.context.currentTime, .08);
     this.engineFilter?.frequency.setTargetAtTime((260 + speed * 8 + (airborne ? 1500 : 0)) * pitch, this.context.currentTime, .1);
     this.windGain?.gain.setTargetAtTime(running ? Math.pow(Math.max(0, speed - 20) / 60, 2) * .16 : 0, this.context.currentTime, .15);
     if (police && running && Math.floor(time * 2) !== Math.floor((time - 1 / 60) * 2)) this.tone(Math.floor(time * 2) % 2 ? 630 : 810, .18, .05, 'sine');

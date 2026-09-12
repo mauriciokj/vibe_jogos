@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BIKES, curveAt, getTrack } from '../src/game/content';
+import { MOTORBIKES } from '../src/game/bikes';
 import { CONDITIONS, advanceScenicEvent, scenicAppearance } from '../src/game/conditions';
 import { RURAL_BANKS, ruralEvent, ruralSlope } from '../src/game/rural';
 import { roadHalf, roadLanes, surfaceGrip } from '../src/game/road-profile';
@@ -79,7 +80,7 @@ test('a prior Porto top-five record unlocks Terra and preserves purchased equipm
 });
 test('every stock bike finishes Terra in dry and wet conditions using ordinary controls',()=>{
   const runs=[];
-  for(const condition of ['day','rain'] as const)for(const bike of BIKES){
+  for(const condition of ['day','rain'] as const)for(const bike of MOTORBIKES){
     const save=freshSave();save.cash=1000000;assert.ok(buyBike(save,bike.id));const s=createRace('terra',save,88117,condition);let frames=0;
     while(s.mode!=='finished'&&frames++<60*420)stepRace(s,{player:safeDrivingCommand(s)});
     const run={bike:bike.id,condition,reason:s.result?.reason,time:s.result?.time,falls:s.riders[0].falls,integrity:s.riders[0].integrity};runs.push(run);

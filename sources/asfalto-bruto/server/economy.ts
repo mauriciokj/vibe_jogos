@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { setImmediate as yieldTurn } from 'node:timers/promises';
 import { AccountsDB, hash, token } from './accounts-db';
 import { RANK_RULES, type GarageAction, type RankedRun, type ReplaySegment } from '../src/account/protocol';
-import { buyBike, buyHelmet, buyKneePad, buyNitro, buyUpgrade, buyWeapon, freshSave, paintHelmet, repair, repairChampionshipBike, settleRace, soloBikeStatus } from '../src/game/save';
+import { buyBike, buyHelmet, buyKneePad, buyNitro, buyUpgrade, buyWeapon, freshSave, paintHelmet, repair, repairChampionshipBike, settleRace, soloBikeStatus, unlockBicycle } from '../src/game/save';
 import { championshipBikeState, checkpointChampionship, finishChampionshipSimulation, newChampionship, nextChampionshipStage, recordChampionshipHeat, startChampionshipRace } from '../src/game/championship';
 import { CONDITIONS } from '../src/game/conditions';
 import { TRACKS } from '../src/game/content';
@@ -133,7 +133,7 @@ export class Economy {
     let ticks=0;
     for(const s of segments){
       const command=cleanCommand(s?.command);
-      if(command&&s.command.action!==undefined){if(!['kneeLeft','kneeRight','nitro','horn','taunt','wheelie'].includes(s.command.action))fail('Ação inválida.',400);command.action=s.command.action;}
+      if(command&&s.command.action!==undefined){if(!['kneeLeft','kneeRight','nitro','horn','taunt','wheelie','pedal'].includes(s.command.action))fail('Ação inválida.',400);command.action=s.command.action;}
       if(!command||!Number.isSafeInteger(s.count)||s.count<1||s.count>72000||JSON.stringify(command)!==JSON.stringify(s.command))fail('Comandos inválidos.',400);
       ticks+=s.count;
     }
@@ -189,16 +189,18 @@ export class Economy {
       return {save:next,value:null};
     },this.now());
   }
-  releaseMember(member:Member,used=0){
+  releaseMember(member:Member,used=0,result?:import('../src/game/types').RaceResult){
     if(!member.accountId||this.closedSlots.has(member.id))return;
-    this.db.mutate(member.accountId,stored=>{
+    const unlocked=this.db.mutate(member.accountId,stored=>{
       const row=this.db.db.prepare('SELECT * FROM economy_multiplayer WHERE id=? AND closed=0').get(member.id);
-      if(!row)return {save:stored,value:null};
+      if(!row)return {save:stored,value:false};
       const save=structuredClone(stored!),remaining=Math.max(0,Number(row.stock)-Math.max(Number(row.used),used));
+      const unlocked=!!result && unlockBicycle(save,result);
       save.nitro={...save.nitro,[String(row.bike)]:(save.nitro?.[String(row.bike)] ?? 0)+remaining};
       this.db.db.prepare('UPDATE economy_multiplayer SET closed=1 WHERE id=?').run(member.id);
-      return {save,value:null};
+      return {save,value:unlocked};
     },this.now());
+    if(unlocked && result)result.secretUnlocked=true;
     this.closedSlots.add(member.id);this.onlineUsage.delete(member.id);
     if(this.closedSlots.size>4096)this.closedSlots.delete(this.closedSlots.values().next().value!);
   }
@@ -210,7 +212,8 @@ export class Economy {
         this.db.db.prepare('UPDATE economy_multiplayer SET used=MAX(used,?) WHERE id=? AND used<? AND closed=0').run(used,member.id,used);
         this.onlineUsage.set(member.id,used);
       }
-      if(room.race?.multiplayer?.results[member.id])this.releaseMember(member,used);
+      const result=room.race?.multiplayer?.results[member.id];
+      if(result)this.releaseMember(member,used,result);
     }
   }
 }

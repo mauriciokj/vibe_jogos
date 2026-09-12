@@ -2,6 +2,7 @@ import { getTrack } from './content';
 import type { RaceResult } from './types';
 
 export interface RacePayout {
+  secretUnlocked?: boolean;
   baseReward: number;
   recordBonus: number;
   previousRecord: number | null;

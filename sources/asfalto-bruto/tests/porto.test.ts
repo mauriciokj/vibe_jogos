@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BIKES, curveAt, getTrack } from '../src/game/content';
+import { MOTORBIKES } from '../src/game/bikes';
 import { CONDITIONS, advanceScenicEvent, scenicAppearance } from '../src/game/conditions';
 import { PORT_WORKS, portPassengerEvent, upcomingWorks } from '../src/game/port';
 import { RACE_ROUTES } from '../src/game/routes';
@@ -60,7 +61,7 @@ test('passenger follows an existing truck, uses a shared human-triggered clock a
 });
 test('each stock bike can finish Porto in dry weather and rain with ordinary controls',()=>{
   const runs=[];
-  for(const condition of ['day','rain'] as const)for(const bike of BIKES){
+  for(const condition of ['day','rain'] as const)for(const bike of MOTORBIKES){
     const save=freshSave();save.cash=1000000;assert.ok(buyBike(save,bike.id));const s=createRace('porto',save,88117,condition);let frames=0;
     while(s.mode!=='finished'&&frames++<60*450)stepRace(s,{player:safeDrivingCommand(s)});
     const run={bike:bike.id,condition,reason:s.result?.reason,time:s.result?.time,falls:s.riders[0].falls,integrity:s.riders[0].integrity};runs.push(run);

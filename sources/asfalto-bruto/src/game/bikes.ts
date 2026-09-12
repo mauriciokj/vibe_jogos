@@ -8,11 +8,16 @@ export const BIKES: Bike[] = [
   { id: 'estradeira', nitroCapacity: 2, name: 'Estradeira 900', class: 'CRUISER', style: 'cruiser', price: 18000, speed: 66, acceleration: 12.4, handling: 1, armor: 1.55, color: '#e6b965', tagline: 'Custom de banco baixo, cromados e alforjes. Aguenta a briga, pede uma curva mais aberta.' },
   { id: 'lobo', nitroCapacity: 3, name: 'Lobo 1200', class: 'CHOPPER', style: 'chopper', price: 45000, speed: 71, acceleration: 11.4, handling: .82, armor: 1.7, color: '#c57566', tagline: 'Garfo longo, guidão alto e muito metal. A mais resistente; prepare bem a frenagem.' },
   { id: 'agulha', nitroCapacity: 3, name: 'Agulha 600', class: 'CAFÉ RACER', style: 'cafe', price: 65000, speed: 69, acceleration: 14.5, handling: 1.42, armor: .9, color: '#91b897', tagline: 'Tanque clássico, banco de couro e direção precisa. Boa saída de curva, pouca proteção.' },
+  { id: 'bicicleta', secret: true, nitroCapacity: 0, name: 'Magrela', class: 'BICICLETA SECRETA', style: 'bicycle', price: 0, speed: 58, acceleration: 13.8, handling: 1.6, armor: .7, color: '#f9b857', tagline: 'Cada toque é uma pedalada. Aperte e solte W ou ↑ em sequência; no celular, toque repetidamente na parte de cima do acelerador. Segurar não mantém o embalo.' },
 ];
+// The secret never appears on an ordinary AI rider or changes the existing grid.
+export const MOTORBIKES=BIKES.filter(b=>!b.secret);
+export const BICYCLE_ID='bicicleta';
+export const isBicycle=(id?:string)=>id===BICYCLE_ID;
 export function getBike(id?: string): Bike { return BIKES.find(b => b.id === id) ?? BIKES[0]; }
 export function handlingLabel(handling: number) { return handling >= 1.4 ? 'MUITO ÁGIL' : handling >= 1.15 ? 'ÁGIL' : handling >= 1.05 ? 'EQUILIBRADA' : handling >= .9 ? 'PESADA' : 'EXIGE ANTECIPAÇÃO'; }
 export function zeroToHundred(bike: Bike) {
   const drag = bike.acceleration * .35 / bike.speed;
   return -Math.log(1 - (100 / 3.6) * drag / (bike.acceleration - 1.2)) / drag;
 }
-export const supportsKneeDown = (bikeId?: string) => getBike(bikeId).style !== 'chopper';
+export const supportsKneeDown = (bikeId?: string) => getBike(bikeId).style !== 'chopper' && !isBicycle(bikeId);

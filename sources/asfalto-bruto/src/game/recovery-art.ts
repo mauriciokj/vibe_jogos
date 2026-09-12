@@ -1,8 +1,8 @@
 import { drawHelmet } from './helmet-art';
 import type { Rider } from './types';
 const cache=new Map<string,HTMLCanvasElement>();
-export function pedestrianSprite(r:Rider,frame:number,front:boolean){
- const pose=frame<0?-1:frame%8,key=`${r.color}/${r.helmetId}/${r.helmetColorId}/${pose}/${front}`;if(cache.has(key))return cache.get(key)!;
+export function pedestrianSprite(r:Rider,frame:number,front:boolean,celebrate=false){
+ const pose=frame<0?-1:frame%8,key=`${r.color}/${r.helmetId}/${r.helmetColorId}/${pose}/${front}/${celebrate}`;if(cache.has(key))return cache.get(key)!;
  const canvas=document.createElement('canvas');canvas.width=88;canvas.height=128;const c=canvas.getContext('2d')!;
  const rect=(x:number,y:number,w:number,h:number,col:string)=>{c.fillStyle=col;c.fillRect(Math.round(x),Math.round(y),Math.round(w),Math.round(h));};
  const line=(p:number[],col:string,w:number)=>{c.strokeStyle=col;c.lineWidth=w;c.lineJoin='miter';c.beginPath();for(let i=0;i<p.length;i+=2)i?c.lineTo(Math.round(p[i]),Math.round(p[i+1])):c.moveTo(Math.round(p[i]),Math.round(p[i+1]));c.stroke();};
@@ -25,6 +25,7 @@ export function pedestrianSprite(r:Rider,frame:number,front:boolean){
   else rect(hip-width/2+1,ankleY-1,width-2,2,'#a0acaa');
  }
  const arm=(side:number)=>{
+  if(celebrate){const sign=side?1:-1;line([44+sign*13,36,44+sign*24,24,44+sign*26,9],r.color,8);rect(41+sign*26,6,7,7,'#d8b38a');return;}
   const {stride,shoulder}=limbs[side],swing=-stride,depth=swing*(front?1:-1),lift=Math.max(0,swing);
   const elbowX=shoulder+(side?2:-2),handX=shoulder+(side?-1:1),elbowY=50+depth*4-lift*5,handY=62+depth*6-lift*20;
   line([shoulder,36,elbowX,elbowY,handX,handY],'#233540',10);
