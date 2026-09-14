@@ -19,7 +19,7 @@ import './menu.css';
 import { showVisitorCount } from './visitors';
 import './equipment.css';
 import './touch.css';
-import { bindPointerControl } from './pointer-control';
+import { bindPointerControl, type ControlPoint } from './pointer-control';
 import './hud.css';
 import './finish.css';
 import './championship.css';
@@ -911,6 +911,17 @@ for (const surface of [$('game'), $('hud')]) {
   for (const event of ['selectstart', 'contextmenu', 'dragstart']) surface.addEventListener(event, e => e.preventDefault());
 }
 const controlsEnabled = () => screen === 'race' && !paused && !document.querySelector('dialog[open]');
+// Native touch cancellation complements touch-action for mobile browser zoom.
+// HUD click buttons (nitro/pause) and dialogs retain their normal click handling.
+for (const event of ['touchstart', 'touchmove', 'touchend'] as const) {
+  $('game').addEventListener(event, e => { if (controlsEnabled() && e.cancelable) e.preventDefault(); }, {passive: false});
+}
+for (const event of ['gesturestart', 'gesturechange', 'gestureend']) {
+  document.addEventListener(event, e => { if (controlsEnabled() && e.cancelable) e.preventDefault(); }, {passive: false});
+}
+for (const surface of [$('game'), $('hud')]) {
+  surface.addEventListener('dblclick', e => { if (controlsEnabled()) e.preventDefault(); });
+}
 document.querySelectorAll<HTMLButtonElement>('[data-touch]').forEach(button => {
   resetPointers.push(bindPointerControl(button, {
     enabled: controlsEnabled,
@@ -924,7 +935,7 @@ document.querySelectorAll<HTMLButtonElement>('[data-touch]').forEach(button => {
 for(const [id,axis] of [['steering-stick','steer'],['drive-stick','drive']] as const) {
   const stick=$(id),knob=stick.querySelector<HTMLElement>('.analog-knob')!;
   let deflected=0;
-  const move=(event:PointerEvent)=>{
+  const move=(event:ControlPoint)=>{
     const box=stick.getBoundingClientRect(),radius=box.width*.32;
     let value=clamp((axis==='steer'?event.clientX-box.x-box.width/2:box.y+box.height/2-event.clientY)/radius,-1,1);
     if(Math.abs(value)<.15)value=0;

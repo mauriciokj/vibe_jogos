@@ -2,7 +2,12 @@ import './releases.css';
 import { GAME_VERSION } from './version';
 export { GAME_VERSION } from './version';
 export const RELEASES=[
-  {version:GAME_VERSION,date:'14/09/2026',title:'Controles mais firmes no celular',changes:[
+  {version:GAME_VERSION,date:'14/09/2026',title:'Toques sem prender o acelerador',changes:[
+    'Controles no celular reconhecem quando um dedo sai da tela, mesmo se o navegador interromper o toque. Um novo toque permite voltar a acelerar ou frear.',
+    'Proteção extra contra zoom acidental nos analógicos e na pista ao tocar rapidamente ou usar vários dedos.',
+    'Pedaladas, manobras e golpes continuam respondendo aos toques; nitro, pausa e os campos dos menus mantêm seu funcionamento.'
+  ]},
+  {version:'1.4.2-beta',date:'14/09/2026',title:'Controles mais firmes no celular',changes:[
     'Toques prolongados na corrida deixam de selecionar textos ou abrir o menu de seleção do navegador.',
     'Acelerador, direção e golpes acompanham cada dedo separadamente e são liberados ao soltar, cancelar o toque, pausar, girar a tela ou sair do jogo.',
     'No multiplayer, interromper os controles também avisa o servidor imediatamente, evitando manter o acelerador anterior ao trocar de aplicativo.'

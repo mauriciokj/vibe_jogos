@@ -1,6 +1,6 @@
 {
   "name": "asfalto-bruto",
-  "version": "1.4.2-beta",
+  "version": "1.4.3-beta",
   "private": true,
   "type": "module",
   "scripts": {
