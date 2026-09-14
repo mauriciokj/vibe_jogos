@@ -1,6 +1,6 @@
 {
   "name": "asfalto-bruto",
-  "version": "1.4.1-beta",
+  "version": "1.4.2-beta",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,6 +9,7 @@
     "preview": "vite preview --host 0.0.0.0",
     "test": "tsx --test tests/*.test.ts",
     "test:browser": "node tests/browser.mjs && node tests/extended.mjs",
+    "test:mobile": "tsx tests/mobile-controls-browser.ts",
     "test:achievements": "tsx --test tests/achievements.test.ts && tsx tests/achievements-browser.ts",
     "test:bicycle": "tsx --test tests/bicycle.test.ts tests/bicycle-network.test.ts && tsx tests/bicycle-browser.ts",
     "dev:server": "tsx watch server/dev.ts",

@@ -2,7 +2,12 @@ import './releases.css';
 import { GAME_VERSION } from './version';
 export { GAME_VERSION } from './version';
 export const RELEASES=[
-  {version:GAME_VERSION,date:'12/09/2026',title:'Proteções sem cortes na imagem',changes:[
+  {version:GAME_VERSION,date:'14/09/2026',title:'Controles mais firmes no celular',changes:[
+    'Toques prolongados na corrida deixam de selecionar textos ou abrir o menu de seleção do navegador.',
+    'Acelerador, direção e golpes acompanham cada dedo separadamente e são liberados ao soltar, cancelar o toque, pausar, girar a tela ou sair do jogo.',
+    'No multiplayer, interromper os controles também avisa o servidor imediatamente, evitando manter o acelerador anterior ao trocar de aplicativo.'
+  ]},
+  {version:'1.4.1-beta',date:'12/09/2026',title:'Proteções sem cortes na imagem',changes:[
     'Guard rails continuam visíveis até sair do enquadramento. Corrigido o desaparecimento antecipado dos trechos próximos à câmera.'
   ]},
   {version:'1.4.0-beta',date:'12/09/2026',title:'Seu legado na estrada',changes:[

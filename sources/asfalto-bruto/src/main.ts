@@ -19,6 +19,7 @@ import './menu.css';
 import { showVisitorCount } from './visitors';
 import './equipment.css';
 import './touch.css';
+import { bindPointerControl } from './pointer-control';
 import './hud.css';
 import './finish.css';
 import './championship.css';
@@ -168,6 +169,7 @@ let lastCount = 4;
 let testMode = new URLSearchParams(location.search).has('test');
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
 const keys = new Set<string>();
+const touchKeys = new Set<string>();
 const doubleTap = new DoubleTap();
 const throttleTap = new DoubleTap();
 const analog = {steer:0,drive:0};
@@ -424,7 +426,8 @@ function pauseGame() {
 }
 function resumeGame() { $<HTMLDialogElement>('pause-modal').close(); paused = false; clearControls(); last = performance.now(); accumulator = 0; }
 function input(): Command {
-  return { throttle: keys.has('KeyW') || keys.has('ArrowUp') ? 1 : Math.max(0,analog.drive), brake: keys.has('KeyS') || keys.has('ArrowDown') ? 1 : Math.max(0,-analog.drive), steer: clamp((keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0)+analog.steer,-1,1), attack: keys.has('KeyL') ? 'weapon' : keys.has('KeyK') ? 'kick' : keys.has('KeyJ') ? 'punch' : null, action:pendingActions.shift() };
+  const held = (code: string) => keys.has(code) || touchKeys.has(code);
+  return { throttle: keys.has('KeyW') || keys.has('ArrowUp') ? 1 : Math.max(0,analog.drive), brake: keys.has('KeyS') || keys.has('ArrowDown') ? 1 : Math.max(0,-analog.drive), steer: clamp((keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0)+analog.steer,-1,1), attack: held('KeyL') ? 'weapon' : held('KeyK') ? 'kick' : held('KeyJ') ? 'punch' : null, action:pendingActions.shift() };
 }
 function syncSoloNitro() {
   if(accounts.cache)return;
@@ -433,10 +436,12 @@ function syncSoloNitro() {
   if(used>soloNitroSpent){spendNitro(save,p.bikeId ?? 'ferro',used-soloNitroSpent);soloNitroSpent=used;saveNow();}
 }
 function clearControls() {
-  keys.clear();pendingActions=[];doubleTap.reset();throttleTap.reset();analog.steer=0;analog.drive=0;
+  keys.clear();touchKeys.clear();pendingActions=[];doubleTap.reset();throttleTap.reset();analog.steer=0;analog.drive=0;
   resetPointers.forEach(reset=>reset());
   document.querySelectorAll<HTMLElement>('.analog-knob').forEach(k=>k.style.transform='translate(0px,0px)');
   document.querySelectorAll<HTMLElement>('.analog-stick').forEach(k=>k.setAttribute('aria-valuenow','0'));
+  // A hidden tab can stop rendering before the next frame sends neutral input.
+  if(onlineMode)online.step({...EMPTY_COMMAND,brake:1});
 }
 function queueAction(action: RiderAction) {
   if(screen!=='race' || paused || race.mode!=='racing' || document.querySelector('dialog[open]'))return;
@@ -896,22 +901,30 @@ window.addEventListener('keydown', e => {
   }
 });
 window.addEventListener('keyup', e => keys.delete(e.code));
-window.addEventListener('blur', () => { clearControls(); if (!testMode) pauseGame(); });
-document.addEventListener('visibilitychange', () => { if (document.hidden && !testMode) pauseGame(); });
+const suspendControls = () => { clearControls(); if (!testMode) pauseGame(); };
+window.addEventListener('blur', suspendControls);
+window.addEventListener('pagehide', suspendControls);
+document.addEventListener('visibilitychange', () => { if (document.hidden) suspendControls(); });
+window.addEventListener('orientationchange', clearControls);
+window.screen.orientation?.addEventListener('change', clearControls);
+for (const surface of [$('game'), $('hud')]) {
+  for (const event of ['selectstart', 'contextmenu', 'dragstart']) surface.addEventListener(event, e => e.preventDefault());
+}
+const controlsEnabled = () => screen === 'race' && !paused && !document.querySelector('dialog[open]');
 document.querySelectorAll<HTMLButtonElement>('[data-touch]').forEach(button => {
-  button.addEventListener('pointerdown', e => {
-    e.preventDefault();button.setPointerCapture(e.pointerId);keys.add(button.dataset.touch!);void audio.start();
-    if(onlineMode && screen==='race' && !paused){const kind=({KeyJ:'punch',KeyK:'kick',KeyL:'weapon'} as const)[button.dataset.touch as 'KeyJ'];if(kind)online.attack(kind);}
-  });
-  const release = () => keys.delete(button.dataset.touch!);
-  button.addEventListener('pointerup', release); button.addEventListener('pointercancel', release); button.addEventListener('lostpointercapture', release);
+  resetPointers.push(bindPointerControl(button, {
+    enabled: controlsEnabled,
+    start: () => {
+      touchKeys.add(button.dataset.touch!);button.classList.add('is-held');void audio.start();
+      if(onlineMode){const kind=({KeyJ:'punch',KeyK:'kick',KeyL:'weapon'} as const)[button.dataset.touch as 'KeyJ'];if(kind)online.attack(kind);}
+    },
+    end: () => { touchKeys.delete(button.dataset.touch!);button.classList.remove('is-held'); }
+  }));
 });
 for(const [id,axis] of [['steering-stick','steer'],['drive-stick','drive']] as const) {
   const stick=$(id),knob=stick.querySelector<HTMLElement>('.analog-knob')!;
-  let pointer: number | null=null,deflected=0;
-  resetPointers.push(()=>{pointer=null;deflected=0;});
+  let deflected=0;
   const move=(event:PointerEvent)=>{
-    if(event.pointerId!==pointer || screen!=='race' || paused)return;
     const box=stick.getBoundingClientRect(),radius=box.width*.32;
     let value=clamp((axis==='steer'?event.clientX-box.x-box.width/2:box.y+box.height/2-event.clientY)/radius,-1,1);
     if(Math.abs(value)<.15)value=0;
@@ -927,14 +940,12 @@ for(const [id,axis] of [['steering-stick','steer'],['drive-stick','drive']] as c
       if(Math.abs(value)>.55 && deflected!==Math.sign(value)){deflected=Math.sign(value);directionTap(deflected,event.timeStamp);}
     }
   };
-  stick.addEventListener('pointerdown',event=>{
-    if(pointer!==null || screen!=='race' || paused)return;
-    event.preventDefault();pointer=event.pointerId;deflected=0;stick.setPointerCapture(pointer);void audio.start();move(event);
-  });
-  stick.addEventListener('pointermove',move);
-  const release=(event:PointerEvent)=>{if(event.pointerId!==pointer)return;pointer=null;deflected=0;analog[axis]=0;knob.style.transform='translate(0px,0px)';stick.setAttribute('aria-valuenow','0');};
-  stick.addEventListener('pointerup',release);stick.addEventListener('pointercancel',release);stick.addEventListener('lostpointercapture',release);
-  window.addEventListener('blur',()=>{pointer=null;deflected=0;});
+  resetPointers.push(bindPointerControl(stick, {
+    enabled: controlsEnabled,
+    start: () => { deflected=0;void audio.start(); },
+    move,
+    end: () => { deflected=0;analog[axis]=0;knob.style.transform='translate(0px,0px)';stick.setAttribute('aria-valuenow','0'); }
+  }));
 }
 
 // Deterministic hooks used by the automated game client. Debug mutation is limited to ?test.

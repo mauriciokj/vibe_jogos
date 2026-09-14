@@ -31,6 +31,15 @@ try{
   await a.waitForFunction(()=>{const p=JSON.parse(window.render_game_to_text()).player;return p.x===-7&&p.speed<30;});
   const room=(await store.read(code))!;assert.equal(room.race!.riders.length,8);for(const id of [aid,bid]){const rider=room.race!.riders.find(r=>r.id===id)!;assert.ok(rider.x>=-7);assert.equal(rider.falls,0);}
   for(const page of [a,b]){const s=await state(page);assert.ok(s.player.x>=-7);assert.ok(s.riders.every((r:{x:number})=>r.x>=-7));await page.keyboard.up('a');await page.keyboard.up('w');}await a.screenshot({path:`${folder}/online-contact.png`});
-  await b.reload();await b.waitForFunction(()=>JSON.parse(window.render_game_to_text()).screen==='race');assert.equal((await state(b)).online.id,bid);assert.ok((await state(b)).player.x>=-7);for(const page of [a,b]){await page.click('#pause-btn');await page.click('#menu-btn');}
+  await b.reload();await b.waitForFunction(()=>JSON.parse(window.render_game_to_text()).screen==='race');assert.equal((await state(b)).online.id,bid);assert.ok((await state(b)).player.x>=-7);
+  // Losing focus must stop the server input even before another render frame.
+  await a.keyboard.down('w');await a.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
+  const resetPacket=await a.evaluate(()=>{
+    const send=WebSocket.prototype.send,commands:any[]=[];
+    WebSocket.prototype.send=function(data){if(typeof data==='string'){const packet=JSON.parse(data);if(packet.type==='input')commands.push(packet.command);}send.call(this,data);};
+    try{window.dispatchEvent(new Event('blur'));return commands;}finally{WebSocket.prototype.send=send;}
+  });
+  assert.ok(resetPacket.some(c=>c.throttle===0&&c.steer===0&&c.brake===1&&c.attack===null),'neutral input is sent synchronously on blur');await a.keyboard.up('w');
+  for(const page of [a,b]){await page.click('#pause-btn');await page.click('#menu-btn');}
   assert.deepEqual(errors,[]);const report={ok:true,portoRainContact:true,slowsWithoutFall:true,steeringAway:true,serraBothSides:true,worksPreserved:true,mobile:true,humans:2,bots:6,remotePositionsContained:true,reconnect:true,errors};await fs.writeFile(`${folder}/browser.json`,JSON.stringify(report,null,2));console.log(report);
 }finally{await browser.close();vite.kill('SIGTERM');await app.close();}
