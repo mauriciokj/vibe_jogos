@@ -106,6 +106,7 @@ export function createGameServer(store: RoomStore, options: { origins?: string[]
         if (['create','join','resume'].includes(data.type)) {
           if (peer.code) throw new Error('Você já está em uma sala.');
           if (data.version !== NET_VERSION) throw new Error('Atualize a página para entrar nesta versão.');
+          if (data.requireAccount && !options.accounts?.identity(req)) throw new Error('Sua sessão expirou. Entre novamente na conta para usar sua garagem.');
           if (data.type === 'create') {
             const member = makeMember(data.name,now(),data.bikeId,data.loadout); member.accountId=options.accounts?.identity(req)?.account.id; let room: Room;
             options.accounts?.economy.equipMember(member.accountId,member);reservation=member;

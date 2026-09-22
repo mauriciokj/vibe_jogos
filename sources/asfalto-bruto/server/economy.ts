@@ -6,8 +6,8 @@ import { RANK_RULES, type GarageAction, type RankedRun, type ReplaySegment } fro
 import { buyBike, buyHelmet, buyKneePad, buyNitro, buyUpgrade, buyWeapon, freshSave, paintHelmet, repair, repairChampionshipBike, settleRace, soloBikeStatus, unlockBicycle } from '../src/game/save';
 import { championshipBikeState, checkpointChampionship, finishChampionshipSimulation, newChampionship, nextChampionshipStage, recordChampionshipHeat, startChampionshipRace } from '../src/game/championship';
 import { CONDITIONS } from '../src/game/conditions';
-import { TRACKS } from '../src/game/content';
-import { kneePadPrerequisite } from '../src/game/equipment';
+import { TRACKS, getBike } from '../src/game/content';
+import { kneePadPrerequisite, nitroCount } from '../src/game/equipment';
 import { createRace, finishRider, stepRace } from '../src/game/simulation';
 import { cleanCommand } from '../src/multiplayer/protocol';
 import type { RaceState, SaveData } from '../src/game/types';
@@ -187,13 +187,17 @@ export class Economy {
     }finally{this.busy.delete(id);}
   }
   equipMember(id:string|undefined,member:Member){
-    // Guests can race without a login; account equipment is never supplied by
-    // localStorage or by WebSocket messages.
-    const save=id?this.initialize(id).save!:freshSave();
-    if(id)this.ensureIdle(id);
-    const bike=save.owned.includes(member.bikeId)?member.bikeId:save.bikeId;
+    // Ordinary motorcycles are free to choose online, with factory attributes.
+    // The secret still requires a verified unlock. Guest equipment has already
+    // been limited to catalog IDs/capacity by makeMember; it never enters a save
+    // or ranking account. Account equipment always comes from the official save.
+    const save=id?this.initialize(id).save!:undefined,requested=getBike(member.bikeId);
+    const bike=requested.secret && !save?.owned.includes(requested.id)?'ferro':requested.id;
+    member.bikeId=bike;
+    if(!id || !save){member.accountId=undefined;member.nitro=nitroCount(bike,member.nitro);return;}
+    this.ensureIdle(id);
     member.accountId=id;member.bikeId=bike;member.weaponId=save.weaponId;member.kneePadId=save.kneePadId;
-    member.helmetId=save.helmetId;member.helmetColorId=save.helmetColorId;member.nitro=save.nitro?.[bike] ?? 0;
+    member.helmetId=save.helmetId;member.helmetColorId=save.helmetColorId;member.nitro=nitroCount(bike,save.nitro?.[bike]);
     if(id)this.db.mutate(id,stored=>{
       const next=structuredClone(stored!);next.nitro={...next.nitro,[bike]:0};
       this.db.db.prepare('INSERT INTO economy_multiplayer(id,account,bike,stock) VALUES(?,?,?,?)').run(member.id,id,bike,member.nitro!);

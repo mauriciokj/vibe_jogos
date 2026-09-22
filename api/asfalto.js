@@ -37,7 +37,7 @@ module.exports = __toCommonJS(asfalto_exports);
 var import_node_http2 = require("node:http");
 
 // src/version.ts
-var GAME_VERSION = "1.4.3-beta";
+var GAME_VERSION = "1.4.4-beta";
 
 // server/service.ts
 var import_node_http = require("node:http");
@@ -1250,7 +1250,7 @@ function stepRace(state, commands = {}) {
 }
 
 // src/multiplayer/protocol.ts
-var NET_VERSION = 16;
+var NET_VERSION = 17;
 var MAX_PLAYERS = 8;
 var ROOM_WAIT_MS = 6e4;
 var PUBLIC_ROOM_WAIT_MS = 12e4;
@@ -1799,6 +1799,7 @@ function createGameServer(store, options = {}) {
         if (["create", "join", "resume"].includes(data.type)) {
           if (peer.code) throw new Error("Voc\xEA j\xE1 est\xE1 em uma sala.");
           if (data.version !== NET_VERSION) throw new Error("Atualize a p\xE1gina para entrar nesta vers\xE3o.");
+          if (data.requireAccount && !options.accounts?.identity(req)) throw new Error("Sua sess\xE3o expirou. Entre novamente na conta para usar sua garagem.");
           if (data.type === "create") {
             const member = makeMember(data.name, now(), data.bikeId, data.loadout);
             member.accountId = options.accounts?.identity(req)?.account.id;

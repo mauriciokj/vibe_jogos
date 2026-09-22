@@ -16,7 +16,7 @@ const vite=spawn(process.execPath,['node_modules/vite/bin/vite.js','--host','127
 const base='http://127.0.0.1:4360/';for(let i=0;i<100;i++){try{if((await fetch(base)).ok)break;}catch{}await new Promise(r=>setTimeout(r,100));}
 const browser=await chromium.launch({headless:true});
 const a=await browser.newPage({viewport:{width:1440,height:900}}),b=await browser.newPage({viewport:{width:1280,height:800}}),errors:string[]=[];
-function observe(p:Page){p.on('pageerror',e=>errors.push(e.message));p.on('console',e=>{if(e.type()==='error')errors.push(e.text());});}observe(a);observe(b);
+async function observe(p:Page){p.on('pageerror',e=>errors.push(e.message));p.on('console',e=>{if(e.type()==='error')errors.push(e.text());});await p.route('**/api/visitors*',r=>r.fulfill({json:{visitors:18}}));}await observe(a);await observe(b);
 const state=(p=a)=>p.evaluate(()=>JSON.parse(window.render_game_to_text()));
 const shot=(name:string,p=a)=>p.screenshot({path:`${folder}/${name}.png`});
 const back=async(p=a)=>{await p.click('#pause-btn');await p.click('#menu-btn');};
@@ -57,7 +57,7 @@ try{
   await a.click('#pause-btn');const wetPaused=await a.evaluate(()=>window.__game!.snapshot());await a.evaluate(()=>window.advanceTime(2000));assert.equal(await a.evaluate(()=>window.__game!.snapshot()),wetPaused);await a.click('#resume-btn');
   await a.evaluate(()=>window.__game!.command({throttle:0,brake:0,steer:.25,attack:null},1));assert.equal((await state()).player.falls,1);assert.ok((await state()).player.crash>0);await shot('rain-fall');await back();
   // Native multi-touch: steering and throttle at the same time, including the double flick.
-  const mobile=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});observe(mobile);
+  const mobile=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});await observe(mobile);
   const mobileSave=freshSave();mobileSave.cash=15000;mobileSave.races=1;for(const pad of KNEE_PADS)buyKneePad(mobileSave,pad.id);buyNitro(mobileSave);mobileSave.raceCondition='day';
   await mobile.goto(base+'?test');await mobile.evaluate(({key,save})=>localStorage.setItem(key,JSON.stringify(save)),{key:SAVE_KEY,save:mobileSave});await mobile.reload();await mobile.click('#start-btn');await fixture(mobile);
   const cd=await mobile.context().newCDPSession(mobile),left=(await mobile.locator('#steering-stick').boundingBox())!,right=(await mobile.locator('#drive-stick').boundingBox())!;

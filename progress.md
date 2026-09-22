@@ -216,3 +216,12 @@ Original prompt: Build a classic Snake game in this repo.
 
 - Publicado código1eba6e8aa48c528aa39fd3525c426cb0dac2db42 somente na VPS, release20260914T201908Z-1eba6e8. Asfalto/Catálogo/Caddy ativos, Beta1.4.3/protocolo16. Dois domínios conferidos; JS index-B0IUEsHo.js SHA2564034aa146d8d949b61450d467dab378af93021f36c5eaed65d49e85ff5df1ed3 e CSS index-CRM9zmZm.css SHA256625daf0e82004042f074ed36c5192ff8edd3cf64ac6d066df21bd80740dfe26f iguais ao build.
 - Testes móveis repetidos no HTTPS público em Chromium/WebKit passaram; imagens públicas e errors.json vazio conferidos. Navegadores convidados isolados e ?test, sem contas/rankings/visitas artificiais. ServidorQA4398 encerrado; outros testes encerram os próprios servidores; protótipo4390 preservado. Aguardando confirmação no celular do usuário, especialmente gestos de sistema iOS não disponíveis na emulação. Registro final apenas documental, sem redeploy.
+
+
+## 2026-09-22 — Asfalto Bruto Beta1.4.4: garagem online
+- Restaura escolha das sete motos comuns sem posse, sempre de fábrica, e equipamentos locais de convidados que vinham sendo descartados desde1.1.0. Magrela exige desbloqueio da conta. Para contas, o servidor mantém equipamento oficial, reserva/consumo de nitro, recusa mensagem adulterada e recebe requireAccount para evitar entrada silenciosa como convidado se a sessão expirar.
+- Cliente aguarda compras e confirma garagem antes de criar/entrar; a sala mostra o kit aceito. Escolha online não compra nem equipa a moto no single. Convidados continuam sem prova de posse dos equipamentos locais; essa exceção está documentada e não permite importar seus saves para contas. Protocolo17/ranking3.
+
+- Validação concluída: novo test:online-garage passou com conta/convidado, capacetes distintos, joelheira real, corrente32/garrafa24 de dano (tolerância à regeneração entre snapshots), atualização da garagem ao entrar, sete modelos não possuídos, reconexão, preservação do single e sessão expirada. Test:equipment passou com cores, chopper/chuva, controles móveis, nitro e dois humanos/seis bots. Teste de quedas repetido5/5 após atualizar expectativa de protocolo. Skill525 ticks/51,78m/s e capturas desktop/mobile conferidas; nenhum erro JS nos cenários. Typecheck aprovado. Preparando build/export/revisão e publicação VPS.
+
+- Rodada final limpa:214/214 testes do jogo,9/9 infraestrutura VPS, build/export TypeScript/Vite aprovado. Revisão da diferença concluída. Publicação inclui fonte e testes; alterações somente no Asfalto Bruto e seu registro.

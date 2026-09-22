@@ -105,7 +105,7 @@ Referências: `content.ts`, `conditions.ts`, `port.ts`, `rural.ts`, `hazards.ts`
 8. Falta de avanço dispara aviso/reconexão. Token da sala permite retomar o mesmo piloto; uma conta associada exige a mesma identidade na retomada.
 9. Cada participante chega ou é eliminado separadamente. Os demais continuam. Ao encerrar os humanos, CPUs restantes são encerradas. Limite de corrida: 6 minutos.
 
-A partir do beta 1.1.0, o online permite escolher entre as motos possuídas na conta, com atributos de fábrica; upgrades de motor/resistência/agilidade da campanha ficam fora. O servidor consulta a garagem oficial para equipamentos e reserva o nitro. Convidados usam Ferro 500 e equipamento básico.
+Na Beta1.4.4, o online permite escolher qualquer uma das sete motos comuns sem comprá-la, com atributos de fábrica; upgrades de motor/resistência/agilidade da campanha ficam fora. A Magrela exige conquista registrada na conta. O servidor consulta a garagem oficial de contas para equipamentos e reserva o nitro. Convidados levam os itens equipados da garagem local, limitados ao catálogo/capacidade, sem comprovação de posse. A escolha online não altera a moto do individual.
 
 Não descrever como peer-to-peer, lockstep, rollback ou compensação histórica de golpes: o modelo implementado é servidor autoritativo com previsão/extrapolação e correções visuais.
 

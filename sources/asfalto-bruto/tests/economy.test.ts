@@ -8,7 +8,7 @@ import { Economy } from '../server/economy';
 import { freshSave } from '../src/game/save';
 import { BIKES } from '../src/game/content';
 import { NITRO_PRICE } from '../src/game/equipment';
-import { stepRace,snapshot } from '../src/game/simulation';
+import { stepRace,snapshot,createMultiplayerRace } from '../src/game/simulation';
 import { EMPTY_COMMAND } from '../src/game/types';
 import { safeDrivingCommand } from './driving';
 import { makeMember,makeRoom } from '../server/room';
@@ -85,12 +85,29 @@ test('championship advances from verified races, rejects fabricated finishes and
 test('multiplayer ignores forged loadouts, reserves stock once and refunds only verified unused stock',()=>{
   const f=fixture(10000);try{
     f.action('nitro');f.action('nitro');
-    const member=makeMember('Me',Date.now(),'brutal',{weaponId:'chain',kneePadId:'gold',nitro:5});
+    const member=makeMember('Me',Date.now(),'ferro',{weaponId:'chain',kneePadId:'gold',nitro:5});
     f.economy.equipMember(f.a.id,member);assert.equal(member.bikeId,'ferro');assert.equal(member.weaponId,undefined);assert.equal(member.kneePadId,undefined);assert.equal(member.nitro,2);
     assert.throws(()=>f.economy.equipMember(f.a.id,makeMember('Clone',Date.now())));assert.throws(()=>f.start());
     f.economy.releaseMember(member,1);assert.equal(f.db.cloud(f.a.id).save!.nitro!.ferro,1);
     f.economy.releaseMember(member,0);assert.equal(f.db.cloud(f.a.id).save!.nitro!.ferro,1);
-    const guest=makeMember('Guest',Date.now(),'brutal',{nitro:5,kneePadId:'gold'});f.economy.equipMember(undefined,guest);assert.equal(guest.bikeId,'ferro');assert.equal(guest.nitro,0);assert.equal(guest.kneePadId,undefined);
+    const guest=makeMember('Guest',Date.now(),'brutal',{nitro:99,kneePadId:'gold'});f.economy.equipMember(undefined,guest);assert.equal(guest.bikeId,'brutal');assert.equal(guest.nitro,5);assert.equal(guest.kneePadId,'gold');
     const next=makeMember('Me',Date.now());f.economy.equipMember(f.a.id,next);f.economy.recoverMemoryRooms();assert.equal(f.db.cloud(f.a.id).save!.nitro!.ferro,1);f.economy.recoverMemoryRooms();assert.equal(f.db.cloud(f.a.id).save!.nitro!.ferro,1);
+  }finally{f.db.close();}
+});
+test('every ordinary online motorcycle is available without ownership; account equipment stays authoritative',()=>{
+  const f=fixture(40000);try{
+    for(const id of ['white','green','blue','purple','gold'])f.action('knee',id);
+    f.action('weapon','chain');f.action('upgrade','engine');
+    const before=structuredClone(f.db.cloud(f.a.id).save!);
+    for(const bike of BIKES.filter(b=>!b.secret)){
+      const member=makeMember('Me',0,bike.id,{kneePadId:'white',weaponId:'bottle',nitro:5});f.economy.equipMember(f.a.id,member);
+      assert.equal(member.bikeId,bike.id);assert.equal(member.kneePadId,'gold');assert.equal(member.weaponId,'chain');assert.equal(member.nitro,0);
+      const guest=makeMember('Guest',0,bike.id,{kneePadId:'blue',weaponId:'bat'});f.economy.equipMember(undefined,guest);
+      const race=createMultiplayerRace('costa',[member,guest]);
+      for(const rider of race.riders){assert.equal(rider.maxSpeed,bike.speed);assert.equal(rider.handling,bike.handling);assert.equal(rider.armor,bike.armor);}
+      assert.equal(race.riders[0].kneePadId,'gold');assert.equal(race.riders[1].weaponId,'bat');f.economy.releaseMember(member);
+    }
+    const after=f.db.cloud(f.a.id).save!;assert.deepEqual(after.owned,['ferro']);assert.equal(after.cash,before.cash);assert.deepEqual(after.upgrades,before.upgrades);assert.equal(after.bikeId,'ferro');
+    const secret=makeMember('Locked',0,'bicicleta');f.economy.equipMember(f.a.id,secret);assert.equal(secret.bikeId,'ferro');f.economy.releaseMember(secret);
   }finally{f.db.close();}
 });

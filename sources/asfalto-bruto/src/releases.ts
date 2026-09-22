@@ -2,7 +2,12 @@ import './releases.css';
 import { GAME_VERSION } from './version';
 export { GAME_VERSION } from './version';
 export const RELEASES=[
-  {version:GAME_VERSION,date:'14/09/2026',title:'Toques sem prender o acelerador',changes:[
+  {version:GAME_VERSION,date:'22/09/2026',title:'Sua garagem também corre online',changes:[
+    'As sete motos comuns podem ser escolhidas no multiplayer sem comprar, sempre com atributos de fábrica. A Magrela mantém o desbloqueio secreto da conta.',
+    'Joelheira, arma e capacete equipados acompanham a garagem em uso. A sala mostra o equipamento confirmado antes da largada.',
+    'Contas conferem a garagem ao entrar na sala. Uma sessão expirada é avisada para evitar entrar como convidado sem perceber.'
+  ]},
+  {version:'1.4.3-beta',date:'14/09/2026',title:'Toques sem prender o acelerador',changes:[
     'Controles no celular reconhecem quando um dedo sai da tela, mesmo se o navegador interromper o toque. Um novo toque permite voltar a acelerar ou frear.',
     'Proteção extra contra zoom acidental nos analógicos e na pista ao tocar rapidamente ou usar vários dedos.',
     'Pedaladas, manobras e golpes continuam respondendo aos toques; nitro, pausa e os campos dos menus mantêm seu funcionamento.'

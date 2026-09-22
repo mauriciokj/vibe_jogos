@@ -28,7 +28,11 @@ O campeonato continua fora do ranking de corrida livre; as regras de física do 
 
 ## Multiplayer
 
-Na entrada da sala, o servidor consulta a conta e aceita apenas motos possuídas e equipamentos oficiais. Atributos de fábrica continuam valendo no online. Convidados podem jogar com a Ferro 500 e o equipamento básico.
+Desde a Beta1.4.4, as sete motos comuns ficam livres para escolher no online, independentemente da posse no individual. Atributos de fábrica continuam valendo; a escolha não compra/equipa a moto na campanha. A Magrela continua exigindo a conquista registrada na conta.
+
+Para contas, o cliente confirma a garagem antes de entrar e o servidor lê joelheira, arma, capacete e nitro exclusivamente do SQLite, ignorando equipamentos inventados na mensagem. Uma sessão expirada é recusada quando o cliente espera jogar com sua conta. A sala exibe o equipamento confirmado.
+
+Convidados levam os itens equipados na garagem local, como antes da restrição da Beta1.1.0. O servidor limita IDs ao catálogo, nitro à capacidade e define atributos/dano/cadência. A posse local não é verificável: um convidado pode adulterar os itens locais usados no multiplayer. Isso não importa nada para uma conta nem cria ranking permanente do convidado. Manter a garagem de conta protegida não equivale a garantir ausência de equipamentos adulterados entre convidados.
 
 As cargas são reservadas antes de entrar. Sala inválida ou saída do lobby devolve a reserva; corrida devolve apenas cargas que o servidor sabe que não foram consumidas. Recibos tornam devoluções idempotentes. Uma conta não ocupa duas salas nem uma sala e uma corrida individual simultaneamente.
 

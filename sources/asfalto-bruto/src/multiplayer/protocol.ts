@@ -1,6 +1,6 @@
 import type { AttackKind, Command, RaceState, RaceCondition, RiderAction } from '../game/types';
 
-export const NET_VERSION = 16;
+export const NET_VERSION = 17;
 export const MAX_PLAYERS = 8;
 export const ROOM_WAIT_MS = 60_000;
 export const PUBLIC_ROOM_WAIT_MS = 120_000;
@@ -22,8 +22,8 @@ export interface PublicRoomView {
 }
 export interface PublicRoomsResponse { rooms: PublicRoomView[]; serverNow: number; version: number; }
 export type ClientMessage =
-  | { type: 'create'; version: number; name: string; trackId: string; condition?: RaceCondition; fillBots?: boolean; public?: boolean; bikeId?: string; loadout?: Loadout }
-  | { type: 'join'; version: number; name: string; code: string; publicOnly?: boolean; bikeId?: string; loadout?: Loadout }
+  | { type: 'create'; version: number; name: string; trackId: string; condition?: RaceCondition; fillBots?: boolean; public?: boolean; bikeId?: string; loadout?: Loadout; requireAccount?: boolean }
+  | { type: 'join'; version: number; name: string; code: string; publicOnly?: boolean; bikeId?: string; loadout?: Loadout; requireAccount?: boolean }
   | { type: 'resume'; version: number; code: string; token: string }
   | { type: 'ready'; ready: boolean }
   | { type: 'input'; seq: number; command: Command; attacks?: AttackInput[]; actions?: ActionInput[] }

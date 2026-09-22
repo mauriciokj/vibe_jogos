@@ -1,6 +1,6 @@
 {
   "name": "asfalto-bruto",
-  "version": "1.4.3-beta",
+  "version": "1.4.4-beta",
   "private": true,
   "type": "module",
   "scripts": {
@@ -15,6 +15,7 @@
     "dev:server": "tsx watch server/dev.ts",
     "start:server": "tsx server/dev.ts",
     "export:jogos": "node scripts/export-jogos.mjs",
+    "test:online-garage": "tsx tests/online-garage-browser.ts",
     "test:online": "tsx tests/online-browser.ts",
     "test:redis": "tsx tests/redis-online.ts",
     "test:motion": "tsx tests/online-motion.ts",

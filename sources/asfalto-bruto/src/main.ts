@@ -12,7 +12,7 @@ import { roadHalf, surfaceGrip } from './game/road-profile';
 import { equippedHelmet, getHelmet, getHelmetColor } from './game/helmets';
 import { upcomingWorks } from './game/port';
 import './style.css';
-import { equippedWeapon, weaponName } from './game/weapons';
+import { equippedWeapon, getWeapon, weaponName } from './game/weapons';
 import { jumpHeight, wheeliesLeft, stunting } from './game/stunts';
 import './multiplayer/style.css';
 import './menu.css';
@@ -119,13 +119,13 @@ root.innerHTML = `
     <div class="dialog-header"><div><div class="eyebrow">CORRA COM OUTRAS PESSOAS</div><h2 id="online-title">Multiplayer</h2></div><button class="close-btn" id="online-close" aria-label="Voltar ao menu">×</button></div>
     <div class="dialog-body">
       <div id="online-form"><details id="online-discovery" class="public-discovery"><summary>Encontrar partidas públicas <span>ENTRAR SEM CÓDIGO ↗</span></summary><div class="public-discovery-body"><p data-public-status role="status" aria-live="polite"></p><div data-public-list></div><button class="text-button" id="online-refresh">ATUALIZAR LISTA ↻</button></div></details><label class="online-label" for="online-name">SEU APELIDO</label><input id="online-name" class="online-input" maxlength="18" placeholder="Como você quer ser chamado?" autocomplete="nickname" />
-        <div class="online-bike-choice"><label class="online-label" for="online-bike">SUA MOTO · TODOS OS MODELOS LIBERADOS NO ONLINE</label><select id="online-bike" class="online-input">${BIKES.map(b=>`<option value="${b.id}">${b.name} · ${b.class}</option>`).join('')}</select><div id="online-bike-preview" class="online-bike-preview"></div><p id="online-loadout" class="online-loadout"></p></div><div class="online-choices"><div><h3>Criar uma sala</h3><label class="online-label" for="online-track">PISTA</label><select id="online-track" class="online-input">${TRACKS.map(t=>`<optgroup label="${t.name}">${RACE_ROUTES.filter(r=>r.track.id===t.id).map(r=>`<option value="${r.id}">${r.name}</option>`).join('')}</optgroup>`).join('')}</select><label class="bot-option"><input type="checkbox" id="online-public" /><span>Sala pública<small>Aparece na busca · espera até 120s<br>Todos prontos: 5s</small></span></label><label class="bot-option"><input type="checkbox" id="online-bots" /><span>Completar com bots<small>Até 8 pilotos na largada · mínimo 2 pessoas</small></span></label><button class="primary" id="online-create">CRIAR SALA ↗</button></div>
+        <div class="online-bike-choice"><label class="online-label" for="online-bike">MOTOS DE FÁBRICA · ESCOLHA LIVRE</label><select id="online-bike" class="online-input">${MOTORBIKES.map(b=>`<option value="${b.id}">${b.name} · ${b.class}</option>`).join('')}</select><div id="online-bike-preview" class="online-bike-preview"></div><p id="online-loadout" class="online-loadout"></p></div><div class="online-choices"><div><h3>Criar uma sala</h3><label class="online-label" for="online-track">PISTA</label><select id="online-track" class="online-input">${TRACKS.map(t=>`<optgroup label="${t.name}">${RACE_ROUTES.filter(r=>r.track.id===t.id).map(r=>`<option value="${r.id}">${r.name}</option>`).join('')}</optgroup>`).join('')}</select><label class="bot-option"><input type="checkbox" id="online-public" /><span>Sala pública<small>Aparece na busca · espera até 120s<br>Todos prontos: 5s</small></span></label><label class="bot-option"><input type="checkbox" id="online-bots" /><span>Completar com bots<small>Até 8 pilotos na largada · mínimo 2 pessoas</small></span></label><button class="primary" id="online-create">CRIAR SALA ↗</button></div>
         <div><h3>Entrar com amigos</h3><label class="online-label" for="online-code-input">CÓDIGO DA SALA</label><input id="online-code-input" class="online-input code-input" maxlength="6" placeholder="A1B2C3" autocapitalize="characters" autocomplete="off" spellcheck="false"/><button class="secondary" id="online-join">ENTRAR NA SALA ↗</button></div></div>
         <p class="online-note">De 2 a 8 pessoas. Escolha seu estilo de pilotagem. No online, todos têm acesso às motos de fábrica, sem melhorias. O equipamento de combate, a joelheira equipada e as cargas compradas na garagem acompanham você. O nitro usado é descontado do seu estoque.</p>
       </div>
       <div id="online-lobby" hidden><p id="online-visibility" class="online-visibility"></p><div class="lobby-heading"><div><span class="online-label">CONVIDE PELO CÓDIGO</span><div class="room-code" id="online-code"></div><button class="text-button" id="online-copy">COPIAR CONVITE ↗</button></div><div class="lobby-clock"><strong id="online-clock">60</strong><span id="online-clock-label">SEGUNDOS PARA LARGAR</span></div></div>
         <div class="lobby-meta"><span id="online-track-name"></span><span id="online-count">1 / 8 PILOTOS</span></div><div id="online-members" class="lobby-members"></div>
-        <p id="online-lobby-hint" class="online-note"></p><button class="primary" id="online-ready">ESTOU PRONTO ↗</button><button class="text-button" id="online-leave">SAIR DA SALA</button>
+        <p id="online-confirmed-loadout" class="online-loadout"></p><p id="online-lobby-hint" class="online-note"></p><button class="primary" id="online-ready">ESTOU PRONTO ↗</button><button class="text-button" id="online-leave">SAIR DA SALA</button>
       </div><p id="online-status" class="online-status" role="status" aria-live="polite"></p><p id="online-error" class="online-error" role="alert" hidden></p>
     </div>
   </dialog>
@@ -155,6 +155,7 @@ let finishOfficer:FinishPoliceArrival|null=null,lastFinishStrike=-1;
 let resultPayout: RacePayout | null = null;
 let paused = false;
 let onlineMode = false;
+let preparingOnline = false;
 let championshipMode=false,champSettling=false,champGarageReturn=false,champCheckpointAt=0;
 let lowIntegrityWarned=false;
 let onlineRaceStarted = false;
@@ -191,7 +192,7 @@ const online = new OnlineClient({
   status: status => {
     $('online-status').textContent = {offline:'',connecting:'CONECTANDO À SALA…',connected:'CONECTADO',reconnecting:'RECONECTANDO · RESERVANDO SUA VAGA…'}[status];
     publicRooms.setBusy(status==='connecting' || status==='reconnecting' || status==='connected');
-    for (const id of ['online-create','online-join']) $<HTMLButtonElement>(id).disabled = status==='connecting' || status==='reconnecting';
+    for (const id of ['online-create','online-join']) $<HTMLButtonElement>(id).disabled = preparingOnline || status==='connecting' || status==='reconnecting';
   },
   error: message => { $('online-error').textContent=message; $('online-error').hidden=false; if(!$<HTMLDialogElement>('online-modal').open)toast(message); },
   left: () => { bankGuestOnlineAchievements();onlineMode=false;onlineRaceStarted=false;showMenu();void accounts.refresh(); },
@@ -203,31 +204,56 @@ const escapeHTML = (s: string) => s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt
 function openOnline() {
   clearControls();$('online-error').hidden=true;$('online-form').hidden=false;$('online-lobby').hidden=true;
   $<HTMLSelectElement>('online-track').value=raceRoute(selectedTrack,selectedCondition).id;
-  const available=accounts.session?.account?save.owned:['ferro'];
-  $<HTMLSelectElement>('online-bike').innerHTML=BIKES.filter(b=>available.includes(b.id)).map(b=>`<option value="${b.id}">${b.name}</option>`).join('');
-  $<HTMLSelectElement>('online-bike').value=available.includes(save.bikeId)?save.bikeId:'ferro'; updateOnlineBikePreview();
+  renderOnlineBikes(save.bikeId);
   try{$<HTMLInputElement>('online-name').value=localStorage.getItem('asfalto:nickname') ?? '';}catch{}
   $<HTMLDialogElement>('online-modal').showModal();
   publicRooms.setBusy(online.active);
 }
+function onlineEquipmentSave(){return accounts.session?.account?accounts.session.cloud?.save ?? save:save;}
+function onlineLoadout(bikeId:string){
+  const equipment=onlineEquipmentSave();
+  return {helmetId:equippedHelmet(equipment).id,helmetColorId:getHelmetColor(equipment.helmetColorId).id,weaponId:equippedWeapon(equipment)?.id,kneePadId:equippedKneePad(equipment)?.id,nitro:nitroCount(bikeId,equipment.nitro?.[bikeId])};
+}
+function onlineEquipmentText(bikeId:string,equipment:import('./multiplayer/protocol').Loadout){
+  const pad=getKneePad(equipment.kneePadId),knee=pad?`Joelheira ${pad.name}${supportsKneeDown(bikeId)?'':' (sem manobra nesta moto)'}`:'Sem joelheira';
+  return `Capacete ${getHelmet(equipment.helmetId).name} ${getHelmetColor(equipment.helmetColorId).name.toLowerCase()} · ${getWeapon(equipment.weaponId)?.name ?? 'Bastão básico'} · ${knee} · Nitro ${nitroCount(bikeId,equipment.nitro)}/${getBike(bikeId).nitroCapacity}`;
+}
+function renderOnlineBikes(preferred=$<HTMLSelectElement>('online-bike').value){
+  const equipment=onlineEquipmentSave(),available=BIKES.filter(b=>!b.secret || accounts.session?.account && equipment.owned.includes(b.id));
+  $<HTMLSelectElement>('online-bike').innerHTML=available.map(b=>`<option value="${b.id}">${b.name} · ${b.class}</option>`).join('');
+  $<HTMLSelectElement>('online-bike').value=available.some(b=>b.id===preferred)?preferred:'ferro';updateOnlineBikePreview();
+}
+accounts.onChange(()=>{if($<HTMLDialogElement>('online-modal').open&&!online.active&&!preparingOnline)renderOnlineBikes();});
 function updateOnlineBikePreview() {
   const bike=getBike($<HTMLSelectElement>('online-bike').value);
-  const equipment=accounts.session?.account?save:freshSave(),pad=equippedKneePad(equipment);
-  $('online-loadout').textContent=accounts.session?.account?`Capacete ${equippedHelmet(equipment).name} ${getHelmetColor(equipment.helmetColorId).name.toLowerCase()} · ${equippedWeapon(equipment)?.name ?? 'Bastão básico'} · ${pad&&supportsKneeDown(bike.id)?'Joelheira '+pad.name:!supportsKneeDown(bike.id)?'Sem manobra de joelho':'Sem joelheira'} · Nitro ${nitroCount(bike.id,equipment.nitro?.[bike.id])}/${bike.nitroCapacity}`:'Convidado: Ferro 500 com equipamento básico. Entre na conta para usar sua garagem no multiplayer.';
+  $('online-loadout').textContent=`${accounts.session?.account?'Garagem da conta':'Garagem deste navegador'} · ${onlineEquipmentText(bike.id,onlineLoadout(bike.id))}`;
   $('online-bike-preview').innerHTML=`<img src="${bikePortrait(bike).toDataURL()}" alt="${bike.name} vista de lado"/><div><b>${bike.class} · ${Math.round(bike.speed*3.6)} KM/H</b><span>${handlingLabel(bike.handling)} · ${isBicycle(bike.id)?'ACELERE COM TOQUES REPETIDOS':`0–100 EM ${zeroToHundred(bike).toFixed(1)}S`}</span><small>${bike.tagline}</small></div>`;
 }
 $<HTMLSelectElement>('online-bike').addEventListener('change',updateOnlineBikePreview);
-function enterOnline(create: boolean, publicCode?: string) {
-  if(online.status==='connecting' || online.status==='reconnecting' || online.status==='connected')return;
+async function enterOnline(create: boolean, publicCode?: string) {
+  if(preparingOnline || online.active)return;
+  preparingOnline=true;publicRooms.setBusy(true);$('online-error').hidden=true;
+  for(const id of ['online-create','online-join'])$<HTMLButtonElement>(id).disabled=true;
+  try{
+  if(accounts.cache || accounts.session?.account){
+    $('online-status').textContent='CONFIRMANDO SUA GARAGEM…';
+    await accounts.flush();
+    const session=await accounts.api('/session');
+    if(!session.account || accounts.cache && accounts.cache.account.id!==session.account.id)throw Error('Sua sessão expirou. Entre novamente na conta para usar sua garagem.');
+    accounts.acceptSession(session);renderOnlineBikes();
+  }
+  if(!$<HTMLDialogElement>('online-modal').open)return;
   onlineMode=true;onlineRaceStarted=false;lastOnlineEventTick=-1;$('online-error').hidden=true;
   const name=$<HTMLInputElement>('online-name').value.trim() || 'Piloto';
   try{localStorage.setItem('asfalto:nickname',name);}catch{}
   const route=routeFromId($<HTMLSelectElement>('online-track').value);
   const bikeId=$<HTMLSelectElement>('online-bike').value;
-  const loadout={helmetId:equippedHelmet(save).id,helmetColorId:getHelmetColor(save.helmetColorId).id,weaponId:equippedWeapon(save)?.id,kneePadId:equippedKneePad(save)?.id,nitro:nitroCount(bikeId,save.nitro?.[bikeId])};
-  if(create)online.create(name,route.track.id,$<HTMLInputElement>('online-bots').checked,bikeId,route.condition.id,loadout,$<HTMLInputElement>('online-public').checked);
-  else online.join(name,publicCode ?? $<HTMLInputElement>('online-code-input').value,bikeId,loadout,!!publicCode);
+  const loadout=onlineLoadout(bikeId),requireAccount=!!accounts.session?.account;
+  if(create)online.create(name,route.track.id,$<HTMLInputElement>('online-bots').checked,bikeId,route.condition.id,loadout,$<HTMLInputElement>('online-public').checked,requireAccount);
+  else online.join(name,publicCode ?? $<HTMLInputElement>('online-code-input').value,bikeId,loadout,!!publicCode,requireAccount);
   void audio.start();
+  }catch(error){$('online-error').textContent=error instanceof Error?error.message:'Não foi possível confirmar sua garagem. Tente novamente.';$('online-error').hidden=false;$('online-status').textContent='';}
+  finally{preparingOnline=false;publicRooms.setBusy(online.active);for(const id of ['online-create','online-join'])$<HTMLButtonElement>(id).disabled=online.status==='connecting'||online.status==='reconnecting';}
 }
 function drawLobbyClock() {
   const room=online.room;if(!room || room.phase!=='lobby')return;
@@ -244,6 +270,7 @@ function receiveOnlineRoom(room: RoomView) {
     $('online-track-name').textContent=`${getTrack(room.trackId).name.toUpperCase()} · ${conditionName(room.condition).toUpperCase()}`;
     const present=room.members.filter(m=>m.connected),me=room.members.find(m=>m.id===online.id);
     $('online-count').textContent=`${present.length} / 8 PESSOAS${room.fillBots ? ` · +${8-present.length} CPU NA LARGADA` : ''}`;
+    $('online-confirmed-loadout').textContent=me?`${getBike(me.bikeId).name} · ${onlineEquipmentText(me.bikeId,me)}`:'';
     $('online-members').innerHTML=Array.from({length:8},(_,i)=>{
       const m=present[i];return m?`<div class="lobby-member ${m.id===online.id?'me':''}"><span class="lobby-number">${String(i+1).padStart(2,'0')}</span><b>${escapeHTML(m.name)}${m.id===online.id?' <small>VOCÊ</small>':''}<small class="lobby-bike-name">${getBike(m.bikeId).name} · ${getHelmet(m.helmetId).name} ${getHelmetColor(m.helmetColorId).name.toLowerCase()}</small></b><span class="ready-state ${m.ready?'is-ready':''}">${m.ready?'✓ PRONTO':'AGUARDANDO'}</span></div>`:`<div class="lobby-member empty"><span class="lobby-number">${String(i+1).padStart(2,'0')}</span><span>${room.fillBots ? 'Vaga aberta · CPU na largada' : 'Vaga aberta'}</span></div>`;
     }).join('');
