@@ -62,6 +62,8 @@ try{
   const {code,ids:[aid,bid,cid]}=await race([a,b,c]);
   await a.keyboard.press('c');assert.equal((await state(a)).spectator,null,'C has no effect before elimination');
   await store.mutate(code,room=>arrest(room.race!,aid));await screen(a,'finish');assert.equal((await state(a)).arrest!==null,true);
+  // The arrest scene has its own snapshot; keep the idle QA targets safe while checking it.
+  await store.mutate(code,room=>{room.race!.riders=room.race!.riders.filter(r=>r.profile!=='police');room.race!.policeActive=false;});
   await a.evaluate(()=>window.advanceTime(9000));await screen(a,'spectate');await watching(a,bid);
   assert.equal((await state(a)).camera.riderId,bid);assert.equal((await state(a)).arrest,null);
   assert.equal((await state(a)).player.out,'caught');assert.equal(await a.locator('#result-modal').isVisible(),false);
