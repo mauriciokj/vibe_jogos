@@ -34,6 +34,7 @@ import { TAUNTS } from './game/banter';
 import { DoubleTap } from './game/controls';
 import { equipmentShop, garageNav, type GarageTab } from './equipment-ui';
 import { OnlineClient } from './multiplayer/client';
+import { spectatorTarget, spectatorTargets } from './multiplayer/spectator';
 import { PublicRoomBrowser } from './multiplayer/discovery';
 import type { RoomView } from './multiplayer/protocol';
 import { EMPTY_COMMAND } from './game/types';
@@ -80,6 +81,7 @@ root.innerHTML = `
     </section>
     <section id="finish-scene" hidden aria-label="Comemoração na chegada"><div class="finish-heading"><span id="finish-place"></span><strong id="finish-winner"></strong></div><button id="finish-skip" class="secondary">VER RESULTADO ↗</button></section>
     <section id="hud" hidden aria-label="Informações da corrida">
+      <div id="spectator-bar" hidden><div role="status"><small id="spectator-reason"></small><strong id="spectator-name"></strong></div><div class="spectator-actions"><button id="spectator-next" class="secondary"><kbd>C</kbd> TROCAR CÂMERA</button><button id="spectator-result" class="text-button">VER RESULTADO</button></div></div>
       <div class="hud-top"><div><div class="position"><strong id="position">8</strong><span>/ <b id="rider-total">8</b></span></div><div class="position-label">POSIÇÃO</div></div>
         <div class="hud-actions"><button class="icon-btn" data-action="mute" aria-label="Silenciar áudio">${icons.sound}</button><button class="icon-btn" data-action="fullscreen" aria-label="Tela cheia (F)">${icons.full}</button><button class="icon-btn" id="pause-btn" aria-label="Pausar (Esc)">${icons.pause}</button></div>
       </div>
@@ -109,7 +111,7 @@ root.innerHTML = `
     <div class="control">Acelerar <span class="keys"><kbd>W</kbd><kbd>↑</kbd></span></div><div class="control">Frear <span class="keys"><kbd>S</kbd><kbd>↓</kbd></span></div>
     <div class="control">Pilotar <span class="keys"><kbd>A</kbd><kbd>D</kbd><kbd>←</kbd><kbd>→</kbd></span></div><div class="control">Soco rápido <span class="keys"><kbd>J</kbd></span></div>
     <div class="control">Chute · empurra o rival <span class="keys"><kbd>K</kbd></span></div><div class="control">Usar equipamento <span class="keys"><kbd>L</kbd></span></div>
-    <div class="control keyboard-only">Buzinar <span class="keys"><kbd>B</kbd></span></div><div class="control keyboard-only">Provocar <span class="keys"><kbd>Q</kbd></span></div><div class="control">Nitro <span class="keys"><kbd>N</kbd></span></div><div class="control">Pausar <span class="keys"><kbd>Esc</kbd></span></div><div class="control">Tela cheia / som <span class="keys"><kbd>F</kbd><kbd>M</kbd></span></div>
+    <div class="control keyboard-only">Buzinar <span class="keys"><kbd>B</kbd></span></div><div class="control keyboard-only">Provocar <span class="keys"><kbd>Q</kbd></span></div><div class="control">Nitro <span class="keys"><kbd>N</kbd></span></div><div class="control">Pausar <span class="keys"><kbd>Esc</kbd></span></div><div class="control">Trocar câmera após perder no multiplayer <span class="keys"><kbd>C</kbd></span></div><div class="control">Tela cheia / som <span class="keys"><kbd>F</kbd><kbd>M</kbd></span></div>
   </div><div class="tip"><b>Chegue perto e acerte.</b> O rival ao alcance recebe uma marca verde. Um soco pode tomar o bastão básico de um rival. Equipamentos comprados são permanentes e não podem ser tomados. Use L para golpear com o item equipado. O sinal “!” avisa que um ataque está vindo.</div><div class="tip"><b>Empine e salte.</b> Acima de 72 km/h, dê dois toques rápidos no acelerador (W / ↑). No celular, mova o analógico direito do centro para cima duas vezes. Você tem 3 ativações por corrida; cada uma dura até 2,4 segundos e gasta um uso, mesmo sem saltar. Aproxime-se alinhado de um carro na contramão para saltar automaticamente. Caminhões, vans e veículos no mesmo sentido exigem desvio. Frear cancela a empinada.</div><div class="tip"><b>Joelho no chão.</b> Com joelheira equipada, dê dois toques rápidos para o mesmo lado acima de 72 km/h. A manobra dura até 4 segundos; inverter a direção ou ir para o acostamento cancela. Choppers não fazem a manobra. Na chuva, mais de 2 segundos seguidos de joelho apoiado provocam queda. Ao tirar o joelho, a contagem zera.</div><div class="tip"><b>Analógicos no celular.</b> O esquerdo vira; o direito acelera para cima e freia para baixo. Para apoiar o joelho, mova o analógico de direção duas vezes rapidamente para o mesmo lado, voltando ao centro entre os movimentos.</div><div class="tip"><b>Freie antes da curva.</b> O aviso mostra a direção, a distância e uma velocidade de referência. Entrar rápido demais faz a moto escorregar para fora. Solte W / ↑ ou freie com S / ↓, contorne e acelere na saída. Na chuva, a aderência e a frenagem diminuem: antecipe a redução. O mapa mostra as distâncias; o retrovisor revela os últimos 200 metros.</div><div class="tip"><b>Cuide de você e da moto.</b> Depois da queda, piloto e moto deslizam separados. Corra até a moto usando W / ↑ para frente, S / ↓ para trás e A / D para os lados; no celular, use os analógicos. Ao encostar, você monta. Se a moto estiver com integridade zero, ela explode ao tentar pegá-la e a corrida termina. Fuja do acostamento, desvie do óleo e observe o trânsito na contramão.</div><div class="tip"><b>A polícia não dorme.</b> Velocidade e golpes aumentam a procura. Caiu com a polícia a até 30 metros? Prisão imediata e fim da corrida. Ficar abaixo de 29 km/h ao lado do policial por 3 segundos também causa prisão. Chegue entre os 5 primeiros para abrir a próxima estrada.</div><div class="help-footer"><span>Jogue como convidado ou conecte sua conta Google para sincronizar a garagem. No celular, use os analógicos e os botões de combate.</span><button id="help-go" class="primary">ENTENDI. VAMOS CORRER ${icons.arrow}</button></div></div></dialog>
   <dialog id="pause-modal" class="pause-modal" aria-labelledby="pause-title"><div class="dialog-body"><div class="eyebrow" style="justify-content:center">UM RESPIRO NO ACOSTAMENTO</div><h2 id="pause-title">CORRIDA PAUSADA</h2><p>A estrada espera por você.</p><button class="primary" id="resume-btn">CONTINUAR ↗</button><button class="secondary" id="restart-btn">RECOMEÇAR CORRIDA</button><button class="text-button" id="menu-btn">VOLTAR AO MENU</button></div></dialog>
   <dialog id="garage-modal" aria-labelledby="garage-title"></dialog>
@@ -148,7 +150,8 @@ let startingRace=false;
 let selectedTrack = save.raceTrackId ?? 'costa';
 let selectedCondition = raceCondition(save.raceCondition);
 let race = createRace(selectedTrack, save, 88117, selectedCondition);
-let screen: 'menu' | 'race' | 'finish' | 'result' = 'menu';
+let screen: 'menu' | 'race' | 'finish' | 'result' | 'spectate' = 'menu';
+let spectatedId: string | null = null;
 let finishElapsed: number | null = null;
 let arrestSource:RaceState|null=null;
 let finishOfficer:FinishPoliceArrival|null=null,lastFinishStrike=-1;
@@ -200,6 +203,8 @@ const online = new OnlineClient({
 const publicRooms=new PublicRoomBrowser($<HTMLDetailsElement>('online-discovery'),code=>enterOnline(false,code));
 function localId() { return onlineMode && online.id ? online.id : 'player'; }
 function localRider() { return race.riders.find(r=>r.id===localId()) ?? race.riders[0]; }
+function viewingId() { return screen==='spectate' && spectatedId ? spectatedId : localId(); }
+function viewingRider() { return race.riders.find(r=>r.id===viewingId()) ?? localRider(); }
 const escapeHTML = (s: string) => s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
 function openOnline() {
   clearControls();$('online-error').hidden=true;$('online-form').hidden=false;$('online-lobby').hidden=true;
@@ -289,13 +294,14 @@ function receiveOnlineRoom(room: RoomView) {
     void audio.start();
   }
   if(room.race.tick>lastOnlineEventTick) {
-    for(const event of room.race.events)if((event.tick ?? room.race.tick)>lastOnlineEventTick && (event.actor===online.id || event.target===online.id || event.type==='police' || event.type==='horn' && Math.abs((race.riders.find(r=>r.id===event.actor)?.z ?? Infinity)-localRider().z)<100)) {
+    for(const event of room.race.events)if((event.tick ?? room.race.tick)>lastOnlineEventTick && (event.actor===viewingId() || event.target===viewingId() || event.type==='police' || event.type==='horn' && Math.abs((race.riders.find(r=>r.id===event.actor)?.z ?? Infinity)-viewingRider().z)<100)) {
       audio.event(event);if(event.text){setText('race-message',event.text);messageUntil=race.time+1.6;}
       if(event.type==='hit' || event.type==='crash' || event.type==='explosion')renderer.hit();
     }
     lastOnlineEventTick=room.race.tick;
   }
   if(room.race.multiplayer?.results[online.id])showOnlineResult(room);
+  if(screen==='spectate')syncSpectator(room);
 }
 function showOnlineResult(room: RoomView) {
   const result=room.race!.multiplayer!.results[online.id];if(!result)return;
@@ -312,7 +318,7 @@ function showOnlineResult(room: RoomView) {
     const achievements=accounts.cache?result.achievements:awardRaceAchievements(save,room.race!,online.id,'multi');
     if(accounts.cache){if(unlocked||achievements?.length)void accounts.refresh();}else saveNow();
     if(unlocked)showSecretUnlock();showAchievementRewards(achievements);
-    beginResult(result);
+    if(result.reason!=='wrecked' || !beginSpectating())beginResult(result);
   }
   $('online-result-status').textContent=room.phase==='finished'?'CORRIDA ENCERRADA':`${Object.keys(room.race!.multiplayer!.results).length} / ${ranking(room.race!).length} PILOTOS CONCLUÍRAM`;
   $('online-result-table').innerHTML=ranking(room.race!).map((r,i)=>{
@@ -320,6 +326,41 @@ function showOnlineResult(room: RoomView) {
     const label=result?({finish:clockString(result.time),caught:'PRESO',wrecked:'MOTO QUEBRADA',left:'SAIU',timeout:r.profile==='player'?'TEMPO ESGOTADO':'NÃO CONCLUIU'}[result.reason]):'NA PISTA';
     return `<div class="result-rider ${r.id===online.id?'me':''}"><span>${result && result.reason!=='finish'?'—':i+1}. ${escapeHTML(r.name)}</span><span>${label}</span></div>`;
   }).join('');
+  const targets=spectatorTargets(room,online.id);
+  let watch=$<HTMLButtonElement>('online-spectate-btn');
+  if(!watch){$('result-modal').querySelector('.result-actions')!.insertAdjacentHTML('afterbegin','<button id="online-spectate-btn" class="secondary" hidden>ACOMPANHAR CORRIDA · C</button>');watch=$<HTMLButtonElement>('online-spectate-btn');}
+  watch.hidden=!targets.length;
+  setText('finish-skip',result.reason==='caught' && targets.length?'ACOMPANHAR CORRIDA · C':'VER RESULTADO ↗');
+}
+
+function selectSpectator(id: string) {
+  if(spectatedId!==id){renderer.resetCamera();lastStandingsTick=-Infinity;messageUntil=0;setText('race-message','');}
+  spectatedId=id;
+  const p=viewingRider();audio.resetRace(jumpSoundKey(p),guardRailSoundSide(race.trackId,p));
+}
+function beginSpectating() {
+  const target=spectatorTarget(spectatorTargets(online.room,online.id),null);
+  if(!onlineMode || !target)return false;
+  resetFinish();closeDialogs();clearControls();paused=false;screen='spectate';
+  $('hud').hidden=false;$('spectator-bar').hidden=false;document.body.classList.add('spectating');
+  selectSpectator(target);syncSpectator(online.room!);return true;
+}
+function syncSpectator(room: RoomView, cycle=false) {
+  const targets=spectatorTargets(room,online.id),target=spectatorTarget(targets,spectatedId,cycle);
+  if(!target){showSpectatorResult();return;}
+  if(target!==spectatedId)selectSpectator(target);
+  setText('spectator-name',`ACOMPANHANDO ${viewingRider().name}`);
+  const exploded=room.race?.riders.find(r=>r.id===online.id)?.recovery?.phase==='exploding';
+  setText('spectator-reason',room.race?.multiplayer?.results[online.id]?.reason==='caught'?'VOCÊ FOI PRESO · ESPECTADOR':exploded?'SUA MOTO EXPLODIU · ESPECTADOR':'SUA MOTO QUEBROU · ESPECTADOR');
+  $<HTMLButtonElement>('spectator-next').disabled=targets.length<2;
+}
+function cycleSpectator() {
+  if(screen==='spectate' && online.room)syncSpectator(online.room,true);
+  else beginSpectating();
+}
+function showSpectatorResult() {
+  resetFinish();clearControls();paused=false;screen='result';$('hud').hidden=true;closeDialogs();
+  audio.update(0,false,false,0);$<HTMLDialogElement>('result-modal').showModal();
 }
 
 function showSecretUnlock(){
@@ -444,7 +485,7 @@ function requestStart() {
   else startRace();
 }
 function pauseGame() {
-  if (screen !== 'race' || race.mode === 'finished') return;
+  if ((screen !== 'race' && screen !== 'spectate') || race.mode === 'finished') return;
   setText('pause-title',onlineMode?'MENU DA CORRIDA':'CORRIDA PAUSADA');
   $('pause-modal').querySelector('p')!.textContent=onlineMode?'A corrida online continua enquanto este menu está aberto.':championshipMode?'Abandonar dá zero pontos nesta corrida. A classificação da etapa continua.':'A estrada espera por você.';
   $('restart-btn').hidden=onlineMode || championshipMode;
@@ -492,9 +533,9 @@ function directionTap(side: number, at: number) {
 function updateHUD() {
   setText('race-track',getTrack(race.trackId).name.toUpperCase());
   setText('race-region',conditionName(race.condition).toUpperCase());
-  const p = localRider(), standings=onlineMode?(online.room?.race ?? race):race;
-  const order = ranking(standings), place = order.findIndex(r => r.id === localId()) + 1;
-  const standingZ=standings.riders.find(r=>r.id===localId())?.z ?? p.z;
+  const p = viewingRider(), standings=onlineMode?(online.room?.race ?? race):race;
+  const order = ranking(standings), place = order.findIndex(r => r.id === viewingId()) + 1;
+  const standingZ=standings.riders.find(r=>r.id===viewingId())?.z ?? p.z;
   const bicycle=isBicycle(p.bikeId);
   setText('count-instruction',bicycle?'PREPARE-SE · TOQUES NO ACELERADOR PARA PEDALAR':'PREPARE-SE · SEGURE W OU ↑');
   setText('drive-label',p.recovery?'FRENTE / TRÁS':bicycle?'TOQUE PARA PEDALAR':'ACELERAR / FREAR');
@@ -551,7 +592,7 @@ function updateHUD() {
   if (race.tick < lastStandingsTick || race.tick - lastStandingsTick >= 6 || place !== lastStandingsPlace || inCountdown) {
     lastStandingsTick = race.tick; lastStandingsPlace = place;
     const start = clamp(place - 2, 0, 4);
-    $('rival-list').innerHTML = order.slice(start, start + 4).map((r, i) => `<div class="rival-entry ${r.id === localId() ? 'me' : ''}"><span>${start + i + 1}</span><span>${escapeHTML(r.name)}</span><span class="gap">${r.out==='caught'?'PRESO':r.out?'FORA':r.id === localId() ? '◂' : `${r.z >= standingZ ? '+' : '−'}${Math.round(Math.abs(r.z - standingZ))}m`}</span></div>`).join('');
+    $('rival-list').innerHTML = order.slice(start, start + 4).map((r, i) => `<div class="rival-entry ${r.id === viewingId() ? 'me' : ''}"><span>${start + i + 1}</span><span>${escapeHTML(r.name)}</span><span class="gap">${r.out==='caught'?'PRESO':r.out?'FORA':r.id === viewingId() ? '◂' : `${r.z >= standingZ ? '+' : '−'}${Math.round(Math.abs(r.z - standingZ))}m`}</span></div>`).join('');
   }
 }
 function garageFeedback(message:string,error=false) {
@@ -717,6 +758,8 @@ function resultButtons(multiplayer: boolean, hasNext: boolean) {
   return `${hasNext?`<button class="primary" id="${multiplayer?'online-next-btn':'next-race-btn'}">PRÓXIMA CORRIDA ${icons.arrow}</button>`:''}<button class="${hasNext?'secondary':'primary'}" id="${multiplayer?'online-again-btn':'again-btn'}">CORRER DE NOVO ${icons.arrow}</button><button class="secondary" id="${multiplayer?'online-menu-btn':'result-menu-btn'}">VOLTAR AO MENU</button>`;
 }
 function resetFinish() {
+  spectatedId=null;$('spectator-bar').hidden=true;document.body.classList.remove('spectating');
+  setText('finish-skip','VER RESULTADO ↗');
   renderer.resetCamera();
   arrestSource=null;$('finish-scene').classList.remove('arrest-scene');$('finish-scene').setAttribute('aria-label','Comemoração na chegada');
   finishOfficer=null;lastFinishStrike=-1;
@@ -744,6 +787,7 @@ function beginResult(result:RaceResult) {
 }
 function revealResult() {
   if(screen!=='finish')return;
+  if(onlineMode && arrestSource && beginSpectating())return;
   finishElapsed=Math.max(finishElapsed ?? 0,arrestSource?ARREST_SECONDS:FINISH_SECONDS);screen='result';$('finish-scene').hidden=true;
   $<HTMLDialogElement>('result-modal').showModal();
   if(championshipMode)$('result-modal').scrollTop=0;
@@ -789,7 +833,7 @@ function update() {
   if (race.mode === 'countdown' && count !== lastCount) { lastCount = count; audio.tone(count <= 0 ? 880 : 440, .15, .16, 'sine'); }
   for (const event of race.events) {
     const localEvent = event.target === 'player' || event.actor === 'player' || event.type === 'police' || event.text?.startsWith('VOCÊ') || event.actor.startsWith('obstacle');
-    if (localEvent || event.type==='horn' && Math.abs((race.riders.find(r=>r.id===event.actor)?.z ?? Infinity)-localRider().z)<100) audio.event(event);
+    if (localEvent || event.type==='horn' && Math.abs((race.riders.find(r=>r.id===event.actor)?.z ?? Infinity)-viewingRider().z)<100) audio.event(event);
     if (localEvent && event.text) { setText('race-message', event.text); messageUntil = race.time + 1.6; $('race-message').classList.toggle('alert', event.type === 'police' || event.type === 'crash'); }
     if (localEvent && (event.type === 'hit' || event.type === 'crash' || event.type === 'explosion')) renderer.hit();
   }
@@ -797,13 +841,13 @@ function update() {
   audio.updateRecovery(localRider(),race.trackId);
   if (race.mode === 'finished') showResult();
 }
-function draw() { renderer.render(race, screen === 'menu',localId(),finishElapsed,finishOfficer,arrestSource); if (screen !== 'menu' && finishElapsed===null) { updateHUD(); instruments.draw(race,localId()); } updateRecoveryGuide(); }
+function draw() { renderer.render(race, screen === 'menu',viewingId(),finishElapsed,finishOfficer,arrestSource); if (screen !== 'menu' && finishElapsed===null) { updateHUD(); instruments.draw(race,viewingId(),screen==='spectate'); } updateRecoveryGuide(); }
 function frame(now: number) {
   const dt = Math.min((now - last) / 1000, .1); last = now;
   if(onlineMode) {
     accumulator+=dt;while(accumulator>=STEP){online.step(paused || screen!=='race'?{...EMPTY_COMMAND,brake:1}:input());accumulator-=STEP;}
     const view=online.view();if(view)race=view;drawLobbyClock();
-    if(screen==='race'){const p=localRider();audio.update(p.speed,!paused && !p.recovery,race.policeActive && Math.abs((race.riders.find(r=>r.profile==='police')?.z ?? 99999)-p.z)<100,race.time,getBike(p.bikeId).style,jumpSoundKey(p),guardRailSoundSide(race.trackId,p),race.trackId==='terra'?'earth':'metal',jumpSoundMaterial(race,localRider()));if(!paused)audio.updateRecovery(p,race.trackId);}
+    if(screen==='race' || screen==='spectate'){const p=viewingRider();audio.update(p.speed,!paused && !p.recovery,race.policeActive && Math.abs((race.riders.find(r=>r.profile==='police')?.z ?? 99999)-p.z)<100,race.time,getBike(p.bikeId).style,jumpSoundKey(p),guardRailSoundSide(race.trackId,p),race.trackId==='terra'?'earth':'metal',jumpSoundMaterial(race,p));if(!paused)audio.updateRecovery(p,race.trackId);}
   } else if (!testMode) { accumulator += dt; while (accumulator >= STEP) { update(); accumulator -= STEP; } }
   if(!testMode || onlineMode)advanceFinish(dt);
   draw(); requestAnimationFrame(frame);
@@ -864,6 +908,8 @@ document.addEventListener('click', event => {
   switch (button.id) {
     case 'retry-result': settled=false;void showResult();break;
     case 'routes-prev': case 'routes-next': $('routes').scrollBy({left:(button.id==='routes-next'?1:-1)*$('routes').clientWidth*.8,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'}); break;
+    case 'spectator-next': case 'online-spectate-btn': cycleSpectator();break;
+    case 'spectator-result': showSpectatorResult();break;
     case 'online-btn': openOnline(); break;
     case 'online-create': enterOnline(true); break;
     case 'online-join': enterOnline(false); break;
@@ -911,9 +957,10 @@ window.addEventListener('keydown', e => {
   if(e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement){if(e.code==='Enter' && e.target.id==='online-code-input'){e.preventDefault();enterOnline(false);}return;}
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code) && !document.querySelector('dialog[open]')) e.preventDefault();
   if(screen==='finish' && (e.code==='Escape' || e.code==='Enter') && !e.repeat){e.preventDefault();revealResult();return;}
-  if (e.code === 'Escape') { if (screen === 'race' && !paused && !document.querySelector('dialog[open]')) { e.preventDefault(); pauseGame(); } return; }
+  if (e.code === 'Escape') { if ((screen === 'race' || screen === 'spectate') && !paused && !document.querySelector('dialog[open]')) { e.preventDefault(); pauseGame(); } return; }
   if (e.code === 'KeyM' && !e.repeat) { toggleMute(); return; }
   if (e.code === 'KeyF' && !e.repeat && !document.querySelector('dialog[open]')) { void fullscreen(); return; }
+  if(e.code==='KeyC' && !e.repeat && !paused && onlineMode && ['spectate','finish','result'].includes(screen) && (!document.querySelector('dialog[open]') || $<HTMLDialogElement>('result-modal').open)){e.preventDefault();cycleSpectator();return;}
   if (document.querySelector('dialog[open]')) return;
   if (e.code === 'Enter' && screen === 'menu' && !e.repeat && (!(e.target instanceof HTMLButtonElement) || e.target.id === 'start-btn')) { e.preventDefault(); requestStart(); return; }
   if (screen === 'race' && !paused) {
@@ -996,7 +1043,7 @@ declare global {
 }
 window.render_game_to_text = () => {
   const p = localRider(), target = nearestTarget(race, p, p.weapon ? 'weapon' : 'punch');
-  return JSON.stringify({ camera:renderer.cameraState(),arrest:arrestSource?(()=>{const a=arrestScene(arrestSource,localId(),finishElapsed ?? 0);return {phase:a.police.phase,police:a.police,cuffed:a.cuffed,pullback:a.pullback};})():null,championship:save.championship?{active:championshipMode,settling:champSettling,stage:save.championship.stage,status:save.championship.status,heats:save.championship.heats.length,garageOpen:championshipGarageOpen(save.championship),bike:championshipBikeState(save),standings:championshipStandings(save.championship.heats).map(r=>({id:r.id,points:r.points,rank:r.rank})),integrity:save.championship.entry?.condition[save.championship.entry.bikeId],checkpoint:!!save.championship.checkpoint}:null,payout:resultPayout, finish:{police:finishScene(race,localId(),finishElapsed,finishOfficer).police,stage:finishElapsed===null?'none':screen==='finish'?'camera':'result',elapsed:finishElapsed===null?null:+finishElapsed.toFixed(2),pullback:finishElapsed===null?0:+finishPullback(finishElapsed).toFixed(3),winnerId:finishWinner(race)?.id ?? null}, account:{signedIn:!!accounts.session?.account,status:accounts.status,pending:accounts.cache?.dirty ?? false,conflict:!!accounts.conflict,rankedRace:!!soloRecorder}, online: onlineMode?{status:online.status,syncing:online.syncing,id:online.id,code:online.code,phase:online.room?.phase,locked:online.room?.locked,deadline:online.room?.deadline,serverNow:online.serverNow(),members:online.room?.members,fillBots:online.room?.fillBots,public:online.room?.public,condition:online.room?.condition}:null, screen, paused, modal: document.querySelector('dialog[open]')?.id ?? null, mode: race.mode, coordinates: `x in metres: negative left, positive right; road ±${roadHalf(race.trackId)}. z forward in metres. speed m/s.`, road:{lanes:race.trackId==='terra'?2:4,halfWidth:roadHalf(race.trackId),surface:race.trackId==='terra'?'dirt':'asphalt'}, tick: race.tick, time: +race.time.toFixed(2), countdown: +race.countdown.toFixed(2), track: race.trackId, condition:raceCondition(race.condition), scenic:scenicAppearance(race), length: getTrack(race.trackId).distance, player: { pedalTime:p.pedalTime??0,pedalPhase:p.pedalPhase??0,finishedOnFoot:!!p.finishedOnFoot,recovery:p.recovery??null,helmetId:getHelmet(p.helmetId).id,helmetColorId:getHelmetColor(p.helmetColorId).id,weaponId:p.weaponId??null,weaponName:weaponName(p),wheeliesLeft:wheeliesLeft(p),wheelieTime:p.wheelieTime??0,jumpTime:p.jumpTime??0,jumpHeight:jumpHeight(p),jumpTarget:p.jumpTarget??null,kneePadId:p.kneePadId??null,kneeTime:p.kneeTime??0,wetKneeTime:(p.wetKneeTicks??0)*STEP,kneeSide:p.kneeSide??0,kneeSupport:kneeSupport(p,curveAt(p.z,race.trackId),race.trackId),nitro:p.nitro??0,nitroTime:p.nitroTime??0,nitroUsed:p.nitroUsed??0,speech:p.speech&&p.speech.until>race.time?TAUNTS[p.speech.index]:null,bikeId:getBike(p.bikeId).id,bike:getBike(p.bikeId).name,handling:p.handling,armor:p.armor,out:p.out ?? null, x: +p.x.toFixed(2), z: +p.z.toFixed(1), speed: +p.speed.toFixed(2), health: +p.health.toFixed(1), integrity: +p.integrity.toFixed(1), weapon: p.weapon, attack: p.attack, cooldown: +p.cooldown.toFixed(2), crash: p.recovery?p.crash:+p.crash.toFixed(2), immune: +p.immune.toFixed(2), hits: p.hits, falls: p.falls, place: ranking(onlineMode ? (online.room?.race ?? race) : race).findIndex(r => r.id === localId()) + 1 }, awareness:raceAwareness(race,localId()), corner:upcomingCorner(p.z,race.trackId,p.handling,race.condition,p.kneeTime!>0 && supportsKneeDown(p.bikeId)?p.kneePadId:undefined), curve: +curveAt(p.z, race.trackId).toFixed(2), target: target?.id ?? null, riders: race.riders.filter(r => r.id !== localId() && Math.abs(r.z - p.z) < 400).map(r => ({ id: r.id, name: r.name,helmetId:getHelmet(r.helmetId).id,helmetColorId:getHelmetColor(r.helmetColorId).id,weaponId:r.weaponId??null,wheeliesLeft:wheeliesLeft(r),wheelieTime:r.wheelieTime??0,jumpTime:r.jumpTime??0,jumpHeight:jumpHeight(r),kneePadId:r.kneePadId??null,kneeSupport:kneeSupport(r,curveAt(r.z,race.trackId),race.trackId),speech:r.speech&&r.speech.until>race.time?TAUNTS[r.speech.index]:null, bikeId:getBike(r.bikeId).id, x: +r.x.toFixed(1), dz: +(r.z - p.z).toFixed(1), speed: +r.speed.toFixed(1), health: +r.health.toFixed(1),recovery:r.recovery??null, weapon: r.weapon, attack: r.attack, crash: r.recovery?r.crash:+r.crash.toFixed(1) })), traffic: race.traffic.filter(t => t.z - p.z > -10 && t.z - p.z < 350).map(t => ({ id:t.id,kind:t.kind,x: t.x, dz: +(t.z - p.z).toFixed(1), direction: (t.heading ?? Math.sign(t.speed)) < 0 ? 'oncoming' : 'forward',queued:!!t.queued })), obstacles: race.obstacles.filter(o => o.z - p.z > -10 && o.z - p.z < 200).map(o => ({ id:o.id,kind: o.kind, x: o.x,width:o.width ?? null,moving:!!o.motion, dz: +(o.z - p.z).toFixed(1) })), heat: +race.heat.toFixed(1), police: race.policeActive, capture: +race.capture.toFixed(2), result: onlineMode?(race.multiplayer?.results[online.id] ?? null):race.result, save: { achievements:save.achievements,bicycleUnlocked:save.owned.includes(BICYCLE_ID),ownedHelmets:save.ownedHelmets??['integral'],helmetId:equippedHelmet(save).id,helmetColorId:getHelmetColor(save.helmetColorId).id,ownedWeapons:save.ownedWeapons??[],weaponId:save.weaponId??null,ownedKneePads:save.ownedKneePads??[],kneePadId:save.kneePadId??null,nitro:save.nitro??{},cash: save.cash, bike: save.bikeId, unlocked: save.unlocked, races: save.races } });
+  return JSON.stringify({ spectator:screen==='spectate'?{id:spectatedId,name:viewingRider().name,targets:spectatorTargets(online.room,online.id).map(r=>r.id),x:viewingRider().x,z:viewingRider().z,speed:viewingRider().speed,recovery:viewingRider().recovery??null}:null, camera:{...renderer.cameraState(),riderId:viewingId()},arrest:arrestSource?(()=>{const a=arrestScene(arrestSource,localId(),finishElapsed ?? 0);return {phase:a.police.phase,police:a.police,cuffed:a.cuffed,pullback:a.pullback};})():null,championship:save.championship?{active:championshipMode,settling:champSettling,stage:save.championship.stage,status:save.championship.status,heats:save.championship.heats.length,garageOpen:championshipGarageOpen(save.championship),bike:championshipBikeState(save),standings:championshipStandings(save.championship.heats).map(r=>({id:r.id,points:r.points,rank:r.rank})),integrity:save.championship.entry?.condition[save.championship.entry.bikeId],checkpoint:!!save.championship.checkpoint}:null,payout:resultPayout, finish:{police:finishScene(race,localId(),finishElapsed,finishOfficer).police,stage:finishElapsed===null?'none':screen==='finish'?'camera':'result',elapsed:finishElapsed===null?null:+finishElapsed.toFixed(2),pullback:finishElapsed===null?0:+finishPullback(finishElapsed).toFixed(3),winnerId:finishWinner(race)?.id ?? null}, account:{signedIn:!!accounts.session?.account,status:accounts.status,pending:accounts.cache?.dirty ?? false,conflict:!!accounts.conflict,rankedRace:!!soloRecorder}, online: onlineMode?{status:online.status,syncing:online.syncing,id:online.id,code:online.code,phase:online.room?.phase,locked:online.room?.locked,deadline:online.room?.deadline,serverNow:online.serverNow(),members:online.room?.members,fillBots:online.room?.fillBots,public:online.room?.public,condition:online.room?.condition}:null, screen, paused, modal: document.querySelector('dialog[open]')?.id ?? null, mode: race.mode, coordinates: `x in metres: negative left, positive right; road ±${roadHalf(race.trackId)}. z forward in metres. speed m/s.`, road:{lanes:race.trackId==='terra'?2:4,halfWidth:roadHalf(race.trackId),surface:race.trackId==='terra'?'dirt':'asphalt'}, tick: race.tick, time: +race.time.toFixed(2), countdown: +race.countdown.toFixed(2), track: race.trackId, condition:raceCondition(race.condition), scenic:scenicAppearance(race), length: getTrack(race.trackId).distance, player: { pedalTime:p.pedalTime??0,pedalPhase:p.pedalPhase??0,finishedOnFoot:!!p.finishedOnFoot,recovery:p.recovery??null,helmetId:getHelmet(p.helmetId).id,helmetColorId:getHelmetColor(p.helmetColorId).id,weaponId:p.weaponId??null,weaponName:weaponName(p),wheeliesLeft:wheeliesLeft(p),wheelieTime:p.wheelieTime??0,jumpTime:p.jumpTime??0,jumpHeight:jumpHeight(p),jumpTarget:p.jumpTarget??null,kneePadId:p.kneePadId??null,kneeTime:p.kneeTime??0,wetKneeTime:(p.wetKneeTicks??0)*STEP,kneeSide:p.kneeSide??0,kneeSupport:kneeSupport(p,curveAt(p.z,race.trackId),race.trackId),nitro:p.nitro??0,nitroTime:p.nitroTime??0,nitroUsed:p.nitroUsed??0,speech:p.speech&&p.speech.until>race.time?TAUNTS[p.speech.index]:null,bikeId:getBike(p.bikeId).id,bike:getBike(p.bikeId).name,handling:p.handling,armor:p.armor,out:p.out ?? null, x: +p.x.toFixed(2), z: +p.z.toFixed(1), speed: +p.speed.toFixed(2), health: +p.health.toFixed(1), integrity: +p.integrity.toFixed(1), weapon: p.weapon, attack: p.attack, cooldown: +p.cooldown.toFixed(2), crash: p.recovery?p.crash:+p.crash.toFixed(2), immune: +p.immune.toFixed(2), hits: p.hits, falls: p.falls, place: ranking(onlineMode ? (online.room?.race ?? race) : race).findIndex(r => r.id === localId()) + 1 }, awareness:raceAwareness(race,localId()), corner:upcomingCorner(p.z,race.trackId,p.handling,race.condition,p.kneeTime!>0 && supportsKneeDown(p.bikeId)?p.kneePadId:undefined), curve: +curveAt(p.z, race.trackId).toFixed(2), target: target?.id ?? null, riders: race.riders.filter(r => r.id !== localId() && Math.abs(r.z - p.z) < 400).map(r => ({ id: r.id, name: r.name,helmetId:getHelmet(r.helmetId).id,helmetColorId:getHelmetColor(r.helmetColorId).id,weaponId:r.weaponId??null,wheeliesLeft:wheeliesLeft(r),wheelieTime:r.wheelieTime??0,jumpTime:r.jumpTime??0,jumpHeight:jumpHeight(r),kneePadId:r.kneePadId??null,kneeSupport:kneeSupport(r,curveAt(r.z,race.trackId),race.trackId),speech:r.speech&&r.speech.until>race.time?TAUNTS[r.speech.index]:null, bikeId:getBike(r.bikeId).id, x: +r.x.toFixed(1), dz: +(r.z - p.z).toFixed(1), speed: +r.speed.toFixed(1), health: +r.health.toFixed(1),recovery:r.recovery??null, weapon: r.weapon, attack: r.attack, crash: r.recovery?r.crash:+r.crash.toFixed(1) })), traffic: race.traffic.filter(t => t.z - p.z > -10 && t.z - p.z < 350).map(t => ({ id:t.id,kind:t.kind,x: t.x, dz: +(t.z - p.z).toFixed(1), direction: (t.heading ?? Math.sign(t.speed)) < 0 ? 'oncoming' : 'forward',queued:!!t.queued })), obstacles: race.obstacles.filter(o => o.z - p.z > -10 && o.z - p.z < 200).map(o => ({ id:o.id,kind: o.kind, x: o.x,width:o.width ?? null,moving:!!o.motion, dz: +(o.z - p.z).toFixed(1) })), heat: +race.heat.toFixed(1), police: race.policeActive, capture: +race.capture.toFixed(2), result: onlineMode?(race.multiplayer?.results[online.id] ?? null):race.result, save: { achievements:save.achievements,bicycleUnlocked:save.owned.includes(BICYCLE_ID),ownedHelmets:save.ownedHelmets??['integral'],helmetId:equippedHelmet(save).id,helmetColorId:getHelmetColor(save.helmetColorId).id,ownedWeapons:save.ownedWeapons??[],weaponId:save.weaponId??null,ownedKneePads:save.ownedKneePads??[],kneePadId:save.kneePadId??null,nitro:save.nitro??{},cash: save.cash, bike: save.bikeId, unlocked: save.unlocked, races: save.races } });
 };
 window.advanceTime = ms => { if(onlineMode){advanceFinish(ms/1000);draw();return;} testMode = true; for (let i = 0; i < Math.round(ms / (STEP * 1000)); i++) {update();advanceFinish(STEP);} draw(); };
 if (testMode) window.__game = {
@@ -1018,7 +1065,7 @@ if(online.resumeSaved()){onlineMode=true;openOnline();}
 else if(invite){openOnline();$<HTMLInputElement>('online-code-input').value=invite.toUpperCase();}
 
 function updateRecoveryGuide(){
- const guide=document.getElementById('recovery-guide');if(!guide)return;const p=localRider(),f=p.recovery;
+ const guide=document.getElementById('recovery-guide');if(!guide)return;const p=viewingRider(),f=p.recovery;
  document.body.classList.toggle('on-foot',!!f && screen==='race');guide.hidden=!f || screen!=='race';
  const labels=document.querySelectorAll('.analog-control > span');if(labels[0])labels[0].textContent=f?'ESQUERDA / DIREITA':'VIRAR';
  if(!f)return;

@@ -19,6 +19,7 @@ Na Beta1.4.4, contas confirmam a garagem antes de entrar, e o servidor usa os eq
 - Nos últimos 5 segundos, a entrada e a mudança de prontidão ficam fechadas. Se uma saída deixar menos de duas pessoas, a contagem é cancelada e volta à espera.
 - Ao zerar o relógio, a corrida começa diretamente, sem outra contagem adicional.
 - Polícia escolhe o piloto não eliminado mais próximo, humano ou bot. Queda a até 30m de um policial ativo causa prisão; a regra de captura parado também continua.
+- Na Beta1.5.0, prisão ou moto destruída habilitam o modo espectador após a cena correspondente. **C** ou **Trocar câmera** alterna entre outros humanos conectados ainda na corrida; bots, polícia, eliminados e quem já chegou não entram na seleção. Quedas recuperáveis continuam assistíveis. Saída, desconexão ou chegada do alvo selecionam outro automaticamente; sem alvos, aparece seu resultado. O botão **Ver resultado** permite consultar a classificação e voltar a acompanhar. Câmera, instrumentos e áudio seguem o observado; comandos de pilotagem permanecem desativados para o espectador. Protocolo17 e regras de resultado preservados.
 - Prisão, moto destruída, saída ou chegada são resultados individuais. Os demais continuam. Há limite de 6 minutos para encerrar participantes ainda na pista.
 - Bots usam modelos variados e os respectivos atributos de fábrica, dirigem e freiam por IA no servidor e participam do combate e da classificação. Quando todos os humanos concluem ou são eliminados, a corrida encerra os bots restantes.
 - CPUs com perfil veloz ou cauteloso e moto compatível recebem joelheiras e usam a manobra comum nas curvas secas. A cor progride conforme a dificuldade da pista. Choppers e polícia não apoiam o joelho; na chuva, os bots planejam a frenagem sem esse bônus. As motos online continuam com atributos de fábrica, e os equipamentos dos humanos seguem a seleção da garagem. O ritmo de curva das CPUs recebeu cerca de 1% adicional; o ritmo policial permanece igual.
@@ -42,6 +43,8 @@ npm run dev
 ```
 
 Abra `http://127.0.0.1:4317/` em duas abas, escolha Multiplayer, crie uma sala e marque **Sala pública** e abra **Encontrar partidas públicas** na outra aba, ou use o código para entrar por convite. A física roda no servidor em passos de 1/60 s; conexões recebem atualizações aproximadamente a cada 50ms. O Vite encaminha `/api/asfalto/` para o servidor em `4318`.
+
+`npm run test:spectator` valida prisão, explosão, troca de câmera, saída, reconexão e resultados com três navegadores e servidor isolado.
 
 Em desenvolvimento, salas ficam em memória por padrão. Para testar armazenamento compartilhado:
 

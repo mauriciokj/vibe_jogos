@@ -2,7 +2,12 @@ import './releases.css';
 import { GAME_VERSION } from './version';
 export { GAME_VERSION } from './version';
 export const RELEASES=[
-  {version:GAME_VERSION,date:'22/09/2026',title:'Sua garagem também corre online',changes:[
+  {version:GAME_VERSION,date:'23/09/2026',title:'Acompanhe a corrida até o fim',changes:[
+    'Após ser preso ou perder a moto, acompanhe os outros jogadores que continuam na corrida. A cena de prisão e a explosão são preservadas.',
+    'Aperte C ou use o botão Trocar câmera para alternar entre os jogadores. Nome, velocidade e instrumentos acompanham o piloto observado.',
+    'Se o piloto observado sair ou concluir a corrida, a câmera troca automaticamente. Você pode abrir seu resultado a qualquer momento.'
+  ]},
+  {version:'1.4.4-beta',date:'22/09/2026',title:'Sua garagem também corre online',changes:[
     'As sete motos comuns podem ser escolhidas no multiplayer sem comprar, sempre com atributos de fábrica. A Magrela mantém o desbloqueio secreto da conta.',
     'Joelheira, arma e capacete equipados acompanham a garagem em uso. A sala mostra o equipamento confirmado antes da largada.',
     'Contas conferem a garagem ao entrar na sala. Uma sessão expirada é avisada para evitar entrar como convidado sem perceber.'

@@ -1,4 +1,25 @@
 /* Keep each stack in flow so labels cannot push warnings into the road. */
+#spectator-bar{position:absolute;top:10px;left:50%;transform:translateX(-50%);width:min(480px,calc(100% - 220px));padding:10px 14px;background:#10252cf2;border:1px solid #deff7070;border-radius:8px;text-align:center;pointer-events:auto}
+#spectator-bar small{display:block;color:var(--acid);font-size:10px;letter-spacing:1px}
+#spectator-bar strong{display:block;margin:5px 0;font-size:16px;overflow-wrap:anywhere}
+.spectator-actions{display:flex;align-items:center;justify-content:center;gap:12px}
+.spectator-actions .secondary,.spectator-actions .text-button{font-size:10px;min-height:36px;padding:6px 10px}
+.spectator-actions kbd{margin-right:5px}
+.spectating .race-guidance{top:120px}
+.spectating .touch-controls,.spectating .weapon,.spectating .equipment-hud,.spectating #crash{display:none}
+@media(max-width:700px){
+  #spectator-bar{top:48px;width:calc(100% - 24px);padding:8px}
+  #spectator-bar strong{font-size:14px}
+  .spectating .race-guidance{top:8px}
+  .spectating .rear-view,.spectating .corner-warning{display:none}
+  .spectating .race-bottom{bottom:65px}
+}
+@media(max-height:520px) and (orientation:landscape){
+  #spectator-bar{top:8px;width:calc(100% - 350px);padding:6px}
+  #spectator-bar strong{font-size:13px}
+  .spectating .race-guidance{display:none}
+  .spectating .race-bottom{bottom:45px}
+}
 .hud-top{top:16px}
 .race-guidance{position:absolute;top:10px;left:50%;transform:translateX(-50%);width:280px;display:flex;flex-direction:column;align-items:center;gap:6px}
 .race-guidance .hud-time{line-height:18px;text-shadow:0 1px 5px #10252c}

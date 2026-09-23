@@ -20,10 +20,10 @@ export class RaceInstruments {
     if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
     return { c: canvas.getContext('2d')!, w, h };
   }
-  draw(state: RaceState, localId: string) {
-    this.drawMirror(state,localId); this.drawMap(state,localId);
+  draw(state: RaceState, localId: string, spectating = false) {
+    this.drawMirror(state,localId); this.drawMap(state,localId,spectating);
   }
-  private drawMap(state: RaceState, localId: string) {
+  private drawMap(state: RaceState, localId: string, spectating: boolean) {
     const surface = this.surface(this.map); if (!surface) return;
     const {c,w,h} = surface, track = getTrack(state.trackId), awareness = raceAwareness(state,localId);
     const me = state.riders.find(r=>r.id===localId) ?? state.riders[0];
@@ -72,7 +72,7 @@ export class RaceInstruments {
       c.fillStyle=red?'#25457c':'#58a6ff';c.fillRect(q.x,q.y-3,6,6);
     }
     c.font=`${w<120?8:10}px monospace`; c.textAlign='left';
-    if(!compact){c.fillStyle='#deff70';c.fillText(`● VOCÊ · ${(me.z/1000).toFixed(1)}KM`,9,h-42);}
+    if(!compact){c.fillStyle='#deff70';c.fillText(`● ${spectating?'PILOTO':'VOCÊ'} · ${(me.z/1000).toFixed(1)}KM`,9,h-42);}
     for (const [i,r] of [awareness.ahead,awareness.behind].entries()) {
       c.fillStyle=r?.color ?? '#9eb3a9';
       const gap=r?`${r.gap>=0?'+':'−'}${Math.abs(r.gap)}m`:'—';
