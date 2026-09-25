@@ -20,7 +20,7 @@ Revisões evitam aplicar uma compra a uma garagem desatualizada. Recibos duráve
 
 O navegador continua simulando e desenhando a 60 passos por segundo. Envia trechos de comandos compactados a `/checkpoint` aproximadamente a cada três segundos e tenta guardar o trecho pendente em IndexedDB. O servidor reproduz esses comandos com a mesma física, confere tempo decorrido e limites, e salva apenas o estado que ele calculou. Nunca recebe posição, integridade, prêmio ou classificação como verdade. Durante a verificação, cede o processamento a cada 60 passos, com limite de verificações simultâneas.
 
-`POST /finish` confirma a chegada ou derrota e grava, na mesma transação, o resultado, o prêmio, o consumo de nitro e o recibo de conclusão. O bônus de recorde pessoal segue a regra de 30%. Abandonar voluntariamente não concede ajuda em dinheiro. Nitro não utilizado retorna após conferência. Repetir uma chegada não repete o prêmio.
+`POST /finish` confirma a chegada ou derrota e grava, na mesma transação, o resultado, o prêmio, o consumo de nitro e o recibo de conclusão. O bônus de recorde pessoal segue a regra de 30%. Abandonar voluntariamente não concede ajuda da oficina; os bônus de derrubadas confirmadas de policiais são preservados. Nitro não utilizado retorna após conferência. Repetir uma chegada não repete o prêmio.
 
 No campeonato, o servidor também continua a simulação dos adversários, calcula pontos e decide classificação ou eliminação. Integridade e equipamentos ficam presos à etapa como antes, incluindo a exceção de reparo quando a moto chega a zero. Checkpoints anteriores ao corte do beta são aceitos como parte da base confiável. As novas alterações são verificadas.
 
@@ -37,6 +37,16 @@ Convidados levam os itens equipados na garagem local, como antes da restrição 
 As cargas são reservadas antes de entrar. Sala inválida ou saída do lobby devolve a reserva; corrida devolve apenas cargas que o servidor sabe que não foram consumidas. Recibos tornam devoluções idempotentes. Uma conta não ocupa duas salas nem uma sala e uma corrida individual simultaneamente.
 
 O protocolo multiplayer passa de 13 para 14 para exigir atualização das abas antigas. Na VPS de processo único, salas em memória não sobrevivem a reinício; reservas antigas são encerradas com base no consumo registrado. A recuperação de reservas não deve ser executada por vários processos que compartilhem salas externas ativas.
+
+## Prêmio por derrubar policiais
+
+Cada queda de policial atribuída ao jogador pela simulação concede 500 moedas, inclusive quedas repetidas do mesmo policial. Golpes sem queda, acidentes causados pelo cenário e quedas causadas por outro piloto não contam. A mensagem aparece durante a corrida; o valor acumulado entra no saldo ao liquidar o resultado, inclusive derrota ou abandono, e aparece discriminado junto aos outros prêmios.
+
+No individual e campeonato com conta, o replay do servidor calcula a contagem. No multiplayer, o crédito é do piloto responsável e usa o resultado da sala. O pagamento de conta compartilha os recibos/transações já usados pela economia; convidados online guardam recibos por participante no save para não repetir o pagamento ao recarregar, reconectar ou sair após ver o resultado. Conquistas antigas não geram pagamento retroativo. Campos novos são opcionais para saves/resultados anteriores; regras de ranking e física de prisão permanecem iguais.
+
+Se jogador e policial caírem juntos, o bônus continua valendo quando a queda foi causada pelo jogador. O policial não prende durante a recuperação. Ao voltar à moto, pode prender o jogador que ainda estiver em recuperação a até 30 metros; outro policial ativo no alcance também pode prender.
+
+Validação específica: `npm run test:police-reward` (combate/contato real, quedas repetidas e simultâneas, autoria, replay, recibos, desktop/celular e dois clientes online).
 
 ## Limites reais
 

@@ -5,6 +5,7 @@ import { WebSocket } from 'ws';
 import { RedisStore } from '../server/store';
 import { createGameServer } from '../server/service';
 import { makeMember, makeRoom, joinRoom } from '../server/room';
+import { finishRider } from '../src/game/simulation';
 
 const url=process.env.ASFALTO_TEST_REDIS_URL;
 if(!url)throw new Error('Defina ASFALTO_TEST_REDIS_URL para uma instância Redis de teste.');
@@ -50,5 +51,14 @@ try {
   const third=await connect(1);const resumed=await message(third,{type:'resume',version:NET_VERSION,code:welcome.room.code,token:welcome.token});assert.equal(resumed.id,welcome.id);assert.equal(resumed.room.code,welcome.room.code);assert.equal(resumed.room.phase,'racing');assert.ok(resumed.room.race.tick>0);assert.equal(resumed.room.race.riders.filter((r:{profile:string})=>r.profile!=='player').length,6);
   const snapshots=await Promise.all(stores.map(s=>s.read(welcome.room.code)));assert.deepEqual(snapshots[0]?.members,snapshots[1]?.members);
   assert.equal(resumed.room.race.riders.find((r:{id:string})=>r.id===welcome.id).bikeId,'lobo');
-  console.log('✓ Real Redis: concurrent eight-player capacity, atomic input ordering, expired sessions, racing on two instances and reconnection across instances.');
+  const end=()=>stores[0].mutate(welcome.room.code,r=>{for(const rider of r.race!.riders){rider.finishedAt=100;finishRider(r.race!,rider,'finish');}r.race!.mode='finished';r.phase='finished';r.finishedAt=now();});
+  await end();await waitRoom(r=>r.phase==='finished');
+  third.send(JSON.stringify({type:'continue',round:0,choice:'lobby'}));await waitRoom(r=>r.phase==='lobby'&&r.round===1);
+  assert.ok((await stores[1].publicRooms(now())).some(r=>r.code===welcome.room.code),'A reopened public room returns to the shared discovery index');
+  third.send(JSON.stringify({type:'configure',round:1,trackId:'porto',condition:'rain'}));second.send(JSON.stringify({type:'configure',round:1,bikeId:'brutal'}));
+  await waitRoom(r=>r.trackId==='porto'&&r.members[1].bikeId==='brutal');
+  third.send(JSON.stringify({type:'ready',ready:true}));second.send(JSON.stringify({type:'ready',ready:true}));await waitRoom(r=>r.locked);skew+=5100;await waitRoom(r=>r.phase==='racing'&&r.round===1);
+  await end();third.send(JSON.stringify({type:'continue',round:1,choice:'next'}));second.send(JSON.stringify({type:'continue',round:1,choice:'next'}));
+  const next=await waitRoom(r=>r.round===2);assert.equal(next.trackId,'terra');assert.equal(next.condition,'day');assert.equal(next.code,welcome.room.code);
+  console.log('✓ Real Redis: concurrent capacity, atomic inputs, two instances, reconnection, reopening public discovery, shared track/bike changes and unanimous next race in the same room.');
 } finally {peers.forEach(p=>p.terminate());for(const app of apps)await app.close();}

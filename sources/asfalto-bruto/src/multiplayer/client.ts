@@ -1,5 +1,5 @@
 import { EMPTY_COMMAND, type AttackKind, type Command, type RaceState, type RaceCondition, type RiderAction } from '../game/types';
-import { NET_VERSION, RECONNECT_MS, type AttackInput, type ActionInput, type Loadout, type ClientMessage, type RoomView, type ServerMessage } from './protocol';
+import { NET_VERSION, RECONNECT_MS, type RematchChoice, type AttackInput, type ActionInput, type Loadout, type ClientMessage, type RoomView, type ServerMessage } from './protocol';
 import { RacePresentation } from './presentation';
 
 type Connection = 'offline' | 'connecting' | 'connected' | 'reconnecting';
@@ -37,6 +37,8 @@ export class OnlineClient {
   create(name: string, trackId: string, fillBots = false, bikeId = 'ferro', condition: RaceCondition = 'sunset', loadout?: Loadout, isPublic = false, requireAccount = false) { this.open({type:'create',version:NET_VERSION,name,trackId,fillBots,bikeId,condition,loadout,public:isPublic,requireAccount}); }
   join(name: string, code: string, bikeId = 'ferro', loadout?: Loadout, publicOnly = false, requireAccount = false) { this.open({type:'join',version:NET_VERSION,name,bikeId,code:code.trim().toUpperCase(),loadout,publicOnly,requireAccount}); }
   ready(ready: boolean) { this.send({type:'ready',ready}); }
+  continue(choice:RematchChoice){this.send({type:'continue',round:this.room?.round ?? 0,choice});}
+  configure(patch:{trackId?:string;condition?:RaceCondition;bikeId?:string;loadout?:Loadout}){this.send({type:'configure',round:this.room?.round ?? 0,...patch});}
   private send(message: ClientMessage) { if(this.ws?.readyState===WebSocket.OPEN)this.ws.send(JSON.stringify(message)); }
   private sendInput() {
     if(this.status==='connected' && this.room?.phase==='racing')this.send({type:'input',seq:++this.seq,command:{...this.current,attack:null},attacks:this.attacks,actions:this.actions});
@@ -111,6 +113,9 @@ export class OnlineClient {
   }
   private accept(room: RoomView) {
     if(this.room?.code===room.code && this.room.revision>=room.revision)return;
+    if((this.room?.round ?? 0)!==(room.round ?? 0)){
+      this.presentation=new RacePresentation(this.id);this.current=EMPTY_COMMAND;this.attacks=[];this.actions=[];this.lastProgressAt=performance.now();
+    }
     if(!this.room || room.phase!=='racing' || room.phase!==this.room.phase || (room.race?.tick ?? 0)>(this.room.race?.tick ?? 0)) {
       this.lastProgressAt=performance.now();this.reconnectStarted=0;
     }

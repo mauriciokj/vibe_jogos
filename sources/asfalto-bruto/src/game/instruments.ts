@@ -1,3 +1,4 @@
+import { POLICE_BIKE_ID } from './bikes';
 import { trafficDirection } from './hazards';
 import { roadHalf, trafficShape } from './road-profile';
 import { tractorSprite } from './rural-art';
@@ -125,7 +126,7 @@ export class RaceInstruments {
       }else if(e.r){
         const r=e.r; c.translate(0,-jumpHeight(r)*p.scale); const support=kneeSupport(r,curveAt(r.z,state.trackId),state.trackId);c.rotate(r.crash?1.2:-(r.lean*(1-support)+support*(r.kneeSide ?? 0)*.59));
         const width=size*88/128;
-        c.drawImage(bikeFrontSprite(r.color,getBike(r.bikeId).style,r.attack?.kind ?? 'ride',r.attack?.side ?? 1,r.profile==='police',getBike(r.bikeId).style==='bicycle'?Math.floor((r.pedalPhase ?? 0)*4/Math.PI)%8:Math.floor(state.time*8)%3,getKneePad(r.kneePadId)?.color,support>.35?-(r.kneeSide ?? 0):0,r.weaponId,stunting(r),r.helmetId,r.helmetColorId),-width/2,-size,width,size);
+        c.drawImage(bikeFrontSprite(r.color,getBike(r.bikeId).style,r.attack?.kind ?? 'ride',r.attack?.side ?? 1,r.profile==='police',getBike(r.bikeId).style==='bicycle'?Math.floor((r.pedalPhase ?? 0)*4/Math.PI)%8:Math.floor(state.time*8)%3,getKneePad(r.kneePadId)?.color,support>.35?-(r.kneeSide ?? 0):0,r.weaponId,stunting(r),r.helmetId,r.helmetColorId,r.bikeId===POLICE_BIKE_ID),-width/2,-size,width,size);
       }
       c.restore();
     }

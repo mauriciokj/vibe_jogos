@@ -6,7 +6,7 @@ import { isIP } from 'node:net';
 import { WebSocket, WebSocketServer } from 'ws';
 import { finishRider } from '../src/game/simulation';
 import { cleanActions, cleanAttacks, cleanCommand, NET_VERSION, RECONNECT_MS, type ServerMessage } from '../src/multiplayer/protocol';
-import { depart, inputKey, joinRoom, lobbyClock, makeMember, makeRoom, publicRoomView, pulseRoom, secret, setReady, viewRoom, type Inputs, type Member, type Room, type StoredInput } from './room';
+import { configureRoom, continuationChoice, reopenRoom, setContinuation, depart, inputKey, joinRoom, lobbyClock, makeMember, makeRoom, publicRoomView, pulseRoom, secret, setReady, viewRoom, type Inputs, type Member, type Room, type StoredInput } from './room';
 import { BusyRoom, MemoryStore, type RoomStore } from './store';
 
 interface Peer { ws: WebSocket; code: string; id: string; epoch: string; seq: number; pending?: StoredInput; latestInput?: StoredInput; writing: boolean; lastSeen: number; alive: boolean; }
@@ -65,6 +65,12 @@ export function createGameServer(store: RoomStore, options: { origins?: string[]
     revisions.set(room.code,room.revision);
     const message: ServerMessage = {type:'state',room:viewRoom(room,now())};
     for (const peer of peers) if (peer.code === room.code) send(peer,message);
+  }
+  function continueIfReady(room:Room){
+    const choice=continuationChoice(room,now());if(!choice)return;
+    // Settle the completed race before replacing its state or reservations.
+    options.accounts?.recordRoom(room);
+    reopenRoom(room,choice,now(),(members,previous)=>options.accounts?.economy.prepareMembers(members,previous));
   }
   async function flush(peer: Peer) {
     if (peer.writing || !peer.code) return;
@@ -125,7 +131,7 @@ export function createGameServer(store: RoomStore, options: { origins?: string[]
               else {
                 const found = r.members.find(m => typeof data.token === 'string' && m.token === data.token);
                 if (found?.accountId && found.accountId!==options.accounts?.identity(req)?.account.id)throw new Error('Entre na mesma conta para retomar esta corrida.');
-                if (!found || (now()-found.lastSeen > RECONNECT_MS && r.phase === 'lobby')) throw new Error('Sua vaga expirou. Entre novamente.');
+                if (!found || found.left || (now()-found.lastSeen > RECONNECT_MS && r.phase === 'lobby')) throw new Error('Sua vaga expirou. Entre novamente.');
                 if(r.race && now()-found.lastSeen > RECONNECT_MS) {
                   const rider=r.race.riders.find(p=>p.id===found.id);if(rider)finishRider(r.race,rider,'left');
                 }
@@ -137,6 +143,10 @@ export function createGameServer(store: RoomStore, options: { origins?: string[]
           }
         } else if (data.type === 'ready' && peer.code && typeof data.ready === 'boolean') {
           broadcast(await store.mutate(peer.code,r => setReady(r,peer.id,peer.epoch,data.ready,now())));
+        } else if(data.type==='continue' && peer.code){
+          broadcast(await store.mutate(peer.code,r=>{setContinuation(r,peer.id,peer.epoch,data.round,data.choice,now());continueIfReady(r);}));
+        } else if(data.type==='configure' && peer.code){
+          broadcast(await store.mutate(peer.code,r=>configureRoom(r,peer.id,peer.epoch,data.round,data,now(),(member,previous)=>options.accounts?.economy.equipMember(member.accountId,member,previous))));
         } else if (data.type === 'leave' && peer.code) {
           const code = peer.code; peer.code = ''; peer.pending = undefined;
           broadcast(await store.mutate(code,r => depart(r,peer.id,peer.epoch,now(),true)));
@@ -163,7 +173,7 @@ export function createGameServer(store: RoomStore, options: { origins?: string[]
     try {
       const inputs:Inputs={};
       for(const p of peers)if(p.code===code && p.latestInput)inputs[`${p.id}:${p.epoch}`]=p.latestInput;
-      broadcast(await store.mutate(code,(r,inputs)=>pulseRoom(r,inputs,now()),0,inputs));
+      broadcast(await store.mutate(code,(r,inputs)=>{pulseRoom(r,inputs,now());continueIfReady(r);},0,inputs));
     }
     catch (e) {
       if (e instanceof BusyRoom) { const room = await store.read(code).catch(()=>null); if (room) broadcast(room); }
@@ -180,8 +190,8 @@ export function createGameServer(store: RoomStore, options: { origins?: string[]
       for (const peer of peers) {
         if (!peer.alive || (!peer.code && now()-peer.lastSeen > 20_000)) { peer.ws.terminate(); continue; }
         peer.alive = false; peer.ws.ping();
-        if (peer.code && latest.get(peer.code)?.phase === 'lobby') void store.mutate(peer.code,r=> {
-          const m=r.members.find(m=>m.id===peer.id && m.epoch===peer.epoch); if(m){m.lastSeen=now();m.connected=true;}
+        if (peer.code && latest.get(peer.code)?.phase !== 'racing') void store.mutate(peer.code,r=> {
+          const m=r.members.find(m=>m.id===peer.id && m.epoch===peer.epoch&&!m.left); if(m){m.lastSeen=now();m.connected=true;}
         }).then(broadcast).catch(()=>{});
       }
       for (const [code,room] of latest) if (!codes.has(code) && room.members.every(m=>now()-m.lastSeen>RECONNECT_MS)) {

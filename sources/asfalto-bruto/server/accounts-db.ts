@@ -67,13 +67,18 @@ export class AccountsDB {
   rename(id:string,name:string) {this.db.prepare('UPDATE accounts SET nickname=? WHERE id=?').run(name,id);}
   // All callbacks are synchronous: save changes and their receipts/checkpoints
   // commit together, including a crash between awarding cash and marking a run.
+  transaction<T>(change:()=>T):T {
+    const name=`tx_${randomBytes(6).toString('hex')}`;
+    this.db.exec(`SAVEPOINT ${name}`);
+    try{const value=change();this.db.exec(`RELEASE ${name}`);return value;}
+    catch(e){this.db.exec(`ROLLBACK TO ${name}; RELEASE ${name}`);throw e;}
+  }
   mutate<T>(id:string,change:(save:SaveData|null,revision:number)=>{save:SaveData|null;value:T},now=Date.now()):T {
-    this.db.exec('BEGIN IMMEDIATE');
-    try {
+    return this.transaction(()=>{
       const cloud=this.cloud(id),result=change(cloud.save,cloud.revision);
       if(JSON.stringify(result.save)!==JSON.stringify(cloud.save))this.db.prepare('UPDATE accounts SET save=?,revision=revision+1,updated=? WHERE id=?').run(JSON.stringify(normalizeSave(result.save)),now,id);
-      this.db.exec('COMMIT');return result.value;
-    }catch(e){this.db.exec('ROLLBACK');throw e;}
+      return result.value;
+    });
   }
   session(id: string, now=Date.now()) {
     const value=token(),csrf=token();

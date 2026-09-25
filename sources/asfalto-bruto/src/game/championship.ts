@@ -3,6 +3,8 @@ import { CONDITIONS } from './conditions';
 import { createRace, finishRider, stepRace } from './simulation';
 import type { RaceState, SaveData } from './types';
 import type { OutcomeDetail } from './race-outcome';
+import { getBike, POLICE_BIKE_ID } from './bikes';
+import { enteredBike } from './police-bike';
 
 export const CHAMP_POINTS=[10,6,4,3,2,1] as const;
 const IDS=['player',...Array.from({length:7},(_,i)=>`rival-${i}`)];
@@ -36,12 +38,13 @@ export const championshipGarageOpen=(c:Championship)=>!c.entry || c.status==='se
 export function championshipBikeState(save:SaveData,c=save.championship){
  const locked=!!c?.entry && !championshipGarageOpen(c);
  const bikeId=locked?c!.entry!.bikeId:save.bikeId;
- const integrity=clamp(locked?(c!.checkpoint?.riders[0].integrity ?? c!.damage.player ?? c!.entry!.condition[bikeId] ?? 100):(save.condition[bikeId] ?? 100),0,100);
+ const integrity=clamp(locked?((c!.checkpoint?enteredBike(c!.checkpoint.riders[0]).integrity:undefined) ?? c!.damage.player ?? c!.entry!.condition[bikeId] ?? 100):(save.condition[bikeId] ?? 100),0,100);
  const pendingResult=c?.status==='racing' && c.checkpoint?.mode==='finished';
  const recovering=c?.status==='racing' && c.checkpoint?.mode==='racing' && !!c.checkpoint.riders[0].recovery;
+ const borrowed=c?.status==='racing' && c.checkpoint?.mode==='racing' && !!c.checkpoint.riders[0].stolenPoliceBike;
  const beforeRace=!c || c.status!=='racing' || c.checkpoint?.mode==='countdown';
- return {bikeId,integrity,locked,pendingResult,recovering,low:integrity<20&&!pendingResult,
-  blocked:integrity===0&&!pendingResult&&!recovering,canRepair:integrity===0&&!pendingResult&&beforeRace};
+ return {bikeId,integrity,locked,pendingResult,recovering,borrowed,low:integrity<20&&!pendingResult,
+  blocked:integrity===0&&!pendingResult&&!recovering&&!borrowed,canRepair:integrity===0&&!pendingResult&&beforeRace};
 }
 export function nextChampionshipStage(c:Championship){
  if(c.status!=='service' || c.stage>=TRACKS.length-1)return false;
@@ -72,7 +75,7 @@ export function startChampionshipRace(save:SaveData):RaceState|null {
 export function checkpointChampionship(c:Championship,race:RaceState){
  if(c.status!=='racing' || race.trackId!==TRACKS[c.stage].id || race.condition!==CONDITIONS[c.heats.length]?.id)return false;
  c.checkpoint=structuredClone(race);
- const p=race.riders[0];if(c.entry){c.entry.condition[p.bikeId!]=p.integrity;c.entry.nitro={...c.entry.nitro,[p.bikeId!]:p.nitro ?? 0};}
+ const p=enteredBike(race.riders[0]);if(c.entry){c.entry.condition[p.bikeId]=p.integrity;c.entry.nitro={...c.entry.nitro,[p.bikeId]:p.nitro};}
  return true;
 }
 // Continue the actual AI simulation on a copy, including crashes/arrests, so a
@@ -106,7 +109,7 @@ export function recordChampionshipHeat(c:Championship,finished:RaceState){
  const results=finished.multiplayer?.results;if(!results || !IDS.every(id=>results[id]))return false;
  const finishers=IDS.filter(id=>results[id].reason==='finish').sort((a,b)=>results[a].time-results[b].time || IDS.indexOf(b)-IDS.indexOf(a));
  c.heats.push({reason:results.player.reason,...results.player.arrestCause?{arrestCause:results.player.arrestCause}:{},...finished.riders.find(r=>r.id==='player')?.recovery?.phase==='exploding'?{exploded:true}:{},finishes:IDS.map(id=>({id,place:finishers.includes(id)?finishers.indexOf(id)+1:null,time:results[id].reason==='finish'?results[id].time:null}))});
- c.damage=Object.fromEntries(finished.riders.filter(r=>IDS.includes(r.id)).map(r=>[r.id,clamp(r.integrity,0,100)]));
+ c.damage=Object.fromEntries(finished.riders.filter(r=>IDS.includes(r.id)).map(r=>[r.id,clamp(enteredBike(r).integrity,0,100)]));
  if(c.entry)c.entry.condition[c.entry.bikeId]=c.damage.player;
  delete c.checkpoint;
  if(c.heats.length===4){
@@ -156,6 +159,7 @@ function validCheckpoint(s:RaceState,c:Championship){
  const numeric=['x','z','speed','lean','health','integrity','maxSpeed','acceleration','handling','armor','cooldown','crash','immune','targetX','decisionAt','hits','falls'];
  if(!s.riders.every(r=>numeric.every(k=>Number.isFinite((r as any)[k])) && typeof r.name==='string'&&typeof r.color==='string'&&['player','fast','careful','aggressive','police'].includes(r.profile)&& (r.finishedAt===null||Number.isFinite(r.finishedAt))&& (!r.attack || ['punch','kick','weapon'].includes(r.attack.kind)&&Number.isFinite(r.attack.age))))return false;
  if(!s.riders.every(r=>!r.recovery || ['sliding','gettingUp','walking','mounting','exploding'].includes(r.recovery.phase)&&['bikeX','bikeZ','bikeVX','bikeVZ','vx','vz','timer','age','cycle','facingX','facingZ','hitCooldown','hits'].every(k=>Number.isFinite((r.recovery as any)[k]))))return false;
+ if(!s.riders.every(r=>!r.stolenPoliceBike || r.profile==='player'&&r.bikeId===POLICE_BIKE_ID&&typeof r.stolenPoliceBike.officerId==='string'&&getBike(r.stolenPoliceBike.originalBike?.bikeId).id===r.stolenPoliceBike.originalBike?.bikeId&&['integrity','nitro','bikeX','bikeZ','bikeVX','bikeVZ'].every(k=>Number.isFinite((r.stolenPoliceBike!.originalBike as any)[k]))))return false;
  if(!s.riders.every(r=>!r.recovery?.origin || ['x','z','speed','lean'].every(k=>Number.isFinite((r.recovery!.origin as any)[k]))))return false;
  if(!Array.isArray(s.traffic)||s.traffic.length>80||!s.traffic.every(t=>['car','truck','van','tractor'].includes(t.kind)&&typeof t.id==='string'&&typeof t.color==='string'&&['x','z','speed'].every(k=>Number.isFinite((t as any)[k]))))return false;
  if(!Array.isArray(s.obstacles)||s.obstacles.length>100||!s.obstacles.every(o=>typeof o.id==='string'&&['oil','barrier','cone','concrete','gravel','mud','fallenTree','tumbleweed','armadillo','dirtRamp','woodRamp'].includes(o.kind)&&Number.isFinite(o.x)&&Number.isFinite(o.z)&&(!o.motion||['from','to','speed','phase','period'].every(k=>Number.isFinite((o.motion as any)[k]))&&o.motion.period>0)))return false;

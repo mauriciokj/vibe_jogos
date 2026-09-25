@@ -4,6 +4,7 @@ import { kneeContact } from './equipment';
 import type { RaceState, Rider } from './types';
 
 export interface RaceFeats {
+ policeKnockdowns?:number;
  clean:boolean;knocked:string[];policeDown:boolean;carJumps:string[];terraJump:boolean;
  lastAtHalf:boolean;latePass:boolean;kneeCurve:boolean;
  curve?:{start:number;end:number;valid:boolean;contact:number};
@@ -12,7 +13,7 @@ export const newRaceFeats=(clean=true):RaceFeats=>({clean,knocked:[],policeDown:
 export function creditKnock(actor:Rider,target:Rider,previousFalls:number){
  if(target.falls<=previousFalls||actor.id===target.id)return;
  const f=actor.feats ??=newRaceFeats(false);
- if(target.profile==='police')f.policeDown=true;
+ if(target.profile==='police'){f.policeDown=true;f.policeKnockdowns=(f.policeKnockdowns ?? 0)+1;return true;}
  else if(!f.knocked.includes(target.id))f.knocked.push(target.id);
 }
 export function creditCarJump(r:Rider,id:string){const f=r.feats ??=newRaceFeats(false);if(!f.carJumps.includes(id)&&f.carJumps.length<3)f.carJumps.push(id);}

@@ -1,4 +1,4 @@
-import { beginRecovery, advanceRecovery, recoveryCommand, hitPedestrian } from './recovery';
+import { beginRecovery, advanceRecovery, advanceAbandonedBike, recoveryCommand, hitPedestrian } from './recovery';
 import { roadHalf, roadLanes, lateralLimit, surfaceGrip, surfaceBraking, surfaceDrag, trafficShape } from './road-profile';
 import { trackHazards, obstacleX, obstacleShape, dangerClearance } from './hazards';
 import { ruralTraffic, ruralObstacles, ruralEvent, ruralSlope } from './rural';
@@ -8,11 +8,12 @@ import { portObstacles, portTraffic, portPassengerEvent, stopAtPortQueue } from 
 import { equippedWeapon, getWeapon } from './weapons';
 import { advanceStunt, cancelStunt, clearsCar, clearsObstacle, stunting, WHEELIE_DURATION, WHEELIE_MIN_SPEED, WHEELIE_USES, wheeliesLeft } from './stunts';
 import { advanceScenicEvent, coastalEvent, raceCondition } from './conditions';
-import { BIKES, clamp, cornerForces, cornerPace, curveAt, getBike, getTrack } from './content';
+import { clamp, cornerForces, cornerPace, curveAt, getBike, getTrack } from './content';
 import { cornerHandling, equippedKneePad, getKneePad, kneeContact, KNEE_DURATION, WET_KNEE_LIMIT, NITRO_DURATION, NITRO_MULTIPLIER, nitroCount } from './equipment';
-import { isBicycle, MOTORBIKES, supportsKneeDown } from './bikes';
+import { isBicycle, MOTORBIKES, supportsKneeDown, POLICE_BIKE_ID, POLICE_BIKE_SPEED, onlineBike } from './bikes';
 import { advancePedaling, pedal } from './pedaling';
 import { newRaceFeats, creditKnock, creditCarJump, trackRaceFeats } from './race-feats';
+import { POLICE_KNOCKDOWN_REWARD } from './rewards';
 import { advanceBanter, sayTaunt } from './banter';
 import { EMPTY_COMMAND, type AttackKind, type Command, type RaceResult, type RaceState, type RaceCondition, type Rider, type RiderAction, type SaveData } from './types';
 
@@ -20,7 +21,7 @@ export const STEP = 1 / 60;
 export const ROAD_HALF = 7;
 export const FALL_ARREST_RADIUS = 30;
 // Exceeds even the fastest shop bike with all engine upgrades and active nitro.
-export const POLICE_TOP_SPEED = (Math.max(...BIKES.map(b=>b.speed))+3*2.5)*NITRO_MULTIPLIER+4;
+export const POLICE_TOP_SPEED = POLICE_BIKE_SPEED;
 export const ATTACKS = {
   punch: { windup: .13, duration: .34, cooldown: .46, reach: 2.3, longitudinal: 4.8, damage: 16, push: .35 },
   kick: { windup: .25, duration: .52, cooldown: .8, reach: 2.6, longitudinal: 4.6, damage: 22, push: 1.1 },
@@ -286,7 +287,7 @@ function resolveAttacks(state: RaceState) {
       if (target && (Math.sign(target.x - rider.x) === attack.side || Math.abs(target.x - rider.x) < .4)) {
         const falls=target.falls;
         impact(state, target, spec.damage, attack.side * spec.push);
-        creditKnock(rider,target,falls);
+        const policeDown=creditKnock(rider,target,falls);
         rider.hits++;
         const action = attack.kind === 'kick' ? 'CHUTE' : attack.kind === 'weapon' ? getWeapon(rider.weaponId)?.action ?? 'BASTONADA' : 'SOCO';
         state.events.push({ type: 'hit', actor: rider.id, target: target.id, text: target.id === 'player' ? `VOCÊ LEVOU ${action} · ${rider.name}` : `${target.name} · ${action}!` });
@@ -296,10 +297,15 @@ function resolveAttacks(state: RaceState) {
           rider.weapon = true;
           state.events.push({ type: 'steal', actor: rider.id, text: 'BASTÃO TOMADO!' });
         }
+        if(policeDown)policeRewardEvent(state,rider);
       }
     }
     if (attack.age >= spec.duration + telegraph) rider.attack = null;
   }
+}
+
+function policeRewardEvent(state:RaceState,rider:Rider){
+  state.events.push({type:'pass',actor:rider.id,text:`POLICIAL DERRUBADO · +${POLICE_KNOCKDOWN_REWARD} MOEDAS`});
 }
 
 function mayCollide(state: RaceState, a: string, b: string, cooldown = 1.4) {
@@ -343,8 +349,10 @@ function resolveCollisions(state: RaceState, oldZ: Map<string, number>) {
         const rFalls=r.falls,otherFalls=other.falls;
         impact(state, r, 7, side * .35);
         impact(state, other, 7, -side * .35);
-        creditKnock(other,r,rFalls);creditKnock(r,other,otherFalls);
+        const otherReward=creditKnock(other,r,rFalls),rReward=creditKnock(r,other,otherFalls);
         state.events.push({ type: 'hit', actor: r.id, text: 'CONTATO!' });
+        if(otherReward)policeRewardEvent(state,other);
+        if(rReward)policeRewardEvent(state,r);
       }
     }
   }
@@ -376,7 +384,7 @@ export function createMultiplayerRace(trackId: string, players: { id: string; na
   const base = state.riders[0];
   const bots = state.riders.slice(1);
   const grid=trackId==='terra'?[2.1,-2.1]:[-5.1,-1.7,1.7,5.1];
-  state.riders = players.map((p,i) => ({ ...base, ...stockBike(p.bikeId), helmetId:getHelmet(p.helmetId).id, helmetColorId:getHelmetColor(p.helmetColorId).id, weaponId:getWeapon(p.weaponId)?.id, kneePadId:getKneePad(p.kneePadId)?.id, nitro:nitroCount(p.bikeId,p.nitro), id: p.id, name: p.name, color: colors[i], x: grid[i%grid.length], z: -(Math.floor(i/grid.length)*(trackId==='terra'?10:8)), profile: 'player' }));
+  state.riders = players.map((p,i) => ({ ...base, ...stockBike(onlineBike(p.bikeId).id), helmetId:getHelmet(p.helmetId).id, helmetColorId:getHelmetColor(p.helmetColorId).id, weaponId:getWeapon(p.weaponId)?.id, kneePadId:getKneePad(p.kneePadId)?.id, nitro:nitroCount(onlineBike(p.bikeId).id,p.nitro), id: p.id, name: p.name, color: colors[i], x: grid[i%grid.length], z: -(Math.floor(i/grid.length)*(trackId==='terra'?10:8)), profile: 'player' }));
   if (fillBots) for (let i = players.length; i < 8; i++) {
     const bot = bots[i - players.length];
     const bike=MOTORBIKES[i%MOTORBIKES.length],pad=rivalKneePad(bike.id,bot.profile,getTrack(trackId).level);
@@ -394,7 +402,7 @@ export function finishRider(state: RaceState, rider: Rider, reason: RaceResult['
   const place = ranking(state).findIndex(r => r.id === rider.id) + 1;
   const result: RaceResult = { reason, ...(reason==='finish' && rider.finishedOnFoot?{onFoot:true}:{}), ...(reason === 'caught' ? { arrestCause: arrestCause ?? 'stopped' } : {}), place,
     time: rider.finishedAt ?? state.time, reward: state.multiplayer ? 0 : reason === 'finish' ? Math.round(getTrack(state.trackId).prize * ([1,.8,.64,.5,.4,.32,.25,.2][place-1] ?? .2)) : 120,
-    hits: rider.hits, falls: rider.falls };
+    hits: rider.hits, falls: rider.falls, ...(reason==='finish' && rider.stolenPoliceBike && rider.bikeId===POLICE_BIKE_ID && !rider.recovery && !rider.finishedOnFoot?{stolenPoliceBike:true}:{}), ...(rider.feats?.policeKnockdowns?{policeKnockdowns:rider.feats.policeKnockdowns}:{}) };
   if (state.multiplayer) {
     state.multiplayer.results[rider.id] = result;
     if (state.mode !== 'finished' && state.multiplayer.humanIds.every(id => state.multiplayer!.results[id])) {
@@ -440,6 +448,7 @@ export function stepRace(state: RaceState, commands: Record<string, Command> = {
   const oldZ = new Map(state.riders.map(r => [r.id,r.z]));
   const beforeFeats=new Map(state.riders.map(r=>[r.id,{z:r.z,health:r.health,integrity:r.integrity}]));
   for (const r of state.riders) {
+    advanceAbandonedBike(state,r,STEP);
     applyCommand(state,r,commands[r.id] ?? (r.profile === 'player' ? EMPTY_COMMAND : botCommand(state,r)));
     if(!r.out && !r.crash && r.finishedAt===null && (r.wetKneeTicks ?? 0)*STEP>WET_KNEE_LIMIT) {
       crashRider(state,r,true);
@@ -459,7 +468,7 @@ export function stepRace(state: RaceState, commands: Record<string, Command> = {
   const front = active.slice().sort((a,b) => b.z-a.z)[0];
   if (!state.policeActive && state.heat >= 48 && front && front.z > 1300) {
     const police = makeRider('police','POLÍCIA','police','#e7e9e5',guardRailPosition(state.trackId,state.trackId==='terra'?clamp(front.x+1.5,-3,3):front.x+1.5,front.z-100),front.z-100);
-    police.bikeId = 'estradeira'; police.speed = 58; police.maxSpeed = POLICE_TOP_SPEED; police.acceleration = 16; police.weapon = true;
+    police.bikeId = POLICE_BIKE_ID; police.speed = 58; police.maxSpeed = POLICE_TOP_SPEED; police.acceleration = 16; police.weapon = true;
     state.riders.push(police); state.policeActive = true;
     state.events.push({ type: 'police', actor: 'police', text: 'POLÍCIA NA ESTRADA · CUIDADO!' });
   }

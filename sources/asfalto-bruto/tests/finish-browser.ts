@@ -12,7 +12,7 @@ import { EMPTY_COMMAND, type RaceCondition } from '../src/game/types';
 const live=process.env.PUBLIC_URL,folder=process.env.FINISH_OUTPUT ?? 'output/finish';await fs.mkdir(folder,{recursive:true});
 let offset=0;const store=new MemoryStore(),app=live?null:createGameServer(store,{now:()=>Date.now()+offset});
 if(app){app.server.listen(0,'127.0.0.1');await once(app.server,'listening');}
-const vite=app?spawn(process.execPath,['node_modules/vite/bin/vite.js','--host','127.0.0.1','--port','4386','--strictPort'],{env:{...process.env,ASFALTO_SERVER_URL:`http://127.0.0.1:${(app.server.address() as {port:number}).port}`},stdio:'ignore'}):null;
+const vite=app?spawn(process.execPath,['node_modules/vite/bin/vite.js',...process.env.FINISH_PREVIEW?['preview']:[],'--host','127.0.0.1','--port','4386','--strictPort'],{env:{...process.env,ASFALTO_SERVER_URL:`http://127.0.0.1:${(app.server.address() as {port:number}).port}`},stdio:'ignore'}):null;
 const base=live ?? 'http://127.0.0.1:4386/';
 if(vite)for(let i=0;i<100;i++){try{if((await fetch(base)).ok)break;}catch{}await new Promise(r=>setTimeout(r,100));}
 const browser=await chromium.launch({headless:true,args:live?['--host-resolver-rules=MAP flowofdevelopment.com 2.25.126.149, MAP asfaltobruto.flowofdevelopment.com 2.25.126.149']:[]});
@@ -58,7 +58,8 @@ try{
     assert.equal(await p.evaluate(()=>window.__game!.snapshot()),secondSnapshot);assert.equal((await state(p)).save.cash,secondCash);
     await p.click('#again-btn');assert.equal((await state(p)).mode,'countdown');assert.equal((await state(p)).track,'porto');assert.equal((await state(p)).condition,'rain');assert.equal((await state(p)).finish.stage,'none');
     const caught=fixture();caught.riders[0].finishedAt=null;finishRider(caught,caught.riders[0],'caught','fall');await restore(p,caught);await p.evaluate(cmd=>window.__game!.command(cmd,0),EMPTY_COMMAND);
-    assert.equal((await state(p)).screen,'result');assert.equal((await state(p)).finish.stage,'none');assert.equal(await p.locator('#result-modal').isVisible(),true);assert.equal(await p.locator('#next-race-btn').count(),0);
+    assert.equal((await state(p)).screen,'finish');assert.ok((await state(p)).arrest);await p.click('#finish-skip');
+    assert.equal((await state(p)).screen,'result');assert.equal(await p.locator('#result-modal').isVisible(),true);assert.equal(await p.locator('#next-race-btn').count(),0);
     const ceremony=fixture('costa',false,'day');
     ceremony.riders.forEach((r,i)=>{if(i)Object.assign(r,{z:8399-i*2,speed:45,immune:10});});
     ceremony.riders.push({...ceremony.riders[1],id:'police',name:'POLÍCIA',profile:'police',bikeId:'estradeira',color:'#e7e9e5',z:8350,x:-5.5,speed:50,maxSpeed:85,weapon:true,finishedAt:null});ceremony.policeActive=true;
@@ -100,13 +101,18 @@ try{
     await host.click('#online-ready');await guest.click('#online-ready');await host.waitForFunction(()=>JSON.parse(window.render_game_to_text()).online?.locked);offset+=5001;
     for(const p of [host,guest])await p.waitForFunction(()=>JSON.parse(window.render_game_to_text()).screen==='race');
     const hostId=(await state(host)).online.id,guestId=(await state(guest)).online.id;
-    await store.mutate(code,room=>{const s=room.race!;s.mode='racing';s.countdown=0;s.time=120;s.traffic=[];s.obstacles=[];s.riders.forEach(r=>Object.assign(r,{z:r.id===hostId?8399:8000,x:1.7,speed:50,crash:0,immune:0,integrity:100,health:100}));});
-    await host.keyboard.down('w');await guest.keyboard.down('w');await host.waitForFunction(()=>JSON.parse(window.render_game_to_text()).screen==='finish');await host.keyboard.up('w');
+    await host.keyboard.down('w');await guest.keyboard.down('w');
+    await store.mutate(code,room=>{const s=room.race!;s.mode='racing';s.countdown=0;s.time=120;s.traffic=[];s.obstacles=[];s.riders.forEach(r=>Object.assign(r,{z:r.id===hostId?8399:7000,x:1.7,speed:50,crash:0,immune:0,integrity:100,health:100}));});
+    await host.waitForFunction(()=>JSON.parse(window.render_game_to_text()).result?.reason==='finish');await host.keyboard.up('w');
     const z=(await state(guest)).player.z;await guest.waitForTimeout(700);assert.ok((await state(guest)).player.z>z);assert.equal((await state(guest)).screen,'race');assert.equal((await state(guest)).finish.winnerId,hostId);
     await shot(host,'online-winner');await advance(host,5000);assert.equal((await state(host)).screen,'result');assert.match(await host.locator('#online-result-status').innerText(),/1 \/ 2/);await shot(host,'online-result');
-    await host.click('#online-next-btn');assert.equal(await host.locator('#online-modal').isVisible(),true);assert.equal(await host.inputValue('#online-track'),'costa:rain');assert.equal((await state(host)).online,null);
+    assert.equal(await host.locator('#online-next-btn').isDisabled(),true);
     assert.equal((await state(guest)).online.id,guestId);assert.equal((await state(guest)).screen,'race');
-    await guest.keyboard.up('w');await guest.click('#pause-btn');await guest.click('#menu-btn');await host.close();await guest.close();
+    await store.mutate(code,room=>{const r=room.race!.riders.find(r=>r.id===guestId)!;r.z=8399.9;r.speed=40;});
+    await guest.keyboard.up('w');await host.waitForFunction(()=>JSON.parse(window.render_game_to_text()).online.phase==='finished');await advance(guest,5000);
+    await host.click('#online-next-btn');await guest.click('#online-next-btn');await host.locator('#online-modal[open]').waitFor();
+    assert.equal(await host.inputValue('#lobby-track'),'costa:rain');assert.equal((await state(host)).online.code,code);assert.equal((await state(guest)).online.id,guestId);
+    await host.click('#online-leave');await guest.click('#online-leave');await host.close();await guest.close();
   }
   assert.deepEqual(errors,[]);await fs.writeFile(`${folder}/report.json`,JSON.stringify({ok:true,checks:['winner and rival celebrate','camera before result','reward once','frozen authoritative solo state','late solo arrivals remain parked after second-place finish','next unlocked race','retry and menu','four screen sizes','rain and night','loss skips celebration',...app?['online winner while guest continues','new online track lobby without moving other racer']:[]],errors},null,2));console.log('Finish scenes and result navigation passed');
 }finally{await browser.close();await app?.close();vite?.kill('SIGTERM');}

@@ -37,7 +37,7 @@ module.exports = __toCommonJS(asfalto_exports);
 var import_node_http2 = require("node:http");
 
 // src/version.ts
-var GAME_VERSION = "1.5.0-beta";
+var GAME_VERSION = "1.6.0-beta";
 
 // server/service.ts
 var import_node_http = require("node:http");
@@ -276,6 +276,13 @@ var BIKES = [
   { id: "bicicleta", secret: true, nitroCapacity: 0, name: "Magrela", class: "BICICLETA SECRETA", style: "bicycle", price: 0, speed: 60 / 3.6, acceleration: 13.8, handling: 1.6, armor: 0.7, color: "#f9b857", tagline: "Cada toque \xE9 uma pedalada. Aperte e solte W ou \u2191 em sequ\xEAncia; no celular, toque repetidamente na parte de cima do acelerador. Segurar n\xE3o mant\xE9m o embalo." }
 ];
 var MOTORBIKES = BIKES.filter((b) => !b.secret);
+var POLICE_BIKE_ID = "policial";
+var POLICE_BIKE_SPEED = (Math.max(...MOTORBIKES.map((b) => b.speed)) + 3 * 2.5) * 1.1 + 4;
+BIKES.push({ id: POLICE_BIKE_ID, secret: true, singlePlayerOnly: true, nitroCapacity: 0, name: "Patrulha 900", class: "MOTO DA POL\xCDCIA", style: "cruiser", price: 0, speed: POLICE_BIKE_SPEED, acceleration: 16, handling: 1, armor: 1, color: "#e7e9e5", tagline: "Conquistada ao terminar uma corrida com a moto roubada do policial. Exclusiva do individual e campeonato, sem privil\xE9gios de pol\xEDcia." });
+function onlineBike(id) {
+  const b = getBike(id);
+  return b.singlePlayerOnly ? BIKES[0] : b;
+}
 var BICYCLE_ID = "bicicleta";
 var isBicycle = (id) => id === BICYCLE_ID;
 function getBike(id) {
@@ -401,6 +408,37 @@ function contactGuardRail(trackId, rider, dt = 0) {
   return true;
 }
 
+// src/game/police-bike.ts
+function stealablePoliceBike(s, r, radius) {
+  if (s.multiplayer || s.mode !== "racing" || r.profile !== "player" || r.out || r.finishedAt !== null || r.stolenPoliceBike || r.recovery?.phase !== "walking") return;
+  const own = Math.hypot(r.x - r.recovery.bikeX, r.z - r.recovery.bikeZ);
+  return s.riders.filter((c) => {
+    const f = c.recovery;
+    if (c.profile !== "police" || c.out || c.integrity <= 0 || !f || f.bikeTaken || f.phase === "mounting" || f.phase === "exploding" || Math.hypot(f.bikeVX, f.bikeVZ) >= 0.2) return false;
+    const distance = Math.hypot(r.x - f.bikeX, r.z - f.bikeZ);
+    return distance <= radius && distance < own && !(f.phase === "walking" && Math.hypot(c.x - f.bikeX, c.z - f.bikeZ) <= radius);
+  }).sort((a, b) => Math.hypot(r.x - a.recovery.bikeX, r.z - a.recovery.bikeZ) - Math.hypot(r.x - b.recovery.bikeX, r.z - b.recovery.bikeZ) || a.id.localeCompare(b.id))[0];
+}
+function takePoliceBike(r, officer) {
+  const own = r.recovery, bike = officer.recovery;
+  r.stolenPoliceBike = { officerId: officer.id, originalBike: { bikeId: r.bikeId ?? "ferro", color: r.color, integrity: r.integrity, nitro: r.nitro ?? 0, bikeX: own.bikeX, bikeZ: own.bikeZ, bikeVX: own.bikeVX, bikeVZ: own.bikeVZ } };
+  r.bikeId = POLICE_BIKE_ID;
+  r.maxSpeed = officer.maxSpeed;
+  r.acceleration = officer.acceleration;
+  r.handling = officer.handling;
+  r.armor = officer.armor;
+  r.integrity = officer.integrity;
+  r.nitro = 0;
+  r.nitroTime = 0;
+  r.pedalTime = 0;
+  r.pedalCooldown = 0;
+  own.bikeX = bike.bikeX;
+  own.bikeZ = bike.bikeZ;
+  own.bikeVX = 0;
+  own.bikeVZ = 0;
+  bike.bikeTaken = true;
+}
+
 // src/game/recovery.ts
 var RUN_SPEED = 7.2;
 var MOUNT_DISTANCE = 1.35;
@@ -419,7 +457,7 @@ function beginRecovery(s, r, kind = "spill") {
 }
 function recoveryCommand(r) {
   const f = r.recovery;
-  if (!f) return { throttle: 0, brake: 0, steer: 0, attack: null };
+  if (!f || f.bikeTaken) return { throttle: 0, brake: 0, steer: 0, attack: null };
   const dx = f.bikeX - r.x, dz = f.bikeZ - r.z, len = Math.max(1, Math.hypot(dx, dz));
   return { throttle: Math.max(0, dz / len), brake: Math.max(0, -dz / len), steer: clamp(dx / len, -1, 1), attack: null };
 }
@@ -471,7 +509,13 @@ function advanceRecovery(s, r, cmd, dt, confirm = true) {
     }
     r.z = clamp(r.z + RUN_SPEED * dt * dz / norm, 0, getTrack(s.trackId).distance + 35);
     r.x = reachableX(s, r.x + RUN_SPEED * dt * dx / norm, r.z);
-    if (confirm && Math.hypot(r.x - f.bikeX, r.z - f.bikeZ) <= MOUNT_DISTANCE && Math.hypot(f.bikeVX, f.bikeVZ) < 0.2) {
+    const officer = confirm ? stealablePoliceBike(s, r, MOUNT_DISTANCE) : void 0;
+    if (officer) {
+      takePoliceBike(r, officer);
+      f.phase = "mounting";
+      f.timer = MOUNT_SECONDS;
+      s.events.push({ type: "steal", actor: r.id, target: officer.id, text: "MOTO DA POL\xCDCIA ROUBADA! TERMINE A CORRIDA COM ELA" });
+    } else if (confirm && !f.bikeTaken && Math.hypot(r.x - f.bikeX, r.z - f.bikeZ) <= MOUNT_DISTANCE && Math.hypot(f.bikeVX, f.bikeVZ) < 0.2) {
       if (r.integrity <= 0) explodeBike(s, r);
       else {
         f.phase = "mounting";
@@ -493,9 +537,20 @@ function advanceRecovery(s, r, cmd, dt, confirm = true) {
       r.crash = 0;
       r.immune = 1.1;
       delete r.recovery;
-      s.events.push({ type: "pass", actor: r.id, text: "DE VOLTA \xC0 MOTO!" });
+      s.events.push({ type: "pass", actor: r.id, text: r.stolenPoliceBike ? "NA MOTO DA POL\xCDCIA!" : "DE VOLTA \xC0 MOTO!" });
     }
   }
+}
+function advanceAbandonedBike(s, r, dt) {
+  const b = r.stolenPoliceBike?.originalBike;
+  if (!b) return;
+  const x = b.bikeX + b.bikeVX * dt;
+  b.bikeZ = clamp(b.bikeZ + b.bikeVZ * dt, 0, getTrack(s.trackId).distance + 35);
+  b.bikeX = reachableX(s, x, b.bikeZ);
+  if (Math.abs(x - b.bikeX) > 1e-3) b.bikeVX = 0;
+  const drag = (s.trackId === "terra" ? 12 : 10) * (s.condition === "rain" ? 0.8 : 1);
+  b.bikeVX = move(b.bikeVX, drag, dt);
+  b.bikeVZ = move(b.bikeVZ, drag, dt);
 }
 function explodeBike(s, r) {
   const f = r.recovery;
@@ -572,8 +627,11 @@ var newRaceFeats = (clean = true) => ({ clean, knocked: [], policeDown: false, c
 function creditKnock(actor, target, previousFalls) {
   if (target.falls <= previousFalls || actor.id === target.id) return;
   const f = actor.feats ??= newRaceFeats(false);
-  if (target.profile === "police") f.policeDown = true;
-  else if (!f.knocked.includes(target.id)) f.knocked.push(target.id);
+  if (target.profile === "police") {
+    f.policeDown = true;
+    f.policeKnockdowns = (f.policeKnockdowns ?? 0) + 1;
+    return true;
+  } else if (!f.knocked.includes(target.id)) f.knocked.push(target.id);
 }
 function creditCarJump(r, id) {
   const f = r.feats ??= newRaceFeats(false);
@@ -632,9 +690,17 @@ function advanceStunt(state, rider, command, dt) {
   }
   if (rider.crash || rider.out || rider.finishedAt !== null) return;
   if (!(rider.jumpTime > 0) && rider.speed >= 8) {
-    const fallen = state.riders.find((other) => other.id !== rider.id && other.recovery && other.recovery.bikeZ >= rider.z && other.recovery.bikeZ - rider.z <= 2 + rider.speed * dt && Math.abs(other.recovery.bikeX - rider.x) < 1.65);
+    const fallen = state.riders.find((other) => other.id !== rider.id && other.recovery && !other.recovery.bikeTaken && other.recovery.bikeZ >= rider.z && other.recovery.bikeZ - rider.z <= 2 + rider.speed * dt && Math.abs(other.recovery.bikeX - rider.x) < 1.65);
     if (fallen) {
       launch(rider, `fallen:${fallen.id}:${fallen.falls}`);
+      return;
+    }
+    const abandoned = state.riders.find((other) => {
+      const b = other.stolenPoliceBike?.originalBike;
+      return b && b.bikeZ >= rider.z && b.bikeZ - rider.z <= 2 + rider.speed * dt && Math.abs(b.bikeX - rider.x) < 1.65;
+    });
+    if (abandoned) {
+      launch(rider, `abandoned:${abandoned.id}`);
       return;
     }
     const ramp2 = state.obstacles.find((o) => isRamp(o) && o.z >= rider.z && o.z - rider.z <= 1.5 + rider.speed * dt && Math.abs(o.x - rider.x) < obstacleShape(o).contact);
@@ -682,6 +748,9 @@ function advancePedaling(r, dt) {
   }
 }
 
+// src/game/rewards.ts
+var POLICE_KNOCKDOWN_REWARD = 500;
+
 // src/game/banter.ts
 var TAUNTS = [
   "Ningu\xE9m me pega!",
@@ -723,7 +792,7 @@ var EMPTY_COMMAND = { throttle: 0, brake: 0, steer: 0, attack: null };
 // src/game/simulation.ts
 var STEP = 1 / 60;
 var FALL_ARREST_RADIUS = 30;
-var POLICE_TOP_SPEED = (Math.max(...BIKES.map((b) => b.speed)) + 3 * 2.5) * NITRO_MULTIPLIER + 4;
+var POLICE_TOP_SPEED = POLICE_BIKE_SPEED;
 var ATTACKS = {
   punch: { windup: 0.13, duration: 0.34, cooldown: 0.46, reach: 2.3, longitudinal: 4.8, damage: 16, push: 0.35 },
   kick: { windup: 0.25, duration: 0.52, cooldown: 0.8, reach: 2.6, longitudinal: 4.6, damage: 22, push: 1.1 },
@@ -1006,7 +1075,7 @@ function resolveAttacks(state) {
       if (target && (Math.sign(target.x - rider.x) === attack.side || Math.abs(target.x - rider.x) < 0.4)) {
         const falls = target.falls;
         impact(state, target, spec.damage, attack.side * spec.push);
-        creditKnock(rider, target, falls);
+        const policeDown = creditKnock(rider, target, falls);
         rider.hits++;
         const action = attack.kind === "kick" ? "CHUTE" : attack.kind === "weapon" ? getWeapon(rider.weaponId)?.action ?? "BASTONADA" : "SOCO";
         state.events.push({ type: "hit", actor: rider.id, target: target.id, text: target.id === "player" ? `VOC\xCA LEVOU ${action} \xB7 ${rider.name}` : `${target.name} \xB7 ${action}!` });
@@ -1016,10 +1085,14 @@ function resolveAttacks(state) {
           rider.weapon = true;
           state.events.push({ type: "steal", actor: rider.id, text: "BAST\xC3O TOMADO!" });
         }
+        if (policeDown) policeRewardEvent(state, rider);
       }
     }
     if (attack.age >= spec.duration + telegraph) rider.attack = null;
   }
+}
+function policeRewardEvent(state, rider) {
+  state.events.push({ type: "pass", actor: rider.id, text: `POLICIAL DERRUBADO \xB7 +${POLICE_KNOCKDOWN_REWARD} MOEDAS` });
 }
 function mayCollide(state, a, b, cooldown = 1.4) {
   const key = [a, b].sort().join(":");
@@ -1077,9 +1150,10 @@ function resolveCollisions(state, oldZ) {
         const rFalls = r.falls, otherFalls = other.falls;
         impact(state, r, 7, side * 0.35);
         impact(state, other, 7, -side * 0.35);
-        creditKnock(other, r, rFalls);
-        creditKnock(r, other, otherFalls);
+        const otherReward = creditKnock(other, r, rFalls), rReward = creditKnock(r, other, otherFalls);
         state.events.push({ type: "hit", actor: r.id, text: "CONTATO!" });
+        if (otherReward) policeRewardEvent(state, other);
+        if (rReward) policeRewardEvent(state, r);
       }
     }
   }
@@ -1112,7 +1186,7 @@ function createMultiplayerRace(trackId, players, seed = 88117, fillBots = false,
   const base = state.riders[0];
   const bots = state.riders.slice(1);
   const grid = trackId === "terra" ? [2.1, -2.1] : [-5.1, -1.7, 1.7, 5.1];
-  state.riders = players.map((p, i) => ({ ...base, ...stockBike(p.bikeId), helmetId: getHelmet(p.helmetId).id, helmetColorId: getHelmetColor(p.helmetColorId).id, weaponId: getWeapon(p.weaponId)?.id, kneePadId: getKneePad(p.kneePadId)?.id, nitro: nitroCount(p.bikeId, p.nitro), id: p.id, name: p.name, color: colors[i], x: grid[i % grid.length], z: -(Math.floor(i / grid.length) * (trackId === "terra" ? 10 : 8)), profile: "player" }));
+  state.riders = players.map((p, i) => ({ ...base, ...stockBike(onlineBike(p.bikeId).id), helmetId: getHelmet(p.helmetId).id, helmetColorId: getHelmetColor(p.helmetColorId).id, weaponId: getWeapon(p.weaponId)?.id, kneePadId: getKneePad(p.kneePadId)?.id, nitro: nitroCount(onlineBike(p.bikeId).id, p.nitro), id: p.id, name: p.name, color: colors[i], x: grid[i % grid.length], z: -(Math.floor(i / grid.length) * (trackId === "terra" ? 10 : 8)), profile: "player" }));
   if (fillBots) for (let i = players.length; i < 8; i++) {
     const bot = bots[i - players.length];
     const bike = MOTORBIKES[i % MOTORBIKES.length], pad = rivalKneePad(bike.id, bot.profile, getTrack(trackId).level);
@@ -1140,7 +1214,9 @@ function finishRider(state, rider, reason, arrestCause) {
     time: rider.finishedAt ?? state.time,
     reward: state.multiplayer ? 0 : reason === "finish" ? Math.round(getTrack(state.trackId).prize * ([1, 0.8, 0.64, 0.5, 0.4, 0.32, 0.25, 0.2][place - 1] ?? 0.2)) : 120,
     hits: rider.hits,
-    falls: rider.falls
+    falls: rider.falls,
+    ...reason === "finish" && rider.stolenPoliceBike && rider.bikeId === POLICE_BIKE_ID && !rider.recovery && !rider.finishedOnFoot ? { stolenPoliceBike: true } : {},
+    ...rider.feats?.policeKnockdowns ? { policeKnockdowns: rider.feats.policeKnockdowns } : {}
   };
   if (state.multiplayer) {
     state.multiplayer.results[rider.id] = result;
@@ -1187,6 +1263,7 @@ function stepRace(state, commands = {}) {
   const oldZ = new Map(state.riders.map((r) => [r.id, r.z]));
   const beforeFeats = new Map(state.riders.map((r) => [r.id, { z: r.z, health: r.health, integrity: r.integrity }]));
   for (const r of state.riders) {
+    advanceAbandonedBike(state, r, STEP);
     applyCommand(state, r, commands[r.id] ?? (r.profile === "player" ? EMPTY_COMMAND : botCommand(state, r)));
     if (!r.out && !r.crash && r.finishedAt === null && (r.wetKneeTicks ?? 0) * STEP > WET_KNEE_LIMIT) {
       crashRider(state, r, true);
@@ -1211,7 +1288,7 @@ function stepRace(state, commands = {}) {
   const front = active.slice().sort((a, b) => b.z - a.z)[0];
   if (!state.policeActive && state.heat >= 48 && front && front.z > 1300) {
     const police = makeRider("police", "POL\xCDCIA", "police", "#e7e9e5", guardRailPosition(state.trackId, state.trackId === "terra" ? clamp(front.x + 1.5, -3, 3) : front.x + 1.5, front.z - 100), front.z - 100);
-    police.bikeId = "estradeira";
+    police.bikeId = POLICE_BIKE_ID;
     police.speed = 58;
     police.maxSpeed = POLICE_TOP_SPEED;
     police.acceleration = 16;
@@ -1250,7 +1327,7 @@ function stepRace(state, commands = {}) {
 }
 
 // src/multiplayer/protocol.ts
-var NET_VERSION = 17;
+var NET_VERSION = 18;
 var MAX_PLAYERS = 8;
 var ROOM_WAIT_MS = 6e4;
 var PUBLIC_ROOM_WAIT_MS = 12e4;
@@ -1293,10 +1370,26 @@ function cleanActions(value) {
 
 // server/room.ts
 var import_node_crypto = require("node:crypto");
+
+// src/game/routes.ts
+var RACE_ROUTES = TRACKS.flatMap((track) => CONDITIONS.map((condition) => ({
+  id: `${track.id}:${condition.id}`,
+  name: `${track.name} \xB7 ${condition.name}`,
+  track,
+  condition
+})));
+function raceRoute(trackId, condition) {
+  return RACE_ROUTES.find((r) => r.track.id === trackId && r.condition.id === raceCondition(condition)) ?? RACE_ROUTES[1];
+}
+function nextRaceRoute(trackId, condition) {
+  return RACE_ROUTES[RACE_ROUTES.indexOf(raceRoute(trackId, condition)) + 1] ?? null;
+}
+
+// server/room.ts
 var inputKey = (member) => `${member.id}:${member.epoch}`;
 var secret = () => (0, import_node_crypto.randomBytes)(24).toString("base64url");
 function makeMember(name, now, bikeId, loadout) {
-  const bike = getBike(typeof bikeId === "string" ? bikeId : void 0);
+  const bike = onlineBike(typeof bikeId === "string" ? bikeId : void 0);
   return { id: `human-${(0, import_node_crypto.randomBytes)(8).toString("hex")}`, name: cleanName(name), bikeId: bike.id, helmetId: getHelmet(loadout?.helmetId).id, helmetColorId: getHelmetColor(loadout?.helmetColorId).id, weaponId: getWeapon(loadout?.weaponId)?.id, kneePadId: getKneePad(loadout?.kneePadId)?.id, nitro: nitroCount(bike.id, loadout?.nitro), ready: false, connected: true, token: secret(), epoch: secret(), lastSeen: now };
 }
 function makeRoom(code, trackId, member, now, fillBots = false, condition, isPublic = false) {
@@ -1304,6 +1397,7 @@ function makeRoom(code, trackId, member, now, fillBots = false, condition, isPub
   if (condition !== void 0 && !CONDITIONS.some((c) => c.id === condition)) throw new Error("Condi\xE7\xE3o inv\xE1lida.");
   return {
     code,
+    round: 0,
     public: isPublic === true,
     condition: raceCondition(condition),
     trackId,
@@ -1323,8 +1417,15 @@ function makeRoom(code, trackId, member, now, fillBots = false, condition, isPub
   };
 }
 function viewRoom(room, now) {
+  const waiting = continuationMembers(room, now);
   return {
     code: room.code,
+    round: room.round ?? 0,
+    hostId: hostId(room),
+    manualStart: room.manualStart,
+    continuationCount: waiting.length,
+    reconnectingCount: waiting.filter((m) => !m.connected).length,
+    previous: room.previous,
     public: room.public === true,
     condition: raceCondition(room.condition),
     trackId: room.trackId,
@@ -1335,12 +1436,18 @@ function viewRoom(room, now) {
     revision: room.revision,
     serverNow: now,
     simulationAt: room.updatedAt,
-    members: room.members.map(({ id, name, bikeId, helmetId, helmetColorId, weaponId, kneePadId, nitro, ready, connected }) => ({ id, name, bikeId, helmetId, helmetColorId, weaponId, kneePadId, nitro, ready, connected })),
+    members: room.members.map(({ id, entryId, continuation, name, bikeId, helmetId, helmetColorId, weaponId, kneePadId, nitro, ready, connected }) => ({ id, entryId, continuation, name, bikeId, helmetId, helmetColorId, weaponId, kneePadId, nitro, ready, connected })),
     race: room.race,
     ack: room.ack,
     attackAck: room.attackAck,
     actionAck: room.actionAck
   };
+}
+function hostId(room) {
+  return room.members.find((m) => m.connected && !m.left)?.id;
+}
+function continuationMembers(room, now) {
+  return room.members.filter((m) => !m.left && (m.connected || now - m.lastSeen <= RECONNECT_MS));
 }
 function publicRoomView(room, now) {
   if (room.public !== true || room.phase !== "lobby" || room.locked || now - room.createdAt > 30 * 6e4) return null;
@@ -1357,12 +1464,16 @@ function lobbyClock(room, now) {
   if (present.length < 2) {
     if (room.locked) {
       room.locked = false;
-      room.deadline = now + (room.public ? PUBLIC_ROOM_WAIT_MS : ROOM_WAIT_MS);
+      room.deadline = room.manualStart ? null : now + (room.public ? PUBLIC_ROOM_WAIT_MS : ROOM_WAIT_MS);
     }
     if (room.deadline !== null && now >= room.deadline) room.deadline = null;
     return;
   }
-  if (room.deadline === null) room.deadline = now + (room.public ? PUBLIC_ROOM_WAIT_MS : ROOM_WAIT_MS);
+  if (room.manualStart && !room.locked && !present.every((p) => p.ready)) {
+    room.deadline = null;
+    return;
+  }
+  if (room.deadline === null) room.deadline = now + (room.manualStart ? READY_WAIT_MS : room.public ? PUBLIC_ROOM_WAIT_MS : ROOM_WAIT_MS);
   if (!room.locked && present.every((p) => p.ready)) room.deadline = Math.min(room.deadline, now + READY_WAIT_MS);
   if (room.deadline - now <= READY_WAIT_MS) room.locked = true;
   if (now < room.deadline) return;
@@ -1390,12 +1501,78 @@ function setReady(room, id, epoch, ready, now) {
   member.lastSeen = now;
   lobbyClock(room, now);
 }
+function setContinuation(room, id, epoch, round, choice, now) {
+  const m = room.members.find((p) => p.id === id && p.epoch === epoch && !p.left);
+  if (!m?.connected || room.phase !== "finished" || round !== (room.round ?? 0) || !room.race?.multiplayer?.results[id]) throw Error("Aguarde todos terminarem a corrida.");
+  if (!["next", "again", "lobby"].includes(choice)) throw Error("Op\xE7\xE3o inv\xE1lida.");
+  if (choice === "next" && !nextRaceRoute(room.trackId, room.condition)) throw Error("Esta \xE9 a \xFAltima corrida. Volte \xE0 sala para escolher uma pista.");
+  m.continuation = choice;
+  m.lastSeen = now;
+}
+function continuationChoice(room, now) {
+  if (room.phase !== "finished") return;
+  const members = continuationMembers(room, now);
+  if (members.some((m) => m.connected && m.continuation === "lobby")) return "lobby";
+  const first = members[0]?.continuation;
+  if (members.length >= 2 && first && members.every((m) => m.connected && m.continuation === first)) return first;
+}
+function reopenRoom(room, choice, now, prepare) {
+  if (room.phase !== "finished" || !room.race) throw Error("A corrida ainda est\xE1 em andamento.");
+  const next = choice === "next" ? nextRaceRoute(room.trackId, room.condition) : null;
+  if (choice === "next" && !next) throw Error("Esta \xE9 a \xFAltima corrida.");
+  const previous = continuationMembers(room, now);
+  const members = previous.map((m) => ({ ...m, entryId: `human-${(0, import_node_crypto.randomBytes)(8).toString("hex")}`, continuation: void 0, ready: choice !== "lobby", nitro: room.race.riders.find((r) => r.id === m.id)?.nitro ?? m.nitro }));
+  prepare?.(members, previous);
+  room.previous = { race: structuredClone(room.race), members: viewRoom(room, now).members };
+  room.members = members;
+  room.round = (room.round ?? 0) + 1;
+  room.createdAt = now;
+  room.updatedAt = now;
+  room.finishedAt = null;
+  if (next) {
+    room.trackId = next.track.id;
+    room.condition = next.condition.id;
+  }
+  room.phase = "lobby";
+  room.race = null;
+  room.manualStart = true;
+  room.locked = false;
+  room.deadline = null;
+  lobbyClock(room, now);
+}
+function configureRoom(room, id, epoch, round, patch, now, equip) {
+  lobbyClock(room, now);
+  const m = room.members.find((p) => p.id === id && p.epoch === epoch && !p.left);
+  if (!m?.connected || room.phase !== "lobby" || room.locked || round !== (room.round ?? 0)) throw Error("A sala j\xE1 fechou a largada.");
+  const route = patch.trackId !== void 0 || patch.condition !== void 0;
+  if (route) {
+    if (hostId(room) !== id) throw Error("Somente o anfitri\xE3o pode trocar a pista.");
+    if (!TRACKS.some((t) => t.id === patch.trackId) || !CONDITIONS.some((c) => c.id === patch.condition)) throw Error("Pista ou condi\xE7\xE3o inv\xE1lida.");
+  }
+  if (patch.bikeId !== void 0) {
+    const selected = makeMember(m.name, now, patch.bikeId, patch.loadout);
+    const replacement = { ...m, bikeId: selected.bikeId, helmetId: selected.helmetId, helmetColorId: selected.helmetColorId, weaponId: selected.weaponId, kneePadId: selected.kneePadId, nitro: selected.nitro, entryId: selected.id, ready: false };
+    equip?.(replacement, m);
+    Object.assign(m, replacement);
+  }
+  if (route) {
+    room.trackId = patch.trackId;
+    room.condition = raceCondition(patch.condition);
+    room.members.forEach((p) => p.ready = false);
+  }
+  m.lastSeen = now;
+  lobbyClock(room, now);
+}
 function depart(room, id, epoch, now, explicit = false) {
   const member = room.members.find((p) => p.id === id && p.epoch === epoch);
   if (!member) return;
   member.connected = false;
   member.ready = false;
   member.lastSeen = now;
+  if (explicit) {
+    member.left = true;
+    member.continuation = void 0;
+  }
   if (explicit && room.race) {
     const rider = room.race.riders.find((r) => r.id === id);
     if (rider && !room.race.multiplayer.results[id]) finishRider(room.race, rider, "left");
@@ -1406,7 +1583,7 @@ function depart(room, id, epoch, now, explicit = false) {
 function pulseRoom(room, inputs, now) {
   for (const m of room.members) {
     const input = inputs[inputKey(m)];
-    if (input && input.at > m.lastSeen) {
+    if (!m.left && input && input.at > m.lastSeen) {
       m.lastSeen = input.at;
       m.connected = true;
     }
@@ -1606,12 +1783,14 @@ var RedisStore = class {
     let committed = false;
     try {
       const room = JSON.parse(snapshot[1]), entries = snapshot[2], inputs = {};
+      const previousPhase = room.phase;
       for (let i = 0; i < entries.length; i += 2) inputs[entries[i]] = JSON.parse(entries[i + 1]);
       change(room, inputs);
       room.revision++;
       const saved = await this.command("EVAL", `if redis.call('GET',KEYS[1])==ARGV[1] then redis.call('SET',KEYS[2],ARGV[2],'EX',1800); redis.call('DEL',KEYS[1]); return 1 end; return 0`, 2, lock, this.key(code, "state"), token, JSON.stringify(room));
       if (saved !== 1) throw new BusyRoom("A sala est\xE1 sincronizando. Tente novamente.");
       committed = true;
+      if (room.public && room.phase === "lobby" && previousPhase !== "lobby") await this.command("ZADD", this.publicIndex, room.createdAt, room.code);
       return room;
     } finally {
       if (!committed) await this.command("EVAL", `if redis.call('GET',KEYS[1])==ARGV[1] then return redis.call('DEL',KEYS[1]) end; return 0`, 1, lock, token).catch(() => {
@@ -1724,6 +1903,12 @@ function createGameServer(store, options = {}) {
     const message = { type: "state", room: viewRoom(room, now()) };
     for (const peer of peers) if (peer.code === room.code) send(peer, message);
   }
+  function continueIfReady(room) {
+    const choice = continuationChoice(room, now());
+    if (!choice) return;
+    options.accounts?.recordRoom(room);
+    reopenRoom(room, choice, now(), (members, previous) => options.accounts?.economy.prepareMembers(members, previous));
+  }
   async function flush(peer) {
     if (peer.writing || !peer.code) return;
     peer.writing = true;
@@ -1826,7 +2011,7 @@ function createGameServer(store, options = {}) {
               } else {
                 const found = r.members.find((m) => typeof data.token === "string" && m.token === data.token);
                 if (found?.accountId && found.accountId !== options.accounts?.identity(req)?.account.id) throw new Error("Entre na mesma conta para retomar esta corrida.");
-                if (!found || now() - found.lastSeen > RECONNECT_MS && r.phase === "lobby") throw new Error("Sua vaga expirou. Entre novamente.");
+                if (!found || found.left || now() - found.lastSeen > RECONNECT_MS && r.phase === "lobby") throw new Error("Sua vaga expirou. Entre novamente.");
                 if (r.race && now() - found.lastSeen > RECONNECT_MS) {
                   const rider = r.race.riders.find((p) => p.id === found.id);
                   if (rider) finishRider(r.race, rider, "left");
@@ -1842,6 +2027,13 @@ function createGameServer(store, options = {}) {
           }
         } else if (data.type === "ready" && peer.code && typeof data.ready === "boolean") {
           broadcast(await store.mutate(peer.code, (r) => setReady(r, peer.id, peer.epoch, data.ready, now())));
+        } else if (data.type === "continue" && peer.code) {
+          broadcast(await store.mutate(peer.code, (r) => {
+            setContinuation(r, peer.id, peer.epoch, data.round, data.choice, now());
+            continueIfReady(r);
+          }));
+        } else if (data.type === "configure" && peer.code) {
+          broadcast(await store.mutate(peer.code, (r) => configureRoom(r, peer.id, peer.epoch, data.round, data, now(), (member, previous) => options.accounts?.economy.equipMember(member.accountId, member, previous))));
         } else if (data.type === "leave" && peer.code) {
           const code = peer.code;
           peer.code = "";
@@ -1874,7 +2066,10 @@ function createGameServer(store, options = {}) {
     try {
       const inputs = {};
       for (const p of peers) if (p.code === code && p.latestInput) inputs[`${p.id}:${p.epoch}`] = p.latestInput;
-      broadcast(await store.mutate(code, (r, inputs2) => pulseRoom(r, inputs2, now()), 0, inputs));
+      broadcast(await store.mutate(code, (r, inputs2) => {
+        pulseRoom(r, inputs2, now());
+        continueIfReady(r);
+      }, 0, inputs));
     } catch (e) {
       if (e instanceof BusyRoom) {
         const room = await store.read(code).catch(() => null);
@@ -1901,8 +2096,8 @@ function createGameServer(store, options = {}) {
         }
         peer.alive = false;
         peer.ws.ping();
-        if (peer.code && latest.get(peer.code)?.phase === "lobby") void store.mutate(peer.code, (r) => {
-          const m = r.members.find((m2) => m2.id === peer.id && m2.epoch === peer.epoch);
+        if (peer.code && latest.get(peer.code)?.phase !== "racing") void store.mutate(peer.code, (r) => {
+          const m = r.members.find((m2) => m2.id === peer.id && m2.epoch === peer.epoch && !m2.left);
           if (m) {
             m.lastSeen = now();
             m.connected = true;

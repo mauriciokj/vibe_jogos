@@ -89,7 +89,7 @@ export class AccountService {
     this.economy.recordRoom(room);
     if(!room.race?.multiplayer)return;
     for(const member of room.members){
-      const result=room.race.multiplayer.results[member.id],key=`${room.code}:${room.createdAt}:${member.id}`;
+      const result=room.race.multiplayer.results[member.id],key=`${room.code}:${room.createdAt}:${member.entryId ?? member.id}`;
       if(!member.accountId || result?.reason!=='finish' || this.recorded.has(key))continue;
       this.db.result(key,member.accountId,'multi',room.trackId,room.condition ?? 'sunset',member.bikeId,result,this.now());
       this.recorded.add(key);if(this.recorded.size>4096)this.recorded.delete(this.recorded.values().next().value!);

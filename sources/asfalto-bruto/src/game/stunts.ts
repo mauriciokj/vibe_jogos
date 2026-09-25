@@ -23,8 +23,10 @@ export function advanceStunt(state: RaceState, rider: Rider, command: Command, d
   }
   if(rider.crash || rider.out || rider.finishedAt!==null)return;
   if(!(rider.jumpTime!>0) && rider.speed>=8){
-    const fallen=state.riders.find(other=>other.id!==rider.id && other.recovery && other.recovery.bikeZ>=rider.z && other.recovery.bikeZ-rider.z<=2+rider.speed*dt && Math.abs(other.recovery.bikeX-rider.x)<1.65);
+    const fallen=state.riders.find(other=>other.id!==rider.id && other.recovery && !other.recovery.bikeTaken && other.recovery.bikeZ>=rider.z && other.recovery.bikeZ-rider.z<=2+rider.speed*dt && Math.abs(other.recovery.bikeX-rider.x)<1.65);
     if(fallen){launch(rider,`fallen:${fallen.id}:${fallen.falls}`);return;}
+    const abandoned=state.riders.find(other=>{const b=other.stolenPoliceBike?.originalBike;return b && b.bikeZ>=rider.z && b.bikeZ-rider.z<=2+rider.speed*dt && Math.abs(b.bikeX-rider.x)<1.65;});
+    if(abandoned){launch(rider,`abandoned:${abandoned.id}`);return;}
     const ramp=state.obstacles.find(o=>isRamp(o) && o.z>=rider.z && o.z-rider.z<=1.5+rider.speed*dt && Math.abs(o.x-rider.x)<obstacleShape(o).contact);
     if(ramp){launch(rider,ramp.id);if(state.trackId==='terra')(rider.feats ??=newRaceFeats(false)).terraJump=true;return;}
   }

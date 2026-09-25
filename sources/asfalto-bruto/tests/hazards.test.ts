@@ -81,7 +81,7 @@ test('two multiplayer views share animated hazards, stationary heading and autho
 });
 test('police outrun all fully upgraded nitro bikes and keep targeting the nearest competitor',()=>{
  const s=scene('costa');s.heat=55;Object.assign(s.riders[0],{z:1400,speed:60});stepRace(s,{player:drive});const cop=s.riders.find(r=>r.profile==='police')!;assert.ok(cop);
- for(const b of BIKES)assert.ok(cop.maxSpeed>(b.speed+7.5)*NITRO_MULTIPLIER);assert.equal(cop.maxSpeed,POLICE_TOP_SPEED);
+ for(const b of BIKES.filter(b=>!b.singlePlayerOnly))assert.ok(cop.maxSpeed>(b.speed+7.5)*NITRO_MULTIPLIER);assert.equal(cop.maxSpeed,POLICE_TOP_SPEED);
  const rival={...createRace().riders[1],x:cop.x,z:cop.z+3};s.riders.push(rival);assert.equal(policeTarget(s,cop)?.id,rival.id);
  s.riders[0].z=cop.z+1;s.riders[0].x=cop.x;assert.equal(policeTarget(s,cop)?.id,'player');
 });

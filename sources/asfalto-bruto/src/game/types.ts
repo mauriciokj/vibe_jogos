@@ -10,12 +10,18 @@ export type RiderAction = 'kneeLeft' | 'kneeRight' | 'nitro' | 'horn' | 'taunt' 
 export interface Command { throttle: number; brake: number; steer: number; attack: AttackKind | null; action?: RiderAction; }
 export interface Attack { kind: AttackKind; age: number; side: number; hit: boolean; id?: number; }
 export interface Recovery {
+ bikeTaken?:boolean;
  origin?:{x:number;z:number;speed:number;lean:number};
  phase:'sliding'|'gettingUp'|'walking'|'mounting'|'exploding';
  bikeX:number;bikeZ:number;bikeVX:number;bikeVZ:number;vx:number;vz:number;
  timer:number;age:number;cycle:number;facingX:number;facingZ:number;hitCooldown:number;hits:number;
 }
+export interface AbandonedBike {
+ bikeId:string;color:string;integrity:number;nitro:number;
+ bikeX:number;bikeZ:number;bikeVX:number;bikeVZ:number;
+}
 export interface Rider {
+  stolenPoliceBike?:{officerId:string;originalBike:AbandonedBike};
   feats?:RaceFeats;
   pedalTime?: number; pedalCooldown?: number; pedalPhase?: number; finishedOnFoot?: boolean;
  recovery?:Recovery;
@@ -32,7 +38,7 @@ export interface Rider {
 export interface Traffic { id: string; x: number; z: number; speed: number; color: string; kind: 'car' | 'van' | 'truck' | 'tractor'; heading?: 1 | -1; queued?: boolean; }
 export interface Obstacle { id: string; x: number; z: number; kind: 'oil' | 'barrier' | 'cone' | 'concrete' | 'gravel' | 'mud' | 'fallenTree' | 'tumbleweed' | 'armadillo' | 'dirtRamp' | 'woodRamp'; width?: number; motion?: { from: number; to: number; speed: number; phase: number; period: number }; }
 export interface GameEvent { type: 'hit' | 'crash' | 'pass' | 'finish' | 'attack' | 'steal' | 'police' | 'horn' | 'nitro' | 'explosion'; actor: string; target?: string; text?: string; tick?: number; }
-export interface RaceResult { reason: 'finish' | 'wrecked' | 'caught' | 'left' | 'timeout'; achievements?:AchievementId[]; onFoot?: boolean; secretUnlocked?: boolean; arrestCause?: 'fall' | 'stopped'; place: number; time: number; reward: number; hits: number; falls: number; }
+export interface RaceResult { reason: 'finish' | 'wrecked' | 'caught' | 'left' | 'timeout'; policeKnockdowns?:number; stolenPoliceBike?:boolean; achievements?:AchievementId[]; onFoot?: boolean; secretUnlocked?: boolean; arrestCause?: 'fall' | 'stopped'; place: number; time: number; reward: number; hits: number; falls: number; }
 export interface RaceState {
   version: 1; condition?: RaceCondition; scenicEvent?: { kind: 'mermaid' | 'saci' | 'boitata'; z: number; startedAt: number | null; duration: number } | { kind: 'truckPassenger'; trafficId: string; z: number; startedAt: number | null; duration: number }; tick: number; rng: number; trackId: string; mode: RaceMode; countdown: number; time: number;
   riders: Rider[]; traffic: Traffic[]; obstacles: Obstacle[]; events: GameEvent[];
@@ -41,8 +47,8 @@ export interface RaceState {
   nextTauntAt?: number;
   multiplayer?: { humanIds: string[]; results: Record<string, RaceResult> };
 }
-export interface Bike { id: string; name: string; class: string; style: BikeStyle; secret?: boolean; nitroCapacity: 0 | 2 | 3 | 5; price: number; speed: number; acceleration: number; handling: number; armor: number; color: string; tagline: string; }
+export interface Bike { id: string; name: string; class: string; style: BikeStyle; secret?: boolean; singlePlayerOnly?:boolean; nitroCapacity: 0 | 2 | 3 | 5; price: number; speed: number; acceleration: number; handling: number; armor: number; color: string; tagline: string; }
 export interface Upgrade { engine: number; armor: number; handling: number; }
-export interface SaveData { version: 1; achievements?:AchievementProgress; championship?: Championship; ownedHelmets?: string[]; helmetId?: string; helmetColorId?: string; raceTrackId?: string; raceCondition?: RaceCondition; ownedWeapons?: string[]; weaponId?: string; ownedKneePads?: string[]; kneePadId?: string; nitro?: Record<string, number>; nitroReceipts?: Record<string, number>; cash: number; owned: string[]; bikeId: string; upgrades: Record<string, Upgrade>; condition: Record<string, number>; unlocked: number; records: Record<string, { time: number; place: number }>; races: number; muted: boolean; }
+export interface SaveData { version: 1; onlineResults?:string[]; policeReceipts?:Record<string,number>; achievements?:AchievementProgress; championship?: Championship; ownedHelmets?: string[]; helmetId?: string; helmetColorId?: string; raceTrackId?: string; raceCondition?: RaceCondition; ownedWeapons?: string[]; weaponId?: string; ownedKneePads?: string[]; kneePadId?: string; nitro?: Record<string, number>; nitroReceipts?: Record<string, number>; cash: number; owned: string[]; bikeId: string; upgrades: Record<string, Upgrade>; condition: Record<string, number>; unlocked: number; records: Record<string, { time: number; place: number }>; races: number; muted: boolean; }
 export interface Track { id: string; name: string; region: string; distance: number; difficulty: string; prize: number; index: number; level: number; theme: 'coast' | 'mountain' | 'desert' | 'port' | 'rural'; sky: string[]; land: string[]; road: string[]; accent: string; }
 export const EMPTY_COMMAND: Command = { throttle: 0, brake: 0, steer: 0, attack: null };

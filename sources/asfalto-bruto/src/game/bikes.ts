@@ -12,6 +12,13 @@ export const BIKES: Bike[] = [
 ];
 // The secret never appears on an ordinary AI rider or changes the existing grid.
 export const MOTORBIKES=BIKES.filter(b=>!b.secret);
+export const POLICE_BIKE_ID='policial';
+// Preserve the officer's existing factory performance. Exclude secret vehicles
+// from this baseline so unlocking a patrol bike cannot increase police speed.
+export const POLICE_BIKE_SPEED=(Math.max(...MOTORBIKES.map(b=>b.speed))+3*2.5)*1.1+4;
+BIKES.push({id:POLICE_BIKE_ID,secret:true,singlePlayerOnly:true,nitroCapacity:0,name:'Patrulha 900',class:'MOTO DA POLÍCIA',style:'cruiser',price:0,speed:POLICE_BIKE_SPEED,acceleration:16,handling:1,armor:1,color:'#e7e9e5',tagline:'Conquistada ao terminar uma corrida com a moto roubada do policial. Exclusiva do individual e campeonato, sem privilégios de polícia.'});
+export function onlineBike(id?:string):Bike {const b=getBike(id);return b.singlePlayerOnly?BIKES[0]:b;}
+
 export const BICYCLE_ID='bicicleta';
 export const isBicycle=(id?:string)=>id===BICYCLE_ID;
 export function getBike(id?: string): Bike { return BIKES.find(b => b.id === id) ?? BIKES[0]; }

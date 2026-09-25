@@ -27,8 +27,9 @@ import './achievements.css';
 import { ACHIEVEMENTS, awardRaceAchievements } from './game/achievements';
 import { medalIcon, achievementsMarkup, achievementRewardMarkup, type AchievementFilter } from './achievements-ui';
 import { FINISH_SECONDS, finishPullback, finishWinner, finishScene, finishPoliceArrival, type FinishPoliceArrival } from './game/finish';
-import type { RacePayout } from './game/rewards';
-import { BICYCLE_ID, MOTORBIKES, isBicycle, supportsKneeDown } from './game/bikes';
+import { policeReward, POLICE_KNOCKDOWN_REWARD, type RacePayout } from './game/rewards';
+import { enteredBike } from './game/police-bike';
+import { BICYCLE_ID, POLICE_BIKE_ID, MOTORBIKES, isBicycle, supportsKneeDown } from './game/bikes';
 import { cornerHandling, equippedKneePad, getKneePad, kneeSupport, nitroCount } from './game/equipment';
 import { TAUNTS } from './game/banter';
 import { DoubleTap } from './game/controls';
@@ -37,6 +38,7 @@ import { OnlineClient } from './multiplayer/client';
 import { spectatorTarget, spectatorTargets } from './multiplayer/spectator';
 import { PublicRoomBrowser } from './multiplayer/discovery';
 import type { RoomView } from './multiplayer/protocol';
+import { settleGuestOnlineResult } from './game/save';
 import { EMPTY_COMMAND } from './game/types';
 import { BIKES, clamp, clockString, cornerForces, cornerPace, curveAt, upcomingCorner, getBike, handlingLabel, zeroToHundred, getTrack, money, TRACKS } from './game/content';
 import { RACE_ROUTES, raceRoute, routeFromId, nextRaceRoute } from './game/routes';
@@ -47,7 +49,7 @@ import { RaceInstruments } from './game/instruments';
 import { Renderer } from './game/renderer';
 import { createRace, finishRider, nearestTarget, ranking, restoreSnapshot, snapshot, STEP, stepRace } from './game/simulation';
 import { bikePortrait } from './game/sprites';
-import { buyHelmet, paintHelmet, buyBike, buyWeapon, buyKneePad, buyNitro, spendNitro, recordOnlineNitro, buyUpgrade, freshSave, repair, repairChampionshipBike, repairCost, settleRace, upgradeCost, soloBikeStatus, unlockBicycle } from './game/save';
+import { buyHelmet, paintHelmet, buyBike, buyWeapon, buyKneePad, buyNitro, spendNitro, recordOnlineNitro, buyUpgrade, freshSave, repair, repairChampionshipBike, repairCost, settleRace, upgradeCost, soloBikeStatus } from './game/save';
 import type { Command, RaceResult, RaceState, RiderAction, Upgrade } from './game/types';
 
 const icons = {
@@ -126,7 +128,9 @@ root.innerHTML = `
         <p class="online-note">De 2 a 8 pessoas. Escolha seu estilo de pilotagem. No online, todos têm acesso às motos de fábrica, sem melhorias. O equipamento de combate, a joelheira equipada e as cargas compradas na garagem acompanham você. O nitro usado é descontado do seu estoque.</p>
       </div>
       <div id="online-lobby" hidden><p id="online-visibility" class="online-visibility"></p><div class="lobby-heading"><div><span class="online-label">CONVIDE PELO CÓDIGO</span><div class="room-code" id="online-code"></div><button class="text-button" id="online-copy">COPIAR CONVITE ↗</button></div><div class="lobby-clock"><strong id="online-clock">60</strong><span id="online-clock-label">SEGUNDOS PARA LARGAR</span></div></div>
-        <div class="lobby-meta"><span id="online-track-name"></span><span id="online-count">1 / 8 PILOTOS</span></div><div id="online-members" class="lobby-members"></div>
+        <div class="lobby-meta"><span id="online-track-name"></span><span id="online-count">1 / 8 PILOTOS</span></div>
+        <div class="lobby-settings"><div><label class="online-label" for="lobby-track">PISTA DA SALA</label><select id="lobby-track" class="online-input">${RACE_ROUTES.map(r=>`<option value="${r.id}">${r.name}</option>`).join('')}</select><small id="lobby-host-hint"></small></div><div><label class="online-label" for="lobby-bike">SUA MOTO</label><select id="lobby-bike" class="online-input"></select><small>Motos de fábrica · equipamento da sua garagem</small></div></div>
+        <div id="online-members" class="lobby-members"></div>
         <p id="online-confirmed-loadout" class="online-loadout"></p><p id="online-lobby-hint" class="online-note"></p><button class="primary" id="online-ready">ESTOU PRONTO ↗</button><button class="text-button" id="online-leave">SAIR DA SALA</button>
       </div><p id="online-status" class="online-status" role="status" aria-live="polite"></p><p id="online-error" class="online-error" role="alert" hidden></p>
     </div>
@@ -162,6 +166,7 @@ let preparingOnline = false;
 let championshipMode=false,champSettling=false,champGarageReturn=false,champCheckpointAt=0;
 let lowIntegrityWarned=false;
 let onlineRaceStarted = false;
+let lastOnlineRound=-1;
 let lastOnlineEventTick = -1;
 let helpStartsRace = false;
 let settled = false;
@@ -182,10 +187,10 @@ let pendingActions: RiderAction[] = [], soloNitroSpent=0;
 let garageTab: GarageTab = 'bikes';
 let achievementFilter:AchievementFilter='all';
 let achievementRoom:RoomView|null=null,achievementRiderId='';
-function bankGuestOnlineAchievements(){const last=achievementRoom;achievementRoom=null;if(accounts.cache||settled||!last?.race||!last.race.multiplayer)return;const s=structuredClone(last.race),r=s.riders.find(r=>r.id===achievementRiderId);if(!r)return;if(!s.multiplayer!.results[r.id])finishRider(s,r,'left');awardRaceAchievements(save,s,r.id,'multi');saveNow();}
+function bankGuestOnlineAchievements(){const last=achievementRoom;achievementRoom=null;if(accounts.cache||settled||!last?.race||!last.race.multiplayer)return;const s=structuredClone(last.race),r=s.riders.find(r=>r.id===achievementRiderId);if(!r)return;if(!s.multiplayer!.results[r.id])finishRider(s,r,'left');settleGuestOnlineResult(save,s,r.id,last.members.find(m=>m.id===r.id)?.entryId ?? r.id);saveNow();}
 function showAchievements(){ $('achievements-modal').innerHTML=achievementsMarkup(save,achievementFilter);if(!$<HTMLDialogElement>('achievements-modal').open)$<HTMLDialogElement>('achievements-modal').showModal(); }
 function showAchievementRewards(ids:import('./game/achievements').AchievementId[]=[]){const html=achievementRewardMarkup(ids);if(html&&!$('result-modal').querySelector('.achievement-rewards'))$('result-modal').insertAdjacentHTML('beforeend',html);}
-function bankGuestAchievements(){if(!onlineMode&&!race.multiplayer&&!accounts.cache&&!settled&&screen==='race'&&race.mode==='racing'){finishRider(race,localRider(),'left');awardRaceAchievements(save,race,localId(),championshipMode?'championship':'solo');settled=true;saveNow();}}
+function bankGuestAchievements(){if(!onlineMode&&!race.multiplayer&&!accounts.cache&&!settled&&screen==='race'&&race.mode==='racing'){finishRider(race,localRider(),'left');save.cash+=policeReward(race.result?.policeKnockdowns);awardRaceAchievements(save,race,localId(),championshipMode?'championship':'solo');settled=true;saveNow();}}
 const displayCache: Record<string, string> = {};
 let lastStandingsTick = -Infinity, lastStandingsPlace = 0;
 const setText = (id: string, value: string) => { if (displayCache[id] !== value) { $(id).textContent = value; displayCache[id] = value; } };
@@ -198,7 +203,7 @@ const online = new OnlineClient({
     for (const id of ['online-create','online-join']) $<HTMLButtonElement>(id).disabled = preparingOnline || status==='connecting' || status==='reconnecting';
   },
   error: message => { $('online-error').textContent=message; $('online-error').hidden=false; if(!$<HTMLDialogElement>('online-modal').open)toast(message); },
-  left: () => { bankGuestOnlineAchievements();onlineMode=false;onlineRaceStarted=false;showMenu();void accounts.refresh(); },
+  left: () => { bankGuestOnlineAchievements();onlineMode=false;onlineRaceStarted=false;lastOnlineRound=-1;showMenu();void accounts.refresh(); },
 });
 const publicRooms=new PublicRoomBrowser($<HTMLDetailsElement>('online-discovery'),code=>enterOnline(false,code));
 function localId() { return onlineMode && online.id ? online.id : 'player'; }
@@ -215,6 +220,15 @@ function openOnline() {
   publicRooms.setBusy(online.active);
 }
 function onlineEquipmentSave(){return accounts.session?.account?accounts.session.cloud?.save ?? save:save;}
+async function refreshOnlineGarage(){
+  const id=accounts.cache?.account.id;if(!id)return;
+  try{
+    const session=await accounts.api('/session');
+    if(session.account?.id!==id || accounts.cache?.account.id!==id || accounts.session?.account?.id!==id)return;
+    // Refresh balances and unlocks without replacing the active room/camera.
+    accounts.acceptCloud(session.cloud,false);save=structuredClone(accounts.cache.save);
+  }catch{/* The next result/lobby/exit retries the authoritative refresh. */}
+}
 function onlineLoadout(bikeId:string){
   const equipment=onlineEquipmentSave();
   return {helmetId:equippedHelmet(equipment).id,helmetColorId:getHelmetColor(equipment.helmetColorId).id,weaponId:equippedWeapon(equipment)?.id,kneePadId:equippedKneePad(equipment)?.id,nitro:nitroCount(bikeId,equipment.nitro?.[bikeId])};
@@ -224,7 +238,7 @@ function onlineEquipmentText(bikeId:string,equipment:import('./multiplayer/proto
   return `Capacete ${getHelmet(equipment.helmetId).name} ${getHelmetColor(equipment.helmetColorId).name.toLowerCase()} · ${getWeapon(equipment.weaponId)?.name ?? 'Bastão básico'} · ${knee} · Nitro ${nitroCount(bikeId,equipment.nitro)}/${getBike(bikeId).nitroCapacity}`;
 }
 function renderOnlineBikes(preferred=$<HTMLSelectElement>('online-bike').value){
-  const equipment=onlineEquipmentSave(),available=BIKES.filter(b=>!b.secret || accounts.session?.account && equipment.owned.includes(b.id));
+  const equipment=onlineEquipmentSave(),available=BIKES.filter(b=>!b.singlePlayerOnly && (!b.secret || accounts.session?.account && equipment.owned.includes(b.id)));
   $<HTMLSelectElement>('online-bike').innerHTML=available.map(b=>`<option value="${b.id}">${b.name} · ${b.class}</option>`).join('');
   $<HTMLSelectElement>('online-bike').value=available.some(b=>b.id===preferred)?preferred:'ferro';updateOnlineBikePreview();
 }
@@ -235,6 +249,8 @@ function updateOnlineBikePreview() {
   $('online-bike-preview').innerHTML=`<img src="${bikePortrait(bike).toDataURL()}" alt="${bike.name} vista de lado"/><div><b>${bike.class} · ${Math.round(bike.speed*3.6)} KM/H</b><span>${handlingLabel(bike.handling)} · ${isBicycle(bike.id)?'ACELERE COM TOQUES REPETIDOS':`0–100 EM ${zeroToHundred(bike).toFixed(1)}S`}</span><small>${bike.tagline}</small></div>`;
 }
 $<HTMLSelectElement>('online-bike').addEventListener('change',updateOnlineBikePreview);
+$<HTMLSelectElement>('lobby-track').addEventListener('change',()=>{const route=routeFromId($<HTMLSelectElement>('lobby-track').value);online.configure({trackId:route.track.id,condition:route.condition.id});});
+$<HTMLSelectElement>('lobby-bike').addEventListener('change',()=>{const bikeId=$<HTMLSelectElement>('lobby-bike').value;online.configure({bikeId,loadout:onlineLoadout(bikeId)});});
 async function enterOnline(create: boolean, publicCode?: string) {
   if(preparingOnline || online.active)return;
   preparingOnline=true;publicRooms.setBusy(true);$('online-error').hidden=true;
@@ -264,27 +280,48 @@ function drawLobbyClock() {
   const room=online.room;if(!room || room.phase!=='lobby')return;
   const count=room.members.filter(m=>m.connected).length;
   $('online-clock').textContent=room.deadline===null?'—':String(Math.max(0,Math.ceil((room.deadline-online.serverNow())/1000)));
-  $('online-clock-label').textContent=count<2?'AGUARDANDO OUTRO PILOTO':room.locked?'LARGADA FECHADA':'SEGUNDOS PARA LARGAR';
+  $('online-clock-label').textContent=count<2?'AGUARDANDO OUTRO PILOTO':room.locked?'LARGADA FECHADA':room.manualStart?'AGUARDANDO CONFIRMAÇÃO':'SEGUNDOS PARA LARGAR';
 }
 function receiveOnlineRoom(room: RoomView) {
   achievementRoom=room;achievementRiderId=online.id;
   if(!onlineMode)return;
+  if(room.previous && !accounts.cache){
+    const member=room.previous.members.find(m=>m.id===online.id);
+    if(member && settleGuestOnlineResult(save,room.previous.race,online.id,member.entryId ?? member.id))saveNow();
+  }
+  if(lastOnlineRound!==(room.round ?? 0)){
+    lastOnlineRound=room.round ?? 0;onlineRaceStarted=false;settled=false;lastOnlineEventTick=-1;lastStandingsTick=-Infinity;
+    resetFinish();clearControls();closeDialogs();
+    if(accounts.cache)void refreshOnlineGarage();
+  }
   if(room.phase==='lobby') {
+    if(onlineRaceStarted || screen!=='menu'){
+      resetFinish();clearControls();closeDialogs();onlineRaceStarted=false;settled=false;paused=false;screen='menu';lastOnlineEventTick=-1;lastStandingsTick=-Infinity;
+      $('menu').hidden=false;$('hud').hidden=true;$('online-hud').hidden=true;audio.update(0,false,false,0);
+      race=createRace(room.trackId,save,undefined,room.condition);
+    }
+    if(!$<HTMLDialogElement>('online-modal').open)$<HTMLDialogElement>('online-modal').showModal();
     publicRooms.stop();$('online-visibility').textContent=room.public?'SALA PÚBLICA · OUTROS PILOTOS PODEM ENCONTRAR VOCÊ':'SALA POR CONVITE · COMPARTILHE O CÓDIGO';
     $('online-form').hidden=true;$('online-lobby').hidden=false;$('online-code').textContent=room.code;
     $('online-track-name').textContent=`${getTrack(room.trackId).name.toUpperCase()} · ${conditionName(room.condition).toUpperCase()}`;
     const present=room.members.filter(m=>m.connected),me=room.members.find(m=>m.id===online.id);
+    const track=$<HTMLSelectElement>('lobby-track'),bike=$<HTMLSelectElement>('lobby-bike');
+    track.value=raceRoute(room.trackId,room.condition).id;track.disabled=room.hostId!==online.id || room.locked || online.status!=='connected';
+    const available=BIKES.filter(b=>!b.singlePlayerOnly && (!b.secret || b.id===me?.bikeId || accounts.session?.account && onlineEquipmentSave().owned.includes(b.id)));
+    const options=available.map(b=>`<option value="${b.id}">${b.name} · ${b.class}</option>`).join('');if(bike.innerHTML!==options)bike.innerHTML=options;
+    bike.value=me?.bikeId ?? 'ferro';bike.disabled=room.locked || online.status!=='connected';
+    $('lobby-host-hint').textContent=room.hostId===online.id?'Você é o anfitrião. Trocar a pista reinicia as confirmações.':`Pista escolhida por ${present.find(m=>m.id===room.hostId)?.name ?? 'outro piloto'}.`;
     $('online-count').textContent=`${present.length} / 8 PESSOAS${room.fillBots ? ` · +${8-present.length} CPU NA LARGADA` : ''}`;
     $('online-confirmed-loadout').textContent=me?`${getBike(me.bikeId).name} · ${onlineEquipmentText(me.bikeId,me)}`:'';
     $('online-members').innerHTML=Array.from({length:8},(_,i)=>{
       const m=present[i];return m?`<div class="lobby-member ${m.id===online.id?'me':''}"><span class="lobby-number">${String(i+1).padStart(2,'0')}</span><b>${escapeHTML(m.name)}${m.id===online.id?' <small>VOCÊ</small>':''}<small class="lobby-bike-name">${getBike(m.bikeId).name} · ${getHelmet(m.helmetId).name} ${getHelmetColor(m.helmetColorId).name.toLowerCase()}</small></b><span class="ready-state ${m.ready?'is-ready':''}">${m.ready?'✓ PRONTO':'AGUARDANDO'}</span></div>`:`<div class="lobby-member empty"><span class="lobby-number">${String(i+1).padStart(2,'0')}</span><span>${room.fillBots ? 'Vaga aberta · CPU na largada' : 'Vaga aberta'}</span></div>`;
     }).join('');
-    $('online-lobby-hint').textContent=present.length<2?(room.public?'Sua sala aparece na busca. Aguardando pelo menos mais uma pessoa para largar.':'Precisamos de pelo menos 2 pessoas para largar. Convide um amigo.'):room.locked?'Prepare-se! A entrada de novos pilotos está fechada.':'Todos prontos? A contagem cai para 5 segundos. Caso contrário, a corrida começa ao zerar o tempo.';
+    $('online-lobby-hint').textContent=present.length<2?(room.public?'Sua sala aparece na busca. Aguardando pelo menos mais uma pessoa para largar.':'Precisamos de pelo menos 2 pessoas para largar. Convide um amigo.'):room.locked?'Prepare-se! A entrada de novos pilotos está fechada.':room.manualStart?'Escolham pista e motos. A corrida só começa quando todos estiverem prontos.':'Todos prontos? A contagem cai para 5 segundos. Caso contrário, a corrida começa ao zerar o tempo.';
     const ready=$<HTMLButtonElement>('online-ready');ready.textContent=me?.ready?'✓ PRONTO · AGUARDANDO OS OUTROS':'ESTOU PRONTO ↗';ready.disabled=room.locked || online.status!=='connected';ready.setAttribute('aria-pressed',String(!!me?.ready));
     drawLobbyClock();return;
   }
   if(!room.race)return;
-  const mine=room.race.riders.find(r=>r.id===online.id);if(!accounts.cache && mine && recordOnlineNitro(save,mine))saveNow();
+  const mine=room.race.riders.find(r=>r.id===online.id);if(!accounts.cache && mine && recordOnlineNitro(save,mine,room.members.find(m=>m.id===online.id)?.entryId ?? online.id))saveNow();
   race=online.view()!;
   if(!onlineRaceStarted) {
     resetFinish();onlineRaceStarted=true;audio.resetRace(jumpSoundKey(localRider()),guardRailSoundSide(race.trackId,localRider()));closeDialogs();clearControls();screen='race';paused=false;settled=false;messageUntil=0;
@@ -310,17 +347,27 @@ function showOnlineResult(room: RoomView) {
     const exploded=room.race!.riders.find(r=>r.id===online.id)?.recovery?.phase==='exploding';
     const title=exploded?'MOTO <span>EXPLODIU.</span>':result.reason==='finish'?`${result.place}º NA <span>CHEGADA.</span>`:result.reason==='caught'?'FIM DA <span>LINHA.</span>':'FIM DE <span>CORRIDA.</span>';
     $('result-modal').innerHTML=`<div class="result-top"><div class="eyebrow">MULTIPLAYER / ${conditionName(room.condition).toUpperCase()} / SALA ${room.code}</div><h2 id="result-title" class="result-title">${title}</h2><p class="result-sub">${result.reason==='finish'?'Você cruzou a linha de chegada.':raceOutcome(result.reason,{...result,exploded}).description}</p><p id="online-result-status" class="online-note"></p></div><div id="online-result-table" class="result-table"></div><div class="result-actions"><button id="online-menu-btn" class="primary">VOLTAR AO MENU ↗</button></div>`;
-    if(result.reason==='finish'){
-      $('result-modal').querySelector('.result-actions')!.innerHTML=resultButtons(true,!!nextRaceRoute(room.trackId,room.condition));
-      $('result-modal').querySelector('.result-actions')!.insertAdjacentHTML('beforebegin','<p class="finish-room-hint">Para correr outra vez, crie ou entre em uma nova sala.</p>');
-    }
-    const unlocked=accounts.cache?result.secretUnlocked===true:unlockBicycle(save,result);
-    const achievements=accounts.cache?result.achievements:awardRaceAchievements(save,room.race!,online.id,'multi');
-    if(accounts.cache){if(unlocked||achievements?.length)void accounts.refresh();}else saveNow();
+    $('result-modal').querySelector('.result-actions')!.innerHTML=resultButtons(true,!!nextRaceRoute(room.trackId,room.condition));
+    $('result-modal').querySelector('.result-actions')!.insertAdjacentHTML('beforebegin','<p id="online-continuation-status" class="finish-room-hint" role="status" aria-live="polite"></p>');
+    const guest=accounts.cache?undefined:settleGuestOnlineResult(save,room.race!,online.id,room.members.find(m=>m.id===online.id)?.entryId ?? online.id);
+    const unlocked=accounts.cache?result.secretUnlocked===true:guest?.unlocked;
+    const achievements=accounts.cache?result.achievements:guest?.achievements;
+    const policeBonus=policeReward(result.policeKnockdowns);
+    if(accounts.cache)void refreshOnlineGarage();else saveNow();
+    showPoliceReward(policeBonus);
     if(unlocked)showSecretUnlock();showAchievementRewards(achievements);
     if(result.reason!=='wrecked' || !beginSpectating())beginResult(result);
   }
   $('online-result-status').textContent=room.phase==='finished'?'CORRIDA ENCERRADA':`${Object.keys(room.race!.multiplayer!.results).length} / ${ranking(room.race!).length} PILOTOS CONCLUÍRAM`;
+  const choice=room.members.find(m=>m.id===online.id)?.continuation,present=room.members.filter(m=>m.connected);
+  for(const [id,vote,label] of [['online-next-btn','next','PRÓXIMA CORRIDA'],['online-again-btn','again','CORRER DE NOVO'],['online-lobby-btn','lobby','VOLTAR PARA A SALA']] as const){
+    const button=$<HTMLButtonElement>(id);if(!button)continue;
+    button.disabled=room.phase!=='finished'||online.status!=='connected'||vote!=='lobby'&&(room.continuationCount ?? present.length)<2;button.setAttribute('aria-pressed',String(choice===vote));
+    button.textContent=vote==='lobby'?label:`${choice===vote?'✓ ':''}${label} · ${present.filter(m=>m.continuation===vote).length}/${room.continuationCount ?? present.length}`;
+  }
+  $('online-continuation-status').textContent=room.phase!=='finished'?'Aguarde os outros pilotos terminarem para continuar com o grupo.':choice?`Sua escolha foi registrada. Todos precisam escolher a mesma corrida. Voltar à sala permite ajustar pista e motos.`:'Todos em “Próxima corrida” avançam juntos. “Voltar para a sala” reabre a configuração para o grupo.';
+  if(room.phase==='finished' && room.reconnectingCount)$('online-continuation-status').textContent+=` Aguardando ${room.reconnectingCount} piloto(s) reconectar.`;
+  if(room.phase==='finished' && (room.continuationCount ?? present.length)<2)$('online-continuation-status').textContent='Apenas você permanece. Volte para a sala e convide outro piloto para continuar.';
   $('online-result-table').innerHTML=ranking(room.race!).map((r,i)=>{
     const result=room.race!.multiplayer!.results[r.id];
     const label=result?({finish:clockString(result.time),caught:'PRESO',wrecked:'MOTO QUEBRADA',left:'SAIU',timeout:r.profile==='player'?'TEMPO ESGOTADO':'NÃO CONCLUIU'}[result.reason]):'NA PISTA';
@@ -363,6 +410,18 @@ function showSpectatorResult() {
   audio.update(0,false,false,0);$<HTMLDialogElement>('result-modal').showModal();
 }
 
+function showPoliceReward(bonus=0){
+  if(!bonus || $('result-modal').querySelector('.police-bonus'))return;
+  const count=bonus/POLICE_KNOCKDOWN_REWARD;
+  const html=`<div class="record-bonus police-bonus" role="status"><div><strong>POLICIAL DERRUBADO</strong><small>${count} ${count===1?'derrubada':'derrubadas'} × ${POLICE_KNOCKDOWN_REWARD} moedas</small></div><b>+ ${money(bonus)}</b></div>`;
+  const anchor=$('result-modal').querySelector('.result-table, .result-actions');
+  if(anchor)anchor.insertAdjacentHTML('beforebegin',html);else $('result-modal').insertAdjacentHTML('beforeend',html);
+}
+
+function showPoliceBikeUnlock(){
+  if($('result-modal').querySelector('.police-bike-unlock'))return;
+  $('result-modal').insertAdjacentHTML('afterbegin','<div class="secret-unlock police-bike-unlock" role="status"><strong>MOTO DA POLÍCIA DESBLOQUEADA!</strong><p>A Patrulha 900 está na sua garagem para corridas individuais e campeonato. Indisponível no multiplayer.</p></div>');
+}
 function showSecretUnlock(){
   if($('result-modal').querySelector('.secret-unlock'))return;
   $('result-modal').insertAdjacentHTML('afterbegin','<div class="secret-unlock" role="status"><strong>VEÍCULO SECRETO DESBLOQUEADO!</strong><p>A bicicleta Magrela já está na sua garagem. Cada toque no acelerador é uma pedalada.</p></div>');
@@ -501,7 +560,7 @@ function syncSoloNitro() {
   if(accounts.cache)return;
   if(onlineMode)return;
   const p=localRider(),used=p.nitroUsed ?? 0;
-  if(used>soloNitroSpent){spendNitro(save,p.bikeId ?? 'ferro',used-soloNitroSpent);soloNitroSpent=used;saveNow();}
+  if(used>soloNitroSpent){spendNitro(save,enteredBike(p).bikeId,used-soloNitroSpent);soloNitroSpent=used;saveNow();}
 }
 function clearControls() {
   keys.clear();touchKeys.clear();pendingActions=[];doubleTap.reset();throttleTap.reset();analog.steer=0;analog.drive=0;
@@ -614,10 +673,10 @@ function renderGarage() {
   if(garageTab!=='bikes'){
     $('garage-modal').innerHTML=`<div class="dialog-header"><div><div class="eyebrow">SUA OFICINA. SUAS REGRAS.</div><h2 id="garage-title">Garagem</h2></div><button class="close-btn" data-close="garage-modal" aria-label="Fechar garagem">×</button></div><div class="dialog-body">${garageNav(garageTab)}${equipmentShop(save,garageTab)}<div class="garage-footer"><span>SALDO <b>${money(save.cash)}</b></span></div></div>`;garageNotes();return;
   }
-  $('garage-modal').innerHTML = `<div class="dialog-header"><div><div class="eyebrow">SUA OFICINA. SUAS REGRAS.</div><h2 id="garage-title">Garagem</h2></div><button class="close-btn" data-close="garage-modal" aria-label="Fechar garagem">×</button></div><div class="dialog-body">${garageNav(garageTab)}<div class="garage-intro"><div><b>${MOTORBIKES.length} MOTOS E UM SEGREDO.</b><p>Compare os dados de fábrica. As melhorias valem para a moto equipada.</p></div><button class="secondary" id="garage-workshop">MELHORIAS & REPAROS ↓</button></div><div class="garage-grid">${BIKES.slice().sort((a,b)=>Number(!!a.secret)-Number(!!b.secret)||a.price-b.price).map((b,index) => {
+  $('garage-modal').innerHTML = `<div class="dialog-header"><div><div class="eyebrow">SUA OFICINA. SUAS REGRAS.</div><h2 id="garage-title">Garagem</h2></div><button class="close-btn" data-close="garage-modal" aria-label="Fechar garagem">×</button></div><div class="dialog-body">${garageNav(garageTab)}<div class="garage-intro"><div><b>${MOTORBIKES.length} MOTOS E DOIS SEGREDOS.</b><p>Compare os dados de fábrica. As melhorias valem para a moto equipada.</p></div><button class="secondary" id="garage-workshop">MELHORIAS & REPAROS ↓</button></div><div class="garage-grid">${BIKES.slice().sort((a,b)=>Number(!!a.secret)-Number(!!b.secret)||a.price-b.price).map((b,index) => {
     const owned = save.owned.includes(b.id), equipped = save.bikeId === b.id;
     if(b.secret&&!owned)return '<article class="bike-card secret-vehicle"><p>item ainda não disponível</p></article>';
-    return `<article class="bike-card ${equipped ? 'equipped' : ''}"><div class="bike-class">${b.class} / 0${index + 1}</div><h3>${b.name}</h3><img class="bike-image" src="${bikePortrait(b).toDataURL()}" alt="${b.name}, ${b.class.toLowerCase()} vista de lado"/><p>${b.tagline}</p><div class="bike-stats"><div class="bike-stat">VELOCIDADE <strong>${Math.round(b.speed * 3.6)} KM/H</strong></div><div class="bike-stat">${b.secret?'PEDALADAS':'0–100 KM/H'} <strong>${b.secret?'TOQUES REPETIDOS':`${zeroToHundred(b).toFixed(1)} S`}</strong></div><div class="bike-stat curve-stat">CURVAS <strong>${handlingLabel(b.handling)}</strong><meter min="0" max="1.6" value="${b.handling}" aria-label="Agilidade nas curvas: ${handlingLabel(b.handling)}"></meter></div><div class="bike-stat">NITRO <strong>${b.nitroCapacity?`ATÉ ${b.nitroCapacity} CARGAS`:'NÃO USA'}</strong></div><div class="bike-stat">JOELHEIRA <strong>${supportsKneeDown(b.id)?'COMPATÍVEL':'INCOMPATÍVEL'}</strong></div><div class="bike-stat">RESISTÊNCIA DA MOTO <strong>${Math.round(b.armor * 100)}%</strong></div></div><button class="secondary" data-bike="${b.id}" ${equipped || (!owned && save.cash < b.price) ? 'disabled' : ''}>${equipped ? '✓ EQUIPADA' : owned ? 'EQUIPAR ↗' : `COMPRAR · ${money(b.price)}`}</button></article>`;
+    return `<article class="bike-card ${equipped ? 'equipped' : ''}"><div class="bike-class">${b.class} / 0${index + 1}</div><h3>${b.name}</h3><img class="bike-image" src="${bikePortrait(b).toDataURL()}" alt="${b.name}, ${b.class.toLowerCase()} vista de lado"/><p>${b.tagline}</p><div class="bike-stats"><div class="bike-stat">VELOCIDADE <strong>${Math.round(b.speed * 3.6)} KM/H</strong></div><div class="bike-stat">${isBicycle(b.id)?'PEDALADAS':'0–100 KM/H'} <strong>${isBicycle(b.id)?'TOQUES REPETIDOS':`${zeroToHundred(b).toFixed(1)} S`}</strong></div><div class="bike-stat curve-stat">CURVAS <strong>${handlingLabel(b.handling)}</strong><meter min="0" max="1.6" value="${b.handling}" aria-label="Agilidade nas curvas: ${handlingLabel(b.handling)}"></meter></div><div class="bike-stat">NITRO <strong>${b.nitroCapacity?`ATÉ ${b.nitroCapacity} CARGAS`:'NÃO USA'}</strong></div><div class="bike-stat">JOELHEIRA <strong>${supportsKneeDown(b.id)?'COMPATÍVEL':'INCOMPATÍVEL'}</strong></div><div class="bike-stat">RESISTÊNCIA DA MOTO <strong>${Math.round(b.armor * 100)}%</strong></div></div><button class="secondary" data-bike="${b.id}" ${equipped || (!owned && save.cash < b.price) ? 'disabled' : ''}>${equipped ? '✓ EQUIPADA' : owned ? 'EQUIPAR ↗' : `COMPRAR · ${money(b.price)}`}</button></article>`;
   }).join('')}</div><div class="garage-tools" id="garage-tools"><div><h3>MELHORIAS · ${BIKES.find(b => b.id === save.bikeId)!.name.toUpperCase()}</h3>${(['engine', 'armor', 'handling'] as const).map(k => {
     const level = save.upgrades[save.bikeId][k], label = { engine: isBicycle(save.bikeId)?'Transmissão':'Motor', armor: 'Resistência', handling: 'Dirigibilidade' }[k];
     return `<div class="upgrade"><span>${label}<span class="levels">${'▰'.repeat(level)}${'▱'.repeat(3 - level)}</span></span><button class="secondary" data-upgrade="${k}" ${level >= 3 || save.cash < upgradeCost(save, k) ? 'disabled' : ''}>${level >= 3 ? 'MÁXIMO' : `+ ${money(upgradeCost(save, k))}`}</button></div>`;
@@ -650,14 +709,14 @@ async function showChampionshipResult(){
   try{
     if(accounts.cache){
       resultPayout=await submitSoloResult();
-      $('result-modal').innerHTML=championshipMarkup(save.championship,save,resultPayout?.total);if(resultPayout?.secretUnlocked)showSecretUnlock();showAchievementRewards(resultPayout?.achievements);$('result-modal').scrollTop=0;return;
+      $('result-modal').innerHTML=championshipMarkup(save.championship,save,resultPayout?.total);if(resultPayout?.secretUnlocked)showSecretUnlock();if(resultPayout?.policeBikeUnlocked)showPoliceBikeUnlock();showAchievementRewards(resultPayout?.achievements);showPoliceReward(resultPayout?.policeBonus);$('result-modal').scrollTop=0;return;
     }
     const completed=await finishChampionshipSimulation(completedRace);
     if(recordChampionshipHeat(c,completed)){
       resultPayout=settleRace(save,completedRace,{starterRepair:false,mode:'championship'}) ?? null;
       saveNow();
     }
-    $('result-modal').innerHTML=championshipMarkup(c,save,resultPayout?.total);if(resultPayout?.secretUnlocked)showSecretUnlock();showAchievementRewards(resultPayout?.achievements);$('result-modal').scrollTop=0;
+    $('result-modal').innerHTML=championshipMarkup(c,save,resultPayout?.total);if(resultPayout?.secretUnlocked)showSecretUnlock();if(resultPayout?.policeBikeUnlocked)showPoliceBikeUnlock();showAchievementRewards(resultPayout?.achievements);showPoliceReward(resultPayout?.policeBonus);$('result-modal').scrollTop=0;
   }catch(e){$('result-modal').innerHTML=`<div class="dialog-body champ-body"><h2>CONFIRMAÇÃO PENDENTE</h2><p>${escapeHTML(e instanceof Error?e.message:'Confira sua conexão.')}</p><button id="retry-result" class="primary">TENTAR NOVAMENTE</button><button id="result-menu-btn" class="secondary">VOLTAR AO MENU</button></div>`;}
   finally{champSettling=false;}
 }
@@ -744,18 +803,21 @@ async function showResult() {
   const title = exploded ? 'MOTO <span>EXPLODIU.</span>' : r.reason === 'caught' ? 'FIM DA <span>LINHA.</span>' : r.reason === 'wrecked' ? 'MOTOR <span>APAGADO.</span>' : r.place === 1 ? 'A RUA É <span>SUA.</span>' : `${r.place}º NA <span>CHEGADA.</span>`;
   const subtitle = r.reason === 'finish' ? r.place <= 5 && getTrack(race.trackId).index < TRACKS.length-1 ? 'Top 5 conquistado. A próxima estrada está liberada.' : 'Dinheiro no bolso. Mais uma história no asfalto.' : raceOutcome(r.reason,{...r,exploded}).description;
   $('result-modal').innerHTML = `<div class="result-top"><div class="eyebrow">${getTrack(race.trackId).name.toUpperCase()} · ${conditionName(race.condition).toUpperCase()} / ${r.reason === 'finish' ? 'CORRIDA CONCLUÍDA' : r.reason === 'caught' ? 'CAPTURADO' : 'MOTO DESTRUÍDA'}</div><h2 class="result-title" id="result-title">${title}</h2><div class="result-sub">${subtitle}</div></div><div class="result-stats"><div><small>SEU TEMPO</small><b>${clockString(r.time)}</b></div><div><small>GOLPES / QUEDAS</small><b>${r.hits} / ${r.falls}</b></div><div><small>${r.reason === 'finish' ? 'RECOMPENSA' : 'AJUDA DA OFICINA'}</small><b class="prize">+ ${money(r.reward)}</b></div></div><div class="result-table">${ranking(race).map((rider, i) => `<div class="result-rider ${rider.id === localId() ? 'me' : ''}"><span>${rider.id === localId() && r.reason !== 'finish' ? '—' : i + 1}. ${rider.name}</span><span>${rider.id === localId() && r.reason !== 'finish' ? r.reason === 'caught' ? 'PRESO' : 'FORA DA CORRIDA' : rider.finishedAt !== null ? clockString(rider.finishedAt) : rider.out==='caught'?'PRESO':rider.out?'FORA DA CORRIDA':'NA PISTA'}</span></div>`).join('')}</div><div class="result-actions"><button class="primary" id="again-btn">CORRER DE NOVO ${icons.arrow}</button><button class="secondary" id="result-menu-btn">ESTRADAS & GARAGEM</button></div>`;
-  if(resultPayout?.recordBonus){
+  if(resultPayout && (resultPayout.recordBonus || resultPayout.policeBonus)){
     $('result-modal').querySelector('.prize')!.textContent=`+ ${money(resultPayout.total)}`;
     $('result-modal').querySelector('.prize')!.previousElementSibling!.textContent='RECOMPENSA TOTAL';
+  }
+  showPoliceReward(resultPayout?.policeBonus);
+  if(resultPayout?.recordBonus){
     $('result-modal').querySelector('.result-table')!.insertAdjacentHTML('beforebegin',`<div class="record-bonus"><div><strong>RECORDE PESSOAL BATIDO</strong><small>${clockString(resultPayout.previousRecord!)} → ${clockString(r.time)} · Bônus de 30% do prêmio da pista</small></div><b>+ ${money(resultPayout.recordBonus)}</b></div>`);
   }
   const next=nextRaceRoute(race.trackId,race.condition);
   $('result-modal').querySelector('.result-actions')!.innerHTML=resultButtons(false,r.reason==='finish' && !!next && next.track.index<=save.unlocked);
-  if(resultPayout?.secretUnlocked)showSecretUnlock();showAchievementRewards(resultPayout?.achievements);
+  if(resultPayout?.secretUnlocked)showSecretUnlock();if(resultPayout?.policeBikeUnlocked)showPoliceBikeUnlock();showAchievementRewards(resultPayout?.achievements);
   beginResult(r);
 }
 function resultButtons(multiplayer: boolean, hasNext: boolean) {
-  return `${hasNext?`<button class="primary" id="${multiplayer?'online-next-btn':'next-race-btn'}">PRÓXIMA CORRIDA ${icons.arrow}</button>`:''}<button class="${hasNext?'secondary':'primary'}" id="${multiplayer?'online-again-btn':'again-btn'}">CORRER DE NOVO ${icons.arrow}</button><button class="secondary" id="${multiplayer?'online-menu-btn':'result-menu-btn'}">VOLTAR AO MENU</button>`;
+  return `${hasNext?`<button class="primary" id="${multiplayer?'online-next-btn':'next-race-btn'}">PRÓXIMA CORRIDA ${icons.arrow}</button>`:''}<button class="${hasNext?'secondary':'primary'}" id="${multiplayer?'online-again-btn':'again-btn'}">CORRER DE NOVO ${icons.arrow}</button>${multiplayer?'<button class="secondary" id="online-lobby-btn">VOLTAR PARA A SALA</button>':''}<button class="secondary" id="${multiplayer?'online-menu-btn':'result-menu-btn'}">${multiplayer?'SAIR DA SALA':'VOLTAR AO MENU'}</button>`;
 }
 function resetFinish() {
   spectatedId=null;$('spectator-bar').hidden=true;document.body.classList.remove('spectating');
@@ -806,12 +868,7 @@ function nextSoloRace() {
   selectedTrack=next.track.id;selectedCondition=next.condition.id;save.raceTrackId=selectedTrack;save.raceCondition=selectedCondition;saveNow();void startRace();
 }
 function nextOnlineRace(advance: boolean) {
-  const room=online.room;if(!room)return;
-  const route=advance?nextRaceRoute(room.trackId,room.condition):raceRoute(room.trackId,room.condition);if(!route)return;
-  const bots=room.fillBots,isPublic=room.public,bike=localRider().bikeId;
-  online.leave();openOnline();
-  $<HTMLSelectElement>('online-track').value=route.id;$<HTMLInputElement>('online-bots').checked=bots;$<HTMLInputElement>('online-public').checked=!!isPublic;
-  $<HTMLSelectElement>('online-bike').value=getBike(bike).id;updateOnlineBikePreview();
+  online.continue(advance?'next':'again');
 }
 function update() {
   if (screen === 'menu') {
@@ -938,6 +995,7 @@ document.addEventListener('click', event => {
     case 'next-race-btn': nextSoloRace();break;
     case 'online-next-btn': nextOnlineRace(true);break;
     case 'online-again-btn': nextOnlineRace(false);break;
+    case 'online-lobby-btn': online.continue('lobby');break;
     case 'menu-btn': if(championshipMode){finishRider(race,localRider(),'left');void showResult();break;}if(soloRecorder){void leaveAccountRace();break;}showMenu();break;
     case 'result-menu-btn': showMenu(); break;
     case 'repair-btn': if (repair(save)) { saveNow(); renderGarage(); renderMenu(); toast('Moto reparada. Pronta para a próxima.'); } break;
@@ -1043,7 +1101,7 @@ declare global {
 }
 window.render_game_to_text = () => {
   const p = localRider(), target = nearestTarget(race, p, p.weapon ? 'weapon' : 'punch');
-  return JSON.stringify({ spectator:screen==='spectate'?{id:spectatedId,name:viewingRider().name,targets:spectatorTargets(online.room,online.id).map(r=>r.id),x:viewingRider().x,z:viewingRider().z,speed:viewingRider().speed,recovery:viewingRider().recovery??null}:null, camera:{...renderer.cameraState(),riderId:viewingId()},arrest:arrestSource?(()=>{const a=arrestScene(arrestSource,localId(),finishElapsed ?? 0);return {phase:a.police.phase,police:a.police,cuffed:a.cuffed,pullback:a.pullback};})():null,championship:save.championship?{active:championshipMode,settling:champSettling,stage:save.championship.stage,status:save.championship.status,heats:save.championship.heats.length,garageOpen:championshipGarageOpen(save.championship),bike:championshipBikeState(save),standings:championshipStandings(save.championship.heats).map(r=>({id:r.id,points:r.points,rank:r.rank})),integrity:save.championship.entry?.condition[save.championship.entry.bikeId],checkpoint:!!save.championship.checkpoint}:null,payout:resultPayout, finish:{police:finishScene(race,localId(),finishElapsed,finishOfficer).police,stage:finishElapsed===null?'none':screen==='finish'?'camera':'result',elapsed:finishElapsed===null?null:+finishElapsed.toFixed(2),pullback:finishElapsed===null?0:+finishPullback(finishElapsed).toFixed(3),winnerId:finishWinner(race)?.id ?? null}, account:{signedIn:!!accounts.session?.account,status:accounts.status,pending:accounts.cache?.dirty ?? false,conflict:!!accounts.conflict,rankedRace:!!soloRecorder}, online: onlineMode?{status:online.status,syncing:online.syncing,id:online.id,code:online.code,phase:online.room?.phase,locked:online.room?.locked,deadline:online.room?.deadline,serverNow:online.serverNow(),members:online.room?.members,fillBots:online.room?.fillBots,public:online.room?.public,condition:online.room?.condition}:null, screen, paused, modal: document.querySelector('dialog[open]')?.id ?? null, mode: race.mode, coordinates: `x in metres: negative left, positive right; road ±${roadHalf(race.trackId)}. z forward in metres. speed m/s.`, road:{lanes:race.trackId==='terra'?2:4,halfWidth:roadHalf(race.trackId),surface:race.trackId==='terra'?'dirt':'asphalt'}, tick: race.tick, time: +race.time.toFixed(2), countdown: +race.countdown.toFixed(2), track: race.trackId, condition:raceCondition(race.condition), scenic:scenicAppearance(race), length: getTrack(race.trackId).distance, player: { pedalTime:p.pedalTime??0,pedalPhase:p.pedalPhase??0,finishedOnFoot:!!p.finishedOnFoot,recovery:p.recovery??null,helmetId:getHelmet(p.helmetId).id,helmetColorId:getHelmetColor(p.helmetColorId).id,weaponId:p.weaponId??null,weaponName:weaponName(p),wheeliesLeft:wheeliesLeft(p),wheelieTime:p.wheelieTime??0,jumpTime:p.jumpTime??0,jumpHeight:jumpHeight(p),jumpTarget:p.jumpTarget??null,kneePadId:p.kneePadId??null,kneeTime:p.kneeTime??0,wetKneeTime:(p.wetKneeTicks??0)*STEP,kneeSide:p.kneeSide??0,kneeSupport:kneeSupport(p,curveAt(p.z,race.trackId),race.trackId),nitro:p.nitro??0,nitroTime:p.nitroTime??0,nitroUsed:p.nitroUsed??0,speech:p.speech&&p.speech.until>race.time?TAUNTS[p.speech.index]:null,bikeId:getBike(p.bikeId).id,bike:getBike(p.bikeId).name,handling:p.handling,armor:p.armor,out:p.out ?? null, x: +p.x.toFixed(2), z: +p.z.toFixed(1), speed: +p.speed.toFixed(2), health: +p.health.toFixed(1), integrity: +p.integrity.toFixed(1), weapon: p.weapon, attack: p.attack, cooldown: +p.cooldown.toFixed(2), crash: p.recovery?p.crash:+p.crash.toFixed(2), immune: +p.immune.toFixed(2), hits: p.hits, falls: p.falls, place: ranking(onlineMode ? (online.room?.race ?? race) : race).findIndex(r => r.id === localId()) + 1 }, awareness:raceAwareness(race,localId()), corner:upcomingCorner(p.z,race.trackId,p.handling,race.condition,p.kneeTime!>0 && supportsKneeDown(p.bikeId)?p.kneePadId:undefined), curve: +curveAt(p.z, race.trackId).toFixed(2), target: target?.id ?? null, riders: race.riders.filter(r => r.id !== localId() && Math.abs(r.z - p.z) < 400).map(r => ({ id: r.id, name: r.name,helmetId:getHelmet(r.helmetId).id,helmetColorId:getHelmetColor(r.helmetColorId).id,weaponId:r.weaponId??null,wheeliesLeft:wheeliesLeft(r),wheelieTime:r.wheelieTime??0,jumpTime:r.jumpTime??0,jumpHeight:jumpHeight(r),kneePadId:r.kneePadId??null,kneeSupport:kneeSupport(r,curveAt(r.z,race.trackId),race.trackId),speech:r.speech&&r.speech.until>race.time?TAUNTS[r.speech.index]:null, bikeId:getBike(r.bikeId).id, x: +r.x.toFixed(1), dz: +(r.z - p.z).toFixed(1), speed: +r.speed.toFixed(1), health: +r.health.toFixed(1),recovery:r.recovery??null, weapon: r.weapon, attack: r.attack, crash: r.recovery?r.crash:+r.crash.toFixed(1) })), traffic: race.traffic.filter(t => t.z - p.z > -10 && t.z - p.z < 350).map(t => ({ id:t.id,kind:t.kind,x: t.x, dz: +(t.z - p.z).toFixed(1), direction: (t.heading ?? Math.sign(t.speed)) < 0 ? 'oncoming' : 'forward',queued:!!t.queued })), obstacles: race.obstacles.filter(o => o.z - p.z > -10 && o.z - p.z < 200).map(o => ({ id:o.id,kind: o.kind, x: o.x,width:o.width ?? null,moving:!!o.motion, dz: +(o.z - p.z).toFixed(1) })), heat: +race.heat.toFixed(1), police: race.policeActive, capture: +race.capture.toFixed(2), result: onlineMode?(race.multiplayer?.results[online.id] ?? null):race.result, save: { achievements:save.achievements,bicycleUnlocked:save.owned.includes(BICYCLE_ID),ownedHelmets:save.ownedHelmets??['integral'],helmetId:equippedHelmet(save).id,helmetColorId:getHelmetColor(save.helmetColorId).id,ownedWeapons:save.ownedWeapons??[],weaponId:save.weaponId??null,ownedKneePads:save.ownedKneePads??[],kneePadId:save.kneePadId??null,nitro:save.nitro??{},cash: save.cash, bike: save.bikeId, unlocked: save.unlocked, races: save.races } });
+  return JSON.stringify({ spectator:screen==='spectate'?{id:spectatedId,name:viewingRider().name,targets:spectatorTargets(online.room,online.id).map(r=>r.id),x:viewingRider().x,z:viewingRider().z,speed:viewingRider().speed,recovery:viewingRider().recovery??null}:null, camera:{...renderer.cameraState(),riderId:viewingId()},arrest:arrestSource?(()=>{const a=arrestScene(arrestSource,localId(),finishElapsed ?? 0);return {phase:a.police.phase,police:a.police,cuffed:a.cuffed,pullback:a.pullback};})():null,championship:save.championship?{active:championshipMode,settling:champSettling,stage:save.championship.stage,status:save.championship.status,heats:save.championship.heats.length,garageOpen:championshipGarageOpen(save.championship),bike:championshipBikeState(save),standings:championshipStandings(save.championship.heats).map(r=>({id:r.id,points:r.points,rank:r.rank})),integrity:save.championship.entry?.condition[save.championship.entry.bikeId],checkpoint:!!save.championship.checkpoint}:null,payout:resultPayout, finish:{police:finishScene(race,localId(),finishElapsed,finishOfficer).police,stage:finishElapsed===null?'none':screen==='finish'?'camera':'result',elapsed:finishElapsed===null?null:+finishElapsed.toFixed(2),pullback:finishElapsed===null?0:+finishPullback(finishElapsed).toFixed(3),winnerId:finishWinner(race)?.id ?? null}, account:{signedIn:!!accounts.session?.account,status:accounts.status,pending:accounts.cache?.dirty ?? false,conflict:!!accounts.conflict,rankedRace:!!soloRecorder}, online: onlineMode?{status:online.status,syncing:online.syncing,id:online.id,code:online.code,round:online.room?.round,hostId:online.room?.hostId,trackId:online.room?.trackId,manualStart:online.room?.manualStart,phase:online.room?.phase,locked:online.room?.locked,deadline:online.room?.deadline,serverNow:online.serverNow(),members:online.room?.members,fillBots:online.room?.fillBots,public:online.room?.public,condition:online.room?.condition}:null, screen, paused, modal: document.querySelector('dialog[open]')?.id ?? null, mode: race.mode, coordinates: `x in metres: negative left, positive right; road ±${roadHalf(race.trackId)}. z forward in metres. speed m/s.`, road:{lanes:race.trackId==='terra'?2:4,halfWidth:roadHalf(race.trackId),surface:race.trackId==='terra'?'dirt':'asphalt'}, tick: race.tick, time: +race.time.toFixed(2), countdown: +race.countdown.toFixed(2), track: race.trackId, condition:raceCondition(race.condition), scenic:scenicAppearance(race), length: getTrack(race.trackId).distance, player: { stolenPoliceBike:p.stolenPoliceBike??null,policeKnockdowns:p.feats?.policeKnockdowns??0,policeBonus:policeReward(p.feats?.policeKnockdowns),pedalTime:p.pedalTime??0,pedalPhase:p.pedalPhase??0,finishedOnFoot:!!p.finishedOnFoot,recovery:p.recovery??null,helmetId:getHelmet(p.helmetId).id,helmetColorId:getHelmetColor(p.helmetColorId).id,weaponId:p.weaponId??null,weaponName:weaponName(p),wheeliesLeft:wheeliesLeft(p),wheelieTime:p.wheelieTime??0,jumpTime:p.jumpTime??0,jumpHeight:jumpHeight(p),jumpTarget:p.jumpTarget??null,kneePadId:p.kneePadId??null,kneeTime:p.kneeTime??0,wetKneeTime:(p.wetKneeTicks??0)*STEP,kneeSide:p.kneeSide??0,kneeSupport:kneeSupport(p,curveAt(p.z,race.trackId),race.trackId),nitro:p.nitro??0,nitroTime:p.nitroTime??0,nitroUsed:p.nitroUsed??0,speech:p.speech&&p.speech.until>race.time?TAUNTS[p.speech.index]:null,bikeId:getBike(p.bikeId).id,bike:getBike(p.bikeId).name,handling:p.handling,armor:p.armor,out:p.out ?? null, x: +p.x.toFixed(2), z: +p.z.toFixed(1), speed: +p.speed.toFixed(2), health: +p.health.toFixed(1), integrity: +p.integrity.toFixed(1), weapon: p.weapon, attack: p.attack, cooldown: +p.cooldown.toFixed(2), crash: p.recovery?p.crash:+p.crash.toFixed(2), immune: +p.immune.toFixed(2), hits: p.hits, falls: p.falls, place: ranking(onlineMode ? (online.room?.race ?? race) : race).findIndex(r => r.id === localId()) + 1 }, awareness:raceAwareness(race,localId()), corner:upcomingCorner(p.z,race.trackId,p.handling,race.condition,p.kneeTime!>0 && supportsKneeDown(p.bikeId)?p.kneePadId:undefined), curve: +curveAt(p.z, race.trackId).toFixed(2), target: target?.id ?? null, riders: race.riders.filter(r => r.id !== localId() && Math.abs(r.z - p.z) < 400).map(r => ({ id: r.id, name: r.name,helmetId:getHelmet(r.helmetId).id,helmetColorId:getHelmetColor(r.helmetColorId).id,weaponId:r.weaponId??null,wheeliesLeft:wheeliesLeft(r),wheelieTime:r.wheelieTime??0,jumpTime:r.jumpTime??0,jumpHeight:jumpHeight(r),kneePadId:r.kneePadId??null,kneeSupport:kneeSupport(r,curveAt(r.z,race.trackId),race.trackId),speech:r.speech&&r.speech.until>race.time?TAUNTS[r.speech.index]:null, bikeId:getBike(r.bikeId).id, x: +r.x.toFixed(1), dz: +(r.z - p.z).toFixed(1), speed: +r.speed.toFixed(1), health: +r.health.toFixed(1),recovery:r.recovery??null, weapon: r.weapon, attack: r.attack, crash: r.recovery?r.crash:+r.crash.toFixed(1) })), traffic: race.traffic.filter(t => t.z - p.z > -10 && t.z - p.z < 350).map(t => ({ id:t.id,kind:t.kind,x: t.x, dz: +(t.z - p.z).toFixed(1), direction: (t.heading ?? Math.sign(t.speed)) < 0 ? 'oncoming' : 'forward',queued:!!t.queued })), obstacles: race.obstacles.filter(o => o.z - p.z > -10 && o.z - p.z < 200).map(o => ({ id:o.id,kind: o.kind, x: o.x,width:o.width ?? null,moving:!!o.motion, dz: +(o.z - p.z).toFixed(1) })), heat: +race.heat.toFixed(1), police: race.policeActive, capture: +race.capture.toFixed(2), result: onlineMode?(race.multiplayer?.results[online.id] ?? null):race.result, save: { achievements:save.achievements,bicycleUnlocked:save.owned.includes(BICYCLE_ID),policeBikeUnlocked:save.owned.includes(POLICE_BIKE_ID),ownedHelmets:save.ownedHelmets??['integral'],helmetId:equippedHelmet(save).id,helmetColorId:getHelmetColor(save.helmetColorId).id,ownedWeapons:save.ownedWeapons??[],weaponId:save.weaponId??null,ownedKneePads:save.ownedKneePads??[],kneePadId:save.kneePadId??null,nitro:save.nitro??{},cash: save.cash, bike: save.bikeId, unlocked: save.unlocked, races: save.races } });
 };
 window.advanceTime = ms => { if(onlineMode){advanceFinish(ms/1000);draw();return;} testMode = true; for (let i = 0; i < Math.round(ms / (STEP * 1000)); i++) {update();advanceFinish(STEP);} draw(); };
 if (testMode) window.__game = {

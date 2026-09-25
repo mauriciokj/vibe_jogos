@@ -112,12 +112,14 @@ export class RedisStore implements RoomStore {
     let committed=false;
     try {
       const room=JSON.parse(snapshot[1]) as Room,entries=snapshot[2],inputs: Inputs = {};
+      const previousPhase=room.phase;
       for (let i=0;i<entries.length;i+=2) inputs[entries[i]] = JSON.parse(entries[i+1]);
       change(room,inputs); room.revision++;
       // Fencing prevents a slow/expired owner from overwriting a newer room.
       const saved = await this.command('EVAL',`if redis.call('GET',KEYS[1])==ARGV[1] then redis.call('SET',KEYS[2],ARGV[2],'EX',1800); redis.call('DEL',KEYS[1]); return 1 end; return 0`,2,lock,this.key(code,'state'),token,JSON.stringify(room));
       if (saved !== 1) throw new BusyRoom('A sala está sincronizando. Tente novamente.');
       committed=true;
+      if(room.public && room.phase==='lobby' && previousPhase!=='lobby')await this.command('ZADD',this.publicIndex,room.createdAt,room.code);
       return room;
     } finally {
       if(!committed)await this.command('EVAL',`if redis.call('GET',KEYS[1])==ARGV[1] then return redis.call('DEL',KEYS[1]) end; return 0`,1,lock,token).catch(()=>{});

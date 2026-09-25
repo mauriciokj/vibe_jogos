@@ -1,3 +1,4 @@
+import { POLICE_BIKE_ID } from './bikes';
 import { drawHelmet } from './helmet-art';
 import { bicycleSprite, bicyclePortrait } from './bicycle-art';
 import { drawHeldWeapon } from './weapon-art';
@@ -11,9 +12,9 @@ function rememberRider(key: string,canvas: HTMLCanvasElement) {
   if(riderCache.size>=512)riderCache.delete(riderCache.keys().next().value!);
   riderCache.set(key,canvas);return canvas;
 }
-export function bikeSprite(color: string, pose = 'ride', side = 1, police = false, frame = 0, style: BikeStyle = 'street', padColor = '', kneeSide = 0, weaponId = '', wheelie = false, helmetId = 'integral', helmetColorId = 'white'): HTMLCanvasElement {
+export function bikeSprite(color: string, pose = 'ride', side = 1, police = false, frame = 0, style: BikeStyle = 'street', padColor = '', kneeSide = 0, weaponId = '', wheelie = false, helmetId = 'integral', helmetColorId = 'white', policeBike = false): HTMLCanvasElement {
   helmetId=getHelmet(helmetId).id;helmetColorId=getHelmetColor(helmetColorId).id;
-  const key = `${color}/${pose}/${side}/${police}/${frame}/${style}/${padColor}/${kneeSide}/${weaponId}/${wheelie}/${helmetId}/${helmetColorId}`;
+  const key = `${color}/${pose}/${side}/${police}/${frame}/${style}/${padColor}/${kneeSide}/${weaponId}/${wheelie}/${helmetId}/${helmetColorId}/${policeBike}`;
   if (riderCache.has(key)) return riderCache.get(key)!;
   if(style==='bicycle')return rememberRider(key,bicycleSprite(color,pose,side,frame,false,helmetId,helmetColorId,weaponId));
   const canvas = document.createElement('canvas'); canvas.width = 88; canvas.height = 128;
@@ -22,7 +23,7 @@ export function bikeSprite(color: string, pose = 'ride', side = 1, police = fals
   const rect = (x: number, y: number, w: number, h: number, fill: string) => { c.fillStyle = fill; c.fillRect(x, y, w, h); };
   const poly = (points: number[], fill: string) => { c.fillStyle = fill; c.beginPath(); points.forEach((v, i) => { if (i % 2 === 0) i === 0 ? c.moveTo(v, points[i + 1]) : c.lineTo(v, points[i + 1]); }); c.closePath(); c.fill(); };
   const dark = '#1d2430', shade = '#343b49', metal = '#b2b6b6';
-  if(wheelie)drawWheelieBody(c,color,style,frame);
+  if(wheelie)drawWheelieBody(c,policeBike?'#e7e9e5':color,style,frame);
   else if (style === 'street') {
   poly([34,83,54,83,58,100,57,120,52,127,36,127,31,120,31,101], '#101922');
   rect(35, 92, 19, 30, '#293540'); rect(36, 99, 17, 23, '#151e26');
@@ -41,10 +42,10 @@ export function bikeSprite(color: string, pose = 'ride', side = 1, police = fals
   rect(32, 74, 25, 9, dark); rect(30, 87, 30, 7, color);
   rect(35, 84, 21, 6, '#ff775c'); rect(39, 84, 12, 3, '#ffd2a0');
   rect(38, 93, 14, 8, '#e3dfbf'); rect(40, 95, 10, 3, '#5b6771');
-  } else drawRearBody(c,color,style,frame);
+  } else drawRearBody(c,policeBike?'#e7e9e5':color,style,frame);
   if(pose==='parked'){
     rect(33,48,23,19,'#172630');rect(18,42,52,4,metal);rect(14,41,9,6,dark);rect(66,41,8,6,dark);
-    if(police){rect(24,71,10,7,frame%2?'#75b9ff':'#416080');rect(55,71,10,7,frame%2?'#774e55':'#ff6b68');}
+    if(police||policeBike){rect(24,71,10,7,frame%2?'#75b9ff':'#416080');rect(55,71,10,7,frame%2?'#774e55':'#ff6b68');}
     return rememberRider(key,canvas);
   }
   c.save();
@@ -118,7 +119,8 @@ export function bikeSprite(color: string, pose = 'ride', side = 1, police = fals
   }
   if(pose==='celebrate')drawVictoryArms(c,color,frame);
   c.restore();
-  if (police) { rect(24, 71, 10, 7, '#539ff7'); rect(55, 71, 10, 7, '#ff5d5b'); rect(38, 33, 14, 5, '#e5e8eb'); }
+  if (police||policeBike) { rect(24, 71, 10, 7, '#539ff7'); rect(55, 71, 10, 7, '#ff5d5b'); }
+  if(police)rect(38,33,14,5,'#e5e8eb');
   return rememberRider(key,canvas);
 }
 
@@ -175,9 +177,9 @@ function drawRearBody(c: CanvasRenderingContext2D, color: string, style: BikeSty
   }
 }
 
-export function bikeFrontSprite(color: string, style: BikeStyle = 'street', pose = 'ride', side = 1, police = false, frame = 0, padColor = '', kneeSide = 0, weaponId = '', wheelie = false, helmetId = 'integral', helmetColorId = 'white'): HTMLCanvasElement {
+export function bikeFrontSprite(color: string, style: BikeStyle = 'street', pose = 'ride', side = 1, police = false, frame = 0, padColor = '', kneeSide = 0, weaponId = '', wheelie = false, helmetId = 'integral', helmetColorId = 'white', policeBike = false): HTMLCanvasElement {
   helmetId=getHelmet(helmetId).id;helmetColorId=getHelmetColor(helmetColorId).id;
-  const key=`front/${color}/${style}/${pose}/${side}/${police}/${frame}/${padColor}/${kneeSide}/${weaponId}/${wheelie}/${helmetId}/${helmetColorId}`;
+  const key=`front/${color}/${style}/${pose}/${side}/${police}/${frame}/${padColor}/${kneeSide}/${weaponId}/${wheelie}/${helmetId}/${helmetColorId}/${policeBike}`;
   if(riderCache.has(key))return riderCache.get(key)!;
   if(style==='bicycle')return rememberRider(key,bicycleSprite(color,pose,side,frame,true,helmetId,helmetColorId,weaponId));
   const canvas=document.createElement('canvas');canvas.width=88;canvas.height=128;const c=canvas.getContext('2d')!;
@@ -191,9 +193,10 @@ export function bikeFrontSprite(color: string, style: BikeStyle = 'street', pose
   if(wheelie)c.translate(0,-10);
   r(slim?38:35,wheelie?79:91,slim?12:18,wheelie?45:35,'#17222c');r(37,108+frame*3,14,2,'#4a585f');
   r(30,65,5,50,'#b9c6c3');r(54,65,5,50,'#b9c6c3');
-  if(style==='cruiser'){r(8,77,19,26,'#31363d');r(61,77,19,26,'#31363d');r(8,77,19,5,color);r(61,77,19,5,color);}
+  const bikeColor=policeBike?'#e7e9e5':color;
+  if(style==='cruiser'){r(8,77,19,26,'#31363d');r(61,77,19,26,'#31363d');r(8,77,19,5,bikeColor);r(61,77,19,5,bikeColor);}
   if(style==='sport'||style==='muscle'){r(22,48,44,45,color);r(30,40,28,21,'#344b59');r(27,70,12,6,'#fff2bb');r(49,70,12,6,'#fff2bb');}
-  else{r(slim?32:26,58,slim?24:36,33,color);c.fillStyle='#e9e9d2';c.beginPath();c.arc(44,69,custom?11:8,0,Math.PI*2);c.fill();r(39,64,10,7,'#fff7c5');}
+  else{r(slim?32:26,58,slim?24:36,33,bikeColor);c.fillStyle='#e9e9d2';c.beginPath();c.arc(44,69,custom?11:8,0,Math.PI*2);c.fill();r(39,64,10,7,'#fff7c5');}
   r(28,26,32,33,'#26323d');r(29,27,7,29,custom?'#5b5048':color);r(53,27,7,29,custom?'#5b5048':color);
   c.strokeStyle='#bac7c5';c.lineWidth=4;c.beginPath();c.moveTo(14,custom?24:44);c.lineTo(30,47);c.lineTo(58,47);c.lineTo(74,custom?24:44);c.stroke();
   c.strokeStyle=custom?'#303039':color;c.lineWidth=8;c.beginPath();
@@ -207,7 +210,7 @@ export function bikeFrontSprite(color: string, style: BikeStyle = 'street', pose
   if(pose==='celebrate')drawVictoryArms(c,color,frame);
   if(pose==='punch'||pose==='weapon'){c.strokeStyle=color;c.lineWidth=8;c.beginPath();c.moveTo(44,34);c.lineTo(44+side*36,36);c.stroke();if(pose==='weapon')drawHeldWeapon(c,side>0?82:6,35,weaponId);}
   if(pose==='kick'){c.strokeStyle='#29353e';c.lineWidth=9;c.beginPath();c.moveTo(44,70);c.lineTo(44+side*36,85);c.stroke();}
-  if(police){r(19,75,10,7,frame%2?'#70b0fa':'#f87d66');r(59,75,10,7,frame%2?'#f87d66':'#70b0fa');}
+  if(police||policeBike){r(19,75,10,7,frame%2?'#70b0fa':'#f87d66');r(59,75,10,7,frame%2?'#f87d66':'#70b0fa');}
   return rememberRider(key,canvas);
 }
 
@@ -257,6 +260,7 @@ export function bikePortrait(bike: Bike): HTMLCanvasElement {
   if(chopper){line([51,95,60,58,81,59,91,90],'#d1d7c9',4);r(64,66,16,22,'#63483d');}
   if(style==='muscle'){poly([45,76,91,67,126,81,94,93,39,91],bike.color);r(78,72,51,8,'#293039');r(190,61,18,19,'#546f7b');}
   r(34,seatY+5,12,5,'#e77960');line([126,134,143,134],'#e0e2ce',4);
+  if(bike.id===POLICE_BIKE_ID){r(43,89,38,28,'#e7e9e5');r(44,91,12,6,'#559cef');r(64,91,12,6,'#ef6b68');c.fillStyle='#203943';c.font='bold 7px monospace';c.fillText('POLÍCIA',45,109);r(198,46,19,10,'#537c99');}
   cache.set(key,canvas);return canvas;
 }
 

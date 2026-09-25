@@ -2,6 +2,7 @@ import { clamp, getTrack } from './content';
 import { guardRailPosition } from './guardrails';
 import { lateralLimit } from './road-profile';
 import type { Command, RaceState, Rider } from './types';
+import { stealablePoliceBike, takePoliceBike } from './police-bike';
 
 export const RUN_SPEED=7.2, MOUNT_DISTANCE=1.35, MOUNT_SECONDS=.65;
 export const EXPLOSION_SECONDS=1.8;
@@ -13,7 +14,7 @@ export function beginRecovery(s:RaceState,r:Rider,kind:'spill'|'impact'='spill')
  r.x=reachableX(s,r.x+side*.7,r.z);r.crash=.001;r.speed=0;r.health=Math.max(24,r.health);r.lean=0;
 }
 export function recoveryCommand(r:Rider):Command{
- const f=r.recovery;if(!f)return {throttle:0,brake:0,steer:0,attack:null};
+ const f=r.recovery;if(!f || f.bikeTaken)return {throttle:0,brake:0,steer:0,attack:null};
  const dx=f.bikeX-r.x,dz=f.bikeZ-r.z,len=Math.max(1,Math.hypot(dx,dz));
  return {throttle:Math.max(0,dz/len),brake:Math.max(0,-dz/len),steer:clamp(dx/len,-1,1),attack:null};
 }
@@ -44,15 +45,27 @@ export function advanceRecovery(s:RaceState,r:Rider,cmd:Command,dt:number,confir
   const dz=clamp(cmd.throttle-cmd.brake,-1,1),dx=clamp(cmd.steer,-1,1),norm=Math.max(1,Math.hypot(dx,dz));
   if(Math.hypot(dx,dz)>.05){f.facingX=dx/norm;f.facingZ=dz/norm;f.cycle+=dt*9*Math.hypot(dx,dz)/norm;}
   r.z=clamp(r.z+RUN_SPEED*dt*dz/norm,0,getTrack(s.trackId).distance+35);r.x=reachableX(s,r.x+RUN_SPEED*dt*dx/norm,r.z);
-  if(confirm && Math.hypot(r.x-f.bikeX,r.z-f.bikeZ)<=MOUNT_DISTANCE && Math.hypot(f.bikeVX,f.bikeVZ)<.2){
+  const officer=confirm?stealablePoliceBike(s,r,MOUNT_DISTANCE):undefined;
+  if(officer){
+   takePoliceBike(r,officer);f.phase='mounting';f.timer=MOUNT_SECONDS;
+   s.events.push({type:'steal',actor:r.id,target:officer.id,text:'MOTO DA POLÍCIA ROUBADA! TERMINE A CORRIDA COM ELA'});
+  }else if(confirm && !f.bikeTaken && Math.hypot(r.x-f.bikeX,r.z-f.bikeZ)<=MOUNT_DISTANCE && Math.hypot(f.bikeVX,f.bikeVZ)<.2){
    if(r.integrity<=0)explodeBike(s,r);
    else {f.phase='mounting';f.timer=MOUNT_SECONDS;}
   }
  }else{
   if(r.integrity<=0){if(confirm)explodeBike(s,r);return;}
   f.timer=Math.max(0,f.timer-dt);r.x+=(f.bikeX-r.x)*Math.min(1,dt*9);r.z+=(f.bikeZ-r.z)*Math.min(1,dt*9);
-  if(confirm && f.timer===0){r.x=f.bikeX;r.z=f.bikeZ;r.speed=0;r.crash=0;r.immune=1.1;delete r.recovery;s.events.push({type:'pass',actor:r.id,text:'DE VOLTA À MOTO!'});}
+  if(confirm && f.timer===0){r.x=f.bikeX;r.z=f.bikeZ;r.speed=0;r.crash=0;r.immune=1.1;delete r.recovery;s.events.push({type:'pass',actor:r.id,text:r.stolenPoliceBike?'NA MOTO DA POLÍCIA!':'DE VOLTA À MOTO!'});}
  }
+}
+export function advanceAbandonedBike(s:RaceState,r:Rider,dt:number){
+ const b=r.stolenPoliceBike?.originalBike;if(!b)return;
+ const x=b.bikeX+b.bikeVX*dt;
+ b.bikeZ=clamp(b.bikeZ+b.bikeVZ*dt,0,getTrack(s.trackId).distance+35);b.bikeX=reachableX(s,x,b.bikeZ);
+ if(Math.abs(x-b.bikeX)>.001)b.bikeVX=0;
+ const drag=(s.trackId==='terra'?12:10)*(s.condition==='rain'?.8:1);
+ b.bikeVX=move(b.bikeVX,drag,dt);b.bikeVZ=move(b.bikeVZ,drag,dt);
 }
 function explodeBike(s:RaceState,r:Rider){
  const f=r.recovery!;f.phase='exploding';f.timer=EXPLOSION_SECONDS;f.bikeVX=0;f.bikeVZ=0;

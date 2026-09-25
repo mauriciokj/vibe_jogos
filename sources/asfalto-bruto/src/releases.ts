@@ -2,7 +2,13 @@ import './releases.css';
 import { GAME_VERSION } from './version';
 export { GAME_VERSION } from './version';
 export const RELEASES=[
-  {version:GAME_VERSION,date:'23/09/2026',title:'Acompanhe a corrida até o fim',changes:[
+  {version:GAME_VERSION,date:'25/09/2026',title:'Revanche na mesma sala',changes:[
+    'Cada policial derrubado por você rende 500 moedas, somadas ao prêmio no resultado, inclusive em derrotas.',
+    'No individual e no campeonato, alcance a moto caída do policial antes dele para roubá-la. Termine montado nela para desbloquear a Patrulha 900, sem benefícios extras e sem uso no multiplayer.',
+    'Quando todos confirmam Próxima corrida, o grupo segue com a mesma sala e código. Também é possível repetir a corrida.',
+    'Após a corrida encerrar, Voltar para a sala permite ao anfitrião escolher pista e condição, enquanto cada jogador troca sua moto. Se o anfitrião sair, outro assume.'
+  ]},
+  {version:'1.5.0-beta',date:'23/09/2026',title:'Acompanhe a corrida até o fim',changes:[
     'Após ser preso ou perder a moto, acompanhe os outros jogadores que continuam na corrida. A cena de prisão e a explosão são preservadas.',
     'Aperte C ou use o botão Trocar câmera para alternar entre os jogadores. Nome, velocidade e instrumentos acompanham o piloto observado.',
     'Se o piloto observado sair ou concluir a corrida, a câmera troca automaticamente. Você pode abrir seu resultado a qualquer momento.'

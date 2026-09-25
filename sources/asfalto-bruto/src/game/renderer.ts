@@ -3,6 +3,8 @@ import { arrestScene, type ArrestScene } from './arrest';
 import { arrestPerson } from './arrest-art';
 import { PORT_CREW, portWorker } from './port-workers';
 import { drawFallenRider } from './fallen-rider-art';
+import { POLICE_BIKE_ID } from './bikes';
+import type { AbandonedBike } from './types';
 import { EXPLOSION_SECONDS } from './recovery';
 import { pedestrianSprite } from './recovery-art';
 import { drawTrackHazard } from './hazard-art';
@@ -460,17 +462,19 @@ export class Renderer {
     c.restore();
     if(f.hitCooldown>.7){c.fillStyle='#ffe09b';c.font=`bold ${Math.max(11,h*.19)}px monospace`;c.textAlign='center';c.fillText('✦',p.x,p.y-h-5);}
   }
-  private fallenBike(r:Rider,state:RaceState){
-    const f=r.recovery!,p=this.project(f.bikeZ,f.bikeX);if(!p || p.y>p.clip+55)return;
+  private fallenBike(r:Rider,state:RaceState,abandoned?:AbandonedBike){
+    if(!abandoned && r.recovery?.bikeTaken)return;
+    const f=abandoned?{...abandoned,phase:'walking' as const,timer:0}:r.recovery!,p=this.project(f.bikeZ,f.bikeX);if(!p || p.y>p.clip+55)return;
     const c=this.ctx,h=Math.min(p.scale*3.55,this.h*.36),w=h*88/128;
     c.save();c.beginPath();c.rect(0,0,this.w,p.clip);c.clip();c.fillStyle='#17293380';c.beginPath();c.ellipse(p.x,p.y,h*.36,h*.07,0,0,Math.PI*2);c.fill();
     c.translate(p.x,p.y-h*.07);c.scale(1,.6);c.rotate(1.4);
     if(f.phase==='exploding')c.filter='grayscale(1) brightness(.27)';
-    c.drawImage(bikeSprite(r.color,'parked',1,r.profile==='police',0,getBike(r.bikeId).style),-w/2,-h/2,w,h);c.restore();
+    c.drawImage(bikeSprite(abandoned?.color ?? r.color,'parked',1,r.profile==='police',0,getBike(abandoned?.bikeId ?? r.bikeId).style,'',0,'',false,'integral','white',(abandoned?.bikeId ?? r.bikeId)===POLICE_BIKE_ID),-w/2,-h/2,w,h);c.restore();
     if(f.bikeVZ>1 || Math.abs(f.bikeVX)>1){c.fillStyle=state.trackId==='terra'?'#bd9d67':'#ffd998';for(let i=0;i<6;i++)c.fillRect(p.x+(Math.sin(state.time*22+i)*w*.4),p.y+(i%3)*2,Math.max(1,p.scale*.06),2);}
     if(f.phase==='exploding'){this.bikeExplosion(p.x,p.y,h,EXPLOSION_SECONDS-f.timer);return;}
-    if(r.id===this.localId && !this.arrest && r.finishedAt===null){
-      const distance=Math.round(Math.hypot(r.x-f.bikeX,r.z-f.bikeZ)),label=`SUA MOTO · ${distance}m`,y=p.y-h*.58;
+    const local=state.riders.find(p=>p.id===this.localId),stealable=!abandoned && !state.multiplayer && r.profile==='police' && r.integrity>0 && f.phase!=='mounting' && !!local?.recovery && !local.stolenPoliceBike;
+    if(!abandoned && (r.id===this.localId || stealable) && !this.arrest && r.finishedAt===null){
+      const viewer=stealable?local!:r,distance=Math.round(Math.hypot(viewer.x-f.bikeX,viewer.z-f.bikeZ)),label=`${stealable?'ROUBAR MOTO':'SUA MOTO'} · ${distance}m`,y=p.y-h*.58;
       c.font=`700 ${this.w<500?11:13}px Barlow,sans-serif`;c.textAlign='center';const tw=c.measureText(label).width,x=clamp(p.x,tw/2+8,this.w-tw/2-8);
       c.fillStyle='#172f36ed';c.fillRect(x-tw/2-7,y-20,tw+14,23);c.fillStyle='#deff70';c.fillText(label,x,y-4);this.polygon([p.x-5,y+4,p.x+5,y+4,p.x,y+12],'#deff70');
     }
@@ -521,7 +525,7 @@ export class Renderer {
     if (r.immune && Math.floor(state.time * 10) % 2) c.globalAlpha = .48;
     if(state.trackId==='terra' && r.speed>12 && !r.crash && !(r.jumpTime!>0)){
       const wet=raceCondition(state.condition)==='rain';c.fillStyle=wet?'#80684455':'#dbb87e35';
-      for(let i=0;i<5;i++){const age=(r.z*.08+i*.21)%1;const size=height*(.025+age*.06);c.beginPath();c.ellipse(p.x+(i%2?1:-1)*width*(.16+age*.52),p.y-height*.03-age*height*.045,size,size*.3,0,0,Math.PI*2);c.fill();}
+      for(let i=0;i<5;i++){const age=((r.z*.08+i*.21)%1+1)%1;const size=height*(.025+age*.06);c.beginPath();c.ellipse(p.x+(i%2?1:-1)*width*(.16+age*.52),p.y-height*.03-age*height*.045,size,size*.3,0,0,Math.PI*2);c.fill();}
     }
     const lift=jumpHeight(r)*p.scale;
     c.translate(p.x, p.y-lift);
@@ -535,7 +539,7 @@ export class Renderer {
     const champion=r.id===this.winnerId && r.finishedAt!==null && !struck;
     const pose = parked?'parked':champion?'celebrate':r.attack && r.attack.age > .08 ? r.attack.kind : 'ride';
     const frame=parked?Math.floor(state.time*8)%2:champion?(this.reducedMotion?0:Math.floor(state.time*3)%3):getBike(r.bikeId).style==='bicycle'?Math.floor((r.pedalPhase ?? 0)*4/Math.PI)%8:r.speed > 8 ? Math.floor(r.z * 1.6) % 3 : 0;
-    c.drawImage(bikeSprite(r.color, pose, r.attack?.side ?? 1, r.profile === 'police', frame, getBike(r.bikeId).style,getKneePad(r.kneePadId)?.color,kneeSide,r.weaponId,stunting(r),r.helmetId,r.helmetColorId), -width / 2, -height, width, height);
+    c.drawImage(bikeSprite(r.color, pose, r.attack?.side ?? 1, r.profile === 'police', frame, getBike(r.bikeId).style,getKneePad(r.kneePadId)?.color,kneeSide,r.weaponId,stunting(r),r.helmetId,r.helmetColorId,r.bikeId===POLICE_BIKE_ID), -width / 2, -height, width, height);
     if(struck){c.strokeStyle='#ffeaa0';c.lineWidth=Math.max(1,height*.018);for(let i=0;i<5;i++){const a=i*Math.PI*.4;c.beginPath();c.moveTo(Math.cos(a)*width*.3,-height*.77+Math.sin(a)*width*.3);c.lineTo(Math.cos(a)*width*.48,-height*.77+Math.sin(a)*width*.48);c.stroke();}}
     if((r.nitroTime ?? 0)>0 && !r.crash){
       for(const side of [-1,1]){
@@ -718,7 +722,8 @@ export class Renderer {
     }});
     const target = nearestTarget(state, player, player.weapon ? 'weapon' : 'punch');
     for (const r of state.riders) if (r.z > this.camera.z && r.z < player.z + 1900) entities.push({ z: r.z, draw: () => this.rider(r, state, target?.id) });
-    for(const r of state.riders)if(r.recovery)entities.push({z:r.recovery.bikeZ,draw:()=>this.fallenBike(r,state)});
+    for(const r of state.riders)if(r.stolenPoliceBike){const b=r.stolenPoliceBike.originalBike;entities.push({z:b.bikeZ,draw:()=>this.fallenBike(r,state,b)});}
+    for(const r of state.riders)if(r.recovery&&!r.recovery.bikeTaken)entities.push({z:r.recovery.bikeZ,draw:()=>this.fallenBike(r,state)});
     const arrest=this.arrest;
     if(arrest){
       const officer=state.riders.find(r=>r.id===arrest.police.id)!;

@@ -39,8 +39,8 @@ function footFixture(s:ReturnType<typeof createRace>){
 }
 try{
  await prepare(page);await page.click('#garage-btn');
- assert.equal(await page.locator('.secret-vehicle').count(),1);assert.equal(await page.locator('[data-bike="bicicleta"]').count(),0);
- assert.equal(await page.locator('.secret-vehicle').innerText(),'item ainda não disponível');await page.locator('.secret-vehicle').scrollIntoViewIfNeeded();await shot('locked');await page.click('[data-close="garage-modal"]');
+ assert.equal(await page.locator('.secret-vehicle').count(),2);assert.equal(await page.locator('[data-bike="bicicleta"]').count(),0);
+ assert.equal(await page.locator('.secret-vehicle').first().innerText(),'item ainda não disponível');await page.locator('.secret-vehicle').first().scrollIntoViewIfNeeded();await shot('locked');await page.click('[data-close="garage-modal"]');
  await page.click('#start-btn');
  // Real collision -> slide -> get up -> choose the finish over returning to the bike.
  await page.evaluate(()=>{const s=JSON.parse(window.__game!.snapshot());s.mode='racing';s.time=200;s.countdown=0;s.riders=s.riders.slice(0,1);s.riders[0].z=8386;s.riders[0].speed=25;s.riders[0].x=1.7;s.traffic=[{id:'qa-car',x:1.7,z:8387,speed:0,color:'#c7aa80',kind:'car'}];s.obstacles=[];window.__game!.restore(JSON.stringify(s));window.advanceTime(50);});
@@ -49,7 +49,7 @@ try{
  await page.keyboard.down('w');await page.evaluate(()=>window.advanceTime(1600));await page.keyboard.up('w');
  assert.equal((await state()).result.onFoot,true);assert.equal((await state()).save.bicycleUnlocked,true);
  await page.evaluate(()=>window.advanceTime(3200));await shot('foot-finish');await finishView();await shot('unlocked');
- await page.click('#result-menu-btn');await page.click('#garage-btn');assert.equal(await page.locator('.secret-vehicle').count(),0);
+ await page.click('#result-menu-btn');await page.click('#garage-btn');assert.equal(await page.locator('.secret-vehicle').count(),1);
  await page.locator('[data-bike="bicicleta"]').scrollIntoViewIfNeeded();await shot('bicycle-card');await page.click('[data-bike="bicicleta"]');
  await page.click('[data-close="garage-modal"]');await page.reload();assert.equal((await state()).save.bike,'bicicleta');await page.click('#start-btn');await page.evaluate(()=>window.advanceTime(3550));
  await page.keyboard.down('w');await page.evaluate(()=>window.advanceTime(3000));assert.equal((await state()).player.speed,0);await page.keyboard.up('w');

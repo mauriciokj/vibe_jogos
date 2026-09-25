@@ -9,6 +9,8 @@ import { CONDITIONS } from '../src/game/conditions';
 import { TRACKS, getBike } from '../src/game/content';
 import { kneePadPrerequisite, nitroCount } from '../src/game/equipment';
 import { createRace, finishRider, stepRace } from '../src/game/simulation';
+import { enteredBike } from '../src/game/police-bike';
+import { policeReward } from '../src/game/rewards';
 import { cleanCommand } from '../src/multiplayer/protocol';
 import type { RaceState, SaveData } from '../src/game/types';
 import type { Member, Room } from './room';
@@ -170,13 +172,13 @@ export class Economy {
           if(completed&&!recordChampionshipHeat(save.championship,completed))fail('Etapa não corresponde à corrida.',400);
         }
         if(finish){
-          // Abandoning is not an income source. Legitimate defeats retain the
-          // existing workshop assistance computed by the simulation.
+          // Leaving grants no workshop assistance; confirmed police knockdowns
+          // still pay their bonus, just as they do after a defeat.
           if(body.abandon===true)race.result!.reward=0;
           payout=settleRace(save,race,{starterRepair:row!.kind!=='championship',mode:row!.kind==='championship'?'championship':'solo'});
-          const p=race.riders[0],bike=p.bikeId!;
-          save.nitro={...save.nitro,[bike]:(save.nitro?.[bike] ?? 0)+(p.nitro ?? 0)};
-          if(row!.kind==='solo')this.db.result(String(row!.id),id,'solo',race.trackId,race.condition!,bike,race.result!,this.now());
+          const p=race.riders[0],original=enteredBike(p),bike=original.bikeId;
+          save.nitro={...save.nitro,[bike]:(save.nitro?.[bike] ?? 0)+original.nitro};
+          if(row!.kind==='solo')this.db.result(String(row!.id),id,'solo',race.trackId,race.condition!,p.bikeId!,race.result!,this.now());
           this.db.db.prepare('INSERT INTO economy_completions VALUES(?,?)').run(row!.id,JSON.stringify(payout ?? null));
         }
         if(ticks)this.db.db.prepare('INSERT INTO economy_chunks VALUES(?,?,?,?)').run(row!.id,body.cursor,digest,body.cursor+ticks);
@@ -186,47 +188,58 @@ export class Economy {
       return {ok:true,completed:finish,cursor:body.cursor+ticks,cloud:this.db.cloud(id),payout};
     }finally{this.busy.delete(id);}
   }
-  equipMember(id:string|undefined,member:Member){
+  equipMember(id:string|undefined,member:Member,previous?:Member){
     // Ordinary motorcycles are free to choose online, with factory attributes.
     // The secret still requires a verified unlock. Guest equipment has already
     // been limited to catalog IDs/capacity by makeMember; it never enters a save
     // or ranking account. Account equipment always comes from the official save.
     const save=id?this.initialize(id).save!:undefined,requested=getBike(member.bikeId);
-    const bike=requested.secret && !save?.owned.includes(requested.id)?'ferro':requested.id;
+    const bike=requested.singlePlayerOnly || requested.secret && !save?.owned.includes(requested.id)?'ferro':requested.id;
     member.bikeId=bike;
     if(!id || !save){member.accountId=undefined;member.nitro=nitroCount(bike,member.nitro);return;}
-    this.ensureIdle(id);
-    member.accountId=id;member.bikeId=bike;member.weaponId=save.weaponId;member.kneePadId=save.kneePadId;
-    member.helmetId=save.helmetId;member.helmetColorId=save.helmetColorId;member.nitro=nitroCount(bike,save.nitro?.[bike]);
-    if(id)this.db.mutate(id,stored=>{
-      const next=structuredClone(stored!);next.nitro={...next.nitro,[bike]:0};
-      this.db.db.prepare('INSERT INTO economy_multiplayer(id,account,bike,stock) VALUES(?,?,?,?)').run(member.id,id,bike,member.nitro!);
+    this.db.mutate(id,stored=>{
+      const next=structuredClone(stored!);
+      if(previous?.accountId===id){
+        const old=this.db.db.prepare('SELECT * FROM economy_multiplayer WHERE id=? AND account=? AND closed=0').get(previous.entryId ?? previous.id,id);
+        if(old){next.nitro={...next.nitro,[String(old.bike)]:(next.nitro?.[String(old.bike)] ?? 0)+Math.max(0,Number(old.stock)-Number(old.used))};this.db.db.prepare('UPDATE economy_multiplayer SET closed=1 WHERE id=?').run(previous.entryId ?? previous.id);}
+      }
+      this.ensureIdle(id);
+      member.accountId=id;member.bikeId=bike;member.weaponId=next.weaponId;member.kneePadId=next.kneePadId;
+      member.helmetId=next.helmetId;member.helmetColorId=next.helmetColorId;member.nitro=nitroCount(bike,next.nitro?.[bike]);
+      next.nitro={...next.nitro,[bike]:0};
+      this.db.db.prepare('INSERT INTO economy_multiplayer(id,account,bike,stock) VALUES(?,?,?,?)').run(member.entryId ?? member.id,id,bike,member.nitro!);
       return {save:next,value:null};
     },this.now());
   }
+  prepareMembers(members:Member[],previous:Member[]){
+    this.db.transaction(()=>{for(const member of members)this.equipMember(member.accountId,member,previous.find(m=>m.id===member.id));});
+  }
   releaseMember(member:Member,used=0,result?:import('../src/game/types').RaceResult,race?:RaceState){
-    if(!member.accountId||this.closedSlots.has(member.id))return;
+    const entry=member.entryId ?? member.id;
+    if(!member.accountId||this.closedSlots.has(entry))return;
     const awarded=this.db.mutate(member.accountId,stored=>{
-      const row=this.db.db.prepare('SELECT * FROM economy_multiplayer WHERE id=? AND closed=0').get(member.id);
+      const row=this.db.db.prepare('SELECT * FROM economy_multiplayer WHERE id=? AND closed=0').get(entry);
       if(!row)return {save:stored,value:null};
       const save=structuredClone(stored!),remaining=Math.max(0,Number(row.stock)-Math.max(Number(row.used),used));
       const unlocked=!!result && unlockBicycle(save,result);
       const achievements=race&&result?awardRaceAchievements(save,race,member.id,'multi'):[];
+      if(race&&result)save.cash+=policeReward(result.policeKnockdowns);
       save.nitro={...save.nitro,[String(row.bike)]:(save.nitro?.[String(row.bike)] ?? 0)+remaining};
-      this.db.db.prepare('UPDATE economy_multiplayer SET closed=1 WHERE id=?').run(member.id);
+      this.db.db.prepare('UPDATE economy_multiplayer SET closed=1 WHERE id=?').run(entry);
       return {save,value:{unlocked,achievements}};
     },this.now());
     if(awarded && result){if(awarded.unlocked)result.secretUnlocked=true;if(awarded.achievements.length)result.achievements=awarded.achievements;}
-    this.closedSlots.add(member.id);this.onlineUsage.delete(member.id);
+    this.closedSlots.add(entry);this.onlineUsage.delete(entry);
     if(this.closedSlots.size>4096)this.closedSlots.delete(this.closedSlots.values().next().value!);
   }
   recordRoom(room:Room){
     for(const member of room.members){
-      if(!member.accountId||this.closedSlots.has(member.id))continue;
+      const entry=member.entryId ?? member.id;
+      if(!member.accountId||this.closedSlots.has(entry))continue;
       const rider=room.race?.riders.find(r=>r.id===member.id),used=rider?.nitroUsed ?? 0;
-      if(used>(this.onlineUsage.get(member.id) ?? 0)){
-        this.db.db.prepare('UPDATE economy_multiplayer SET used=MAX(used,?) WHERE id=? AND used<? AND closed=0').run(used,member.id,used);
-        this.onlineUsage.set(member.id,used);
+      if(used>(this.onlineUsage.get(entry) ?? 0)){
+        this.db.db.prepare('UPDATE economy_multiplayer SET used=MAX(used,?) WHERE id=? AND used<? AND closed=0').run(used,entry,used);
+        this.onlineUsage.set(entry,used);
       }
       const result=room.race?.multiplayer?.results[member.id];
       if(result)this.releaseMember(member,used,result,room.race ?? undefined);

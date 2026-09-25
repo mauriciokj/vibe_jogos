@@ -322,3 +322,11 @@ Artefatos locais estão em `road rash/output/vps/`: `live-check.json`, `eight.js
 - QA HTTPS: chegada/policial no subdomínio e campeonato no domínio principal passaram, com capturas públicas revisadas em output/grid-police/public-finish e public-championship. Os dois endereços entregam o mesmo HTML e asset index-CS-_5-GS.js. Sem erros JS/console; contextos descartáveis em ?test sem login, contagem artificial de visitas ou resultados fictícios no ranking.
 - Ativação respeitou guarda de corridas, serviços Asfalto/Catálogo/Caddy ativos, protocolo12 e activeRaces0 confirmados. Física de corrida/multiplayer, ranking regras2, OAuth, bancos e demais jogos preservados.
 - Quedas com deslizamento separado, corrida a pé, atropelamentos e salto sobre moto caída: viáveis e registradas em docs/planejamento-quedas.md. Não implementadas neste release. Próxima etapa é protótipo isolado; publicação depende de teste e aprovação explícita do usuário. Registro documental posterior não exige redeploy.
+
+
+## Beta 1.6.0 — preparação em 2026-09-25
+
+- Bônus de 500 moedas por policial derrubado; roubo e desbloqueio da Patrulha 900 restritos ao individual/campeonato; próxima corrida/repetição e configuração na mesma sala multiplayer.
+- Protocolo 18; ranking 3; registros e compras preservados.
+- 244 testes do jogo e nove testes da infraestrutura aprovados; TypeScript, Vite e exportador concluídos. Cenários de navegador das três funcionalidades previamente aprovados em desktop e celular, incluindo contas, convidados, reconexão e Redis.
+- Build JS `index-DxrY3-uq.js`, CSS `index-CVqRNDtE.css`. Ativação com proteção de corridas e validação HTTPS após o deploy.

@@ -60,6 +60,8 @@ Toques de teclado e dos botões na tela geram ações numeradas, enviadas imedia
 
 ## Publicação atual na VPS
 
+A Beta 1.6.0 usa protocolo **18** e mantém a sala entre corridas, com confirmação compartilhada para avançar/repetir e retorno à configuração de pista e motos. Veja [salas-multiplayer.md](docs/salas-multiplayer.md). Cliente e servidor devem ser atualizados juntos; páginas antigas precisam ser recarregadas. Os registros abaixo de protocolos anteriores permanecem como histórico.
+
 Produção está em `https://asfaltobruto.flowofdevelopment.com/asfalto-bruto/` e `https://flowofdevelopment.com/asfalto-bruto/`, atendidos pela mesma instância Node em `2.25.126.149`. Caddy termina HTTPS/WSS e encaminha ao serviço `vibe-asfalto`, com `ASFALTO_STORE=memory`. Não há operações Redis durante a corrida nessa instalação.
 
 Use o checkout limpo da branch `codex/vps-centralizacao` de `mauriciokj/vibe_jogos`: exporte o jogo, confira o diff, registre/envie o commit e execute `npm run deploy:vps -- root@2.25.126.149` no catálogo. O deploy valida a release e recusa a troca durante corridas ativas. Veja `infra/vps/README.md` e `VALIDATION.md` no catálogo. O protocolo v11 requer atualizar as páginas; os saves individuais v1 permanecem válidos.

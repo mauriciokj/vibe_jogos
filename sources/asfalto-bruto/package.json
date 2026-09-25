@@ -1,6 +1,6 @@
 {
   "name": "asfalto-bruto",
-  "version": "1.5.0-beta",
+  "version": "1.6.0-beta",
   "private": true,
   "type": "module",
   "scripts": {
@@ -40,6 +40,9 @@
     "test:hud": "tsx tests/hud-browser.ts",
     "test:finish": "tsx tests/finish-browser.ts",
     "test:rewards": "tsx tests/rewards-browser.ts",
+    "test:police-reward": "tsx --test tests/police-reward.test.ts && tsx tests/police-reward-browser.ts",
+    "test:police-theft": "tsx --test tests/police-theft.test.ts && tsx tests/police-theft-browser.ts",
+    "test:room-continuation": "tsx --test tests/room-continuation.test.ts && tsx tests/room-continuation-browser.ts",
     "test:hazards": "tsx tests/hazards-browser.ts",
     "test:championship": "tsx tests/championship-browser.ts",
     "test:falls": "tsx tests/falls-solo-browser.ts && tsx tests/falls-browser.ts",

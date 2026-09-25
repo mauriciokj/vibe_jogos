@@ -30,7 +30,7 @@ test('secret is unavailable for purchase, unlocks once without a debit or automa
  assert.equal(unlockBicycle(save,footResult),false);assert.equal(save.owned.filter(id=>id===BICYCLE_ID).length,1);
  assert.equal(buyBike(save,BICYCLE_ID),true);assert.equal(buyNitro(save),false);
  assert.deepEqual(normalizeSave(save),save);assert.equal(normalizeSave(before).owned.includes(BICYCLE_ID),false);
- assert.equal(MOTORBIKES.length,7);assert.equal(BIKES.length,8);
+ assert.equal(MOTORBIKES.length,7);assert.equal(BIKES.length,9);
 });
 test('forward walking across the finish unlocks on every track and condition, including a broken motorcycle',()=>{
  for(const t of TRACKS)for(const c of CONDITIONS){

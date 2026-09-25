@@ -1,3 +1,4 @@
+import { onlineBike } from '../src/game/bikes';
 import { getHelmet, getHelmetColor } from '../src/game/helmets';
 import { getWeapon } from '../src/game/weapons';
 import { CONDITIONS, raceCondition } from '../src/game/conditions';
@@ -6,9 +7,11 @@ import { createMultiplayerRace, finishRider, STEP, stepRace } from '../src/game/
 import { TRACKS, getBike } from '../src/game/content';
 import { getKneePad, nitroCount } from '../src/game/equipment';
 import { EMPTY_COMMAND, type Command } from '../src/game/types';
+import { nextRaceRoute } from '../src/game/routes';
+import type { RematchChoice } from '../src/multiplayer/protocol';
 import { cleanName, MAX_PLAYERS, READY_WAIT_MS, RECONNECT_MS, ROOM_WAIT_MS, PUBLIC_ROOM_WAIT_MS, type PublicRoomView, type AttackInput, type ActionInput, type Loadout, type MemberView, type RoomView } from '../src/multiplayer/protocol';
 
-export interface Member extends MemberView { token: string; epoch: string; lastSeen: number; accountId?: string; }
+export interface Member extends MemberView { token: string; epoch: string; lastSeen: number; accountId?: string; left?: boolean; }
 export interface Room extends Omit<RoomView,'members'|'serverNow'|'simulationAt'> {
   members: Member[]; updatedAt: number; createdAt: number; finishedAt: number | null;
 }
@@ -17,19 +20,22 @@ export type Inputs = Record<string, StoredInput>;
 export const inputKey = (member: Member) => `${member.id}:${member.epoch}`;
 export const secret = () => randomBytes(24).toString('base64url');
 export function makeMember(name: unknown, now: number, bikeId?: unknown, loadout?: Loadout): Member {
-  const bike=getBike(typeof bikeId==='string'?bikeId:undefined);
+  const bike=onlineBike(typeof bikeId==='string'?bikeId:undefined);
   return { id: `human-${randomBytes(8).toString('hex')}`, name: cleanName(name), bikeId: bike.id, helmetId:getHelmet(loadout?.helmetId).id, helmetColorId:getHelmetColor(loadout?.helmetColorId).id, weaponId:getWeapon(loadout?.weaponId)?.id, kneePadId:getKneePad(loadout?.kneePadId)?.id, nitro:nitroCount(bike.id,loadout?.nitro), ready: false, connected: true, token: secret(), epoch: secret(), lastSeen: now };
 }
 export function makeRoom(code: string, trackId: unknown, member: Member, now: number, fillBots = false, condition?: unknown, isPublic = false): Room {
   if (!TRACKS.some(t => t.id === trackId)) throw new Error('Estrada inválida.');
   if(condition!==undefined && !CONDITIONS.some(c=>c.id===condition))throw new Error('Condição inválida.');
-  return { code, public: isPublic === true, condition: raceCondition(condition), trackId: trackId as string, fillBots: fillBots === true, phase: 'lobby', locked: false, deadline: now+(isPublic === true ? PUBLIC_ROOM_WAIT_MS : ROOM_WAIT_MS), revision: 0,
+  return { code, round:0, public: isPublic === true, condition: raceCondition(condition), trackId: trackId as string, fillBots: fillBots === true, phase: 'lobby', locked: false, deadline: now+(isPublic === true ? PUBLIC_ROOM_WAIT_MS : ROOM_WAIT_MS), revision: 0,
     members: [member], race: null, ack: {}, attackAck: {}, actionAck: {}, updatedAt: now, createdAt: now, finishedAt: null };
 }
 export function viewRoom(room: Room, now: number): RoomView {
-  return { code: room.code, public: room.public === true, condition: raceCondition(room.condition), trackId: room.trackId, fillBots: room.fillBots, phase: room.phase, locked: room.locked, deadline: room.deadline,
-    revision: room.revision, serverNow: now, simulationAt: room.updatedAt, members: room.members.map(({id,name,bikeId,helmetId,helmetColorId,weaponId,kneePadId,nitro,ready,connected}) => ({id,name,bikeId,helmetId,helmetColorId,weaponId,kneePadId,nitro,ready,connected})), race: room.race, ack: room.ack, attackAck: room.attackAck, actionAck:room.actionAck };
+  const waiting=continuationMembers(room,now);
+  return { code: room.code, round:room.round ?? 0, hostId:hostId(room), manualStart:room.manualStart, continuationCount:waiting.length, reconnectingCount:waiting.filter(m=>!m.connected).length, previous:room.previous, public: room.public === true, condition: raceCondition(room.condition), trackId: room.trackId, fillBots: room.fillBots, phase: room.phase, locked: room.locked, deadline: room.deadline,
+    revision: room.revision, serverNow: now, simulationAt: room.updatedAt, members: room.members.map(({id,entryId,continuation,name,bikeId,helmetId,helmetColorId,weaponId,kneePadId,nitro,ready,connected}) => ({id,entryId,continuation,name,bikeId,helmetId,helmetColorId,weaponId,kneePadId,nitro,ready,connected})), race: room.race, ack: room.ack, attackAck: room.attackAck, actionAck:room.actionAck };
 }
+export function hostId(room:Room){return room.members.find(m=>m.connected&&!m.left)?.id;}
+function continuationMembers(room:Room,now:number){return room.members.filter(m=>!m.left&&(m.connected||now-m.lastSeen<=RECONNECT_MS));}
 // Discovery exposes only joinable lobby metadata, never members or credentials.
 export function publicRoomView(room: Room, now: number): PublicRoomView | null {
   if (room.public !== true || room.phase !== 'lobby' || room.locked || now-room.createdAt > 30*60_000) return null;
@@ -44,11 +50,12 @@ export function lobbyClock(room: Room, now: number) {
   if (room.phase !== 'lobby') return;
   const present = room.members.filter(p => p.connected);
   if (present.length < 2) {
-    if (room.locked) { room.locked = false; room.deadline = now+(room.public ? PUBLIC_ROOM_WAIT_MS : ROOM_WAIT_MS); }
+    if (room.locked) { room.locked = false; room.deadline = room.manualStart?null:now+(room.public ? PUBLIC_ROOM_WAIT_MS : ROOM_WAIT_MS); }
     if (room.deadline !== null && now >= room.deadline) room.deadline = null;
     return;
   }
-  if (room.deadline === null) room.deadline = now+(room.public ? PUBLIC_ROOM_WAIT_MS : ROOM_WAIT_MS);
+  if(room.manualStart && !room.locked && !present.every(p=>p.ready)){room.deadline=null;return;}
+  if (room.deadline === null) room.deadline = now+(room.manualStart?READY_WAIT_MS:room.public ? PUBLIC_ROOM_WAIT_MS : ROOM_WAIT_MS);
   if (!room.locked && present.every(p => p.ready)) room.deadline = Math.min(room.deadline,now+READY_WAIT_MS);
   if (room.deadline-now <= READY_WAIT_MS) room.locked = true;
   if (now < room.deadline) return;
@@ -70,10 +77,57 @@ export function setReady(room: Room, id: string, epoch: string, ready: boolean, 
   if (!member?.connected || room.phase !== 'lobby' || room.locked) return;
   member.ready = ready; member.lastSeen = now; lobbyClock(room,now);
 }
+export function setContinuation(room:Room,id:string,epoch:string,round:number,choice:RematchChoice,now:number){
+  const m=room.members.find(p=>p.id===id&&p.epoch===epoch&&!p.left);
+  if(!m?.connected || room.phase!=='finished' || round!==(room.round ?? 0) || !room.race?.multiplayer?.results[id])throw Error('Aguarde todos terminarem a corrida.');
+  if(!['next','again','lobby'].includes(choice))throw Error('Opção inválida.');
+  if(choice==='next'&&!nextRaceRoute(room.trackId,room.condition))throw Error('Esta é a última corrida. Volte à sala para escolher uma pista.');
+  m.continuation=choice;m.lastSeen=now;
+}
+export function continuationChoice(room:Room,now:number):RematchChoice|undefined {
+  if(room.phase!=='finished')return;
+  const members=continuationMembers(room,now);
+  if(members.some(m=>m.connected&&m.continuation==='lobby'))return 'lobby';
+  const first=members[0]?.continuation;
+  if(members.length>=2 && first && members.every(m=>m.connected&&m.continuation===first))return first;
+}
+export function reopenRoom(room:Room,choice:RematchChoice,now:number,prepare?:(members:Member[],previous:Member[])=>void){
+  if(room.phase!=='finished'||!room.race)throw Error('A corrida ainda está em andamento.');
+  const next=choice==='next'?nextRaceRoute(room.trackId,room.condition):null;
+  if(choice==='next'&&!next)throw Error('Esta é a última corrida.');
+  const previous=continuationMembers(room,now);
+  const members=previous.map(m=>({...m,entryId:`human-${randomBytes(8).toString('hex')}`,continuation:undefined,ready:choice!=='lobby',nitro:room.race!.riders.find(r=>r.id===m.id)?.nitro ?? m.nitro}));
+  prepare?.(members,previous);
+  room.previous={race:structuredClone(room.race),members:viewRoom(room,now).members};
+  room.members=members;room.round=(room.round ?? 0)+1;room.createdAt=now;room.updatedAt=now;room.finishedAt=null;
+  if(next){room.trackId=next.track.id;room.condition=next.condition.id;}
+  room.phase='lobby';room.race=null;room.manualStart=true;room.locked=false;room.deadline=null;
+  // Keep sequence acknowledgements monotonic across rounds. Old input packets
+  // and old actions must never become fresh commands in the next race.
+  lobbyClock(room,now);
+}
+export function configureRoom(room:Room,id:string,epoch:string,round:number,patch:{trackId?:string;condition?:unknown;bikeId?:string;loadout?:Loadout},now:number,equip?:(member:Member,previous:Member)=>void){
+  lobbyClock(room,now);
+  const m=room.members.find(p=>p.id===id&&p.epoch===epoch&&!p.left);
+  if(!m?.connected || room.phase!=='lobby'||room.locked||round!==(room.round ?? 0))throw Error('A sala já fechou a largada.');
+  const route=patch.trackId!==undefined||patch.condition!==undefined;
+  if(route){
+    if(hostId(room)!==id)throw Error('Somente o anfitrião pode trocar a pista.');
+    if(!TRACKS.some(t=>t.id===patch.trackId)||!CONDITIONS.some(c=>c.id===patch.condition))throw Error('Pista ou condição inválida.');
+  }
+  if(patch.bikeId!==undefined){
+    const selected=makeMember(m.name,now,patch.bikeId,patch.loadout);
+    const replacement={...m,bikeId:selected.bikeId,helmetId:selected.helmetId,helmetColorId:selected.helmetColorId,weaponId:selected.weaponId,kneePadId:selected.kneePadId,nitro:selected.nitro,entryId:selected.id,ready:false};
+    equip?.(replacement,m);Object.assign(m,replacement);
+  }
+  if(route){room.trackId=patch.trackId!;room.condition=raceCondition(patch.condition);room.members.forEach(p=>p.ready=false);}
+  m.lastSeen=now;lobbyClock(room,now);
+}
 export function depart(room: Room, id: string, epoch: string, now: number, explicit = false) {
   const member = room.members.find(p => p.id === id && p.epoch === epoch);
   if (!member) return;
   member.connected = false; member.ready = false; member.lastSeen = now;
+  if(explicit){member.left=true;member.continuation=undefined;}
   if (explicit && room.race) {
     const rider = room.race.riders.find(r => r.id === id);
     if (rider && !room.race.multiplayer!.results[id]) finishRider(room.race,rider,'left');
@@ -84,7 +138,7 @@ export function depart(room: Room, id: string, epoch: string, now: number, expli
 export function pulseRoom(room: Room, inputs: Inputs, now: number) {
   for (const m of room.members) {
     const input = inputs[inputKey(m)];
-    if (input && input.at > m.lastSeen) { m.lastSeen = input.at; m.connected = true; }
+    if (!m.left && input && input.at > m.lastSeen) { m.lastSeen = input.at; m.connected = true; }
     if (now-m.lastSeen > RECONNECT_MS) { m.connected = false; m.ready = false; }
   }
   if (room.phase === 'lobby') { lobbyClock(room,now); return; }

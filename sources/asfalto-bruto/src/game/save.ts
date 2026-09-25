@@ -5,8 +5,9 @@ import { CONDITIONS, raceCondition, recordKey } from './conditions';
 import { BIKES, TRACKS, clamp, getTrack } from './content';
 import { KNEE_PADS, NITRO_PRICE, equippedKneePad, getKneePad, kneePadPrerequisite, nitroCount } from './equipment';
 import type { RaceState, SaveData, Upgrade } from './types';
-import { racePayout } from './rewards';
-import { BICYCLE_ID } from './bikes';
+import { policeReward, racePayout } from './rewards';
+import { BICYCLE_ID, POLICE_BIKE_ID } from './bikes';
+import { enteredBike } from './police-bike';
 import type { RaceResult } from './types';
 import { awardRaceAchievements, normalizeAchievements, reconcileAchievements, type AchievementMode } from './achievements';
 
@@ -24,6 +25,7 @@ export function normalizeSave(saved: any): SaveData {
   try {
     if (!saved || saved.version !== 1) return freshSave();
     const valid = freshSave();
+    if(Array.isArray(saved.onlineResults))valid.onlineResults=[...new Set<string>(saved.onlineResults.filter((id:unknown)=>typeof id==='string'&&/^human-[a-f0-9]{16}$/.test(id)))].slice(-64);
     valid.cash = Number.isFinite(saved.cash) ? clamp(saved.cash, 0, 1e8) : 650;
     valid.owned = Array.isArray(saved.owned) ? BIKES.filter(b => saved.owned.includes(b.id)).map(b => b.id) : ['ferro'];
     if (!valid.owned.includes('ferro')) valid.owned.unshift('ferro');
@@ -41,6 +43,7 @@ export function normalizeSave(saved: any): SaveData {
     const pad=equippedKneePad({...valid,kneePadId:saved.kneePadId});if(pad)valid.kneePadId=pad.id;
     if(saved.nitro && typeof saved.nitro==='object')valid.nitro=Object.fromEntries(valid.owned.filter(id=>saved.nitro[id]!==undefined).map(id=>[id,nitroCount(id,saved.nitro[id])]));
     if(saved.nitroReceipts && typeof saved.nitroReceipts==='object')valid.nitroReceipts=Object.fromEntries(Object.entries(saved.nitroReceipts).filter(([id,used])=>/^human-[a-f0-9]{16}$/.test(id) && Number.isInteger(used) && (used as number)>=0 && (used as number)<=5).slice(-64)) as Record<string,number>;
+    if(saved.policeReceipts && typeof saved.policeReceipts==='object')valid.policeReceipts=Object.fromEntries(Object.entries(saved.policeReceipts).filter(([id,count])=>/^human-[a-f0-9]{16}$/.test(id) && Number.isSafeInteger(count) && (count as number)>0).slice(-64)) as Record<string,number>;
     for (const id of valid.owned) {
       valid.condition[id] = Number.isFinite(saved.condition?.[id]) ? clamp(saved.condition[id], 0, 100) : 100;
       valid.upgrades[id] = { engine: 0, armor: 0, handling: 0 };
@@ -114,11 +117,11 @@ export function spendNitro(save: SaveData, bikeId: string, quantity: number): bo
   if(quantity<=0)return false;
   save.nitro={...save.nitro,[bikeId]:Math.max(0,nitroCount(bikeId,save.nitro?.[bikeId])-quantity)};return true;
 }
-export function recordOnlineNitro(save: SaveData, rider: import('./types').Rider): boolean {
-  const used=rider.nitroUsed ?? 0,previous=save.nitroReceipts?.[rider.id] ?? 0;
+export function recordOnlineNitro(save: SaveData, rider: import('./types').Rider, receiptId=rider.id): boolean {
+  const used=rider.nitroUsed ?? 0,previous=save.nitroReceipts?.[receiptId] ?? 0;
   if(used<=previous)return false;
   spendNitro(save,rider.bikeId ?? 'ferro',used-previous);
-  save.nitroReceipts=Object.fromEntries([...Object.entries(save.nitroReceipts ?? {}).filter(([id])=>id!==rider.id),[rider.id,used]].slice(-64));return true;
+  save.nitroReceipts=Object.fromEntries([...Object.entries(save.nitroReceipts ?? {}).filter(([id])=>id!==receiptId),[receiptId,used]].slice(-64));return true;
 }
 export function repair(save: SaveData): boolean {
   const cost = repairCost(save);
@@ -143,6 +146,13 @@ export function unlockBicycle(save:SaveData,result:RaceResult):boolean {
   save.upgrades[BICYCLE_ID]={engine:0,armor:0,handling:0};
   return true;
 }
+export function unlockPoliceBike(save:SaveData,state:RaceState):boolean {
+  const r=state.riders[0],result=state.result;
+  if(state.multiplayer || result?.reason!=='finish' || !result.stolenPoliceBike || !r.stolenPoliceBike || r.bikeId!==POLICE_BIKE_ID || r.recovery || result.onFoot || save.owned.includes(POLICE_BIKE_ID))return false;
+  save.owned.push(POLICE_BIKE_ID);save.condition[POLICE_BIKE_ID]=clamp(r.integrity,0,100);
+  save.upgrades[POLICE_BIKE_ID]={engine:0,armor:0,handling:0};
+  return true;
+}
 export function upgradeCost(save: SaveData, key: keyof Upgrade) { return 450 + (save.upgrades[save.bikeId]?.[key] ?? 0) * 350; }
 export function buyUpgrade(save: SaveData, key: keyof Upgrade): boolean {
   const up = save.upgrades[save.bikeId];
@@ -150,14 +160,34 @@ export function buyUpgrade(save: SaveData, key: keyof Upgrade): boolean {
   const cost = upgradeCost(save, key); if (save.cash < cost) return false;
   up[key]++; save.cash -= cost; return true;
 }
+// A guest can see the same server result again after reconnecting or reloading.
+export function awardOnlinePoliceReward(save:SaveData,id:string,result:RaceResult):number {
+  const count=result.policeKnockdowns ?? 0,previous=save.policeReceipts?.[id] ?? 0;
+  if(!/^human-[a-f0-9]{16}$/.test(id) || !policeReward(count) || count<=previous)return 0;
+  const bonus=policeReward(count-previous);
+  save.cash+=bonus;
+  save.policeReceipts=Object.fromEntries([...Object.entries(save.policeReceipts ?? {}).filter(([key])=>key!==id),[id,count]].slice(-64));
+  return bonus;
+}
+export function settleGuestOnlineResult(save:SaveData,state:RaceState,id:string,entryId=id){
+  const result=state.multiplayer?.results[id],rider=state.riders.find(r=>r.id===id);
+  if(!result||!rider||save.onlineResults?.includes(entryId))return;
+  recordOnlineNitro(save,rider,entryId);
+  const unlocked=unlockBicycle(save,result),achievements=awardRaceAchievements(save,state,id,'multi');
+  const policeBonus=awardOnlinePoliceReward(save,entryId,result);
+  save.onlineResults=[...(save.onlineResults ?? []),entryId].slice(-64);
+  return {unlocked,achievements,policeBonus};
+}
 export function settleRace(save: SaveData, state: RaceState, options: {starterRepair?:boolean;mode?:AchievementMode} = {}) {
   if (!state.result || state.multiplayer) return;
   const payout = racePayout(state.trackId, state.result, save.records[recordKey(state.trackId,state.condition)]?.time);
   if(unlockBicycle(save,state.result))payout.secretUnlocked=true;
+  if(unlockPoliceBike(save,state))payout.policeBikeUnlocked=true;
   const achievements=awardRaceAchievements(save,state,state.riders[0].id,options.mode ?? 'solo');
   if(achievements.length)payout.achievements=achievements;
   save.cash += payout.total; save.races++;
-  save.condition[state.riders[0].bikeId ?? save.bikeId] = clamp(state.riders[0].integrity, 0, 100);
+  const original=enteredBike(state.riders[0]);
+  save.condition[original.bikeId] = clamp(original.integrity, 0, 100);
   const result = state.result;
   if (result.reason === 'finish') {
     const key = recordKey(state.trackId,state.condition);
