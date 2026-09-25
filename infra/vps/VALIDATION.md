@@ -330,3 +330,12 @@ Artefatos locais estão em `road rash/output/vps/`: `live-check.json`, `eight.js
 - Protocolo 18; ranking 3; registros e compras preservados.
 - 244 testes do jogo e nove testes da infraestrutura aprovados; TypeScript, Vite e exportador concluídos. Cenários de navegador das três funcionalidades previamente aprovados em desktop e celular, incluindo contas, convidados, reconexão e Redis.
 - Build JS `index-DxrY3-uq.js`, CSS `index-CVqRNDtE.css`. Ativação com proteção de corridas e validação HTTPS após o deploy.
+
+### Resultado da publicação e QA público
+
+- Publicado commit `e4110d8` na VPS, release `20260925T141054Z-e4110d8`, com backup concluído e proteção de corridas respeitada. Asfalto, catálogo e Caddy ativos. Release anterior preservada para rollback.
+- Ambos os domínios confirmam Beta1.6.0/protocolo18 e assets idênticos ao build: JS `index-DxrY3-uq.js` SHA256 `01d1cbab6b05d817b144ac0e29779df106f7a50edf6d4a12613b830fe66211df`; CSS `index-CVqRNDtE.css` SHA256 `55f3e4b718b0d533c214d4da2d757bcb92cda0fc465a2754c2a145f8a5be2b71`.
+- Sala privada real na VPS validou os dois domínios, sete motos, equipamentos, seleção de pista pelo anfitrião/moto pelo participante, largada e reload/reconexão. Participantes saíram; saúde final voltou a activeRaces=0. Sem contas, rankings ou visitas artificiais em produção.
+- Os três drivers de funcionalidades foram repetidos com assets HTTPS publicados e autoridade/SQLite de teste isolados localmente: bônus repetidos e pagamento único; roubo, desbloqueio, garagem, restrição online e conta em segundo aparelho; três clientes/quatro corridas na mesma sala, votos, nitro/recibos, configuração, novo anfitrião, descoberta, recarga e snapshot de lobby saltado. Sem erros JS/console. Capturas desktop,390/320px inspecionadas.
+- A primeira tentativa do driver adaptado de salas falhou porque sua ponte WebSocket não encaminhava origem/cookie da sessão local. Corrigida somente a ponte descartável de QA e repetido com sucesso; não houve alteração do produto nem autenticação de produção.
+- Cliente da skill aprovado no HTTPS público:332 ticks,20,97m/s, direção/aceleração e captura/estado inspecionados. Artefatos em `output/deploy-beta-1.6.0`. Navegadores e serviços de teste encerrados. Publicação concluída; registro documental posterior não exige redeploy.
