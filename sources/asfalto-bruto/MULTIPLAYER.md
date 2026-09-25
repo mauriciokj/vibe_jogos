@@ -6,6 +6,8 @@ Na Beta1.4.4, contas confirmam a garagem antes de entrar, e o servidor usa os eq
 
 ## Regras da sala
 
+A Beta1.7.0 paga a mesma premiação por colocação do individual, mais 50 moedas por rival derrubado e 500 por policial, sem somar ambos pela mesma queda. Pagamentos são confirmados uma vez por participação. Regras completas em [Premiação](docs/premiacao.md); protocolo19 requer atualizar cliente e servidor juntos.
+
 - A primeira pessoa cria a sala, escolhe uma das 20 opções combinadas, como **Costa do Sol · Dia** ou **Serra da Fumaça · Chuva**, e recebe um código/convite.
 - A condição é fixa para toda a sala e aparece na espera, corrida e resultados. A previsão local usa a mesma aderência e frenagem de chuva do servidor; bots também antecipam as curvas.
 - Porto Ferrugem está disponível nas quatro condições. Caminhões, cones e blocos pertencem à simulação comum; servidor, bots e previsão usam as mesmas regras. O passageiro decorativo acompanha um caminhão existente, não cria um obstáculo.
@@ -60,7 +62,7 @@ Toques de teclado e dos botões na tela geram ações numeradas, enviadas imedia
 
 ## Publicação atual na VPS
 
-A Beta 1.6.0 usa protocolo **18** e mantém a sala entre corridas, com confirmação compartilhada para avançar/repetir e retorno à configuração de pista e motos. Veja [salas-multiplayer.md](docs/salas-multiplayer.md). Cliente e servidor devem ser atualizados juntos; páginas antigas precisam ser recarregadas. Os registros abaixo de protocolos anteriores permanecem como histórico.
+A Beta 1.7.0 usa protocolo **19**, com premiação por colocação e bônus de combate. Mantém a sala entre corridas, com confirmação compartilhada para avançar/repetir e retorno à configuração de pista e motos. Veja [salas-multiplayer.md](docs/salas-multiplayer.md). Cliente e servidor devem ser atualizados juntos; páginas antigas precisam ser recarregadas. Os registros abaixo de protocolos anteriores permanecem como histórico.
 
 Produção está em `https://asfaltobruto.flowofdevelopment.com/asfalto-bruto/` e `https://flowofdevelopment.com/asfalto-bruto/`, atendidos pela mesma instância Node em `2.25.126.149`. Caddy termina HTTPS/WSS e encaminha ao serviço `vibe-asfalto`, com `ASFALTO_STORE=memory`. Não há operações Redis durante a corrida nessa instalação.
 

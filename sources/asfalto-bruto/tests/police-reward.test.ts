@@ -106,7 +106,7 @@ test('official multiplayer pays only the credited player and receipts prevent du
     depart(room,ma.id,ma.epoch,1000,true);e.recordRoom(room);
     assert.equal(db.cloud(a.id).save!.cash,1150);assert.equal(db.cloud(b.id).save!.cash,650);
     const before=db.cloud(a.id);e.recordRoom(room);new Economy(db).recordRoom(room);assert.deepEqual(db.cloud(a.id),before);
-    finishRider(s,other,'finish');e.recordRoom(room);assert.equal(db.cloud(b.id).save!.cash,650);
+    finishRider(s,other,'finish');e.recordRoom(room);assert.equal(db.cloud(b.id).save!.cash,2050);
     assert.equal(s.multiplayer!.results[p.id].policeKnockdowns,1);
   }finally{db.close();}
 });

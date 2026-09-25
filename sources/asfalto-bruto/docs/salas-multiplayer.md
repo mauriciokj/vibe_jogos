@@ -19,11 +19,11 @@ As motos continuam com atributos de fábrica no multiplayer. Equipamentos e nitr
 
 ## Reconexão e registros
 
-O código e as identidades dos participantes são preservados. Cada corrida tem seu próprio identificador de entrada para nitro, prêmios, conquistas e ranking. Confirmar novamente, recarregar ou reconectar não repete pagamentos. O resultado anterior acompanha a sala para permitir a confirmação de créditos de um convidado que reconecte durante a transição.
+O código e as identidades dos participantes são preservados. Cada corrida tem seu próprio identificador de entrada para nitro, prêmios, conquistas e ranking. Confirmar novamente, recarregar ou reconectar não repete pagamentos. O resultado anterior acompanha a sala para permitir a confirmação de créditos de um convidado que reconecte durante a transição. O prêmio por colocação e os bônus de combate seguem [premiacao.md](premiacao.md).
 
 Uma desconexão temporária reserva a vaga por 15 segundos e impede a confirmação unânime de largada durante essa recuperação. Quem sai explicitamente deixa de participar da confirmação. Se restar apenas uma pessoa, ela pode reabrir a sala e convidar outros jogadores.
 
-A sala pública volta ao índice de busca quando reabre. O protocolo passa a ser **18**, isolando clientes antigos que não conhecem as transições entre corridas.
+A sala pública volta ao índice de busca quando reabre. As transições entre corridas foram introduzidas no protocolo18; a nova premiação usa protocolo **19**, exigindo que cliente e servidor apliquem a mesma regra.
 
 ## Testes
 

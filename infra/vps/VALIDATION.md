@@ -339,3 +339,10 @@ Artefatos locais estão em `road rash/output/vps/`: `live-check.json`, `eight.js
 - Os três drivers de funcionalidades foram repetidos com assets HTTPS publicados e autoridade/SQLite de teste isolados localmente: bônus repetidos e pagamento único; roubo, desbloqueio, garagem, restrição online e conta em segundo aparelho; três clientes/quatro corridas na mesma sala, votos, nitro/recibos, configuração, novo anfitrião, descoberta, recarga e snapshot de lobby saltado. Sem erros JS/console. Capturas desktop,390/320px inspecionadas.
 - A primeira tentativa do driver adaptado de salas falhou porque sua ponte WebSocket não encaminhava origem/cookie da sessão local. Corrigida somente a ponte descartável de QA e repetido com sucesso; não houve alteração do produto nem autenticação de produção.
 - Cliente da skill aprovado no HTTPS público:332 ticks,20,97m/s, direção/aceleração e captura/estado inspecionados. Artefatos em `output/deploy-beta-1.6.0`. Navegadores e serviços de teste encerrados. Publicação concluída; registro documental posterior não exige redeploy.
+
+
+## Beta 1.7.0 — premiação de corrida e combate
+
+- Multiplayer com a mesma premiação por colocação do individual; cada rival derrubado rende50 e policiais500, sem acumular ambos. Bônus em todos os modos, inclusive derrota/abandono; recibos impedem pagamentos repetidos. Protocolo19, ranking3 preservado.
+- 251 testes gerais aprovados na implementação, sete testes novos revalidados após corrigir o parâmetro de condição da fixture. Browser de combate e sala persistente aprovados no build estático, incluindo conta/convidado, quatro corridas, recarga e idempotência.
+- TypeScript/build/export e nove testes VPS aprovados para publicação. Build JS `index-B2pMWC3c.js`, CSS `index-CVqRNDtE.css`. Backup, proteção de corridas e QA HTTPS previstos na ativação autorizada.

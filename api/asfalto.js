@@ -37,7 +37,7 @@ module.exports = __toCommonJS(asfalto_exports);
 var import_node_http2 = require("node:http");
 
 // src/version.ts
-var GAME_VERSION = "1.6.0-beta";
+var GAME_VERSION = "1.7.0-beta";
 
 // server/service.ts
 var import_node_http = require("node:http");
@@ -630,8 +630,11 @@ function creditKnock(actor, target, previousFalls) {
   if (target.profile === "police") {
     f.policeDown = true;
     f.policeKnockdowns = (f.policeKnockdowns ?? 0) + 1;
-    return true;
-  } else if (!f.knocked.includes(target.id)) f.knocked.push(target.id);
+    return "police";
+  }
+  f.rivalKnockdowns = (f.rivalKnockdowns ?? 0) + 1;
+  if (!f.knocked.includes(target.id)) f.knocked.push(target.id);
+  return "rival";
 }
 function creditCarJump(r, id) {
   const f = r.feats ??= newRaceFeats(false);
@@ -750,6 +753,10 @@ function advancePedaling(r, dt) {
 
 // src/game/rewards.ts
 var POLICE_KNOCKDOWN_REWARD = 500;
+var RIVAL_KNOCKDOWN_REWARD = 50;
+function raceReward(trackId, reason, place) {
+  return reason === "finish" ? Math.round(getTrack(trackId).prize * ([1, 0.8, 0.64, 0.5, 0.4, 0.32, 0.25, 0.2][place - 1] ?? 0.2)) : reason === "left" ? 0 : 120;
+}
 
 // src/game/banter.ts
 var TAUNTS = [
@@ -1075,7 +1082,7 @@ function resolveAttacks(state) {
       if (target && (Math.sign(target.x - rider.x) === attack.side || Math.abs(target.x - rider.x) < 0.4)) {
         const falls = target.falls;
         impact(state, target, spec.damage, attack.side * spec.push);
-        const policeDown = creditKnock(rider, target, falls);
+        const knocked = creditKnock(rider, target, falls);
         rider.hits++;
         const action = attack.kind === "kick" ? "CHUTE" : attack.kind === "weapon" ? getWeapon(rider.weaponId)?.action ?? "BASTONADA" : "SOCO";
         state.events.push({ type: "hit", actor: rider.id, target: target.id, text: target.id === "player" ? `VOC\xCA LEVOU ${action} \xB7 ${rider.name}` : `${target.name} \xB7 ${action}!` });
@@ -1085,14 +1092,14 @@ function resolveAttacks(state) {
           rider.weapon = true;
           state.events.push({ type: "steal", actor: rider.id, text: "BAST\xC3O TOMADO!" });
         }
-        if (policeDown) policeRewardEvent(state, rider);
+        if (knocked) knockdownRewardEvent(state, rider, knocked);
       }
     }
     if (attack.age >= spec.duration + telegraph) rider.attack = null;
   }
 }
-function policeRewardEvent(state, rider) {
-  state.events.push({ type: "pass", actor: rider.id, text: `POLICIAL DERRUBADO \xB7 +${POLICE_KNOCKDOWN_REWARD} MOEDAS` });
+function knockdownRewardEvent(state, rider, kind) {
+  state.events.push({ type: "pass", actor: rider.id, text: `${kind === "police" ? "POLICIAL" : "RIVAL"} DERRUBADO \xB7 +${kind === "police" ? POLICE_KNOCKDOWN_REWARD : RIVAL_KNOCKDOWN_REWARD} MOEDAS` });
 }
 function mayCollide(state, a, b, cooldown = 1.4) {
   const key = [a, b].sort().join(":");
@@ -1152,8 +1159,8 @@ function resolveCollisions(state, oldZ) {
         impact(state, other, 7, -side * 0.35);
         const otherReward = creditKnock(other, r, rFalls), rReward = creditKnock(r, other, otherFalls);
         state.events.push({ type: "hit", actor: r.id, text: "CONTATO!" });
-        if (otherReward) policeRewardEvent(state, other);
-        if (rReward) policeRewardEvent(state, r);
+        if (otherReward) knockdownRewardEvent(state, other, otherReward);
+        if (rReward) knockdownRewardEvent(state, r, rReward);
       }
     }
   }
@@ -1212,9 +1219,10 @@ function finishRider(state, rider, reason, arrestCause) {
     ...reason === "caught" ? { arrestCause: arrestCause ?? "stopped" } : {},
     place,
     time: rider.finishedAt ?? state.time,
-    reward: state.multiplayer ? 0 : reason === "finish" ? Math.round(getTrack(state.trackId).prize * ([1, 0.8, 0.64, 0.5, 0.4, 0.32, 0.25, 0.2][place - 1] ?? 0.2)) : 120,
+    reward: raceReward(state.trackId, reason, place),
     hits: rider.hits,
     falls: rider.falls,
+    ...rider.feats?.rivalKnockdowns ? { rivalKnockdowns: rider.feats.rivalKnockdowns } : {},
     ...reason === "finish" && rider.stolenPoliceBike && rider.bikeId === POLICE_BIKE_ID && !rider.recovery && !rider.finishedOnFoot ? { stolenPoliceBike: true } : {},
     ...rider.feats?.policeKnockdowns ? { policeKnockdowns: rider.feats.policeKnockdowns } : {}
   };
@@ -1327,7 +1335,7 @@ function stepRace(state, commands = {}) {
 }
 
 // src/multiplayer/protocol.ts
-var NET_VERSION = 18;
+var NET_VERSION = 19;
 var MAX_PLAYERS = 8;
 var ROOM_WAIT_MS = 6e4;
 var PUBLIC_ROOM_WAIT_MS = 12e4;

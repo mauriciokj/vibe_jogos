@@ -2,7 +2,13 @@ import './releases.css';
 import { GAME_VERSION } from './version';
 export { GAME_VERSION } from './version';
 export const RELEASES=[
-  {version:GAME_VERSION,date:'25/09/2026',title:'Revanche na mesma sala',changes:[
+  {version:GAME_VERSION,date:'25/09/2026',title:'Dinheiro na disputa',changes:[
+    'O multiplayer agora paga a mesma premiação por colocação do individual, conforme o prêmio da pista.',
+    'Cada rival derrubado por você rende 50 moedas em todos os modos. Policiais continuam valendo 500 moedas, sem somar os dois bônus.',
+    'Derrubar o mesmo rival novamente depois da recuperação paga de novo. Os bônus são mantidos em derrota ou abandono e aparecem separados no resultado.',
+    'Pagamentos ficam registrados por corrida para evitar duplicação ao recarregar, reconectar ou continuar na mesma sala.'
+  ]},
+  {version:'1.6.0-beta',date:'25/09/2026',title:'Revanche na mesma sala',changes:[
     'Cada policial derrubado por você rende 500 moedas, somadas ao prêmio no resultado, inclusive em derrotas.',
     'No individual e no campeonato, alcance a moto caída do policial antes dele para roubá-la. Termine montado nela para desbloquear a Patrulha 900, sem benefícios extras e sem uso no multiplayer.',
     'Quando todos confirmam Próxima corrida, o grupo segue com a mesma sala e código. Também é possível repetir a corrida.',

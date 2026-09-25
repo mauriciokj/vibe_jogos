@@ -74,12 +74,12 @@ try{
   await a.waitForFunction(()=>JSON.parse(window.render_game_to_text()).result?.reason==='caught');
   if((await state(a)).screen==='finish')await a.click('#finish-skip');
   if((await state(a)).screen==='spectate')await a.click('#spectator-result');
-  assert.equal((await state(a)).save.cash,1150);assert.equal((await state(b)).save.cash,650);
+  assert.equal((await state(a)).save.cash,1270);assert.equal((await state(b)).save.cash,650);
   assert.match(await a.locator('.police-bonus').innerText(),/500/);await shot(a,'online-result');
-  await a.reload();await a.waitForFunction(()=>JSON.parse(window.render_game_to_text()).result?.reason==='caught');assert.equal((await state(a)).save.cash,1150);
+  await a.reload();await a.waitForFunction(()=>JSON.parse(window.render_game_to_text()).result?.reason==='caught');assert.equal((await state(a)).save.cash,1270);
   if((await state(a)).screen==='finish')await a.click('#finish-skip');
   if((await state(a)).screen==='spectate')await a.click('#spectator-result');
-  await a.click('#online-menu-btn');await a.waitForFunction(()=>JSON.parse(window.render_game_to_text()).screen==='menu');assert.equal((await state(a)).save.cash,1150);
+  await a.click('#online-menu-btn');await a.waitForFunction(()=>JSON.parse(window.render_game_to_text()).screen==='menu');assert.equal((await state(a)).save.cash,1270);
   await b.click('#pause-btn');await b.click('#menu-btn');
   assert.deepEqual(errors,[]);console.log('PASS police rewards: actual repeated falls, HUD, desktop/mobile results, cash, abandonment, reload, simultaneous fall/arrest, two online clients and reconnect idempotency.');
 }finally{await fs.writeFile(`${folder}/errors.json`,JSON.stringify(errors));await browser.close();await vite.close();await app.close();}

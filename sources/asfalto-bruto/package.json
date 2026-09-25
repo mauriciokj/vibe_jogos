@@ -1,6 +1,6 @@
 {
   "name": "asfalto-bruto",
-  "version": "1.6.0-beta",
+  "version": "1.7.0-beta",
   "private": true,
   "type": "module",
   "scripts": {
@@ -47,7 +47,8 @@
     "test:championship": "tsx tests/championship-browser.ts",
     "test:falls": "tsx tests/falls-solo-browser.ts && tsx tests/falls-browser.ts",
     "test:spectator": "tsx --test tests/spectator.test.ts && tsx tests/spectator-browser.ts",
-    "test:arrest": "tsx tests/arrest-browser.ts && tsx tests/arrest-online-browser.ts"
+    "test:arrest": "tsx tests/arrest-browser.ts && tsx tests/arrest-online-browser.ts",
+    "test:combat-rewards": "tsx --test tests/combat-rewards.test.ts && tsx tests/combat-rewards-browser.ts"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

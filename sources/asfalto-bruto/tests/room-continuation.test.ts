@@ -67,11 +67,11 @@ test('last route offers replay/lobby, and repeated replay does not change the ro
 
 test('guest result and nitro receipts are independent per race and idempotent after reload',()=>{
  const r=lobby(2),save=freshSave();save.nitro={ferro:2};start(r);const m=r.members[0],p=r.race!.riders[0];p.nitroUsed=1;p.nitro=1;p.feats!.policeKnockdowns=1;finish(r);
- const first=m.entryId ?? m.id;settleGuestOnlineResult(save,r.race!,m.id,first);const after=structuredClone(save);assert.equal(save.cash,1150);assert.equal(save.nitro.ferro,1);
- const reload=normalizeSave(save);assert.equal(settleGuestOnlineResult(reload,r.race!,m.id,first),undefined);assert.deepEqual(reload.onlineResults,after.onlineResults);assert.equal(reload.cash,1150);
+ const first=m.entryId ?? m.id;settleGuestOnlineResult(save,r.race!,m.id,first);const after=structuredClone(save);assert.equal(save.cash,2550);assert.equal(save.nitro.ferro,1);
+ const reload=normalizeSave(save);assert.equal(settleGuestOnlineResult(reload,r.race!,m.id,first),undefined);assert.deepEqual(reload.onlineResults,after.onlineResults);assert.equal(reload.cash,2550);
  reopenRoom(r,'again',at+6000);assert.equal(r.members[0].nitro,1);lobbyClock(r,at+11000);const second=r.race!.riders[0];second.nitroUsed=1;second.nitro=0;second.feats!.policeKnockdowns=1;finish(r);
- settleGuestOnlineResult(save,r.race!,m.id,r.members[0].entryId!);assert.equal(save.cash,1650);assert.equal(save.nitro.ferro,0);assert.equal(save.onlineResults!.length,2);
- settleGuestOnlineResult(save,r.previous!.race,m.id,first);assert.equal(save.cash,1650);
+ settleGuestOnlineResult(save,r.race!,m.id,r.members[0].entryId!);assert.equal(save.cash,4450);assert.equal(save.nitro.ferro,0);assert.equal(save.onlineResults!.length,2);
+ settleGuestOnlineResult(save,r.previous!.race,m.id,first);assert.equal(save.cash,4450);
 });
 
 test('account reservations, rewards and rankings renew every race; bike switch refunds the previous stock',()=>{
@@ -79,10 +79,10 @@ test('account reservations, rewards and rankings renew every race; bike switch r
   const accounts=new AccountService({db,clientId:'',origins:[]}),a=db.login('round-a'),b=db.login('round-b'),r=lobby(2);
   for(const [i,account] of [a,b].entries()){const save=freshSave();save.owned.push('veneno');save.upgrades.veneno={engine:0,armor:0,handling:0};save.condition.veneno=100;save.nitro={ferro:2,veneno:1};db.save(account.id,0,save,`setup-${i}`);r.members[i].accountId=account.id;accounts.economy.equipMember(account.id,r.members[i]);}
   start(r);r.race!.riders[0].nitroUsed=1;r.race!.riders[0].nitro=1;r.race!.riders[0].feats!.policeKnockdowns=1;finish(r);accounts.recordRoom(r);accounts.recordRoom(r);
-  assert.equal(db.cloud(a.id).save!.cash,1150);assert.equal(db.cloud(a.id).save!.nitro!.ferro,1);
+  assert.equal(db.cloud(a.id).save!.cash,2550);assert.equal(db.cloud(a.id).save!.nitro!.ferro,1);
   reopenRoom(r,'again',at+6000,(next,old)=>accounts.economy.prepareMembers(next,old));assert.equal(r.members[0].nitro,1);assert.equal(db.cloud(a.id).save!.nitro!.ferro,0);
   lobbyClock(r,at+11000);r.race!.riders[0].nitroUsed=1;r.race!.riders[0].nitro=0;r.race!.riders[0].feats!.policeKnockdowns=2;finish(r);accounts.recordRoom(r);accounts.recordRoom(r);
-  assert.equal(db.cloud(a.id).save!.cash,2150);assert.equal(db.cloud(a.id).save!.nitro!.ferro,0);assert.equal(db.ranking('multi','costa','night','time',a.id).find(row=>row.me)!.races,2);
+  assert.equal(db.cloud(a.id).save!.cash,4950);assert.equal(db.cloud(a.id).save!.nitro!.ferro,0);assert.equal(db.ranking('multi','costa','night','time',a.id).find(row=>row.me)!.races,2);
   reopenRoom(r,'lobby',at+12000,(next,old)=>accounts.economy.prepareMembers(next,old));const m=r.members[0];
   configureRoom(r,m.id,m.epoch,2,{bikeId:'veneno',loadout:{nitro:999,weaponId:'chain'}},at+12001,(next,old)=>accounts.economy.equipMember(next.accountId,next,old));assert.equal(m.nitro,1);assert.equal(m.weaponId,undefined);assert.equal(db.cloud(a.id).save!.nitro!.veneno,0);
   configureRoom(r,m.id,m.epoch,2,{bikeId:'lobo'},at+12002,(next,old)=>accounts.economy.equipMember(next.accountId,next,old));assert.equal(db.cloud(a.id).save!.nitro!.veneno,1);assert.equal(m.nitro,0);

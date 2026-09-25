@@ -40,7 +40,7 @@ async function finish(code:string,ids?:string[]){
  await store.mutate(code,r=>{
   const s=r.race!;s.time=90;s.traffic=[];s.obstacles=[];
   for(const rider of s.riders){if(rider.profile==='police'||s.multiplayer!.results[rider.id]||ids&&!ids.includes(rider.id))continue;
-   rider.finishedAt=90+s.riders.indexOf(rider);rider.z=getTrack(s.trackId).distance;rider.speed=0;rider.feats!.policeKnockdowns=1;rider.nitroUsed=1;rider.nitro=Math.max(0,(rider.nitro ?? 0)-1);finishRider(s,rider,'finish');}
+   rider.finishedAt=90+s.riders.indexOf(rider);rider.z=getTrack(s.trackId).distance;rider.speed=0;rider.feats!.policeKnockdowns=1;rider.feats!.rivalKnockdowns=2;rider.nitroUsed=1;rider.nitro=Math.max(0,(rider.nitro ?? 0)-1);finishRider(s,rider,'finish');}
   if(!ids){s.mode='finished';r.phase='finished';r.finishedAt=now();}
  });
 }
@@ -56,16 +56,16 @@ try{
  for(const p of [host,guest,third])await p.click('#online-ready');await host.waitForFunction(()=>JSON.parse(window.render_game_to_text()).online.locked);await jumpClock(code,5001);
  for(const p of [host,guest,third])await p.waitForFunction(()=>JSON.parse(window.render_game_to_text()).screen==='race');
  await finish(code,ids.slice(0,2));await result(host);await result(guest);assert.equal(await host.locator('#online-next-btn').isDisabled(),true);assert.equal(await guest.locator('#online-lobby-btn').isDisabled(),true);assert.equal((await state(third)).screen,'race');await shot(guest,'mobile-waiting-for-finish');
- await finish(code);await result(third);await host.waitForFunction(()=>JSON.parse(window.render_game_to_text()).online.phase==='finished');await host.waitForFunction(()=>JSON.parse(window.render_game_to_text()).save.cash===1150);
- assert.equal((await state(guest)).save.cash,1150);assert.equal((await state(guest)).save.nitro.ferro,1);
+ await finish(code);await result(third);await host.waitForFunction(()=>JSON.parse(window.render_game_to_text()).online.phase==='finished');await host.waitForFunction(()=>JSON.parse(window.render_game_to_text()).save.cash===2650);
+ assert.equal((await state(guest)).save.cash,2370);assert.equal((await state(guest)).save.nitro.ferro,1);assert.equal((await state(host)).payout.baseReward,1400);assert.equal((await state(guest)).payout.baseReward,1120);assert.equal((await state(host)).payout.total,2000);assert.match(await host.locator('.rival-bonus').innerText(),/2 derrubadas × 50 moedas/);assert.match(await host.locator('.police-bonus').innerText(),/1 derrubada × 500 moedas/);
  await host.click('#online-next-btn');await guest.click('#online-next-btn');await host.waitForFunction(()=>document.querySelector('#online-next-btn')?.textContent?.includes('2/3'));
  assert.equal((await state(host)).online.round,0);await shot(host,'desktop-two-of-three');await shot(third,'small-results');
- await guest.reload();await guest.waitForFunction(()=>JSON.parse(window.render_game_to_text()).online?.phase==='finished');await result(guest);assert.equal((await state(guest)).save.cash,1150);assert.equal(await guest.locator('#online-next-btn').getAttribute('aria-pressed'),'true');
+ await guest.reload();await guest.waitForFunction(()=>JSON.parse(window.render_game_to_text()).online?.phase==='finished');await result(guest);assert.equal((await state(guest)).save.cash,2370);assert.equal(await guest.locator('#online-next-btn').getAttribute('aria-pressed'),'true');
  await third.click('#online-next-btn');for(const p of [host,guest,third])await p.waitForFunction(()=>JSON.parse(window.render_game_to_text()).online?.round===1&&JSON.parse(window.render_game_to_text()).online?.phase==='lobby');
  assert.equal((await state(host)).online.code,code);assert.deepEqual(await Promise.all([host,guest,third].map(async p=>(await state(p)).online.id)),ids);assert.equal(await guest.inputValue('#lobby-track'),'costa:rain');assert.equal(await guest.locator('#lobby-bike').isDisabled(),true);await shot(host,'next-countdown-same-room');
  await jumpClock(code,5001);for(const p of [host,guest,third])await p.waitForFunction(()=>JSON.parse(window.render_game_to_text()).screen==='race'&&JSON.parse(window.render_game_to_text()).condition==='rain');
  assert.equal((await state(host)).result,null);await host.keyboard.down('w');await host.waitForFunction(()=>JSON.parse(window.render_game_to_text()).player.speed>8);await host.keyboard.up('w');await shot(host,'second-race-driving');
- await finish(code);for(const p of [host,guest,third])await result(p);await host.waitForFunction(()=>JSON.parse(window.render_game_to_text()).save.cash===1650);assert.equal((await state(guest)).save.cash,1650);assert.equal((await state(guest)).save.nitro.ferro,0);
+ await finish(code);for(const p of [host,guest,third])await result(p);await host.waitForFunction(()=>JSON.parse(window.render_game_to_text()).save.cash===4650);assert.equal((await state(guest)).save.cash,4090);assert.equal((await state(guest)).save.nitro.ferro,0);
  assert.equal(db.ranking('multi','costa','night','time',identity.id).find(r=>r.me)!.races,1);assert.equal(db.ranking('multi','costa','rain','time',identity.id).find(r=>r.me)!.races,1);
  await guest.click('#online-lobby-btn');for(const p of [host,guest,third])await p.waitForFunction(()=>JSON.parse(window.render_game_to_text()).online?.round===2);
  assert.equal((await state(host)).online.manualStart,true);assert.equal((await state(host)).online.deadline,null);assert.equal((await state(host)).online.members.every((m:{ready:boolean})=>!m.ready),true);
@@ -79,7 +79,7 @@ try{
  await host.click('#online-leave');await guest.waitForFunction(()=>JSON.parse(window.render_game_to_text()).online.hostId===JSON.parse(window.render_game_to_text()).online.id);assert.equal(await guest.locator('#lobby-track').isDisabled(),false);
  await guest.selectOption('#lobby-track','terra:sunset');await third.waitForFunction(()=>JSON.parse(window.render_game_to_text()).online.trackId==='terra');
  const publicRooms=await (await fetch(origin+'/api/asfalto/?op=rooms')).json();assert.ok(publicRooms.rooms.some((r:{code:string})=>r.code===code));
- await guest.reload();await guest.waitForFunction(()=>JSON.parse(window.render_game_to_text()).online?.phase==='lobby');assert.equal(await guest.inputValue('#lobby-bike'),'lobo');assert.equal(await guest.inputValue('#lobby-track'),'terra:sunset');assert.equal((await state(guest)).save.cash,1650);await shot(guest,'mobile-new-host-reconnected');
+ await guest.reload();await guest.waitForFunction(()=>JSON.parse(window.render_game_to_text()).online?.phase==='lobby');assert.equal(await guest.inputValue('#lobby-bike'),'lobo');assert.equal(await guest.inputValue('#lobby-track'),'terra:sunset');assert.equal((await state(guest)).save.cash,4090);await shot(guest,'mobile-new-host-reconnected');
  await guest.click('#online-ready');await third.click('#online-ready');await guest.waitForFunction(()=>JSON.parse(window.render_game_to_text()).online.locked);await jumpClock(code,5001);for(const p of [guest,third])await p.waitForFunction(()=>JSON.parse(window.render_game_to_text()).screen==='race'&&JSON.parse(window.render_game_to_text()).track==='terra');
  assert.equal((await state(guest)).player.bikeId,'lobo');assert.equal((await state(third)).player.bikeId,'agulha');assert.equal((await state(guest)).online.code,code);await shot(third,'small-third-race');
  // A moving rider behind the dirt starting line still emits valid dust circles.

@@ -175,8 +175,10 @@ export function settleGuestOnlineResult(save:SaveData,state:RaceState,id:string,
   recordOnlineNitro(save,rider,entryId);
   const unlocked=unlockBicycle(save,result),achievements=awardRaceAchievements(save,state,id,'multi');
   const policeBonus=awardOnlinePoliceReward(save,entryId,result);
+  const payout=racePayout(state.trackId,result);
+  save.cash+=payout.baseReward+(payout.rivalBonus ?? 0);
   save.onlineResults=[...(save.onlineResults ?? []),entryId].slice(-64);
-  return {unlocked,achievements,policeBonus};
+  return {unlocked,achievements,policeBonus,payout};
 }
 export function settleRace(save: SaveData, state: RaceState, options: {starterRepair?:boolean;mode?:AchievementMode} = {}) {
   if (!state.result || state.multiplayer) return;

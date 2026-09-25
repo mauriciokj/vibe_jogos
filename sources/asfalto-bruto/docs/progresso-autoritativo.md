@@ -40,6 +40,8 @@ O protocolo multiplayer passa de 13 para 14 para exigir atualização das abas a
 
 ## Prêmio por derrubar policiais
 
+As regras completas de pagamento estão em [premiacao.md](premiacao.md): multiplayer paga por colocação como o individual, rivais rendem 50 por queda e policiais rendem 500. Ambos os bônus entram no resultado, sem acumular 50 e 500 pela mesma queda policial.
+
 Cada queda de policial atribuída ao jogador pela simulação concede 500 moedas, inclusive quedas repetidas do mesmo policial. Golpes sem queda, acidentes causados pelo cenário e quedas causadas por outro piloto não contam. A mensagem aparece durante a corrida; o valor acumulado entra no saldo ao liquidar o resultado, inclusive derrota ou abandono, e aparece discriminado junto aos outros prêmios.
 
 No individual e campeonato com conta, o replay do servidor calcula a contagem. No multiplayer, o crédito é do piloto responsável e usa o resultado da sala. O pagamento de conta compartilha os recibos/transações já usados pela economia; convidados online guardam recibos por participante no save para não repetir o pagamento ao recarregar, reconectar ou sair após ver o resultado. Conquistas antigas não geram pagamento retroativo. Campos novos são opcionais para saves/resultados anteriores; regras de ranking e física de prisão permanecem iguais.

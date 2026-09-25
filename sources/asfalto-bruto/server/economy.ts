@@ -10,7 +10,7 @@ import { TRACKS, getBike } from '../src/game/content';
 import { kneePadPrerequisite, nitroCount } from '../src/game/equipment';
 import { createRace, finishRider, stepRace } from '../src/game/simulation';
 import { enteredBike } from '../src/game/police-bike';
-import { policeReward } from '../src/game/rewards';
+import { racePayout } from '../src/game/rewards';
 import { cleanCommand } from '../src/multiplayer/protocol';
 import type { RaceState, SaveData } from '../src/game/types';
 import type { Member, Room } from './room';
@@ -172,7 +172,7 @@ export class Economy {
           if(completed&&!recordChampionshipHeat(save.championship,completed))fail('Etapa não corresponde à corrida.',400);
         }
         if(finish){
-          // Leaving grants no workshop assistance; confirmed police knockdowns
+          // Leaving grants no workshop assistance; confirmed knockdowns
           // still pay their bonus, just as they do after a defeat.
           if(body.abandon===true)race.result!.reward=0;
           payout=settleRace(save,race,{starterRepair:row!.kind!=='championship',mode:row!.kind==='championship'?'championship':'solo'});
@@ -223,7 +223,7 @@ export class Economy {
       const save=structuredClone(stored!),remaining=Math.max(0,Number(row.stock)-Math.max(Number(row.used),used));
       const unlocked=!!result && unlockBicycle(save,result);
       const achievements=race&&result?awardRaceAchievements(save,race,member.id,'multi'):[];
-      if(race&&result)save.cash+=policeReward(result.policeKnockdowns);
+      if(race&&result)save.cash+=racePayout(race.trackId,result).total;
       save.nitro={...save.nitro,[String(row.bike)]:(save.nitro?.[String(row.bike)] ?? 0)+remaining};
       this.db.db.prepare('UPDATE economy_multiplayer SET closed=1 WHERE id=?').run(entry);
       return {save,value:{unlocked,achievements}};
