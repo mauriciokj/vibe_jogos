@@ -1,10 +1,10 @@
 # Campeonato
 
-Modo individual opcional, acessível pelo card quadrado com troféu **Campeonato** ao lado das informações da garagem/conta no menu. O card indica 5 etapas/20 corridas e mostra Retomar com a etapa atual quando existe progresso. Corrida livre e multiplayer continuam disponíveis.
+Modo individual opcional, acessível pelo card quadrado com troféu **Campeonato** ao lado das informações da garagem/conta no menu. O card indica 6 etapas/24 corridas e mostra Retomar com a etapa atual quando existe progresso. Corrida livre e multiplayer continuam disponíveis.
 
 ## Estrutura
 
-Cinco etapas, na ordem atual das estradas: Costa do Sol, Serra da Fumaça, Vale Vermelho, Porto Ferrugem e Terra Brava. Cada etapa contém quatro corridas: Dia, Entardecer, Noite e Chuva. Não depende dos desbloqueios da corrida livre.
+Seis etapas, na ordem atual das estradas: Costa do Sol, Serra da Fumaça, Vale Vermelho, Porto Ferrugem, Terra Brava e Mata Fechada. Cada etapa contém quatro corridas: Dia, Entardecer, Noite e Chuva. Não depende dos desbloqueios da corrida livre.
 
 | Lugar na corrida | Pontos |
 | --- | --- |
@@ -35,8 +35,10 @@ Desempates: maior número de melhores colocações (vitórias, segundos lugares 
 
 ## Implementação e verificação
 
-`src/game/championship.ts` concentra estado, pontuação, transições, continuidade da simulação e validação de saves. `src/championship-ui.ts` e `src/championship.css` apresentam a tabela e navegação. O save v1 ganha o campo opcional `championship`; saves antigos continuam válidos. A API de conta aceita até 128 kB no salvamento, com campeonato limitado a 100 kB e snapshots validados; autenticação e comparação de revisão permanecem iguais. Física, protocolo multiplayer 12 e regras de ranking 2 não mudam.
+`src/game/championship.ts` concentra estado, pontuação, transições, continuidade da simulação e validação de saves. `src/championship-ui.ts` e `src/championship.css` apresentam a tabela e navegação. O save v1 ganha o campo opcional `championship`; saves antigos continuam válidos. A API de conta aceita até 128 kB no salvamento, com campeonato limitado a 100 kB e snapshots validados; autenticação e comparação de revisão permanecem iguais. A versão atual usa protocolo multiplayer 20 e regras de ranking 3.
 
-Validação automatizada: `npm test` e `npm run test:championship`. O browser percorre as vinte corridas com cenários de aproximação da chegada, qualificação, eliminação, todos os motivos de abandono, reparos entre etapas e com a moto zerada dentro da etapa, bloqueio de largada sem consumo de corrida, aviso abaixo de 20%, reload durante corrida, pagamento único, interface em 390/320 px e preservação da corrida livre/multiplayer. Testes unitários cobrem saldo insuficiente, reparo da moto inscrita, limites de integridade e checkpoints antigos zerados na contagem de largada; resultados pendentes são liquidados antes do reparo. Testes de conta usam SQLite descartável e dois clientes autenticados de teste, sem dados públicos.
+Validação automatizada: `npm test` e `npm run test:championship`. O browser percorre as vinte e quatro corridas com cenários de aproximação da chegada, qualificação, eliminação, todos os motivos de abandono, reparos entre etapas e com a moto zerada dentro da etapa, bloqueio de largada sem consumo de corrida, aviso abaixo de 20%, reload durante corrida, pagamento único, interface em 390/320 px e preservação da corrida livre/multiplayer. Testes unitários cobrem saldo insuficiente, reparo da moto inscrita, limites de integridade e checkpoints antigos zerados na contagem de largada; resultados pendentes são liquidados antes do reparo. Testes de conta usam SQLite descartável e dois clientes autenticados de teste, sem dados públicos.
 
-Com as quedas aprovadas, a versão atual usa protocolo13 e ranking regras3. Checkpoints guardam separadamente piloto/moto. Uma corrida já em andamento pode ser retomada com integridade zero durante a recuperação; o jogador precisa concluir a tentativa de pegar a moto e a explosão. Isso não libera oficina no meio da corrida nem altera os pontos da etapa.
+As quedas foram introduzidas no protocolo13 e ranking regras3. Checkpoints guardam separadamente piloto/moto. Uma corrida já em andamento pode ser retomada com integridade zero durante a recuperação; o jogador precisa concluir a tentativa de pegar a moto e a explosão. Isso não libera oficina no meio da corrida nem altera os pontos da etapa.
+
+Na Beta1.8.0, novos campeonatos têm seis etapas. O campo `stages` registra a duração do campeonato; saves antigos já concluídos em cinco etapas preservam a conclusão e o título. Campeonatos antigos em andamento passam a incluir a Mata Fechada.

@@ -22,7 +22,7 @@ export const ACHIEVEMENTS = [
  {id:'rain-win',name:'Rei da chuva',description:'Vencer uma corrida na chuva.'},
  {id:'night-win',name:'Coruja do asfalto',description:'Vencer uma corrida à noite.'},
  {id:'all-weather',name:'Em qualquer condição',description:'Vencer na mesma pista de dia, ao entardecer, à noite e na chuva.'},
- {id:'all-tracks',name:'Passaporte carimbado',description:'Terminar uma corrida em cada uma das cinco pistas.'},
+ {id:'all-tracks',name:'Passaporte carimbado',description:'Terminar uma corrida em todas as pistas.'},
  {id:'knee-curve',name:'Joelho de aço',description:'Completar uma curva usando o joelho apoiado, sem cair ou sair da pista.'},
  {id:'three-jumps',name:'Sem tocar o chão',description:'Saltar sobre três carros diferentes na mesma corrida.',secret:true},
  {id:'bicycle-finish',name:'Na força da perna',description:'Terminar uma corrida usando a Magrela.',secret:true},
@@ -62,7 +62,7 @@ export function reconcileAchievements(save:SaveData){
  const won=(h:typeof heats[number])=>h.reason==='finish'&&h.finishes.some(f=>f.id==='player'&&f.place===1);
  if(heats.some(won))ids.push('champ-win');
  if(champ?.history.some(s=>s.heats.length===4&&s.heats.every(won)))ids.push('perfect-stage');
- if(champ?.status==='complete'&&champ.history.some(s=>s.stage===TRACKS.length-1&&s.place===1))ids.push('champion');
+ if(champ?.status==='complete'&&champ.history.some(s=>s.stage===(champ.stages ?? TRACKS.length)-1&&s.place===1))ids.push('champion');
  a.finishedTracks=TRACKS.map(t=>t.id).filter(id=>a.finishedTracks.includes(id));
  a.conditionWins=routes.filter(id=>a.conditionWins.includes(id));
  return grant(save,ids);

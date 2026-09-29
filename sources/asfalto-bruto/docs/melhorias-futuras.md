@@ -78,3 +78,7 @@ Comprar e equipar objetos para golpear os rivais pela garagem, de forma semelhan
 ## Encontrar partidas públicas — implementado em 2026-09-09
 
 Criação com opção **Sala pública**, descoberta de salas abertas e entrada sem digitar código. Salas públicas esperam **120 segundos**; todos prontos reduzem a contagem para **5 segundos**. Mínimo de duas pessoas reais, máximo de oito, bots opcionais. Salas por convite mantêm a janela de 60s. Busca exclui salas privadas, cheias, sem pessoas conectadas e com a largada fechada. Regras e validação em [MULTIPLAYER.md](../MULTIPLAYER.md).
+
+## Mata Fechada e joelheira pelo Espaço — implementados em 2026-09-29
+
+Sexta pista com quatro condições, curvas técnicas, largura variável, mata fechada, fauna e lama que causa derrapagem/queda. Integrada à campanha, campeonato e salas após avaliação do protótipo. Espaço enquanto vira também aciona a joelheira. Ponte estreita e folhas/poças com física própria continuam futuras; detalhes em [planejamento-pistas.md](planejamento-pistas.md).

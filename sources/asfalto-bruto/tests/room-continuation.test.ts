@@ -60,8 +60,8 @@ test('configuration cannot pass a countdown deadline before the next server puls
 });
 
 test('last route offers replay/lobby, and repeated replay does not change the route',()=>{
- const r=lobby(2);r.trackId='terra';r.condition='rain';start(r);finish(r);assert.throws(()=>vote(r,0,'next'),/última/);
- vote(r,0,'again');vote(r,1,'again');reopenRoom(r,'again',at+6000);assert.equal(r.trackId,'terra');assert.equal(r.condition,'rain');assert.equal(r.round,1);
+ const r=lobby(2);r.trackId='mata';r.condition='rain';start(r);finish(r);assert.throws(()=>vote(r,0,'next'),/última/);
+ vote(r,0,'again');vote(r,1,'again');reopenRoom(r,'again',at+6000);assert.equal(r.trackId,'mata');assert.equal(r.condition,'rain');assert.equal(r.round,1);
  lobbyClock(r,at+11000);finish(r);vote(r,0,'again',at+12000);vote(r,1,'again',at+12000);reopenRoom(r,'again',at+12000);assert.equal(r.round,2);assert.equal(r.condition,'rain');
 });
 

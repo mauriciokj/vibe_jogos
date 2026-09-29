@@ -41,6 +41,28 @@ try{
   await a.selectOption('#nitro-bike','ferro');await a.click('[data-close="garage-modal"]');await a.reload();assert.equal((await state()).save.nitro.ferro,2);assert.equal((await state()).save.ownedKneePads.length,5);
   await a.click('[data-route="costa:day"]');await a.click('#start-btn');await fixture();assert.equal((await state()).player.kneeSupport,0);
   await doubleLeft();await a.evaluate(()=>window.advanceTime(17));assert.ok((await state()).player.kneeSupport>.9);await shot('knee-left');await a.keyboard.up('a');
+  // Space is an alternative one-shot action using the currently held direction.
+  for(const [key,z,side] of [['a',1320,-1],['ArrowLeft',1320,-1],['d',800,1],['ArrowRight',800,1]] as const){
+    await a.evaluate(()=>window.dispatchEvent(new Event('blur')));await fixture(a,z);
+    await a.keyboard.down(key);await a.keyboard.press('Space');await a.evaluate(()=>window.advanceTime(17));
+    assert.equal((await state()).player.kneeSide,side);assert.ok((await state()).player.kneeSupport>.5);
+    await a.keyboard.up(key);
+  }
+  await shot('knee-space-right');
+  await a.evaluate(()=>window.dispatchEvent(new Event('blur')));await fixture();
+  await a.keyboard.press('Space');await a.evaluate(()=>window.advanceTime(17));assert.equal((await state()).player.kneeTime,0);
+  await a.keyboard.down('a');await a.keyboard.down('d');await a.keyboard.press('Space');await a.evaluate(()=>window.advanceTime(17));assert.equal((await state()).player.kneeTime,0);
+  await a.keyboard.up('d');await a.keyboard.down('Space');await a.evaluate(()=>window.advanceTime(17));assert.ok((await state()).player.kneeTime>0);
+  await fixture();await a.keyboard.down('Space');await a.evaluate(()=>window.advanceTime(17));assert.equal((await state()).player.kneeTime,0,'holding Space never repeats');
+  await a.keyboard.up('Space');await a.keyboard.up('a');
+  for(const [bike,pad,speed] of [['lobo','gold',40],['bicicleta','gold',40],['ferro',null,40],['ferro','gold',19]] as const){
+    await a.evaluate(()=>window.dispatchEvent(new Event('blur')));await fixture();
+    await a.evaluate(({bike,pad,speed})=>{const s=JSON.parse(window.__game!.snapshot());Object.assign(s.riders[0],{bikeId:bike,kneePadId:pad,speed});window.__game!.restore(JSON.stringify(s));},{bike,pad,speed});
+    await a.keyboard.down('a');await a.keyboard.press('Space');await a.evaluate(()=>window.advanceTime(17));assert.equal((await state()).player.kneeTime,0);await a.keyboard.up('a');
+  }
+  await a.evaluate(()=>window.dispatchEvent(new Event('blur')));await fixture();
+  await a.evaluate(()=>{const s=JSON.parse(window.__game!.snapshot());Object.assign(s.riders[0],{bikeId:'ferro',kneePadId:'gold'});window.__game!.restore(JSON.stringify(s));});
+  await a.click('#pause-btn');await a.locator('#pause-modal').evaluate(e=>{e.tabIndex=-1;e.focus();});await a.keyboard.down('a');await a.keyboard.press('Space');await a.click('#resume-btn');await a.evaluate(()=>window.advanceTime(17));assert.equal((await state()).player.kneeTime,0);await a.keyboard.up('a');
   await a.keyboard.press('q');await a.evaluate(()=>window.advanceTime(17));assert.ok(TAUNTS.includes((await state()).player.speech));await shot('taunt');
   await a.keyboard.press('b');await a.evaluate(()=>window.advanceTime(17));assert.ok(await a.evaluate(()=>JSON.parse(window.__game!.snapshot()).events.some((e:any)=>e.type==='horn')));
   await a.keyboard.press('d');await a.evaluate(()=>window.advanceTime(17));await a.keyboard.up('d');
@@ -88,10 +110,10 @@ try{
   for(const p of [a,b])await p.waitForFunction(()=>JSON.parse(window.render_game_to_text()).screen==='race');
   const aid=(await state()).online.id,bid=(await state(b)).online.id;assert.equal((await state()).awareness.racers.length,8);assert.equal((await state()).player.kneePadId,'gold');assert.equal((await state(b)).player.kneePadId,'blue');
   await store.mutate(code,room=>{const s=room.race!;s.traffic=[];s.obstacles=[];s.heat=0;s.riders.forEach((r,i)=>Object.assign(r,{z:i<2?1320:2000+i*20,x:i===0?0:3,speed:40,crash:0,immune:0,health:100,integrity:100,attack:null}));});
-  await a.waitForFunction(()=>JSON.parse(window.render_game_to_text()).player.z>1300);await doubleLeft();await a.waitForFunction(()=>JSON.parse(window.render_game_to_text()).player.kneeSupport>.5);await a.keyboard.up('a');
+  await a.waitForFunction(()=>JSON.parse(window.render_game_to_text()).player.z>1300);await a.keyboard.down('a');await a.keyboard.press('Space');await a.waitForFunction(()=>JSON.parse(window.render_game_to_text()).player.kneeSupport>.5);await a.keyboard.up('a');
   await b.keyboard.press('q');await a.waitForFunction(()=>JSON.parse(window.render_game_to_text()).riders.some((r:any)=>r.speech));await a.keyboard.press('b');await a.keyboard.press('n');await a.waitForFunction(()=>JSON.parse(window.render_game_to_text()).player.nitroUsed===1);assert.equal((await state()).save.nitro.ferro,0);await shot('online-equipment');
   await a.reload();await a.waitForFunction(()=>JSON.parse(window.render_game_to_text()).screen==='race');assert.equal((await state()).online.id,aid);assert.equal((await state()).player.kneePadId,'gold');assert.equal((await state()).player.nitro,0);assert.equal((await state()).save.nitro.ferro,0);
   assert.equal((await state(b)).online.id,bid);assert.equal((await state(b)).save.nitro.falcao,1);
   for(const p of [a,b])await back(p);
-  assert.deepEqual(errors,[]);const report={ok:true,checks:['5 colors and prices','purchase, equipment, save migration','2/3/5 nitro capacities','double-tap knee animation','chopper restriction','rain safe through 2s, fall after 2s, pause freezes contact','nitro power and permanent consumption','B horn and Q bubble','native simultaneous analog touch','pause cancels held touch controls','2 humans + 6 bots','shared loadouts and actions','reconnect without replenishment or duplicate debit'],errors};await fs.writeFile(`${folder}/browser-check.json`,JSON.stringify(report,null,2));console.log(report);
+  assert.deepEqual(errors,[]);const report={ok:true,checks:['5 colors and prices','purchase, equipment, save migration','2/3/5 nitro capacities','double-tap knee animation','Space with WASD and arrows, no direction, opposite directions, repeat suppression, equipment, speed and pause','Space authoritative multiplayer action','chopper restriction','rain safe through 2s, fall after 2s, pause freezes contact','nitro power and permanent consumption','B horn and Q bubble','native simultaneous analog touch','pause cancels held touch controls','2 humans + 6 bots','shared loadouts and actions','reconnect without replenishment or duplicate debit'],errors};await fs.writeFile(`${folder}/browser-check.json`,JSON.stringify(report,null,2));console.log(report);
 }finally{await browser.close();await app.close();vite.kill('SIGTERM');}

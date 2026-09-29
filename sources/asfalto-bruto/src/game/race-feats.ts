@@ -32,7 +32,7 @@ export function trackRaceFeats(state:RaceState,before:Map<string,{z:number;healt
   const corner=trackCorners(state.trackId).find(c=>old.z<c.start&&r.z>=c.start);
   if(corner)f.curve={start:corner.start,end:corner.end,valid:true,contact:0};
   if(f.curve){
-   if(r.recovery||r.out||Math.abs(r.x)>roadHalf(state.trackId))f.curve.valid=false;
+   if(r.recovery||r.out||Math.abs(r.x)>roadHalf(state.trackId,r.z))f.curve.valid=false;
    if(kneeContact(r,curveAt(old.z,state.trackId),state.trackId))f.curve.contact+=dt;
    if(r.z>=f.curve.end){if(f.curve.valid&&f.curve.contact>=.5)f.kneeCurve=true;delete f.curve;}
   }

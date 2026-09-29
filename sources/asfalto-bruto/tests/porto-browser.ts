@@ -19,7 +19,7 @@ const errors:string[]=[];for(const p of [a,b]){p.on('pageerror',e=>errors.push(e
 const state=(p=a)=>p.evaluate(()=>JSON.parse(window.render_game_to_text()));
 const shot=(name:string,p=a)=>p.screenshot({path:`${folder}/${name}.png`});
 try {
-  await a.goto(base+'?test');assert.equal(await a.locator('[data-route]').count(),20);assert.equal(await a.locator('[data-route]:enabled').count(),4);
+  await a.goto(base+'?test');assert.equal(await a.locator('[data-route]').count(),24);assert.equal(await a.locator('[data-route]:enabled').count(),4);
   const save=freshSave();save.races=1;save.unlocked=2;save.records['deserto:rain']={time:280,place:4};save.cash=9999;
   await a.evaluate(({key,save})=>localStorage.setItem(key,JSON.stringify(save)),{key:SAVE_KEY,save});await a.reload();assert.equal((await state()).save.unlocked,3);
   await a.click('#garage-btn');for(const bike of BIKES.filter(b=>b.price>0)){const card=a.locator(`[data-bike="${bike.id}"]`);assert.match(await card.innerText(),new RegExp(bike.price.toLocaleString('pt-BR').replace('.','\\.')));assert.ok(await card.isDisabled());}await shot('garage-prices');await a.keyboard.press('Escape');

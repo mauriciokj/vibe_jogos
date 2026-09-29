@@ -86,8 +86,9 @@ Referência: `src/game/bikes.ts`. “Melhor moto” depende do critério: a mais
 | Vale Vermelho | 10,2 km | Deserto, cinco eventos de feno e duas travessias de tatu |
 | Porto Ferrugem | 7,8 km | Curvas específicas, caminhões, obras, duas filas de cinco carros, passageiro decorativo raro |
 | Terra Brava | 7,2 km | Duas faixas, curvas específicas, relevo, barrancos, tratores, lama/cascalho, quatro rampas, Saci/Boitatá |
+| Mata Fechada | 7,6 km | Vinte curvas, faixas 2+1/1+1, copas sobre a estrada, fauna, galhos e lama com derrapagem/queda |
 
-Todas oferecem dia, entardecer, noite e chuva: **cinco traçados, vinte combinações**. As três estradas iniciais compartilham uma receita de curvas ajustada por dificuldade; Porto e Terra têm sequências próprias. As condições são fixas por corrida. Noite e chuva simultâneas, neve e várias estradas descritas no planejamento ainda são ideias futuras.
+Todas oferecem dia, entardecer, noite e chuva: **seis traçados, 24 combinações**. As três estradas iniciais compartilham uma receita de curvas ajustada por dificuldade; Porto, Terra e Mata têm sequências próprias. As condições são fixas por corrida. Noite e chuva simultâneas, neve e várias estradas descritas no planejamento ainda são ideias futuras.
 
 Os easter eggs decorativos usam sorteio separado do RNG da física. No multiplayer, ocorrência e relógio do evento são compartilhados; isso não significa que pilotos distantes vão vê-lo ao mesmo tempo na própria câmera.
 
@@ -190,7 +191,7 @@ Artefatos de evidência: `output/falls-integration/unit-tests-final.log`, `remai
 
 ## Afirmações que precisam desta precisão
 
-- “20 opções de pista” = cinco traçados × quatro condições.
+- “24 opções de pista” = seis traçados × quatro condições.
 - “60 passos de física por segundo” não significa 60 envios de rede nem FPS garantido.
 - “Bots com IA” = lógica de decisões no código, sem chamada a um modelo de linguagem.
 - “Servidor autoritativo” descreve a corrida multiplayer; a economia legada não é integralmente comprovada no servidor.

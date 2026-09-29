@@ -1,3 +1,4 @@
+import { FOREST_TRACK, FOREST_CORNERS, forestElevation } from './forest';
 import { RURAL_CORNERS, ruralElevation } from './rural';
 import { surfaceGrip, surfaceBraking } from './road-profile';
 import { PORT_CORNERS } from './port';
@@ -11,6 +12,7 @@ export const TRACKS: Track[] = [
   { id: 'deserto', name: 'Vale Vermelho', region: 'FRONTEIRA DO DESERTO', distance: 10200, difficulty: 'BRUTAL', prize: 2300, index: 2, level: 2, theme: 'desert', sky: ['#69678d', '#e2908b', '#ffcb95'], land: ['#bc8165', '#b3785d'], road: ['#5c5356', '#564e51'], accent: '#ffac6f' },
   { id: 'porto', name: 'Porto Ferrugem', region: 'DISTRITO PORTUÁRIO', distance: 7800, difficulty: 'TÉCNICA', prize: 2200, index: 3, level: 1, theme: 'port', sky: ['#52697b','#c58c79','#f2cc98'], land: ['#797d76','#70766f'], road: ['#535f62','#4b575b'], accent: '#ffc16a' },
   { id: 'terra', name: 'Terra Brava', region: 'CAMINHOS DO INTERIOR', distance: 7200, difficulty: 'TERRA', prize: 2500, index: 4, level: 1, theme: 'rural', sky: ['#577f91','#dfa385','#f7d5a4'], land: ['#829454','#78874c'], road: ['#b77749','#b27346'], accent: '#efbd80' },
+  FOREST_TRACK,
 ];
 export function getTrack(id: string): Track { return TRACKS.find(t => t.id === id) ?? TRACKS[0]; }
 export function clamp(v: number, min: number, max: number) { return Math.min(max, Math.max(min, v)); }
@@ -19,6 +21,7 @@ const cornerCache = new Map<string, Corner[]>();
 export function trackCorners(trackId: string): Corner[] {
   const track = getTrack(trackId), cached = cornerCache.get(track.id);
   if (cached) return cached;
+  if(track.theme==='forest')return FOREST_CORNERS;
   if(track.theme==='port')return PORT_CORNERS;
   if(track.theme==='rural')return RURAL_CORNERS;
   const corners: Corner[] = [];
@@ -43,11 +46,11 @@ export function cornerSpeed(curve: number, handling = 1.1) {
 }
 // Braking envelope: account for the distance still available before each bend.
 // Used by AI and the HUD; movement itself never applies an automatic brake.
-export function cornerPace(z: number, trackId: string, handling = 1.1, condition: RaceCondition = 'sunset', kneePadId?: string) {
+export function cornerPace(z: number, trackId: string, handling = 1.1, condition: RaceCondition = 'sunset', kneePadId?: string,x=0) {
   let speed = 120;
   for (let ahead = 0; ahead <= 240; ahead += 20) {
-    const safe = cornerSpeed(curveAt(z + ahead, trackId), plannedCornerHandling(handling,kneePadId) * surfaceGrip(trackId,condition));
-    speed = Math.min(speed, Math.sqrt(safe * safe + 2 * 19 * surfaceBraking(trackId,condition) * Math.max(0, ahead - 12)));
+    const safe = cornerSpeed(curveAt(z + ahead, trackId), plannedCornerHandling(handling,kneePadId) * surfaceGrip(trackId,condition,z+ahead,x));
+    speed = Math.min(speed, Math.sqrt(safe * safe + 2 * 19 * surfaceBraking(trackId,condition,z+ahead,x) * Math.max(0, ahead - 12)));
   }
   return speed;
 }
@@ -66,6 +69,7 @@ export function upcomingCorner(z: number, trackId: string, handling = 1.1, condi
 }
 export function elevationAt(z: number, trackId: string) {
   const track=getTrack(trackId);
+  if(track.theme==='forest')return forestElevation(z);
   if(track.theme==='rural')return ruralElevation(z);
   if(track.theme==='port')return Math.sin(z/900)*2.5+Math.sin(z/260)*.6;
   const i = track.level;

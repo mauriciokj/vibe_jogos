@@ -1,6 +1,6 @@
 {
   "name": "asfalto-bruto",
-  "version": "1.7.0-beta",
+  "version": "1.8.0-beta",
   "private": true,
   "type": "module",
   "scripts": {
@@ -48,7 +48,10 @@
     "test:falls": "tsx tests/falls-solo-browser.ts && tsx tests/falls-browser.ts",
     "test:spectator": "tsx --test tests/spectator.test.ts && tsx tests/spectator-browser.ts",
     "test:arrest": "tsx tests/arrest-browser.ts && tsx tests/arrest-online-browser.ts",
-    "test:combat-rewards": "tsx --test tests/combat-rewards.test.ts && tsx tests/combat-rewards-browser.ts"
+    "test:combat-rewards": "tsx --test tests/combat-rewards.test.ts && tsx tests/combat-rewards-browser.ts",
+    "dev:mata": "vite --host 127.0.0.1 --port 4396 --strictPort --open /mata.html",
+    "test:mata": "tsx --test tests/forest.test.ts && tsx tests/forest-browser.ts",
+    "test:mata:integration": "tsx --test tests/forest-integration.test.ts && tsx tests/forest-integration-browser.ts"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

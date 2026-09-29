@@ -32,7 +32,7 @@ export function advanceStunt(state: RaceState, rider: Rider, command: Command, d
   }
   if(!rider.wheelieTime)return;
   rider.wheelieTime=Math.max(0,rider.wheelieTime-dt);
-  if(command.brake>.2 || rider.speed<WHEELIE_MIN_SPEED || Math.abs(rider.x)>roadHalf(state.trackId))rider.wheelieTime=0;
+  if(command.brake>.2 || rider.speed<WHEELIE_MIN_SPEED || Math.abs(rider.x)>roadHalf(state.trackId,rider.z))rider.wheelieTime=0;
   if(!rider.wheelieTime)return;
   const targets: (Traffic | Obstacle)[]=[...state.traffic.filter(t=>t.kind==='car' && t.speed<0 && Math.abs(t.x-rider.x)<1.7),
     ...state.obstacles.filter(o=>o.kind==='fallenTree' && Math.abs(o.x-rider.x)<obstacleShape(o).contact)];

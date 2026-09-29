@@ -1,6 +1,6 @@
 # Asfalto Bruto
 
-**Beta 1.1.0:** versão clicável e histórico no menu. A economia das contas agora é confirmada pelo servidor, preservando a base anterior do beta. Compras, nitro, prêmios e checkpoints não aceitam substituições do save do navegador. Detalhes, limites e migração em [docs/progresso-autoritativo.md](docs/progresso-autoritativo.md).
+**Beta 1.8.0:** Mata Fechada como sexta pista, 24 combinações, campeonato com seis etapas e joelheira pelo Espaço enquanto faz a curva. Versão clicável e histórico no menu. A economia das contas agora é confirmada pelo servidor, preservando a base anterior do beta. Compras, nitro, prêmios e checkpoints não aceitam substituições do save do navegador. Detalhes, limites e migração em [docs/progresso-autoritativo.md](docs/progresso-autoritativo.md).
 
 Jogo original de corrida e combate de motos inspirado nos arcades dos anos 1990. Modo individual e multiplayer opcional para navegador, feito com **TypeScript, Vite e Canvas 2D**, com estrada em perspectiva 2.5D.
 
@@ -35,7 +35,7 @@ O terminal informa a URL da prévia. A pasta `dist/` contém a versão distribu�
 | Chutar e empurrar o rival | K |
 | Usar o equipamento de combate | L |
 | Empinar / preparar salto automático | Dois toques rápidos em W / ↑ |
-| Apoiar o joelho (com joelheira, exceto choppers) | Dois toques rápidos em A/← ou D/→ |
+| Apoiar o joelho (com joelheira, exceto choppers) | Dois toques rápidos em A/← ou D/→, ou Espaço enquanto segura a direção |
 | Ativar nitro comprado | N |
 | Buzinar / provocar | B / Q |
 | Pausar / continuar | Esc |
@@ -54,8 +54,8 @@ Joelheira: dois toques rápidos em A/← ou D/→. Nitro: **N**. Buzina: **B**. 
 - Rivais especialistas usam joelheiras nas curvas secas, com a mesma manobra de até quatro segundos do jogador. Choppers e polícia seguem sem apoio de joelho; na chuva, a IA freia e contorna em pé. O ajuste de ritmo preserva os atributos, equipamentos e compras do jogador.
 - Curvas alternadas com aviso de direção, distância e velocidade de referência. Excesso de velocidade reduz a aderência; frear antes da entrada e acelerar na saída permite ganhar terreno sem depender de acidentes.
 - Mapa de proximidade com 300m para cada lado, pilotos por cor e distâncias ao da frente e de trás. Retrovisor mostra motos e trânsito nos últimos 200m, com indicação de aproximação.
-- Cinco estradas com curvas, elevações e cenários próprios: **Costa do Sol** (8,4 km), **Serra da Fumaça** (9,2 km), **Vale Vermelho** (10,2 km), **Porto Ferrugem** (7,8 km) e **Terra Brava** (7,2 km).
-- **Dia, Entardecer, Noite e Chuva** nas cinco estradas: 20 combinações. Cada combinação aparece como uma pista própria na seleção (por exemplo, Costa do Sol · Dia), em cartões com navegação lateral. A criação de salas usa a mesma lista combinada. A escolha completa muda o cenário e fica salva; na chuva, a aderência equivale a 82% da dirigibilidade e a frenagem a 88% da força original. Dia/noite mantêm a física seca. Os avisos de curva e os bots consideram o piso molhado.
+- Seis estradas com curvas, elevações e cenários próprios: **Costa do Sol** (8,4 km), **Serra da Fumaça** (9,2 km), **Vale Vermelho** (10,2 km), **Porto Ferrugem** (7,8 km), **Terra Brava** (7,2 km) e **Mata Fechada** (7,6 km).
+- **Dia, Entardecer, Noite e Chuva** nas seis estradas: 24 combinações. Cada combinação aparece como uma pista própria na seleção (por exemplo, Costa do Sol · Dia), em cartões com navegação lateral. A criação de salas usa a mesma lista combinada. A escolha completa muda o cenário e fica salva; na chuva, a aderência equivale a 82% da dirigibilidade e a frenagem a 88% da força original. Dia/noite mantêm a física seca. Os avisos de curva e os bots consideram o piso molhado.
 - Aparição rara de uma **sereia no mar da Costa**, com poses próprias por condição: cauda entre as ondas na chuva, brilho discreto à noite e pedra no entardecer. É apenas cenário, sem colisão, prêmio, dano ou aviso. Cada corrida tem 33% de chance, um local sorteado e uma janela de 8 segundos, iniciada quando o primeiro humano chega a 180m. No online, todos compartilham a mesma aparição.
 - **Porto Ferrugem:** acesso amplo, armazéns, chicanes nas obras, curvas de serviço e avenida de guindastes. Caminhões lentos e na contramão, cones que tiram 10% da velocidade e 4 de resistência sem queda imediata, blocos de concreto com colisão forte. Obras ocupam uma faixa lateral, com aviso 220m antes e placas. Navios, contêineres, guindastes, luzes noturnas e reflexos na chuva compõem o cenário. Um passageiro pendurado em um caminhão da contramão pode aparecer: chance de 33%, janela de 8s compartilhada, apenas visual; o caminhão mantém sua colisão normal.
 - Recordes por estrada e condição. Saves v1 continuam válidos; os recordes anteriores pertencem ao Entardecer.
@@ -71,7 +71,7 @@ Joelheira: dois toques rápidos em A/← ou D/→. Nitro: **N**. Buzina: **B**. 
 - Preços das motos: Ferro inicial; Falcão **$10.000**, Estradeira **$18.000**, Veneno **$30.000**, Lobo **$45.000**, Agulha **$65.000** e Brutal **$100.000**. Propriedade, melhorias e saldo anteriores são preservados; a mudança vale para novas compras.
 - Porto é liberado ao terminar Vale Vermelho entre os cinco primeiros. Um recorde antigo nessa posição, em qualquer condição, já libera a nova pista ao carregar o save.
 - Próxima estrada liberada com uma colocação entre os cinco primeiros. Todas as colocações recebem dinheiro; derrotas recebem uma pequena ajuda. A Ferro 500 recebe reparo gratuito até 55% depois de cada corrida, evitando bloqueio econômico.
-- Joelheiras permanentes em cinco cores, preços e bônus: duplo toque para o mesmo lado ativa o apoio de joelho por até 4s acima de 72 km/h. Choppers não fazem a manobra; na chuva, a queda acontece somente após mais de 2 segundos contínuos com o joelho apoiado. Tirar o joelho zera o contador; pausar congela o tempo, e reconectar preserva o estado da corrida. O bônus atua durante o apoio em curva e respeita a agilidade da moto.
+- Joelheiras permanentes em cinco cores, preços e bônus: duplo toque para o mesmo lado ou Espaço enquanto vira ativa o apoio de joelho por até 4s acima de 72 km/h. Choppers não fazem a manobra; na chuva, a queda acontece somente após mais de 2 segundos contínuos com o joelho apoiado. Tirar o joelho zera o contador; pausar congela o tempo, e reconectar preserva o estado da corrida. O bônus atua durante o apoio em curva e respeita a agilidade da moto.
 - Nitro a $2.500 por carga: +10% de aceleração e velocidade máxima durante 5s, com consumo permanente. Estoque por moto, limitado a 2, 3 ou 5 cargas. A Brutal 1000 é a única com capacidade 5.
 - B buzina e Q sorteia uma de dez provocações aprovadas, exibida em balão. Rivais próximos também provocam ocasionalmente, sem afetar o RNG da física. No celular, dois analógicos controlam direção e aceleração/frenagem; o duplo movimento da direção ativa o joelho. Botões de combate e nitro mantidos; sem botões B/Q.
 - Salvamento local de créditos, motos, melhorias, joelheiras, nitro, condições, pistas, recordes e preferência de áudio. A garagem permite apagar o progresso com uma confirmação.
@@ -210,3 +210,10 @@ Na campanha, Cobra, Dante e Faísca usam joelheiras: verde na Costa, azul em Ser
 `npm run test:difficulty` verifica a manobra visível, chuva, celular, pausa, equipamentos, dois humanos + seis bots e reconexão. `DIFFICULTY_CHECK_URL` permite testar uma publicação em `?test`. `npm run test:balance` compara 30 corridas completas controladas por uma direção automatizada: cinco pistas, três seeds e Ferro 500 com/sem joelheira dourada. Para carregar outra versão da simulação, use `BALANCE_SOURCE_ROOT`; o primeiro argumento é o caminho do relatório JSON.
 
 Na comparação deste segundo ajuste, a Ferro com joelheira dourada passou de colocação média 2,4 para 2,87, com top 5 nas 15 corridas em ambas as versões; vitórias passaram de uma para zero. Sem joelheira, a média passou de 5,33 para 5,8 (nove para cinco top 5). Todas as 30 corridas foram concluídas em ambas as versões. São amostras de um piloto automatizado no seco, sem golpes, não uma previsão dos resultados de jogadores. Artefatos locais em `output/difficulty/`.
+
+
+### Mata Fechada
+
+A sexta pista está disponível na corrida livre, no campeonato e no multiplayer. Terminar Terra Brava entre os cinco primeiros em qualquer condição libera as quatro versões; recordes anteriores também valem. Novos campeonatos têm seis etapas e 24 corridas, preservando campeonatos antigos já concluídos. São 7,6 km, vinte curvas (incluindo um cotovelo que favorece motos ágeis), trechos de 2+1 e 1+1 faixas, túneis de árvores, vegetação densa e cinco áreas de lama que provocam derrapagem e queda ao entrar com velocidade. Capivaras, tucanos, veados e tamanduás aparecem nas margens. Quatro condições e sete motos disponíveis, além de galhos e macaco decorativo. A versão de avaliação separada continua disponível em `npm run dev:mata`, no endereço `http://127.0.0.1:4396/mata.html`, sem salvar progresso. Nela, escolha condição, moto e trecho e clique em **Correr**. Detalhes em [planejamento-pistas.md](docs/planejamento-pistas.md).
+
+`npm run test:mata` verifica o traçado, as sete motos no seco/molhado, determinismo, decoração, controles e apresentação no navegador. `npm run test:mata:integration` cobre desbloqueio, conta, prêmio/recorde, corrida livre, queda/recuperação, multiplayer e reconexão.

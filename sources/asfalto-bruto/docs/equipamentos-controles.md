@@ -15,6 +15,7 @@ Compra permanente; equipar uma já comprada não cobra novamente. O item acompan
 | Dourada | $4.000 | 55% | 24% |
 
 - Dois toques distintos em até 280ms para o mesmo lado ativam a manobra acima de 72 km/h. A/← para esquerda, D/→ para direita. Segurar a tecla não conta como dois toques.
+- No teclado, Espaço enquanto segura A/← ou D/→ também ativa para o lado escolhido. Sem direção não ativa; segurar Espaço não repete a manobra. Usa os mesmos requisitos, limites e comandos no individual e no multiplayer.
 - Dura até 4s; inverter a direção, reduzir abaixo do mínimo ou ir ao acostamento cancela. A animação e o bônus aparecem na curva do lado escolhido, aumentando suavemente com velocidade e curvatura. Retas, baixa velocidade e acostamento não recebem bônus.
 - **Na chuva, a queda acontece após mais de 2 segundos seguidos de joelho realmente apoiado**, inclusive durante a imunidade de recuperação. A manobra continua durando até 4s; ativá-la não derruba imediatamente. Tirar o joelho (reta, lado errado, baixa velocidade, acostamento ou chute) zera a contagem. Novos toques enquanto o apoio continua não zeram o tempo; pausa individual o congela e reconexão mantém o estado da simulação. A regra de prisão perto da polícia continua válida.
 - A agilidade original da moto continua sendo a base. Falcão e Agulha fazem curvas melhor que a Lobo; a joelheira aumenta a aderência apenas durante a técnica. A velocidade de referência segue a raiz quadrada da aderência, não o mesmo percentual de aumento. O aviso de curva considera a manobra enquanto ela está ativa.

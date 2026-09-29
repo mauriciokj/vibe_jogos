@@ -37,7 +37,7 @@ module.exports = __toCommonJS(asfalto_exports);
 var import_node_http2 = require("node:http");
 
 // src/version.ts
-var GAME_VERSION = "1.7.0-beta";
+var GAME_VERSION = "1.8.0-beta";
 
 // server/service.ts
 var import_node_http = require("node:http");
@@ -76,6 +76,109 @@ function advanceScenicEvent(state) {
     const truck = state.traffic.find((t) => t.id === event.trafficId);
     if (truck && humans.some((r) => truck.z >= r.z - 8 && truck.z - r.z <= 180)) event.startedAt = state.time;
   } else if (humans.some((r) => r.z >= event.z - 180)) event.startedAt = state.time;
+}
+
+// src/game/forest.ts
+var FOREST_TRACK = {
+  id: "mata",
+  name: "Mata Fechada",
+  region: "ESTRADA DA FLORESTA",
+  distance: 7600,
+  difficulty: "T\xC9CNICA",
+  prize: 2700,
+  index: 5,
+  level: 1,
+  theme: "forest",
+  sky: ["#4b7885", "#b3bc93", "#e2cb92"],
+  land: ["#466c48", "#416543"],
+  road: ["#52605a", "#4c5954"],
+  accent: "#bbdc8b"
+};
+var FOREST_HAIRPIN = { start: 2310, end: 2530, bend: -4.4, ramp: 65 };
+var FOREST_CORNERS = [
+  [480, 710, 1.8],
+  [780, 1e3, -2.05],
+  [1060, 1300, 2.25],
+  [1370, 1610, -1.9],
+  [1690, 1940, 2.15],
+  [2310, 2530, -2.3],
+  [2600, 2820, 2.1],
+  [2890, 3110, -2.2],
+  [3180, 3400, 1.95],
+  [3460, 3660, -1.8],
+  [3970, 4190, 2.25],
+  [4260, 4480, -2.1],
+  [4550, 4760, 2.35],
+  [4830, 5050, -2.15],
+  [5110, 5340, 1.85],
+  [5650, 5870, -2.15],
+  [5940, 6160, 2.3],
+  [6230, 6450, -1.95],
+  [6520, 6750, 2.2],
+  [6820, 7090, -1.9]
+].map(([start, end, bend]) => start === FOREST_HAIRPIN.start ? FOREST_HAIRPIN : { start, end, bend, ramp: 85 });
+var FOREST_NARROWS = [{ start: 1120, end: 2e3 }, { start: 3030, end: 3890 }, { start: 4840, end: 5650 }, { start: 6420, end: 7200 }];
+var ramp = (v) => {
+  const t = Math.max(0, Math.min(1, v));
+  return t * t * (3 - 2 * t);
+};
+var sectionStrength = (z, sites, fade) => sites.reduce((v, s) => Math.max(v, ramp((z - s.start) / fade) * ramp((s.end - z) / fade)), 0);
+function forestRoad(z) {
+  const narrow = sectionStrength(z, FOREST_NARROWS, 180), half = 4.2 + 2.1 * (1 - narrow), center = -2.1 * (1 - narrow);
+  const backward = center - 2.1, inner = center + 2.1, outer = 4.2 - 2.1 * narrow;
+  return { half, center, narrow, backward, inner, outer, lanes: narrow > 0.8 ? [backward, inner] : [backward, inner, outer] };
+}
+var FOREST_MUD = [
+  { start: 1510, end: 1690, side: 1 },
+  { start: 2950, end: 3140, side: -1 },
+  { start: 4290, end: 4470, side: 1 },
+  { start: 5700, end: 5900, side: -1 },
+  { start: 6690, end: 6870, side: 1 }
+];
+function forestMudStrip(z) {
+  const site = FOREST_MUD.find((s) => z >= s.start && z <= s.end);
+  if (!site) return null;
+  const strength = ramp((z - site.start) / 22) * ramp((site.end - z) / 22), half = forestRoad(z).half;
+  const center = site.side * (half - 1.5) + Math.sin(z * 0.23) * 0.08, width = 2.9 * strength * (0.86 + 0.14 * Math.sin(z * 0.16));
+  return { left: center - width / 2, right: center + width / 2, strength };
+}
+function forestMudAt(z, x) {
+  const strip = forestMudStrip(z);
+  if (!strip) return 0;
+  return strip.strength * ramp((x - strip.left) / 0.35) * ramp((strip.right - x) / 0.35);
+}
+var animals = ["capybara", "toucan", "deer", "anteater"];
+var FOREST_WILDLIFE = Array.from({ length: 28 }, (_, i) => {
+  const z = 610 + i * 248, side = i % 2 ? -1 : 1;
+  return { kind: animals[i % animals.length], z, x: side * (forestRoad(z).half + 2.8), side };
+});
+var FOREST_BRANCHES = [{ z: 2150, x: -4.5 }, { z: 3850, x: 3.1 }, { z: 5500, x: -3.1 }];
+function forestObstacles() {
+  return FOREST_BRANCHES.map((site, i) => ({ id: `forest-branch-${i}`, kind: "fallenTree", width: 2.6, ...site }));
+}
+function forestTrafficX(traffic, z = traffic.z) {
+  const road = forestRoad(z);
+  return (traffic.heading ?? Math.sign(traffic.speed)) < 0 ? road.backward : traffic.forestLane === 1 ? road.outer : road.inner;
+}
+function forestTraffic(random2) {
+  return Array.from({ length: 14 }, (_, i) => {
+    const t = {
+      id: `forest-car-${i}`,
+      kind: i % 4 === 3 ? "van" : "car",
+      forestLane: i % 2 ? 1 : 0,
+      x: 0,
+      z: 950 + i * 540 + random2() * 100,
+      speed: i % 3 === 0 ? -18 : 18 + random2() * 7,
+      color: ["#cfb889", "#82a798", "#b88465", "#9eaeb5"][i % 4]
+    };
+    t.x = forestTrafficX(t);
+    return t;
+  });
+}
+function forestEvent(seed) {
+  if (decorHash(seed ^ 7168355) >= 0.33) return void 0;
+  const sites = [2200, 3820, 5500, 7110];
+  return { kind: "monkey", z: sites[Math.floor(decorHash(seed ^ 7168372) * sites.length)], startedAt: null, duration: 8 };
 }
 
 // src/game/rural.ts
@@ -135,12 +238,12 @@ function ruralEvent(seed, condition) {
 }
 
 // src/game/road-profile.ts
-var roadHalf = (trackId) => trackId === "terra" ? 4.2 : 7;
-var lateralLimit = (trackId) => roadHalf(trackId) + 3.5;
-var roadLanes = (trackId) => trackId === "terra" ? [-2.1, 2.1] : [-5.25, -1.75, 1.75, 5.25];
-var surfaceGrip = (trackId, condition) => roadGrip(condition) * (trackId === "terra" ? 0.92 : 1);
-var surfaceBraking = (trackId, condition) => brakeGrip(condition) * (trackId === "terra" ? 0.94 : 1);
-var surfaceDrag = (trackId, condition) => trackId === "terra" ? raceCondition(condition) === "rain" ? 1.1 : 0.6 : 0;
+var roadHalf = (trackId, z = 0) => trackId === "mata" ? forestRoad(z).half : trackId === "terra" ? 4.2 : 7;
+var lateralLimit = (trackId, z = 0) => roadHalf(trackId, z) + 3.5;
+var roadLanes = (trackId, z = 0) => trackId === "mata" ? forestRoad(z).lanes : trackId === "terra" ? [-2.1, 2.1] : [-5.25, -1.75, 1.75, 5.25];
+var surfaceGrip = (trackId, condition, z = 0, x = 0) => roadGrip(condition) * (trackId === "terra" ? 0.92 : trackId === "mata" ? 1 - forestMudAt(z, x) * (raceCondition(condition) === "rain" ? 0.48 : 0.42) : 1);
+var surfaceBraking = (trackId, condition, z = 0, x = 0) => brakeGrip(condition) * (trackId === "terra" ? 0.94 : trackId === "mata" ? 1 - forestMudAt(z, x) * 0.22 : 1);
+var surfaceDrag = (trackId, condition, z = 0, x = 0, speed = 30) => trackId === "terra" ? raceCondition(condition) === "rain" ? 1.1 : 0.6 : trackId === "mata" ? forestMudAt(z, x) * 14 * Math.min(1, Math.max(0, speed) / 22) : 0;
 function trafficShape(trackId, kind) {
   const width = kind === "tractor" ? 3 : kind === "truck" ? 4.5 : trackId === "terra" ? 3.1 : 3.7;
   return { width, height: width * (kind === "tractor" ? 1.08 : kind === "truck" ? 1.25 : 0.94), contact: kind === "tractor" ? 1.95 : kind === "truck" ? 2.7 : trackId === "terra" ? 2 : 2.3, length: kind === "tractor" ? 4.2 : kind === "truck" ? 5.5 : 3.2 };
@@ -311,10 +414,10 @@ function getKneePad(id) {
 function equippedKneePad(save) {
   return save?.ownedKneePads?.includes(save.kneePadId ?? "") ? getKneePad(save.kneePadId) : void 0;
 }
-var ramp = (value) => Math.max(0, Math.min(1, value));
+var ramp2 = (value) => Math.max(0, Math.min(1, value));
 function kneeSupport(rider, curve, trackId = "costa") {
-  if ((rider.wheelieTime ?? 0) > 0 || (rider.jumpTime ?? 0) > 0 || !getKneePad(rider.kneePadId) || !supportsKneeDown(rider.bikeId) || !(rider.kneeTime > 0) || rider.kneeSide !== Math.sign(curve) || rider.crash || rider.out || rider.finishedAt !== null || Math.abs(rider.x) > roadHalf(trackId)) return 0;
-  return ramp((rider.speed - 20) / 10) * ramp((Math.abs(curve) - 0.15) / 0.5);
+  if ((rider.wheelieTime ?? 0) > 0 || (rider.jumpTime ?? 0) > 0 || !getKneePad(rider.kneePadId) || !supportsKneeDown(rider.bikeId) || !(rider.kneeTime > 0) || rider.kneeSide !== Math.sign(curve) || rider.crash || rider.out || rider.finishedAt !== null || Math.abs(rider.x) > roadHalf(trackId, rider.z)) return 0;
+  return ramp2((rider.speed - 20) / 10) * ramp2((Math.abs(curve) - 0.15) / 0.5);
 }
 function kneeContact(rider, curve, trackId = "costa") {
   return kneeSupport(rider, curve, trackId) > 0.35 && rider.attack?.kind !== "kick";
@@ -332,7 +435,8 @@ var TRACKS = [
   { id: "serra", name: "Serra da Fuma\xE7a", region: "ESTRADA DA MONTANHA", distance: 9200, difficulty: "DIF\xCDCIL", prize: 1850, index: 1, level: 1, theme: "mountain", sky: ["#555f83", "#b794b1", "#f2c2b5"], land: ["#728b70", "#637e67"], road: ["#555962", "#50545c"], accent: "#b9a0f8" },
   { id: "deserto", name: "Vale Vermelho", region: "FRONTEIRA DO DESERTO", distance: 10200, difficulty: "BRUTAL", prize: 2300, index: 2, level: 2, theme: "desert", sky: ["#69678d", "#e2908b", "#ffcb95"], land: ["#bc8165", "#b3785d"], road: ["#5c5356", "#564e51"], accent: "#ffac6f" },
   { id: "porto", name: "Porto Ferrugem", region: "DISTRITO PORTU\xC1RIO", distance: 7800, difficulty: "T\xC9CNICA", prize: 2200, index: 3, level: 1, theme: "port", sky: ["#52697b", "#c58c79", "#f2cc98"], land: ["#797d76", "#70766f"], road: ["#535f62", "#4b575b"], accent: "#ffc16a" },
-  { id: "terra", name: "Terra Brava", region: "CAMINHOS DO INTERIOR", distance: 7200, difficulty: "TERRA", prize: 2500, index: 4, level: 1, theme: "rural", sky: ["#577f91", "#dfa385", "#f7d5a4"], land: ["#829454", "#78874c"], road: ["#b77749", "#b27346"], accent: "#efbd80" }
+  { id: "terra", name: "Terra Brava", region: "CAMINHOS DO INTERIOR", distance: 7200, difficulty: "TERRA", prize: 2500, index: 4, level: 1, theme: "rural", sky: ["#577f91", "#dfa385", "#f7d5a4"], land: ["#829454", "#78874c"], road: ["#b77749", "#b27346"], accent: "#efbd80" },
+  FOREST_TRACK
 ];
 function getTrack(id) {
   return TRACKS.find((t) => t.id === id) ?? TRACKS[0];
@@ -344,6 +448,7 @@ var cornerCache = /* @__PURE__ */ new Map();
 function trackCorners(trackId) {
   const track = getTrack(trackId), cached = cornerCache.get(track.id);
   if (cached) return cached;
+  if (track.theme === "forest") return FOREST_CORNERS;
   if (track.theme === "port") return PORT_CORNERS;
   if (track.theme === "rural") return RURAL_CORNERS;
   const corners = [];
@@ -366,11 +471,11 @@ function curveAt(z, trackId) {
 function cornerSpeed(curve, handling = 1.1) {
   return Math.sqrt(3e3 * handling / Math.max(0.01, Math.abs(curve)));
 }
-function cornerPace(z, trackId, handling = 1.1, condition = "sunset", kneePadId) {
+function cornerPace(z, trackId, handling = 1.1, condition = "sunset", kneePadId, x = 0) {
   let speed = 120;
   for (let ahead = 0; ahead <= 240; ahead += 20) {
-    const safe = cornerSpeed(curveAt(z + ahead, trackId), plannedCornerHandling(handling, kneePadId) * surfaceGrip(trackId, condition));
-    speed = Math.min(speed, Math.sqrt(safe * safe + 2 * 19 * surfaceBraking(trackId, condition) * Math.max(0, ahead - 12)));
+    const safe = cornerSpeed(curveAt(z + ahead, trackId), plannedCornerHandling(handling, kneePadId) * surfaceGrip(trackId, condition, z + ahead, x));
+    speed = Math.min(speed, Math.sqrt(safe * safe + 2 * 19 * surfaceBraking(trackId, condition, z + ahead, x) * Math.max(0, ahead - 12)));
   }
   return speed;
 }
@@ -444,7 +549,7 @@ var RUN_SPEED = 7.2;
 var MOUNT_DISTANCE = 1.35;
 var MOUNT_SECONDS = 0.65;
 var EXPLOSION_SECONDS = 1.8;
-var reachableX = (s, x, z) => guardRailPosition(s.trackId, clamp(x, -lateralLimit(s.trackId) + 0.5, lateralLimit(s.trackId) - 0.5), z);
+var reachableX = (s, x, z) => guardRailPosition(s.trackId, clamp(x, -lateralLimit(s.trackId, z) + 0.5, lateralLimit(s.trackId, z) - 0.5), z);
 var move = (v, drag, dt) => Math.sign(v) * Math.max(0, Math.abs(v) - drag * dt);
 function beginRecovery(s, r, kind = "spill") {
   const speed = clamp(r.speed, 0, 80), side = r.lean < 0 ? -1 : 1;
@@ -653,7 +758,7 @@ function trackRaceFeats(state, before, order, dt) {
     const corner = trackCorners(state.trackId).find((c) => old.z < c.start && r.z >= c.start);
     if (corner) f.curve = { start: corner.start, end: corner.end, valid: true, contact: 0 };
     if (f.curve) {
-      if (r.recovery || r.out || Math.abs(r.x) > roadHalf(state.trackId)) f.curve.valid = false;
+      if (r.recovery || r.out || Math.abs(r.x) > roadHalf(state.trackId, r.z)) f.curve.valid = false;
       if (kneeContact(r, curveAt(old.z, state.trackId), state.trackId)) f.curve.contact += dt;
       if (r.z >= f.curve.end) {
         if (f.curve.valid && f.curve.contact >= 0.5) f.kneeCurve = true;
@@ -706,16 +811,16 @@ function advanceStunt(state, rider, command, dt) {
       launch(rider, `abandoned:${abandoned.id}`);
       return;
     }
-    const ramp2 = state.obstacles.find((o) => isRamp(o) && o.z >= rider.z && o.z - rider.z <= 1.5 + rider.speed * dt && Math.abs(o.x - rider.x) < obstacleShape(o).contact);
-    if (ramp2) {
-      launch(rider, ramp2.id);
+    const ramp3 = state.obstacles.find((o) => isRamp(o) && o.z >= rider.z && o.z - rider.z <= 1.5 + rider.speed * dt && Math.abs(o.x - rider.x) < obstacleShape(o).contact);
+    if (ramp3) {
+      launch(rider, ramp3.id);
       if (state.trackId === "terra") (rider.feats ??= newRaceFeats(false)).terraJump = true;
       return;
     }
   }
   if (!rider.wheelieTime) return;
   rider.wheelieTime = Math.max(0, rider.wheelieTime - dt);
-  if (command.brake > 0.2 || rider.speed < WHEELIE_MIN_SPEED || Math.abs(rider.x) > roadHalf(state.trackId)) rider.wheelieTime = 0;
+  if (command.brake > 0.2 || rider.speed < WHEELIE_MIN_SPEED || Math.abs(rider.x) > roadHalf(state.trackId, rider.z)) rider.wheelieTime = 0;
   if (!rider.wheelieTime) return;
   const targets = [
     ...state.traffic.filter((t) => t.kind === "car" && t.speed < 0 && Math.abs(t.x - rider.x) < 1.7),
@@ -869,6 +974,11 @@ function createRace(trackId = "costa", save, seed = 88117, condition = "sunset")
     state.obstacles = portObstacles();
     state.scenicEvent = portPassengerEvent(seed, state.traffic);
   }
+  if (trackId === "mata") {
+    state.traffic = forestTraffic(() => random(state));
+    state.obstacles = forestObstacles();
+    state.scenicEvent = forestEvent(seed);
+  }
   if (trackId === "terra") {
     state.traffic = ruralTraffic(() => random(state));
     state.obstacles = ruralObstacles(state.condition);
@@ -909,6 +1019,10 @@ function crashRider(state, rider, force = false, kind = "spill") {
   rider.nitroTime = 0;
   rider.speech = void 0;
   cancelStunt(rider);
+  if (state.trackId === "mata") {
+    rider.mudSlip = 0;
+    rider.mudSide = 0;
+  }
   if (isBicycle(rider.bikeId)) rider.pedalTime = 0;
   rider.falls++;
   (rider.feats ??= newRaceFeats(false)).clean = false;
@@ -920,14 +1034,14 @@ function performAction(state, rider, action) {
     if (isBicycle(rider.bikeId)) pedal(rider);
   } else if (action === "wheelie") {
     if (isBicycle(rider.bikeId)) return;
-    if (stunting(rider) || wheeliesLeft(rider) <= 0 || rider.speed < WHEELIE_MIN_SPEED || Math.abs(rider.x) > roadHalf(state.trackId) || rider.immune) return;
+    if (stunting(rider) || wheeliesLeft(rider) <= 0 || rider.speed < WHEELIE_MIN_SPEED || Math.abs(rider.x) > roadHalf(state.trackId, rider.z) || rider.immune) return;
     rider.wheeliesLeft = wheeliesLeft(rider) - 1;
     rider.wheelieTime = WHEELIE_DURATION;
     rider.kneeTime = 0;
     rider.wetKneeTicks = 0;
   } else if (action === "kneeLeft" || action === "kneeRight") {
     if (stunting(rider)) return;
-    if (!getKneePad(rider.kneePadId) || !supportsKneeDown(rider.bikeId) || rider.speed < 20 || Math.abs(rider.x) > roadHalf(state.trackId)) return;
+    if (!getKneePad(rider.kneePadId) || !supportsKneeDown(rider.bikeId) || rider.speed < 20 || Math.abs(rider.x) > roadHalf(state.trackId, rider.z)) return;
     const side = action === "kneeLeft" ? -1 : 1;
     if ((rider.kneeTime ?? 0) > 0 && rider.kneeSide === side) return;
     rider.kneeSide = side;
@@ -948,7 +1062,7 @@ function performAction(state, rider, action) {
 function impact(state, rider, damage, push) {
   if (rider.immune || rider.crash) return;
   rider.health = Math.max(0, rider.health - damage);
-  rider.x = clamp(rider.x + push, -lateralLimit(state.trackId), lateralLimit(state.trackId));
+  rider.x = clamp(rider.x + push, -lateralLimit(state.trackId, rider.z), lateralLimit(state.trackId, rider.z));
   contactGuardRail(state.trackId, rider);
   rider.speed *= 0.94;
   if (rider.health <= 0) crashRider(state, rider);
@@ -964,13 +1078,13 @@ function botCommand(state, rider) {
     rider.targetX = police ? player.x : (random(state) > 0.23 ? 1 : -1) * (1.4 + random(state) * 3.6);
     if (rider.profile === "aggressive" && Math.abs(rider.z - player.z) < 24) rider.targetX = player.x + (rider.x < player.x ? -1.7 : 1.7);
   }
-  const inside = state.trackId === "terra" ? 3 : 5.5;
-  let target = state.trackId === "terra" ? clamp(rider.targetX, -inside, inside) : rider.targetX;
+  const inside = state.trackId === "mata" ? Math.min(roadHalf(state.trackId, rider.z), roadHalf(state.trackId, rider.z + 100)) - 1 : state.trackId === "terra" ? 3 : 5.5;
+  let target = state.trackId === "terra" || state.trackId === "mata" ? clamp(rider.targetX, -inside, inside) : rider.targetX;
   let brake = 0;
   const dangers = [...state.traffic, ...state.obstacles].filter((t) => t.z - rider.z > -7 && t.z - rider.z < Math.max(30 + rider.speed * 1.5, "width" in t && (t.width ?? 0) > 4 ? 220 : 0));
-  if (dangers.some((t) => Math.min(Math.abs(t.x - rider.x), Math.abs(t.x - target)) < dangerClearance(state.trackId, t))) {
-    const candidates = roadLanes(state.trackId).slice();
-    const cost = (lane) => Math.abs(lane - rider.x) * 0.35 + dangers.reduce((sum, t) => sum + (Math.abs(t.x - lane) < dangerClearance(state.trackId, t) ? 30 - Math.max(0, t.z - rider.z) * 0.04 : 0), 0);
+  if (state.trackId === "mata" && forestMudAt(rider.z + 80, target) > 0.2 || dangers.some((t) => Math.min(Math.abs(t.x - rider.x), Math.abs(t.x - target)) < dangerClearance(state.trackId, t))) {
+    const candidates = roadLanes(state.trackId, rider.z + 60).slice();
+    const cost = (lane) => Math.abs(lane - rider.x) * 0.35 + (state.trackId === "mata" ? forestMudAt(rider.z + 80, lane) * 12 : 0) + dangers.reduce((sum, t) => sum + (Math.abs(t.x - lane) < dangerClearance(state.trackId, t) ? 30 - Math.max(0, t.z - rider.z) * 0.04 : 0), 0);
     target = candidates.sort((a, b) => cost(a) - cost(b))[0];
     rider.targetX = target;
     if (dangers.some((t) => t.z - rider.z < rider.speed * 0.4 && Math.abs(t.x - rider.x) < dangerClearance(state.trackId, t, true))) brake = 0.7;
@@ -987,11 +1101,11 @@ function botCommand(state, rider) {
   if (nearby && rider.cooldown === 0 && (rider.profile !== "careful" || state.tick % 80 < 8)) attack = rider.weapon ? "weapon" : rider.profile === "aggressive" ? "kick" : "punch";
   const curve = curveAt(rider.z, state.trackId);
   const kneeCapable = !police && raceCondition(state.condition) !== "rain" && supportsKneeDown(rider.bikeId) && !!getKneePad(rider.kneePadId);
-  const forces = cornerForces(rider.speed, cornerHandling(rider, curve, state.trackId) * surfaceGrip(state.trackId, state.condition), curve, Math.abs(rider.x) > roadHalf(state.trackId));
+  const forces = cornerForces(rider.speed, cornerHandling(rider, curve, state.trackId) * surfaceGrip(state.trackId, state.condition, rider.z, rider.x), curve, Math.abs(rider.x) > roadHalf(state.trackId, rider.z));
   const steering = clamp((target - rider.x) * 0.9 + forces.drift / forces.lateral, -1, 1);
-  const canLean = kneeCapable && steering * Math.sign(curve) >= -0.2 && Math.abs(rider.x) <= roadHalf(state.trackId) && !stunting(rider);
+  const canLean = kneeCapable && steering * Math.sign(curve) >= -0.2 && Math.abs(rider.x) <= roadHalf(state.trackId, rider.z) && !stunting(rider);
   const action = canLean && !(rider.kneeTime > 0) && rider.speed >= 24 && Math.abs(curve) > 0.5 ? curve > 0 ? "kneeRight" : "kneeLeft" : void 0;
-  const pace = cornerPace(rider.z, state.trackId, rider.handling, state.condition, canLean ? rider.kneePadId : void 0) * (police ? 0.98 : rider.profile === "careful" ? 0.95 : rider.profile === "fast" ? 1.04 : 0.99);
+  const pace = cornerPace(rider.z, state.trackId, rider.handling, state.condition, canLean ? rider.kneePadId : void 0, rider.x) * (police ? 0.98 : rider.profile === "careful" ? 0.95 : rider.profile === "fast" ? 1.04 : 0.99);
   brake = Math.max(brake, clamp((rider.speed - pace) * 0.3, 0, 1));
   if (police && rider.z > player.z + 7) brake = Math.max(brake, 0.42);
   return { throttle: rider.speed > pace - 0.6 || brake > 0.1 ? 0 : 1, brake, steer: steering, attack, ...action ? { action } : {} };
@@ -1033,12 +1147,12 @@ function applyCommand(state, rider, command) {
     if (rider.crash === 0) {
       rider.health = 100;
       rider.immune = 2.4;
-      rider.x = clamp(rider.x, -roadHalf(state.trackId) + 1.6, roadHalf(state.trackId) - 1.6);
+      rider.x = clamp(rider.x, -roadHalf(state.trackId, rider.z) + 1.6, roadHalf(state.trackId, rider.z) - 1.6);
       rider.speed = 12;
     }
     return;
   }
-  const onShoulder = Math.abs(rider.x) > roadHalf(state.trackId);
+  const onShoulder = Math.abs(rider.x) > roadHalf(state.trackId, rider.z);
   if (rider.kneeTime && (onShoulder || rider.speed < 20 || command.steer * (rider.kneeSide ?? 0) < -0.2)) rider.kneeTime = 0;
   const curve = curveAt(rider.z, state.trackId);
   rider.wetKneeTicks = raceCondition(state.condition) === "rain" && kneeContact(rider, curve, state.trackId) ? (rider.wetKneeTicks ?? 0) + 1 : 0;
@@ -1049,17 +1163,27 @@ function applyCommand(state, rider, command) {
   if (isBicycle(rider.bikeId) && command.brake > 0.1) rider.pedalTime = 0;
   const effort = isBicycle(rider.bikeId) ? (rider.pedalTime ?? 0) > 0 ? 1 : 0 : command.throttle;
   const acceleration = effort * rider.acceleration * boost * (onShoulder ? 0.55 : 1) * (1 - 0.35 * rider.speed / topSpeed);
-  rider.speed = clamp(rider.speed + (acceleration - command.brake * 29 * surfaceBraking(state.trackId, state.condition) - (effort ? 1.2 : 3.6) - surfaceDrag(state.trackId, state.condition) - (state.trackId === "terra" ? 9.8 * ruralSlope(rider.z) : 0)) * STEP, 0, Math.max(rider.speed, topSpeed));
+  rider.speed = clamp(rider.speed + (acceleration - command.brake * 29 * surfaceBraking(state.trackId, state.condition, rider.z, rider.x) - (effort ? 1.2 : 3.6) - surfaceDrag(state.trackId, state.condition, rider.z, rider.x, rider.speed) - (state.trackId === "terra" ? 9.8 * ruralSlope(rider.z) : 0)) * STEP, 0, Math.max(rider.speed, topSpeed));
   if (rider.speed > max) rider.speed = Math.max(max, rider.speed - STEP * (onShoulder ? 34 : 4));
   const steering = clamp(command.steer, -1, 1);
-  const forces = cornerForces(rider.speed, cornerHandling(rider, curve, state.trackId) * surfaceGrip(state.trackId, state.condition), curve, onShoulder);
-  rider.x = clamp(rider.x + (steering * forces.lateral - forces.drift) * STEP, -lateralLimit(state.trackId), lateralLimit(state.trackId));
+  const forces = cornerForces(rider.speed, cornerHandling(rider, curve, state.trackId) * surfaceGrip(state.trackId, state.condition, rider.z, rider.x), curve, onShoulder);
+  let mudSlide = 0;
+  if (state.trackId === "mata") {
+    const mud = forestMudAt(rider.z, rider.x);
+    if ((mud > 0.15 || (rider.mudSlip ?? 0) > 0.2) && rider.speed > 8 && !rider.immune && !(rider.jumpTime > 0)) {
+      rider.mudSide ||= Math.sign(rider.x) || 1;
+      rider.mudSlip = Math.min(1, (rider.mudSlip ?? 0) + STEP * Math.max(mud, 0.7) * (1.5 + rider.speed / 35));
+    } else rider.mudSlip = Math.max(0, (rider.mudSlip ?? 0) - STEP * 3);
+    if (!rider.mudSlip) rider.mudSide = 0;
+    mudSlide = (rider.mudSide ?? 0) * (rider.mudSlip ?? 0) * (0.65 + Math.sin((rider.mudSlip ?? 0) * 14) * 1.1);
+  }
+  rider.x = clamp(rider.x + (steering * forces.lateral - forces.drift + mudSlide) * STEP, -lateralLimit(state.trackId, rider.z), lateralLimit(state.trackId, rider.z));
   contactGuardRail(state.trackId, rider, STEP);
   rider.lean += (steering * 0.32 - rider.lean) * 0.12;
   rider.z += rider.speed * STEP;
   if (state.trackId === "terra") contactGuardRail(state.trackId, rider);
   rider.health = Math.min(100, rider.health + STEP * 1.15);
-  if (Math.abs(rider.x) > lateralLimit(state.trackId) - 0.7 && rider.speed > 26 && !rider.immune) {
+  if (Math.abs(rider.x) > lateralLimit(state.trackId, rider.z) - 0.7 && rider.speed > 26 && !rider.immune) {
     rider.integrity -= STEP * 2.2;
   }
   if (command.attack && !(rider.jumpTime > 0) && !rider.attack && rider.cooldown === 0 && (command.attack !== "weapon" || rider.weapon)) {
@@ -1277,6 +1401,10 @@ function stepRace(state, commands = {}) {
       crashRider(state, r, true);
       state.events[state.events.length - 1].text = "JOELHO NO MOLHADO POR TEMPO DEMAIS \xB7 QUEDA!";
     }
+    if (state.trackId === "mata" && !r.out && !r.crash && !r.immune && r.finishedAt === null && (r.mudSlip ?? 0) >= 1) {
+      crashRider(state, r);
+      state.events[state.events.length - 1].text = "DERRAPOU NA LAMA \xB7 VOLTE AT\xC9 A MOTO!";
+    }
   }
   const active = state.riders.filter((r) => r.profile !== "police" && !r.out && r.finishedAt === null);
   const back = Math.min(...active.map((r) => r.z), player.z);
@@ -1284,6 +1412,7 @@ function stepRace(state, commands = {}) {
   for (const t of state.traffic) {
     t.z += t.speed * STEP;
     if (!t.queued && t.z < back - 100) t.z += getTrack(state.trackId).distance + 1800;
+    if (state.trackId === "mata") t.x = forestTrafficX(t);
   }
   for (const o of state.obstacles) if (o.motion) o.x = obstacleX(o, state.time);
   resolveAttacks(state);
@@ -1335,7 +1464,7 @@ function stepRace(state, commands = {}) {
 }
 
 // src/multiplayer/protocol.ts
-var NET_VERSION = 19;
+var NET_VERSION = 20;
 var MAX_PLAYERS = 8;
 var ROOM_WAIT_MS = 6e4;
 var PUBLIC_ROOM_WAIT_MS = 12e4;

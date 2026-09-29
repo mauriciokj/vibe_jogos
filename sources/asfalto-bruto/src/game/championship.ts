@@ -13,14 +13,15 @@ export interface ChampFinish { id:string; place:number|null; time:number|null; }
 export interface ChampHeat extends OutcomeDetail { finishes:ChampFinish[]; reason:string; }
 export interface ChampStage { stage:number; heats:ChampHeat[]; place:number; }
 export interface Championship {
- version:1; seed:number; stage:number;
+ version:1; seed:number; stage:number; stages?:number;
  status:'ready'|'racing'|'standings'|'service'|'eliminated'|'complete';
  heats:ChampHeat[]; history:ChampStage[];
  entry?:Omit<SaveData,'championship'>; damage:Record<string,number>;
  checkpoint?:RaceState;
 }
+export const championshipStages=(c?:Championship)=>c?.stages ?? TRACKS.length;
 export const championshipPoints=(place:number|null)=>place===null?0:CHAMP_POINTS[place-1] ?? 0;
-export function newChampionship(seed:number):Championship {return {version:1,seed:seed>>>0,stage:0,status:'ready',heats:[],history:[],damage:{}};}
+export function newChampionship(seed:number):Championship {return {version:1,seed:seed>>>0,stage:0,stages:TRACKS.length,status:'ready',heats:[],history:[],damage:{}};}
 export function championshipStandings(heats:ChampHeat[]){
  const rows=IDS.map((id,i)=>{
   const races=heats.map(h=>h.finishes.find(f=>f.id===id)!);
@@ -47,7 +48,7 @@ export function championshipBikeState(save:SaveData,c=save.championship){
   blocked:integrity===0&&!pendingResult&&!recovering&&!borrowed,canRepair:integrity===0&&!pendingResult&&beforeRace};
 }
 export function nextChampionshipStage(c:Championship){
- if(c.status!=='service' || c.stage>=TRACKS.length-1)return false;
+ if(c.status!=='service' || c.stage>=championshipStages(c)-1)return false;
  c.stage++;c.heats=[];c.status='ready';c.damage={};delete c.entry;delete c.checkpoint;return true;
 }
 function repairBrokenGridRivals(c:Championship,race:RaceState){
@@ -115,7 +116,7 @@ export function recordChampionshipHeat(c:Championship,finished:RaceState){
  if(c.heats.length===4){
   const place=championshipStandings(c.heats).find(r=>r.id==='player')!.rank;
   c.history.push({stage:c.stage,heats:structuredClone(c.heats),place});
-  c.status=place>3?'eliminated':c.stage===TRACKS.length-1?'complete':'service';
+  c.status=place>3?'eliminated':c.stage===championshipStages(c)-1?'complete':'service';
  }else c.status='standings';
  return true;
 }
@@ -133,15 +134,18 @@ export function normalizeChampionship(value:any,normalizeGarage:(v:any)=>SaveDat
    const places=rows.filter(f=>f.place!==null).map(f=>f.place);if(new Set(places).size!==places.length)throw Error();
    return {reason:h.reason,finishes:rows,...h.reason==='caught'&&['fall','stopped'].includes(h.arrestCause)?{arrestCause:h.arrestCause}:{},...h.reason==='wrecked'&&h.exploded===true?{exploded:true}:{}};
   };
-  if(!Array.isArray(value.heats)||value.heats.length>4 || !Array.isArray(value.history)||value.history.length>5)return;
-  const c:Championship={version:1,seed:value.seed>>>0,stage:value.stage,status:value.status,heats:value.heats.map(heat),history:value.history.map((h:any,i:number)=>{
+  if(!Array.isArray(value.heats)||value.heats.length>4 || !Array.isArray(value.history)||value.history.length>TRACKS.length)return;
+  // Preserve the five-stage championship already completed before Mata shipped.
+  const stages=value.stages ?? (value.status==='complete' && value.stage===4?5:TRACKS.length);
+  if(!Number.isInteger(stages) || stages<5 || stages>TRACKS.length || value.stage>=stages)return;
+  const c:Championship={version:1,seed:value.seed>>>0,stage:value.stage,stages,status:value.status,heats:value.heats.map(heat),history:value.history.map((h:any,i:number)=>{
    if(h.stage!==i || !Array.isArray(h.heats)||h.heats.length!==4)throw Error();const heats=h.heats.map(heat);return {stage:i,heats,place:championshipStandings(heats).find(r=>r.id==='player')!.rank};
   }),damage:{}};
   for(const id of IDS)if(value.damage?.[id]!==undefined){if(!Number.isFinite(value.damage[id]))return;c.damage[id]=clamp(value.damage[id],0,100);}
   if(value.entry){if(value.entry.version!==1)return;const {championship:_,...entry}=value.entry;c.entry=normalizeGarage(entry);}
   const complete=['service','eliminated','complete'].includes(c.status);
   if(complete!== (c.heats.length===4) || c.history.length!==c.stage+(complete?1:0) || c.status==='ready'&&c.heats.length!==0 || c.status==='standings'&&c.heats.length===0)return;
-  if(complete){const place=championshipStandings(c.heats).find(r=>r.id==='player')!.rank;c.status=place>3?'eliminated':c.stage===TRACKS.length-1?'complete':'service';}
+  if(complete){const place=championshipStandings(c.heats).find(r=>r.id==='player')!.rank;c.status=place>3?'eliminated':c.stage===championshipStages(c)-1?'complete':'service';}
   if(c.status==='racing'){
    const s=value.checkpoint as RaceState;
    if(!c.entry || !validCheckpoint(s,c))return;

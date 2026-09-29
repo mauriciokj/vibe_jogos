@@ -6,7 +6,7 @@ import { stealablePoliceBike, takePoliceBike } from './police-bike';
 
 export const RUN_SPEED=7.2, MOUNT_DISTANCE=1.35, MOUNT_SECONDS=.65;
 export const EXPLOSION_SECONDS=1.8;
-const reachableX=(s:RaceState,x:number,z:number)=>guardRailPosition(s.trackId,clamp(x,-lateralLimit(s.trackId)+.5,lateralLimit(s.trackId)-.5),z);
+const reachableX=(s:RaceState,x:number,z:number)=>guardRailPosition(s.trackId,clamp(x,-lateralLimit(s.trackId,z)+.5,lateralLimit(s.trackId,z)-.5),z);
 const move=(v:number,drag:number,dt:number)=>Math.sign(v)*Math.max(0,Math.abs(v)-drag*dt);
 export function beginRecovery(s:RaceState,r:Rider,kind:'spill'|'impact'='spill'){
  const speed=clamp(r.speed,0,80),side=r.lean<0?-1:1;

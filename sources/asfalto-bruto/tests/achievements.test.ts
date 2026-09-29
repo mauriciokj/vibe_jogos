@@ -54,7 +54,7 @@ test('streak resets on every defeat/abandonment but earned badges are permanent'
 test('exploration, weather, garage and championship badges complete the catalog',()=>{
  const save=freshSave();for(const t of TRACKS)for(const c of CONDITIONS)settleRace(save,result(race(t.id,c.id)));
  has(save,'all-tracks','all-weather','night-win','rain-win');save.cash=1e6;for(const b of MOTORBIKES)buyBike(save,b.id);has(save,'garage');assert.ok(!save.owned.includes('bicicleta'));
- const c=save.championship=newChampionship(19),heat={reason:'finish',finishes:race().riders.map((r,i)=>({id:r.id,place:i+1,time:200+i}))};c.heats=Array.from({length:4},()=>structuredClone(heat));c.history=[{stage:4,heats:structuredClone(c.heats),place:1}];c.stage=4;c.status='complete';reconcileAchievements(save);has(save,'champ-win','perfect-stage','champion');
+ const c=save.championship=newChampionship(19),heat={reason:'finish',finishes:race().riders.map((r,i)=>({id:r.id,place:i+1,time:200+i}))};c.heats=Array.from({length:4},()=>structuredClone(heat));c.history=[{stage:TRACKS.length-1,heats:structuredClone(c.heats),place:1}];c.stage=TRACKS.length-1;c.status='complete';reconcileAchievements(save);has(save,'champ-win','perfect-stage','champion');
  const third=freshSave();third.championship=structuredClone(c);third.championship.history[0].place=3;reconcileAchievements(third);assert.ok(!third.achievements!.unlocked.includes('champion'));
  const champ=freshSave();settleRace(champ,result(race()),{mode:'championship'});has(champ,'champ-win');assert.ok(!champ.achievements!.unlocked.includes('solo-win'));
 });

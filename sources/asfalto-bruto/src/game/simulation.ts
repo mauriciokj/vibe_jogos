@@ -1,3 +1,4 @@
+import { forestTraffic, forestObstacles, forestEvent, forestTrafficX, forestMudAt } from './forest';
 import { beginRecovery, advanceRecovery, advanceAbandonedBike, recoveryCommand, hitPedestrian } from './recovery';
 import { roadHalf, roadLanes, lateralLimit, surfaceGrip, surfaceBraking, surfaceDrag, trafficShape } from './road-profile';
 import { trackHazards, obstacleX, obstacleShape, dangerClearance } from './hazards';
@@ -87,6 +88,7 @@ export function createRace(trackId = 'costa', save?: SaveData, seed = 88117, con
     state.obstacles.push({ id: `obstacle-${i}`, x: i % 3 === 0 ? 4.8 : i % 3 === 1 ? -3.2 : 6.2, z, kind: i % 3 === 1 ? 'barrier' : 'oil' });
   }
   if(trackId==='porto'){state.traffic=portTraffic(()=>random(state));state.obstacles=portObstacles();state.scenicEvent=portPassengerEvent(seed,state.traffic);}
+  if(trackId==='mata'){state.traffic=forestTraffic(()=>random(state));state.obstacles=forestObstacles();state.scenicEvent=forestEvent(seed);}
   if(trackId==='terra') {
     state.traffic=ruralTraffic(()=>random(state));state.obstacles=ruralObstacles(state.condition!);state.scenicEvent=ruralEvent(seed,state.condition!);
     riders.forEach((r,i)=>{r.x=i%2?-2.1:2.1;r.targetX=r.x;r.z=-Math.floor(i/2)*10;});
@@ -120,6 +122,7 @@ export function crashRider(state: RaceState, rider: Rider, force = false, kind:'
   rider.integrity = Math.max(0, rider.integrity - 13 / rider.armor);
   rider.attack = null;
   rider.kneeTime=0;rider.wetKneeTicks=0;rider.nitroTime=0;rider.speech=undefined;cancelStunt(rider);
+  if(state.trackId==='mata'){rider.mudSlip=0;rider.mudSide=0;}
   if(isBicycle(rider.bikeId))rider.pedalTime=0;
   rider.falls++;
   (rider.feats ??=newRaceFeats(false)).clean=false;
@@ -132,11 +135,11 @@ export function performAction(state: RaceState, rider: Rider, action: RiderActio
     if(isBicycle(rider.bikeId))pedal(rider);
   } else if(action==='wheelie') {
     if(isBicycle(rider.bikeId))return;
-    if(stunting(rider) || wheeliesLeft(rider)<=0 || rider.speed<WHEELIE_MIN_SPEED || Math.abs(rider.x)>roadHalf(state.trackId) || rider.immune)return;
+    if(stunting(rider) || wheeliesLeft(rider)<=0 || rider.speed<WHEELIE_MIN_SPEED || Math.abs(rider.x)>roadHalf(state.trackId,rider.z) || rider.immune)return;
     rider.wheeliesLeft=wheeliesLeft(rider)-1;rider.wheelieTime=WHEELIE_DURATION;rider.kneeTime=0;rider.wetKneeTicks=0;
   } else if(action==='kneeLeft' || action==='kneeRight') {
     if(stunting(rider))return;
-    if(!getKneePad(rider.kneePadId) || !supportsKneeDown(rider.bikeId) || rider.speed<20 || Math.abs(rider.x)>roadHalf(state.trackId))return;
+    if(!getKneePad(rider.kneePadId) || !supportsKneeDown(rider.bikeId) || rider.speed<20 || Math.abs(rider.x)>roadHalf(state.trackId,rider.z))return;
     const side=action==='kneeLeft'?-1:1;
     if((rider.kneeTime ?? 0)>0 && rider.kneeSide===side)return;
     rider.kneeSide=side;rider.kneeTime=KNEE_DURATION;
@@ -154,7 +157,7 @@ export function performAction(state: RaceState, rider: Rider, action: RiderActio
 function impact(state: RaceState, rider: Rider, damage: number, push: number) {
   if (rider.immune || rider.crash) return;
   rider.health = Math.max(0, rider.health - damage);
-  rider.x = clamp(rider.x + push, -lateralLimit(state.trackId), lateralLimit(state.trackId));
+  rider.x = clamp(rider.x + push, -lateralLimit(state.trackId,rider.z), lateralLimit(state.trackId,rider.z));
   contactGuardRail(state.trackId,rider);
   rider.speed *= .94;
   if (rider.health <= 0) crashRider(state, rider);
@@ -172,13 +175,13 @@ export function botCommand(state: RaceState, rider: Rider): Command {
     rider.targetX = police ? player.x : (random(state) > .23 ? 1 : -1) * (1.4 + random(state) * 3.6);
     if (rider.profile === 'aggressive' && Math.abs(rider.z - player.z) < 24) rider.targetX = player.x + (rider.x < player.x ? -1.7 : 1.7);
   }
-  const inside=state.trackId==='terra'?3:5.5;
-  let target = state.trackId==='terra'?clamp(rider.targetX,-inside,inside):rider.targetX;
+  const inside=state.trackId==='mata'?Math.min(roadHalf(state.trackId,rider.z),roadHalf(state.trackId,rider.z+100))-1:state.trackId==='terra'?3:5.5;
+  let target = state.trackId==='terra'||state.trackId==='mata'?clamp(rider.targetX,-inside,inside):rider.targetX;
   let brake = 0;
   const dangers = [...state.traffic, ...state.obstacles].filter(t => t.z - rider.z > -7 && t.z - rider.z < Math.max(30 + rider.speed * 1.5, 'width' in t && (t.width ?? 0)>4 ? 220 : 0));
-  if (dangers.some(t => Math.min(Math.abs(t.x - rider.x), Math.abs(t.x - target)) < dangerClearance(state.trackId,t))) {
-    const candidates = roadLanes(state.trackId).slice();
-    const cost = (lane: number) => Math.abs(lane - rider.x) * .35 + dangers.reduce((sum, t) => sum + (Math.abs(t.x - lane) < dangerClearance(state.trackId,t) ? 30 - Math.max(0, t.z - rider.z) * .04 : 0), 0);
+  if ((state.trackId==='mata' && forestMudAt(rider.z+80,target)>.2) || dangers.some(t => Math.min(Math.abs(t.x - rider.x), Math.abs(t.x - target)) < dangerClearance(state.trackId,t))) {
+    const candidates = roadLanes(state.trackId,rider.z+60).slice();
+    const cost = (lane: number) => Math.abs(lane - rider.x) * .35 + (state.trackId==='mata'?forestMudAt(rider.z+80,lane)*12:0) + dangers.reduce((sum, t) => sum + (Math.abs(t.x - lane) < dangerClearance(state.trackId,t) ? 30 - Math.max(0, t.z - rider.z) * .04 : 0), 0);
     target = candidates.sort((a, b) => cost(a) - cost(b))[0];
     rider.targetX = target;
     if (dangers.some(t => t.z - rider.z < rider.speed * .4 && Math.abs(t.x - rider.x) < dangerClearance(state.trackId,t,true))) brake = .7;
@@ -197,12 +200,12 @@ export function botCommand(state: RaceState, rider: Rider): Command {
   // Dry bends allow the same four-second technique as the player. In rain the
   // AI takes the bend upright and plans braking without an inactive pad bonus.
   const kneeCapable=!police && raceCondition(state.condition)!=='rain' && supportsKneeDown(rider.bikeId) && !!getKneePad(rider.kneePadId);
-  const forces = cornerForces(rider.speed, cornerHandling(rider,curve,state.trackId) * surfaceGrip(state.trackId,state.condition), curve, Math.abs(rider.x) > roadHalf(state.trackId));
+  const forces = cornerForces(rider.speed, cornerHandling(rider,curve,state.trackId) * surfaceGrip(state.trackId,state.condition,rider.z,rider.x), curve, Math.abs(rider.x) > roadHalf(state.trackId,rider.z));
   const steering = clamp((target - rider.x) * .9 + forces.drift / forces.lateral, -1, 1);
-  const canLean=kneeCapable && steering*Math.sign(curve)>=-.2 && Math.abs(rider.x)<=roadHalf(state.trackId) && !stunting(rider);
+  const canLean=kneeCapable && steering*Math.sign(curve)>=-.2 && Math.abs(rider.x)<=roadHalf(state.trackId,rider.z) && !stunting(rider);
   const action=canLean && !(rider.kneeTime!>0) && rider.speed>=24 && Math.abs(curve)>.5
     ? curve>0?'kneeRight':'kneeLeft' : undefined;
-  const pace = cornerPace(rider.z, state.trackId, rider.handling, state.condition, canLean?rider.kneePadId:undefined) * (police ? .98 : rider.profile === 'careful' ? .95 : rider.profile === 'fast' ? 1.04 : .99);
+  const pace = cornerPace(rider.z, state.trackId, rider.handling, state.condition, canLean?rider.kneePadId:undefined,rider.x) * (police ? .98 : rider.profile === 'careful' ? .95 : rider.profile === 'fast' ? 1.04 : .99);
   brake = Math.max(brake, clamp((rider.speed - pace) * .3, 0, 1));
   if (police && rider.z > player.z + 7) brake = Math.max(brake, .42);
   return { throttle: rider.speed > pace - .6 || brake > .1 ? 0 : 1, brake, steer: steering, attack, ...(action?{action}: {}) };
@@ -234,12 +237,12 @@ function applyCommand(state: RaceState, rider: Rider, command: Command) {
     if (rider.crash === 0) {
       rider.health = 100;
       rider.immune = 2.4;
-      rider.x = clamp(rider.x, -roadHalf(state.trackId)+1.6, roadHalf(state.trackId)-1.6);
+      rider.x = clamp(rider.x, -roadHalf(state.trackId,rider.z)+1.6, roadHalf(state.trackId,rider.z)-1.6);
       rider.speed = 12;
     }
     return;
   }
-  const onShoulder = Math.abs(rider.x) > roadHalf(state.trackId);
+  const onShoulder = Math.abs(rider.x) > roadHalf(state.trackId,rider.z);
   if(rider.kneeTime && (onShoulder || rider.speed<20 || command.steer*(rider.kneeSide ?? 0)<-.2))rider.kneeTime=0;
   const curve = curveAt(rider.z, state.trackId);
   // Integer simulation ticks make exactly two seconds safe. New taps do not
@@ -253,17 +256,29 @@ function applyCommand(state: RaceState, rider: Rider, command: Command) {
   if(isBicycle(rider.bikeId) && command.brake>.1)rider.pedalTime=0;
   const effort=isBicycle(rider.bikeId)?((rider.pedalTime ?? 0)>0?1:0):command.throttle;
   const acceleration = effort * rider.acceleration * boost * (onShoulder ? .55 : 1) * (1 - .35 * rider.speed / topSpeed);
-  rider.speed = clamp(rider.speed + (acceleration - command.brake * 29 * surfaceBraking(state.trackId,state.condition) - (effort ? 1.2 : 3.6) - surfaceDrag(state.trackId,state.condition) - (state.trackId==='terra'?9.8*ruralSlope(rider.z):0)) * STEP, 0, Math.max(rider.speed,topSpeed));
+  rider.speed = clamp(rider.speed + (acceleration - command.brake * 29 * surfaceBraking(state.trackId,state.condition,rider.z,rider.x) - (effort ? 1.2 : 3.6) - surfaceDrag(state.trackId,state.condition,rider.z,rider.x,rider.speed) - (state.trackId==='terra'?9.8*ruralSlope(rider.z):0)) * STEP, 0, Math.max(rider.speed,topSpeed));
   if (rider.speed > max) rider.speed = Math.max(max, rider.speed - STEP * (onShoulder ? 34 : 4));
   const steering = clamp(command.steer, -1, 1);
-  const forces = cornerForces(rider.speed, cornerHandling(rider,curve,state.trackId) * surfaceGrip(state.trackId,state.condition), curve, onShoulder);
-  rider.x = clamp(rider.x + (steering * forces.lateral - forces.drift) * STEP, -lateralLimit(state.trackId), lateralLimit(state.trackId));
+  const forces = cornerForces(rider.speed, cornerHandling(rider,curve,state.trackId) * surfaceGrip(state.trackId,state.condition,rider.z,rider.x), curve, onShoulder);
+  let mudSlide=0;
+  if(state.trackId==='mata'){
+    const mud=forestMudAt(rider.z,rider.x);
+    // Build a visible skid before authority confirms the fall. Walking pace,
+    // jumps and recovery immunity let the rider safely escape after remounting.
+    if((mud>.15 || (rider.mudSlip ?? 0)>.2) && rider.speed>8 && !rider.immune && !(rider.jumpTime!>0)){
+      rider.mudSide ||= Math.sign(rider.x)||1;
+      rider.mudSlip=Math.min(1,(rider.mudSlip ?? 0)+STEP*Math.max(mud,.7)*(1.5+rider.speed/35));
+    }else rider.mudSlip=Math.max(0,(rider.mudSlip ?? 0)-STEP*3);
+    if(!rider.mudSlip)rider.mudSide=0;
+    mudSlide=(rider.mudSide ?? 0)*(rider.mudSlip ?? 0)*(.65+Math.sin((rider.mudSlip ?? 0)*14)*1.1);
+  }
+  rider.x = clamp(rider.x + (steering * forces.lateral - forces.drift + mudSlide) * STEP, -lateralLimit(state.trackId,rider.z), lateralLimit(state.trackId,rider.z));
   contactGuardRail(state.trackId,rider,STEP);
   rider.lean += (steering * .32 - rider.lean) * .12;
   rider.z += rider.speed * STEP;
   if(state.trackId==='terra')contactGuardRail(state.trackId,rider);
   rider.health = Math.min(100, rider.health + STEP * 1.15);
-  if (Math.abs(rider.x) > lateralLimit(state.trackId)-.7 && rider.speed > 26 && !rider.immune) {
+  if (Math.abs(rider.x) > lateralLimit(state.trackId,rider.z)-.7 && rider.speed > 26 && !rider.immune) {
     rider.integrity -= STEP * 2.2;
   }
   if (command.attack && !(rider.jumpTime!>0) && !rider.attack && rider.cooldown === 0 && (command.attack !== 'weapon' || rider.weapon)) {
@@ -454,11 +469,15 @@ export function stepRace(state: RaceState, commands: Record<string, Command> = {
       crashRider(state,r,true);
       state.events[state.events.length-1].text='JOELHO NO MOLHADO POR TEMPO DEMAIS · QUEDA!';
     }
+    if(state.trackId==='mata' && !r.out && !r.crash && !r.immune && r.finishedAt===null && (r.mudSlip ?? 0)>=1){
+      crashRider(state,r);
+      state.events[state.events.length-1].text='DERRAPOU NA LAMA · VOLTE ATÉ A MOTO!';
+    }
   }
   const active = state.riders.filter(r => r.profile !== 'police' && !r.out && r.finishedAt === null);
   const back = Math.min(...active.map(r => r.z), player.z);
   if(state.trackId==='porto')stopAtPortQueue(state.traffic,STEP);
-  for (const t of state.traffic) { t.z += t.speed*STEP; if (!t.queued && t.z < back-100) t.z += getTrack(state.trackId).distance+1800; }
+  for (const t of state.traffic) { t.z += t.speed*STEP; if (!t.queued && t.z < back-100) t.z += getTrack(state.trackId).distance+1800; if(state.trackId==='mata')t.x=forestTrafficX(t); }
   for (const o of state.obstacles)if(o.motion)o.x=obstacleX(o,state.time);
   resolveAttacks(state); resolveCollisions(state,oldZ); resolvePedestrians(state,oldZ);
   trackRaceFeats(state,beforeFeats,oldOrder,STEP);

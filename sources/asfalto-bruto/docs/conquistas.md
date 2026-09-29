@@ -10,7 +10,7 @@ São 25 conquistas, acessíveis no cartão ao lado do campeonato. O catálogo e 
 - Joelho de aço acompanha uma curva completa: o piloto precisa entrar antes de seu começo, usar o joelho por pelo menos 0,5 segundo durante ela e sair pelo final, sem cair nem ultrapassar a borda da pista. Não exige apoiar o joelho durante toda a curva.
 - Virada histórica verifica a posição ao cruzar metade da distância. Último segundo exige passar o líder da prova nos últimos 100 metros e vencer. Sem um arranhão exige não perder saúde nem integridade durante a corrida, mesmo que o veículo já largue desgastado.
 - Sequência de três vitórias pode misturar individual, campeonato e multiplayer. Qualquer derrota/abandono encerra a sequência; uma medalha já conquistada permanece.
-- Vencer em todos os climas exige as quatro condições da mesma pista. Passaporte carimbado exige terminar nas cinco pistas. Etapa perfeita exige as quatro vitórias dentro da mesma etapa do campeonato; Lenda exige terminar o campeonato como primeiro na classificação da última etapa. Garagem dos sonhos exige as sete motos convencionais.
+- Vencer em todos os climas exige as quatro condições da mesma pista. Passaporte carimbado exige terminar nas seis pistas. A conquista já obtida antes da Mata Fechada permanece desbloqueada. Etapa perfeita exige as quatro vitórias dentro da mesma etapa do campeonato; Lenda exige terminar o campeonato como primeiro na classificação da última etapa. Garagem dos sonhos exige as sete motos convencionais.
 - A chegada a pé mantém a recompensa existente: Magrela grátis e permanente. As demais conquistas são medalhas, sem novos prêmios de dinheiro ou equipamentos.
 
 ## Persistência e migração

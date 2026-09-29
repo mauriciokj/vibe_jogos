@@ -39,7 +39,7 @@ function scene(condition:RaceCondition,z=605){
   return s;
 }
 try{
-  await a.goto(base+'?test',{waitUntil:'domcontentloaded'});assert.equal(await a.locator('[data-route]').count(),20);assert.ok(await a.locator('[data-route="terra:day"]').isDisabled());
+  await a.goto(base+'?test',{waitUntil:'domcontentloaded'});assert.equal(await a.locator('[data-route]').count(),24);assert.ok(await a.locator('[data-route="terra:day"]').isDisabled());
   const save=freshSave();save.races=1;save.unlocked=3;save.records['porto:rain']={time:230,place:4};save.cash=6712;save.raceTrackId='terra';save.raceCondition='day';save.ownedHelmets=['integral','cross'];save.helmetId='cross';save.helmetColorId='red';save.ownedKneePads=['gold'];save.kneePadId='gold';
   await a.evaluate(({key,save})=>localStorage.setItem(key,JSON.stringify(save)),{key:SAVE_KEY,save});await a.reload({waitUntil:'domcontentloaded'});assert.equal((await state()).save.unlocked,4);assert.equal((await state()).save.cash,6712);
   await a.click('[data-route="terra:day"]');await shot('menu');
@@ -78,5 +78,5 @@ try{
   }
   await shot('online');await b.reload({waitUntil:'domcontentloaded'});await b.waitForFunction(()=>JSON.parse(window.render_game_to_text()).screen==='race');assert.equal((await state(b)).online.id,bid);assert.equal((await state(b)).track,'terra');assert.equal((await state(b)).road.lanes,2);
   for(const p of [a,b])await leave(p);assert.equal(await a.evaluate(()=>window.__game!.save()),before);
-  assert.deepEqual(errors,[]);const report={ok:true,routes:20,lanes:2,conditions:4,bankContact:true,earthAudio,tractors:true,folklore:true,menuMigration:true,mobile:true,humans:2,bots:6,reconnect:true,soloPreserved:true,renderMs,errors};await fs.writeFile(`${folder}/${prefix}.json`,JSON.stringify(report,null,2));console.log(report);
+  assert.deepEqual(errors,[]);const report={ok:true,routes:24,lanes:2,conditions:4,bankContact:true,earthAudio,tractors:true,folklore:true,menuMigration:true,mobile:true,humans:2,bots:6,reconnect:true,soloPreserved:true,renderMs,errors};await fs.writeFile(`${folder}/${prefix}.json`,JSON.stringify(report,null,2));console.log(report);
 }finally{for(const p of [a,b])try{await leave(p);}catch{}await browser.close();vite?.kill('SIGTERM');await app?.close();}

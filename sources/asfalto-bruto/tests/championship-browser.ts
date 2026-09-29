@@ -41,7 +41,7 @@ try{
  await advance(4000);await page.keyboard.down('w');await advance(3500);await page.keyboard.up('w');assert.ok((await state()).player.speed>20);await page.click('#pause-btn');assert.ok(await page.locator('#restart-btn').isHidden());await page.click('#resume-btn');
  const active=await snapshot();Object.assign(active.riders[0],{integrity:42,health:58,wheeliesLeft:1,nitro:0,nitroUsed:0});await page.evaluate(s=>window.__game!.restore(JSON.stringify(s)),active);await page.evaluate(()=>window.dispatchEvent(new Event('pagehide')));const checkpoint=(await persisted()).championship.checkpoint;await page.reload({waitUntil:'domcontentloaded'});assert.ok((await state()).championship.checkpoint);await page.click('#championship-btn');await page.click('#champ-start');assert.equal((await state()).player.integrity,42);assert.equal((await state()).player.wheeliesLeft,1);assert.equal((await snapshot()).tick,checkpoint.tick);await shot('resumed');
  const conditions=['day','sunset','night','rain'];
- for(let stage=0;stage<5;stage++){
+ for(let stage=0;stage<TRACKS.length;stage++){
   for(let heat=0;heat<4;heat++){
    const race=await state();assert.equal(race.track,TRACKS[stage].id);assert.equal(race.condition,conditions[heat]);
    const broken=stage===0&&heat===3 || stage===1&&heat===0,low=stage===1&&heat===1;
@@ -66,11 +66,11 @@ try{
    if(heat<3){assert.equal(await page.locator('dialog[open] #champ-garage').count(),0);await page.click('dialog[open] #champ-start');assert.equal((await state()).player.integrity,carried);if(low){await advance(100);assert.match(await page.locator('#toast').textContent()??'',/15% de integridade/);}}
    if(stage===0&&heat===0){const grid=await snapshot();assert.deepEqual(grid.riders.slice(1,5).map((r:any)=>r.integrity),[100,100,100,100]);await advance(6500);const moving=await snapshot();for(let i=1;i<8;i++)assert.ok(moving.riders[i].z>grid.riders[i].z+10,`${moving.riders[i].name} left grid`);await shot('all-rivals-leave-grid');}
   }
-  if(stage<4){
+  if(stage<TRACKS.length-1){
    assert.equal((await state()).championship.status,'service');await page.click('dialog[open] #champ-garage');assert.ok(await page.locator('#garage-modal').isVisible());await page.locator('#repair-btn').scrollIntoViewIfNeeded();await page.click('#repair-btn');assert.equal((await persisted()).condition.ferro,100);await page.locator('[data-close="garage-modal"]').click();await page.click('#championship-modal #champ-start');assert.equal((await state()).championship.stage,stage+1);assert.equal((await state()).player.integrity,100);assert.ok((await state()).championship.standings.every((r:any)=>r.points===0));
   }
  }
- assert.equal((await state()).championship.status,'complete');assert.equal((await persisted()).championship.history.length,5);await shot('complete');
+ assert.equal((await state()).championship.status,'complete');assert.equal((await persisted()).championship.history.length,6);await shot('complete');
  for(const viewport of [{width:390,height:844},{width:320,height:568}]){await page.setViewportSize(viewport);await page.locator('#result-modal').evaluate(d=>d.scrollTop=0);await layout();await shot(`complete-${viewport.width}-top`);await page.locator('#result-modal #champ-restart').scrollIntoViewIfNeeded();await shot(`complete-${viewport.width}-actions`);}
  await page.setViewportSize({width:1440,height:900});await page.click('#result-modal #champ-restart');assert.equal((await state()).championship.stage,0);assert.equal((await state()).championship.heats,0);await page.click('#championship-modal #champ-start');
  for(let heat=0;heat<4;heat++){await finish(4,62);if(heat<3)await page.click('#result-modal #champ-start');}
@@ -85,5 +85,5 @@ try{
   const bounds=await page.locator('#championship-btn').boundingBox();assert.ok(bounds&&bounds.x>=0&&bounds.x+bounds.width<=viewport.width&&bounds.y>=0&&bounds.y+bounds.height<=viewport.height);
   await page.click('#championship-btn');await layout();await shot(`board-${viewport.width}`);await page.locator('#championship-modal #champ-start').scrollIntoViewIfNeeded();await shot(`board-${viewport.width}-actions`);await page.click('#championship-modal #champ-close');
  }
- assert.deepEqual(errors,[]);const report={ok:true,stages:5,races:20,qualification:true,elimination:true,allDnfReasons:true,zeroOnlyEmergencyRepair:true,blockedBrokenStarts:true,lowIntegrityWarning:true,garageBetweenStages:true,checkpointReload:true,classicPreserved:true,mobileWidths:[390,320],errors};await fs.writeFile(`${folder}/report.json`,JSON.stringify(report,null,2));console.log(report);
+ assert.deepEqual(errors,[]);const report={ok:true,stages:6,races:24,qualification:true,elimination:true,allDnfReasons:true,zeroOnlyEmergencyRepair:true,blockedBrokenStarts:true,lowIntegrityWarning:true,garageBetweenStages:true,checkpointReload:true,classicPreserved:true,mobileWidths:[390,320],errors};await fs.writeFile(`${folder}/report.json`,JSON.stringify(report,null,2));console.log(report);
 }finally{await browser.close();vite?.kill('SIGTERM');await app?.close();}

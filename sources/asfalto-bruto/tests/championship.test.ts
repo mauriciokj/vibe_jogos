@@ -74,9 +74,9 @@ test('old zero-integrity countdowns can be repaired, while pending results must 
  race.mode='finished';race.result={reason:'wrecked',place:8,time:10,reward:120,hits:0,falls:1};race.riders[0].out='wrecked';checkpointChampionship(save.championship,race);
  assert.equal(championshipBikeState(save).blocked,false);assert.equal(repairChampionshipBike(save),false);assert.equal(snapshot(startChampionshipRace(save)!),snapshot(race));
 });
-test('five stages each run day/sunset/night/rain, require top three, reset points and finish on Terra',()=>{
+test('six stages each run day/sunset/night/rain, require top three, reset points and finish on Mata',()=>{
  const save=freshSave();save.championship=newChampionship(678);const c=save.championship;
- for(let stage=0;stage<5;stage++){
+ for(let stage=0;stage<TRACKS.length;stage++){
   assert.equal(c.stage,stage);assert.ok(championshipGarageOpen(c));assert.ok(championshipStandings(c.heats).every(r=>r.points===0));
   for(let heat=0;heat<4;heat++){
    assert.equal(championshipRoute(c).condition.id,CONDITIONS[heat].id);const s=startChampionshipRace(save)!;assert.equal(s.trackId,TRACKS[stage].id);assert.equal(s.condition,CONDITIONS[heat].id);assert.equal(championshipGarageOpen(c),false);
@@ -84,9 +84,22 @@ test('five stages each run day/sunset/night/rain, require top three, reset point
    assert.equal(championshipStandings(c.heats).find(r=>r.id==='player')!.points,(heat+1)*6);
   }
   assert.equal(c.history.length,stage+1);assert.equal(c.history[stage].place,2);assert.ok(championshipGarageOpen(c));
-  if(stage<4){assert.equal(c.status,'service');assert.ok(nextChampionshipStage(c));}else{assert.equal(c.status,'complete');assert.equal(nextChampionshipStage(c),false);}
+  if(stage<TRACKS.length-1){assert.equal(c.status,'service');assert.ok(nextChampionshipStage(c));}else{assert.equal(c.status,'complete');assert.equal(nextChampionshipStage(c),false);}
  }
- assert.equal(c.history.reduce((n,h)=>n+h.heats.length,0),20);
+ assert.equal(c.history.reduce((n,h)=>n+h.heats.length,0),24);
+});
+test('old five-stage completions retain their trophy while new championships include Mata',()=>{
+ const save=freshSave();save.championship=newChampionship(90);const c=save.championship;c.stages=5;
+ for(let stage=0;stage<5;stage++){
+  for(let heat=0;heat<4;heat++)recordChampionshipHeat(c,finishHeat(startChampionshipRace(save)!,1));
+  if(stage<4)nextChampionshipStage(c);
+ }
+ assert.equal(c.status,'complete');delete c.stages;
+ const normalized=normalizeSave(structuredClone(save));
+ assert.equal(normalized.championship!.status,'complete');assert.equal(normalized.championship!.stages,5);
+ assert.deepEqual(normalized.championship!.history,c.history);assert.ok(normalized.achievements!.unlocked.includes('champion'));
+ assert.equal(nextChampionshipStage(normalized.championship!),false);
+ normalized.championship=newChampionship(91);assert.equal(normalized.championship.stages,6);
 });
 test('fourth in the stage is eliminated; restart resets only the championship to Costa day',()=>{
  const save=freshSave();save.cash=22123;save.owned.push('brutal');save.championship=newChampionship(1);

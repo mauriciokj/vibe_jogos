@@ -1,4 +1,4 @@
-import { CHAMP_POINTS, championshipBikeState, championshipGarageOpen, championshipPoints, championshipRoute, championshipStandings, type Championship } from './game/championship';
+import { CHAMP_POINTS, championshipStages, championshipBikeState, championshipGarageOpen, championshipPoints, championshipRoute, championshipStandings, type Championship } from './game/championship';
 import { TRACKS, getBike, money } from './game/content';
 import { CONDITIONS } from './game/conditions';
 import type { SaveData } from './game/types';
@@ -6,16 +6,17 @@ import { repairCost } from './game/save';
 import { raceOutcome } from './game/race-outcome';
 const names=['Dia','Entardecer','Noite','Chuva'];
 export function championshipMarkup(c:Championship|undefined,save:SaveData,payout?:number){
+ const stages=championshipStages(c);
  const track=TRACKS[c?.stage ?? 0],done=c?.heats.length===4,rows=championshipStandings(c?.heats ?? []),me=rows.find(r=>r.id==='player')!;
  const title=!c?'Campeonato':c.status==='eliminated'?'Fim do campeonato':c.status==='complete'?(me.rank===1?'Campeão do asfalto':'Campeonato concluído'):c.status==='service'?'Etapa conquistada':track.name;
- const explanation=!c?'Cinco estradas. Quatro corridas em cada uma. Termine cada etapa entre os três primeiros para seguir adiante.':c.status==='eliminated'?`Você terminou a etapa em ${me.rank}º. Para tentar novamente, comece pela Costa do Sol.`:c.status==='complete'?`Você atravessou as cinco etapas e terminou a final em ${me.rank}º.`:done?`Você ficou em ${me.rank}º e avançou. Agora pode visitar a garagem antes de seguir para ${TRACKS[c.stage+1].name}.`:'A classificação soma as quatro corridas desta etapa. Os três primeiros avançam; os pontos recomeçam na próxima estrada.';
+ const explanation=!c?`${stages} estradas. Quatro corridas em cada uma. Termine cada etapa entre os três primeiros para seguir adiante.`:c.status==='eliminated'?`Você terminou a etapa em ${me.rank}º. Para tentar novamente, comece pela Costa do Sol.`:c.status==='complete'?`Você atravessou as ${stages} etapas e terminou a final em ${me.rank}º.`:done?`Você ficou em ${me.rank}º e avançou. Agora pode visitar a garagem antes de seguir para ${TRACKS[c.stage+1].name}.`:'A classificação soma as quatro corridas desta etapa. Os três primeiros avançam; os pontos recomeçam na próxima estrada.';
  const last=c?.heats.at(-1),result=last?.finishes.find(r=>r.id==='player');
  const outcome=last&&last.reason!=='finish'?raceOutcome(last.reason,last):null;
  const next=c?championshipRoute(c):{track:TRACKS[0],condition:CONDITIONS[0]};
  const canGarage=!c||championshipGarageOpen(c),bikeState=championshipBikeState(save,c),{bikeId:bike,integrity,locked}=bikeState;
  const percent=integrity>0?Math.max(1,Math.floor(integrity)):0,cost=repairCost(save,bike,integrity),canAfford=save.cash>=cost;
- return `<div class="dialog-header"><div><div class="eyebrow">CAMPEONATO · ETAPA ${(c?.stage ?? 0)+1} / ${TRACKS.length}</div><h2>${title}</h2></div><button class="close-btn" id="champ-close" aria-label="Voltar ao menu">×</button></div><div class="dialog-body champ-body">
- <ol class="champ-stages" aria-label="Etapas do campeonato">${TRACKS.map((t,i)=>`<li class="${i===(c?.stage ?? 0)?'current':i<(c?.stage ?? 0)?'passed':''}"><span>${i<(c?.stage ?? 0)?'✓':i+1}</span>${t.name}</li>`).join('')}</ol>
+ return `<div class="dialog-header"><div><div class="eyebrow">CAMPEONATO · ETAPA ${(c?.stage ?? 0)+1} / ${stages}</div><h2>${title}</h2></div><button class="close-btn" id="champ-close" aria-label="Voltar ao menu">×</button></div><div class="dialog-body champ-body">
+ <ol class="champ-stages" style="--champ-stages:${stages}" aria-label="Etapas do campeonato">${TRACKS.slice(0,stages).map((t,i)=>`<li class="${i===(c?.stage ?? 0)?'current':i<(c?.stage ?? 0)?'passed':''}"><span>${i<(c?.stage ?? 0)?'✓':i+1}</span>${t.name}</li>`).join('')}</ol>
  <p class="champ-explanation">${explanation}</p>
  ${outcome?`<div class="race-outcome" role="status"><strong>${outcome.label} · 0 PONTOS NESTA CORRIDA</strong><p>${outcome.description}</p></div>`:''}
  ${bikeState.low?`<div class="champ-integrity-alert ${bikeState.blocked?'broken':''}" role="alert"><strong>${bikeState.blocked?'MOTO EM 0% · LARGADA BLOQUEADA':`ATENÇÃO · MOTO COM ${percent}% DE INTEGRIDADE`}</strong><span>${bikeState.blocked?'Não pode iniciar a corrida. Arrume a moto para continuar.':bikeState.borrowed?'Retome a corrida com a moto da polícia. A moto inscrita mantém seus danos.':bikeState.recovering?'Retome para continuar buscando a moto. Se estiver em 0%, ela explode ao tentar pegá-la.':locked?'A moto está abaixo de 20% e pode quebrar na próxima corrida. Dentro da etapa, o reparo só libera se chegar a 0%.':'A moto está abaixo de 20%. Recomendamos reparar na garagem antes de iniciar a corrida.'}</span>${bikeState.canRepair&&!canAfford?`<small>Faltam ${money(cost-save.cash)} para o reparo. Você pode ganhar créditos nas corridas livres.</small>`:''}${bikeState.canRepair?`<button class="primary" id="champ-repair" ${canAfford?'':'disabled'}>REPARAR MOTO · ${money(cost)}</button>`:''}</div>`:''}

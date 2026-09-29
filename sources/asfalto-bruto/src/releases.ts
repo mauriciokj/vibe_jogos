@@ -2,7 +2,14 @@ import './releases.css';
 import { GAME_VERSION } from './version';
 export { GAME_VERSION } from './version';
 export const RELEASES=[
-  {version:GAME_VERSION,date:'25/09/2026',title:'Dinheiro na disputa',changes:[
+  {version:GAME_VERSION,date:'29/09/2026',title:'Entre na Mata Fechada',changes:[
+    'Mata Fechada é a sexta pista: 7,6 km, vinte curvas, trechos de duas faixas em um sentido e uma no outro, túneis de árvores e animais nas margens.',
+    'Cuidado com a lama: entrar com velocidade faz derrapar e cair. O Cotovelo da Mata favorece motos ágeis e exige preparar a frenagem.',
+    'Top 5 na Terra Brava libera a pista no individual, inclusive para quem já tinha esse resultado. Dia, Entardecer, Noite e Chuva também estão disponíveis nas salas multiplayer.',
+    'Novos campeonatos têm seis etapas e 24 corridas. Campeonatos já concluídos e conquistas anteriores são preservados.',
+    'Além do toque duplo na direção, apertar Espaço enquanto vira também aciona a joelheira equipada.'
+  ]},
+  {version:'1.7.0-beta',date:'25/09/2026',title:'Dinheiro na disputa',changes:[
     'O multiplayer agora paga a mesma premiação por colocação do individual, conforme o prêmio da pista.',
     'Cada rival derrubado por você rende 50 moedas em todos os modos. Policiais continuam valendo 500 moedas, sem somar os dois bônus.',
     'Derrubar o mesmo rival novamente depois da recuperação paga de novo. Os bônus são mantidos em derrota ou abandono e aparecem separados no resultado.',

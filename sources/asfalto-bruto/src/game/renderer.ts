@@ -1,3 +1,5 @@
+import { forestRoad, forestCover, forestMudStrip, FOREST_NARROWS, FOREST_MUD, FOREST_HAIRPIN, FOREST_WILDLIFE } from './forest';
+import { forestSprite, forestHorizon, monkeySprite, forestCanopySprite, forestPropSprite, forestSignSprite, forestAnimalSprite, type ForestProp } from './forest-art';
 import { RaceCamera, type CameraPose } from './race-camera';
 import { arrestScene, type ArrestScene } from './arrest';
 import { arrestPerson } from './arrest-art';
@@ -106,6 +108,7 @@ export class Renderer {
       for(let x=w;x>=-24;x-=24)cloud.push(x,h*(.1+layer*.065)+Math.sin(x*.006+layer*2)*h*.025+Math.sin(x*.017+layer)*h*.014);
       this.polygon(cloud,layer?'#314a5724':'#20394635');
     }
+    if(track.theme==='forest'){forestHorizon(c,w,h,horizon,parallax,condition);return;}
     if(track.theme==='port'){portHorizon(c,w,h,horizon,parallax,condition);return;}
     const mountains=condition==='night'?['#293952','#304559','#375559']:condition==='rain'?['#6b828e','#5e7884','#58777a']:condition==='day'?['#84acb7','#6b9b9b',track.theme==='desert'?'#b48b70':'#527e72']:['#827c97','#73768b',track.theme==='desert'?'#aa796f':'#667e7f'];
     for (let layer = 0; layer < 3; layer++) {
@@ -189,8 +192,8 @@ export class Renderer {
       if (a.y <= b.y || b.y >= a.clip || a.y < 0) continue;
       const alt = Math.floor(a.z / 12) % 2 === 0;
       const stripe = Math.floor(a.z / 3) % 2 === 0;
-      const half=roadHalf(state.trackId),rural=track.theme==='rural';
-      const aw = half * a.scale, bw = half * b.scale;
+      const half=roadHalf(state.trackId,a.z),rural=track.theme==='rural',forest=track.theme==='forest';
+      const aw = half * a.scale, bw = roadHalf(state.trackId,b.z) * b.scale;
       c.save(); c.beginPath(); c.rect(0, 0, w, a.clip); c.clip();
       this.polygon([0, a.y, w, a.y, w, b.y, 0, b.y], track.land[alt ? 0 : 1]);
       if(rural && a.y-b.y>1.2)for(const side of [-1,1])for(let field=0;field<3;field++){
@@ -210,6 +213,17 @@ export class Renderer {
       if(condition==='rain' && alt && !rural) {
         // Broad reflections follow the road surface, with no extra obstacles.
         for(const lane of [-3.3,3.3])this.polygon([a.x+(lane-1)*a.scale,a.y,a.x+(lane+.6)*a.scale,a.y,b.x+(lane+.6)*b.scale,b.y,b.x+(lane-1)*b.scale,b.y],'#b9d2d51a');
+      }
+      if(forest) {
+        const ma=forestMudStrip(a.z),mb=forestMudStrip(b.z);
+        if(ma && mb) {
+          this.polygon([a.x+ma.left*a.scale,a.y,a.x+ma.right*a.scale,a.y,b.x+mb.right*b.scale,b.y,b.x+mb.left*b.scale,b.y],condition==='night'?'#594836':condition==='rain'?'#79583b':'#987049');
+          for(const t of [.27,.72]){
+            const ax=ma.left+(ma.right-ma.left)*t,bx=mb.left+(mb.right-mb.left)*t;
+            this.polygon([a.x+(ax-.13)*a.scale,a.y,a.x+(ax+.13)*a.scale,a.y,b.x+(bx+.13)*b.scale,b.y,b.x+(bx-.13)*b.scale,b.y],'#392f274c');
+          }
+          if(visualHash(Math.floor(a.z/9)*31)>.65)this.polygon([a.x+(ma.left+.2)*a.scale,a.y,a.x+(ma.right-.2)*a.scale,a.y,b.x+(mb.right-.2)*b.scale,b.y,b.x+(mb.left+.2)*b.scale,b.y],condition==='rain'?'#d4b69245':'#c8a5753b');
+        }
       }
       // Fine aggregate, patches and lane wear are anchored to the road in world space.
       const row = Math.floor(a.z / 3);
@@ -267,12 +281,16 @@ export class Renderer {
         this.polygon([a.x + curbA * 1.02,a.y,a.x + curbA * 1.065,a.y,b.x + curbB * 1.065,b.y,b.x + curbB * 1.02,b.y], track.theme==='port'?(stripe?'#d9b264':'#344951'):stripe ? '#dbd2b6' : '#b97864');
         const edge = .97 * sign;
         this.polygon([a.x + aw * edge - a.scale * .065, a.y, a.x + aw * edge + a.scale * .065, a.y, b.x + bw * edge + b.scale * .065, b.y, b.x + bw * edge - b.scale * .065, b.y], '#e1dac1');
-        const center = .12 * sign;
-        this.polygon([a.x + a.scale * (center - .035), a.y, a.x + a.scale * (center + .035), a.y, b.x + b.scale * (center + .035), b.y, b.x + b.scale * (center - .035), b.y], '#eac783');
-        if (stripe) {
-          const lane = .5 * sign;
-          this.polygon([a.x + aw * lane - a.scale * .055, a.y, a.x + aw * lane + a.scale * .055, a.y, b.x + bw * lane + b.scale * .055, b.y, b.x + bw * lane - b.scale * .055, b.y], '#d8d2bb');
+        const centerA = (forest?forestRoad(a.z).center:0)+.12*sign,centerB=(forest?forestRoad(b.z).center:0)+.12*sign;
+        this.polygon([a.x+a.scale*(centerA-.035),a.y,a.x+a.scale*(centerA+.035),a.y,b.x+b.scale*(centerB+.035),b.y,b.x+b.scale*(centerB-.035),b.y],'#eac783');
+        if(stripe && (!forest || sign>0 && forestRoad(a.z).narrow<.8)) {
+          const laneA=forest?2.1:half*.5*sign,laneB=forest?2.1:roadHalf(state.trackId,b.z)*.5*sign;
+          this.polygon([a.x+(laneA-.055)*a.scale,a.y,a.x+(laneA+.055)*a.scale,a.y,b.x+(laneB+.055)*b.scale,b.y,b.x+(laneB-.055)*b.scale,b.y],'#d8d2bb');
         }
+      }
+      if(forest && forestCover(a.z)>.01) {
+        const shade=forestCover(a.z)*(.13+(Math.floor(a.z/12)%3===0?.06:0));
+        this.polygon([0,a.y,w,a.y,w,b.y,0,b.y],`rgba(10,30,22,${shade})`);
       }
       if (a.z - this.player(state).z > 140) {
         c.fillStyle = `rgba(${condition==='night'?'34,57,76':condition==='rain'?'130,154,164':condition==='day'?'185,218,220':'203,183,165'},${clamp((a.z - this.player(state).z - 140) / 1600, 0, .35)})`;
@@ -302,6 +320,19 @@ export class Renderer {
     return { x: road + lateral * scale, y: this.camera.horizon - (elevationAt(z, this.camera.trackId) - this.camera.y) * scale, scale, road, clip: a.clip };
   }
   private scenery(state: RaceState, track: Track, z: number, i: number) {
+    if(track.theme==='forest') {
+      const c=this.ctx,condition=raceCondition(state.condition),half=forestRoad(z).half,cover=forestCover(z);
+      for(const layer of [1,0])for(const side of [-1,1]) {
+        if(!layer && FOREST_WILDLIFE.some(a=>a.side===side && Math.abs(a.z-z)<24))continue;
+        const lateral=side*(half+5+layer*10+visualHash(i*17+side)*3);
+        const p=this.project(z,lateral);if(!p || p.y>p.clip+20 || p.scale<.16)continue;
+        const height=p.scale*(17+layer*5+cover*3+visualHash(i*31)*4),width=height*(layer?.9:.8);
+        c.save();c.beginPath();c.rect(0,0,this.w,p.clip);c.clip();
+        if(layer)c.globalAlpha=.85;
+        c.drawImage(forestSprite(condition,i+(side>0?2:0)+layer),p.x-width/2,p.y-height,width,height);c.restore();
+      }
+      return;
+    }
     if(track.theme==='rural') {
       const side=i%2?1:-1;
       let kind:FarmProp='tree',lateral=side*(11+visualHash(i*17)*7),height=10,width=8.6;
@@ -345,8 +376,8 @@ export class Renderer {
     if(state.trackId!=='terra')for (let i = Math.floor(pz / 8) + 100; i >= Math.floor((pz - 12) / 8); i--) {
       const z = i * 8;
       for (const side of [-1, 1]) {
-        const p = this.project(z, side * GUARD_RAIL_X);
-        const next = this.project(z + 8, side * GUARD_RAIL_X);
+        const p = this.project(z, side * (state.trackId==='mata'?roadHalf(state.trackId,z)+.7:GUARD_RAIL_X));
+        const next = this.project(z + 8, side * (state.trackId==='mata'?roadHalf(state.trackId,z+8)+.7:GUARD_RAIL_X));
         if (next && hasGuardRail(state.trackId,side)) {
           // The beam can still cross the viewport after its nearest post has left it.
           // Clip its length at the camera plane and its projected face at the terrain.
@@ -379,10 +410,10 @@ export class Renderer {
     }
     // Crop the transparent sprite padding: these are full-sized roadside shrubs,
     // close enough to cross the edge of the view as the player passes them.
-    if(state.trackId!=='porto')for (let i = Math.floor(pz / 8) + 55; i >= Math.floor((pz - 12) / 8); i--) {
+    if(state.trackId!=='porto' && state.trackId!=='mata')for (let i = Math.floor(pz / 8) + 55; i >= Math.floor((pz - 12) / 8); i--) {
       for (const side of [-1, 1]) {
         if(state.trackId==='terra' && bankStrength(i*8+4,side)>0)continue;
-        const p = this.project(i*8+4,side*(roadHalf(state.trackId)+1.1+visualHash(i*71+side)*2.5));
+        const p = this.project(i*8+4,side*(roadHalf(state.trackId,i*8+4)+1.1+visualHash(i*71+side)*2.5));
         if (!p || p.y > p.clip + 3 || p.scale < .7) continue;
         const kind = i%7===0 ? 'rock' : 'bush';
         const h = p.scale*(kind === 'rock' ? 1.3 : .85), w = h*(kind === 'rock' ? 2.2 : 3.1);
@@ -400,7 +431,7 @@ export class Renderer {
     for (let i = Math.floor(pz/160); i < Math.floor(pz/160)+8; i++) {
       const z=i*160+45, curve=curveAt(z,state.trackId);
       if(Math.abs(curve)<.45) continue;
-      const side=curve>0?-1:1, p=this.project(z,side*(roadHalf(state.trackId)+1.4));
+      const side=curve>0?-1:1, p=this.project(z,side*(roadHalf(state.trackId,z)+1.4));
       if(!p || p.y>p.clip+3) continue;
       c.save(); c.beginPath(); c.rect(0,0,this.w,p.clip);c.clip();
       c.fillStyle='#66746b';c.fillRect(p.x-p.scale*.055,p.y-p.scale*2.4,p.scale*.11,p.scale*2.4);
@@ -419,7 +450,7 @@ export class Renderer {
     for (let i = first + 34; i >= first; i--) {
       for (const side of [-1, 1]) {
         const z = i * 3 + visualHash(i * 31) * 2;
-        const x = side * (roadHalf(state.trackId)+1.2 + visualHash(i * 19 + side) * 4.5);
+        const x = side * (roadHalf(state.trackId,z)+1.2 + visualHash(i * 19 + side) * 4.5);
         const p = this.project(z, x), tail = this.project(z + player.speed * .035, x);
         if (!p || !tail || p.y > p.clip + 2 || p.y < this.camera.horizon || p.x < -120 || p.x > this.w + 120) continue;
         const alpha = pace * clamp((p.y - this.camera.horizon) / (this.h * .45), 0, 1) * .42;
@@ -515,7 +546,8 @@ export class Renderer {
     if (!p || p.y < 0 || p.y > p.clip + 100) return;
     const c = this.ctx, player = r.id === this.localId;
     const support=kneeSupport(r,curveAt(r.z,state.trackId),state.trackId),kneeSide=support>.35 && r.attack?.kind!=='kick'?(r.kneeSide ?? 0):0;
-    const leanAngle=r.lean*.65*(1-support)+support*(r.kneeSide ?? 0)*.59;
+    const skid=state.trackId==='mata'?(r.mudSlip ?? 0):0;
+    const leanAngle=r.lean*.65*(1-support)+support*(r.kneeSide ?? 0)*.59+skid*(r.mudSide ?? 1)*(.22+Math.sin(skid*14)*.18);
     let height = p.scale * 3.55;
     height = Math.min(height, this.h * .36);
     const width = height * 88 / 128;
@@ -526,6 +558,10 @@ export class Renderer {
     if(state.trackId==='terra' && r.speed>12 && !r.crash && !(r.jumpTime!>0)){
       const wet=raceCondition(state.condition)==='rain';c.fillStyle=wet?'#80684455':'#dbb87e35';
       for(let i=0;i<5;i++){const age=((r.z*.08+i*.21)%1+1)%1;const size=height*(.025+age*.06);c.beginPath();c.ellipse(p.x+(i%2?1:-1)*width*(.16+age*.52),p.y-height*.03-age*height*.045,size,size*.3,0,0,Math.PI*2);c.fill();}
+    }
+    if(skid>0 && !r.crash){
+      c.fillStyle='#8a593bdd';
+      for(let i=0;i<9;i++){const phase=((r.z*.12+i*.17)%1+1)%1,size=height*(.012+phase*.013);c.beginPath();c.ellipse(p.x+(i%2?1:-1)*width*(.2+phase*.6),p.y-phase*height*.1,size,size*.55,0,0,Math.PI*2);c.fill();}
     }
     const lift=jumpHeight(r)*p.scale;
     c.translate(p.x, p.y-lift);
@@ -662,8 +698,42 @@ export class Renderer {
     this.road(state, track); this.roadside(state);
     this.speedFlow(state, menu);
     const entities: { z: number; draw: () => void }[] = [];
-    const first = Math.floor(this.camera.z / 28);
-    for (let i = first; i < first + 55; i++) if(Math.abs(i*28+12-track.distance)>65)entities.push({ z: i * 28 + 12, draw: () => this.scenery(state, track, i * 28 + 12, i) });
+    const spacing=state.trackId==='mata'?18:28,first=Math.floor(this.camera.z/spacing);
+    for(let i=first;i<first+Math.ceil(1540/spacing);i++)if(Math.abs(i*spacing+12-track.distance)>65)entities.push({z:i*spacing+12,draw:()=>this.scenery(state,track,i*spacing+12,i)});
+    if(state.trackId==='mata'){
+      const kinds:ForestProp[]=['fern','bromeliad','rocks','log','fern','mushrooms'];
+      for(let i=Math.floor(this.camera.z/11);i<Math.floor(this.camera.z/11)+75;i++)for(const side of [-1,1]){
+        const z=i*11+5,kind=kinds[((i+(side>0?2:0))%kinds.length+kinds.length)%kinds.length];
+        if(FOREST_WILDLIFE.some(a=>a.side===side && Math.abs(a.z-z)<10))continue;
+        entities.push({z,draw:()=>{
+          const p=this.project(z,side*(forestRoad(z).half+1.8+visualHash(i*59+side)*2.4));if(!p || p.y>p.clip+12 || p.scale<.25)return;
+          const h=p.scale*(kind==='log'?1.5:kind==='rocks'?2.1:kind==='fern'?2:1.3),w=h*(kind==='log'?3:1.4);
+          c.save();c.beginPath();c.rect(0,0,this.w,p.clip);c.clip();c.drawImage(forestPropSprite(kind,raceCondition(state.condition),i),p.x-w/2,p.y-h,w,h);c.restore();
+        }});
+      }
+      for(const animal of FOREST_WILDLIFE){
+        if(animal.z<this.camera.z || animal.z>this.camera.z+800)continue;
+        entities.push({z:animal.z,draw:()=>{
+          const p=this.project(animal.z,animal.x);if(!p || p.y>p.clip+8 || p.scale<.3)return;
+          const h=p.scale*(animal.kind==='toucan'?4.4:animal.kind==='deer'?3.8:3.2),w=h*224/176;
+          c.save();c.beginPath();c.rect(0,0,this.w,p.clip);c.clip();c.translate(p.x,p.y);c.scale(-animal.side,1);
+          c.drawImage(forestAnimalSprite(animal.kind,raceCondition(state.condition),this.reducedMotion?0:Math.floor(state.time*.8+animal.z)%2),-w/2,-h,w,h);c.restore();
+        }});
+      }
+      for(let i=Math.floor(this.camera.z/24)+1;i<Math.floor(this.camera.z/24)+60;i++){
+        const z=i*24,cover=forestCover(z);if(cover<.05)continue;
+        entities.push({z,draw:()=>{
+          const p=this.project(z,0);if(!p || p.y>p.clip+25)return;
+          const height=p.scale*8,width=p.scale*(forestRoad(z).half*2+15);
+          c.save();c.beginPath();c.rect(0,0,this.w,p.clip);c.clip();c.globalAlpha=cover;
+          c.drawImage(forestCanopySprite(raceCondition(state.condition),i),p.x-width/2,p.y-p.scale*11-height,width,height);c.restore();
+        }});
+      }
+      for(const sign of [...FOREST_NARROWS.map(s=>({z:s.start-150,kind:'merge' as const})),...FOREST_MUD.map(s=>({z:s.start-130,kind:'mud' as const})),{z:FOREST_HAIRPIN.start-150,kind:'hairpin' as const}])entities.push({z:sign.z,draw:()=>{
+        const p=this.project(sign.z,forestRoad(sign.z).half+1.1);if(!p || p.y>p.clip+8)return;
+        const h=p.scale*4.2,w=h*.72;c.save();c.beginPath();c.rect(0,0,this.w,p.clip);c.clip();c.drawImage(forestSignSprite(sign.kind),p.x-w/2,p.y-h,w,h);c.restore();
+      }});
+    }
     if(!menu&&!this.arrest)this.finishArea(state,entities);
     if(state.trackId==='porto')for(const worker of PORT_CREW)entities.push({z:worker.z,draw:()=>{
       const p=this.project(worker.z,worker.x);if(!p || p.y>p.clip+5)return;
@@ -704,6 +774,13 @@ export class Renderer {
       }
       c.restore();
     } });
+    if(scenic?.kind==='monkey')entities.push({z:scenic.z,draw:()=>{
+      const p=this.project(scenic.z,11.5);if(!p || p.y>p.clip+8)return;
+      const height=p.scale*4,width=height*160/120;
+      c.save();c.beginPath();c.rect(0,0,this.w,p.clip);c.clip();
+      c.globalAlpha=clamp(scenic.age*2,0,1)*clamp((scenic.duration-scenic.age)*2,0,1);
+      c.drawImage(monkeySprite(raceCondition(state.condition),this.reducedMotion?0:Math.floor(scenic.age*3)%3),p.x-width/2,p.y-height-p.scale*3,width,height);c.restore();
+    }});
     if(scenic?.kind==='mermaid')entities.push({z:scenic.z,draw:()=>{
       const p=this.project(scenic.z,-25);if(!p || p.y>p.clip+8)return;
       const size=p.scale*6.2,condition=raceCondition(state.condition);

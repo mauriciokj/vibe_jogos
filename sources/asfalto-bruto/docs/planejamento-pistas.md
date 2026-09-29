@@ -1,7 +1,7 @@
 # Asfalto Bruto — planejamento de novas pistas
 
-Status: cinco pistas implementadas e vinte combinações. Terra Brava já inclui estrada de duas faixas, barrancos, tratores e folclore. Mata Fechada é a próxima expansão; demais ideias abaixo continuam planejadas.
-Atualizado: 2026-09-09.
+Status: seis pistas implementadas e 24 combinações. Terra Brava inclui estrada de duas faixas, barrancos, tratores e folclore. Mata Fechada foi aprovada e integrada à corrida livre, campeonato e multiplayer; demais ideias abaixo continuam planejadas.
+Atualizado: 2026-09-29.
 
 Registro de pilotagem e combate, incluindo empinada e equipamentos já implementados, além do easter egg do Porto: [melhorias-futuras.md](melhorias-futuras.md).
 
@@ -27,9 +27,10 @@ Criar pistas com traçados, horários, clima e obstáculos reconhecíveis. Cada 
 - Vale Vermelho: deserto, 10,2 km, brutal.
 - Porto Ferrugem: porto industrial, 7,8 km, técnico, com traçado manual.
 - Terra Brava: interior, 7,2 km, duas faixas em terra, doze curvas manuais e barrancos alternados.
+- Mata Fechada: floresta, 7,6 km, vinte curvas, faixas variáveis, túneis de copas, fauna e lama com derrapagem/queda.
 - Curvas e elevações já influenciam a pilotagem. As três pistas originais derivam de uma sequência comum, ajustada por dificuldade.
 - Trânsito: carros, vans e caminhões no porto. Obstáculos: óleo, barreiras, cones e blocos de concreto.
-- As cinco pistas oferecem Dia, Entardecer, Noite e Chuva, com aderência e frenagem menores na chuva. Neve, vento lateral e aderência localizada por superfície continuam planejados.
+- As seis pistas oferecem Dia, Entardecer, Noite e Chuva, com aderência e frenagem menores na chuva. A lama da Mata já tem aderência localizada. Neve e vento lateral continuam planejados.
 
 ## Ideias de pistas novas
 
@@ -64,7 +65,7 @@ A tabela indica uma versão que apresenta bem a identidade de cada pista. **Toda
 
 Apresentação ajustada a pedido do usuário: **cada combinação aparece como uma opção de pista**, como Costa do Sol · Dia e Costa do Sol · Chuva. No individual, usar cartões com navegação lateral; ao criar sala, uma lista combinada. O menu usa fluxo normal e rolagem em janelas baixas para impedir sobreposição dos controles. Internamente, os IDs de pista e condição continuam separados para preservar saves, recordes e regras da sala. A versão Chuva começa durante o dia, com céu encoberto. Horário e precipitação serão parâmetros separados internamente, permitindo combinar noite e chuva futuramente. Não acrescentar essas combinações extras ao escopo inicial.
 
-As cinco pistas implementadas com quatro condições resultam em **20 combinações jogáveis**. A lista de planejamento agora contém 12 traçados candidatos contando os três existentes, portanto poderia chegar a **48 combinações** se todos forem construídos. A multiplicação reaproveita o traçado; cada condição recebe cenário, efeitos e balanceamento adequados.
+As seis pistas implementadas com quatro condições resultam em **24 combinações jogáveis**. A lista de planejamento agora contém 12 traçados candidatos contando os três existentes, portanto poderia chegar a **48 combinações** se todos forem construídos. A multiplicação reaproveita o traçado; cada condição recebe cenário, efeitos e balanceamento adequados.
 
 A condição é escolhida antes da largada e fica estável durante a corrida na primeira implementação. Recordes devem identificar pista e condição, porque visibilidade e piso podem mudar os tempos. As quatro versões pertencem à mesma pista e acompanham seu desbloqueio na campanha.
 
@@ -170,7 +171,7 @@ A resistência das motos pode ajudar a suportar impactos. Seus atributos de curv
 4. **Porto Ferrugem em quatro versões:** acrescentar tráfego pesado, obras e a aparição no porto.
 5. **Anel de Aço e expansão das outras pistas:** todas seguem os mesmos sistemas de condições e aparições.
 
-Essa ordem orienta as próximas etapas. A primeira entrega já foi publicada; os demais traçados continuam no planejamento. Empinada/salto e combate permanente foram implementados antes da expansão de pistas.
+Essa ordem registra a proposta original. Costa, Terra, Mata e Porto já foram implementados; Anel de Aço e demais traçados continuam no planejamento. Empinada/salto e combate permanente foram implementados antes da expansão de pistas.
 
 ### Porto Ferrugem: traçado de referência
 
@@ -254,3 +255,21 @@ O usuário priorizou Porto após o aumento dos preços das motos. A pista de 7,8
 - Top 5 no Vale Vermelho libera Porto. Saves anteriores com esse recorde em qualquer condição recebem o desbloqueio; dinheiro, equipamentos e motos compradas são mantidos.
 - Preços: Falcão 10 mil, Estradeira 18 mil, Veneno 30 mil, Lobo 45 mil, Agulha 65 mil e Brutal 100 mil. A Ferro continua sendo a moto inicial.
 - Validação: sete motos completaram o percurso seco e molhado com comandos limitados de aceleração, freio e direção; menu, reinício, celular, duas pessoas + seis bots, golpes e reconexão verificados no navegador.
+
+
+## Atualização — protótipo da Mata Fechada em 2026-09-29
+
+Por escolha do usuário, a primeira entrega é uma versão jogável para avaliar traçado e cenário. A campanha e o campeonato continuam com cinco pistas. Execute `npm run dev:mata` e abra `http://127.0.0.1:4396/mata.html`.
+
+- 7,6 km, vinte curvas próprias, incluindo o Cotovelo da Mata em 2,31 km, uma curva fechada e sinalizada que favorece motos ágeis, relevo suave, retas de retomada e chegada livre. Sete motos disponíveis no protótipo, com joelheira dourada para avaliar a pilotagem.
+- Duas faixas no sentido da corrida e uma na contramão, alternando com quatro trechos de uma faixa por sentido. Transições de 180 m e sinalização antecipada; largura, faixas, trânsito e IA compartilham a mesma geometria.
+- Floresta densa em duas fileiras, cipós e quatro trechos com copas cobrindo toda a estrada. Samambaias, bromélias, pedras com musgo, troncos e cogumelos nas laterais. Dia, Entardecer, Noite e Chuva preservam a leitura da pista.
+- Cinco trechos de lama visível e sinalizada ocupam um dos lados, com espaço para desviar. Reduzem aderência, frenagem e velocidade. Entrar com velocidade provoca derrapagem visível, respingos e queda; a recuperação usa a caminhada até a moto. É possível sair devagar (até cerca de 29 km/h) ou desviar antes de entrar. A resistência diminui em baixa velocidade para permitir arrancar do repouso com qualquer moto. Chuva também aplica o piso molhado existente.
+- Tráfego espaçado e três galhos caídos em retas visíveis, ocupando apenas um lado. Capivaras, tucanos, veados e tamanduás em 28 pontos nas margens, com pequenas animações, sem entrar na pista nem participar da física. Macaco raro e decorativo, com folha como abrigo na chuva; sorteio independente da física e aparição de oito segundos.
+- Seleção de condição, moto e trecho inicial; controles de teclado e toque, pausa e reinício. O protótipo não lê nem grava a garagem, contas, prêmios ou rankings.
+- Folhas/poças com física própria e ponte estreita continuam para uma etapa posterior, após avaliar o percurso. A aderência localizada já está implementada nos trechos visíveis de lama.
+- Integração como sexta pista, campanha/campeonato e salas fica para a etapa seguinte à avaliação; não publicada.
+
+## Atualização — integração aprovada em 2026-09-29
+
+Após a avaliação do protótipo, Mata Fechada integra a Beta1.8.0 como sexta pista oficial, com quatro condições. Top5 na Terra Brava libera o acesso, inclusive com recordes antigos. Salas oferecem 24 combinações; novos campeonatos têm seis etapas/24 corridas. Campeonatos antigos concluídos e conquistas obtidas são preservados. O protótipo separado continua disponível para testes locais. Folhas/poças com física própria e ponte estreita continuam futuras.
