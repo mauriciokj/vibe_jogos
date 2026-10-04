@@ -19,6 +19,11 @@ export const POLICE_BIKE_SPEED=(Math.max(...MOTORBIKES.map(b=>b.speed))+3*2.5)*1
 BIKES.push({id:POLICE_BIKE_ID,secret:true,singlePlayerOnly:true,nitroCapacity:0,name:'Patrulha 900',class:'MOTO DA POLÍCIA',style:'cruiser',price:0,speed:POLICE_BIKE_SPEED,acceleration:16,handling:1,armor:1,color:'#e7e9e5',tagline:'Conquistada ao terminar uma corrida com a moto roubada do policial. Exclusiva do individual e campeonato, sem privilégios de polícia.'});
 export function onlineBike(id?:string):Bike {const b=getBike(id);return b.singlePlayerOnly?BIKES[0]:b;}
 
+// Always include the starter. Secret vehicles still require a verified account.
+export function ownedOnlineBikes(owned:unknown, verified=false):string[] {
+  return BIKES.filter(b=>!b.singlePlayerOnly && (!b.secret || verified) && (b.id==='ferro' || Array.isArray(owned) && owned.includes(b.id))).map(b=>b.id);
+}
+
 export const BICYCLE_ID='bicicleta';
 export const isBicycle=(id?:string)=>id===BICYCLE_ID;
 export function getBike(id?: string): Bike { return BIKES.find(b => b.id === id) ?? BIKES[0]; }

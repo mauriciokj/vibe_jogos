@@ -11,6 +11,10 @@ A última corrida da sequência oferece repetir ou voltar à sala. É necessári
 
 ## Configuração da sala
 
+**Somente motos da garagem** pode ser marcada ao criar a sala pública ou por convite. Desmarcada por padrão, preserva a escolha livre dos sete modelos comuns. Ativada, cada jogador só pode escolher motos que possui. A regra é exibida na busca pública e no lobby e permanece ao repetir, avançar, voltar à sala, trocar de anfitrião ou reconectar. Para alterá-la, crie outra sala.
+
+Contas usam o inventário oficial do servidor, ignorando declarações do navegador. Convidados usam a garagem local declarada ao entrar, sem comprovação de compra, como já ocorre com equipamentos. A lista é preservada durante a sessão e não pode ser ampliada numa troca de moto. Quem entra por convite ou busca pública com um modelo incompatível recebe a Ferro 500 e pode selecionar outra moto permitida no lobby. A Magrela continua exigindo desbloqueio em conta; Patrulha 900 continua fora do multiplayer. Bots mantêm seus modelos de fábrica.
+
 Cada jogador escolhe sua própria moto. O anfitrião escolhe pista e condição; trocar a pista cancela as confirmações de todos. Trocar de moto cancela a confirmação do próprio jogador. A escolha fica bloqueada durante os cinco segundos finais antes da largada.
 
 O criador começa como anfitrião. Se ele sair, o próximo jogador conectado assume. A sala reaberta aguarda todos ficarem prontos, sem iniciar por um prazo de configuração. A sala criada pela primeira vez mantém o prazo já existente de 60 segundos, ou 120 segundos se pública.
@@ -23,10 +27,11 @@ O código e as identidades dos participantes são preservados. Cada corrida tem 
 
 Uma desconexão temporária reserva a vaga por 15 segundos e impede a confirmação unânime de largada durante essa recuperação. Quem sai explicitamente deixa de participar da confirmação. Se restar apenas uma pessoa, ela pode reabrir a sala e convidar outros jogadores.
 
-A sala pública volta ao índice de busca quando reabre. As transições entre corridas foram introduzidas no protocolo18; a nova premiação usa protocolo **19**, exigindo que cliente e servidor apliquem a mesma regra.
+A sala pública volta ao índice de busca quando reabre. As transições entre corridas foram introduzidas no protocolo18; a premiação usa protocolo19, a Mata usa protocolo20 e a opção de garagem usa protocolo **21**, exigindo atualização conjunta do cliente e servidor.
 
 ## Testes
 
+- `npm run test:garage-only`: criação, entrada, propriedade de contas/convidados, troca, busca pública, reconexão e navegador em computador/celular.
 - `npm run test:room-continuation`: regras, sockets, múltiplas corridas, contas, convidados e navegador em computador e celular.
 - `npm run test:redis`: duas instâncias, retorno ao índice público, configuração compartilhada e próxima corrida. Requer Redis de teste em `ASFALTO_TEST_REDIS_URL`.
 - `npm run test:finish`: regressão das cenas e navegação após a chegada.

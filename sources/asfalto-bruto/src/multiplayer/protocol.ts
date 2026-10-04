@@ -1,6 +1,6 @@
 import type { AttackKind, Command, RaceState, RaceCondition, RiderAction } from '../game/types';
 
-export const NET_VERSION = 20;
+export const NET_VERSION = 21;
 export const MAX_PLAYERS = 8;
 export const ROOM_WAIT_MS = 60_000;
 export const PUBLIC_ROOM_WAIT_MS = 120_000;
@@ -10,22 +10,23 @@ export type RematchChoice = 'next' | 'again' | 'lobby';
 export interface MemberView { entryId?: string; continuation?: RematchChoice; helmetId?: string; helmetColorId?: string; id: string; name: string; bikeId: string; weaponId?: string; kneePadId?: string; nitro?: number; ready: boolean; connected: boolean; }
 export interface AttackInput { seq: number; kind: AttackKind; }
 export interface ActionInput { seq: number; kind: RiderAction; }
-export interface Loadout { helmetId?: string; helmetColorId?: string; weaponId?: string; kneePadId?: string; nitro?: number; }
+export interface Loadout { ownedBikes?: string[]; helmetId?: string; helmetColorId?: string; weaponId?: string; kneePadId?: string; nitro?: number; }
 export interface RoomView {
   round?: number; hostId?: string; manualStart?: boolean; continuationCount?:number; reconnectingCount?:number;
   previous?: { race: RaceState; members: MemberView[] };
-  public?: boolean;
+  public?: boolean; garageOnly?: boolean;
   code: string; trackId: string; condition?: RaceCondition; fillBots: boolean; phase: 'lobby' | 'racing' | 'finished'; locked: boolean;
   deadline: number | null; serverNow: number; revision: number; members: MemberView[];
   race: RaceState | null; ack: Record<string, number>; attackAck: Record<string, number>; actionAck?: Record<string, number>; simulationAt: number;
 }
 export interface PublicRoomView {
+  garageOnly?: boolean;
   code: string; trackId: string; condition: RaceCondition; fillBots: boolean;
   players: number; maxPlayers: number; deadline: number | null;
 }
 export interface PublicRoomsResponse { rooms: PublicRoomView[]; serverNow: number; version: number; }
 export type ClientMessage =
-  | { type: 'create'; version: number; name: string; trackId: string; condition?: RaceCondition; fillBots?: boolean; public?: boolean; bikeId?: string; loadout?: Loadout; requireAccount?: boolean }
+  | { type: 'create'; version: number; name: string; trackId: string; condition?: RaceCondition; fillBots?: boolean; public?: boolean; garageOnly?: boolean; bikeId?: string; loadout?: Loadout; requireAccount?: boolean }
   | { type: 'join'; version: number; name: string; code: string; publicOnly?: boolean; bikeId?: string; loadout?: Loadout; requireAccount?: boolean }
   | { type: 'resume'; version: number; code: string; token: string }
   | { type: 'ready'; ready: boolean }

@@ -51,10 +51,11 @@ export class PublicRoomBrowser {
           const title=document.createElement('b');title.textContent=`${getTrack(room.trackId).name} · ${conditionName(room.condition)}`;
           const detail=document.createElement('span');
           detail.textContent=`${room.players}/${room.maxPlayers} pessoas · ${room.fillBots?'com bots nas vagas livres':'sem bots'}`;
+          const rule=document.createElement('span');rule.textContent=room.garageOnly?'Somente motos da garagem':'Motos de fábrica · escolha livre';
           const timing=document.createElement('small');timing.dataset.deadline=String(room.deadline ?? '');timing.dataset.players=String(room.players);
           const button=document.createElement('button');button.className='secondary';button.dataset.publicRoom=room.code;button.textContent='ENTRAR ↗';button.setAttribute('aria-label',`Entrar em ${title.textContent}, ${room.players} pessoas, sala ${room.code}`);
           button.addEventListener('click',()=>{if(!this.busy)this.join(room.code);});
-          info.append(title,detail,timing);row.append(info,button);list.append(row);
+          info.append(title,detail,rule,timing);row.append(info,button);list.append(row);
         }
         if(focused)Array.from(list.querySelectorAll<HTMLButtonElement>('button')).find(b=>b.dataset.publicRoom===focused)?.focus({preventScroll:true});
       }

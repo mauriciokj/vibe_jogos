@@ -45,7 +45,7 @@ test('discovery contains only joinable public lobbies and no member credentials'
   const stale=lobby('000009');stale.members[0].lastSeen=at-15_001;await store.create(stale);
   const solo=lobby('00000A',true,true);await store.create(solo);
   const result=await store.publicRooms(at);assert.deepEqual(result.map(r=>r.code),['ABCDEF','00000A']);
-  assert.deepEqual(Object.keys(result[0]).sort(),['code','trackId','condition','fillBots','players','maxPlayers','deadline'].sort());
+  assert.deepEqual(Object.keys(result[0]).sort(),['code','trackId','condition','fillBots','garageOnly','players','maxPlayers','deadline'].sort());
   assert.equal(result[0].players,2);assert.equal(result[0].condition,'night');assert.equal(result[1].players,1);
   await store.mutate(full.code,r=>depart(r,r.members[1].id,r.members[1].epoch,at,true));
   assert.equal((await store.publicRooms(at))[0].code,full.code);

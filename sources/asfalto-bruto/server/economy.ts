@@ -14,6 +14,8 @@ import { racePayout } from '../src/game/rewards';
 import { cleanCommand } from '../src/multiplayer/protocol';
 import type { RaceState, SaveData } from '../src/game/types';
 import type { Member, Room } from './room';
+import { restrictGarageBike } from './room';
+import { ownedOnlineBikes } from '../src/game/bikes';
 
 export class EconomyError extends Error { constructor(public status:number,message:string){super(message);} }
 const fail=(message:string,status=409):never=>{throw new EconomyError(status,message);};
@@ -188,14 +190,16 @@ export class Economy {
       return {ok:true,completed:finish,cursor:body.cursor+ticks,cloud:this.db.cloud(id),payout};
     }finally{this.busy.delete(id);}
   }
-  equipMember(id:string|undefined,member:Member,previous?:Member){
-    // Ordinary motorcycles are free to choose online, with factory attributes.
+  equipMember(id:string|undefined,member:Member,previous?:Member,garageOnly=false){
+    // Ownership comes from the official save for accounts, never the payload.
     // The secret still requires a verified unlock. Guest equipment has already
     // been limited to catalog IDs/capacity by makeMember; it never enters a save
     // or ranking account. Account equipment always comes from the official save.
     const save=id?this.initialize(id).save!:undefined,requested=getBike(member.bikeId);
-    const bike=requested.singlePlayerOnly || requested.secret && !save?.owned.includes(requested.id)?'ferro':requested.id;
-    member.bikeId=bike;
+    member.ownedBikes=ownedOnlineBikes(save?.owned ?? member.ownedBikes,!!save);
+    member.bikeId=requested.singlePlayerOnly || requested.secret && !save?.owned.includes(requested.id)?'ferro':requested.id;
+    restrictGarageBike(member,garageOnly,!!previous);
+    const bike=member.bikeId;
     if(!id || !save){member.accountId=undefined;member.nitro=nitroCount(bike,member.nitro);return;}
     this.db.mutate(id,stored=>{
       const next=structuredClone(stored!);
@@ -211,8 +215,8 @@ export class Economy {
       return {save:next,value:null};
     },this.now());
   }
-  prepareMembers(members:Member[],previous:Member[]){
-    this.db.transaction(()=>{for(const member of members)this.equipMember(member.accountId,member,previous.find(m=>m.id===member.id));});
+  prepareMembers(members:Member[],previous:Member[],garageOnly=false){
+    this.db.transaction(()=>{for(const member of members)this.equipMember(member.accountId,member,previous.find(m=>m.id===member.id),garageOnly);});
   }
   releaseMember(member:Member,used=0,result?:import('../src/game/types').RaceResult,race?:RaceState){
     const entry=member.entryId ?? member.id;

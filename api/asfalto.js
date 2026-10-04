@@ -37,7 +37,7 @@ module.exports = __toCommonJS(asfalto_exports);
 var import_node_http2 = require("node:http");
 
 // src/version.ts
-var GAME_VERSION = "1.8.0-beta";
+var GAME_VERSION = "1.8.1-beta";
 
 // server/service.ts
 var import_node_http = require("node:http");
@@ -385,6 +385,9 @@ BIKES.push({ id: POLICE_BIKE_ID, secret: true, singlePlayerOnly: true, nitroCapa
 function onlineBike(id) {
   const b = getBike(id);
   return b.singlePlayerOnly ? BIKES[0] : b;
+}
+function ownedOnlineBikes(owned, verified = false) {
+  return BIKES.filter((b) => !b.singlePlayerOnly && (!b.secret || verified) && (b.id === "ferro" || Array.isArray(owned) && owned.includes(b.id))).map((b) => b.id);
 }
 var BICYCLE_ID = "bicicleta";
 var isBicycle = (id) => id === BICYCLE_ID;
@@ -1464,7 +1467,7 @@ function stepRace(state, commands = {}) {
 }
 
 // src/multiplayer/protocol.ts
-var NET_VERSION = 20;
+var NET_VERSION = 21;
 var MAX_PLAYERS = 8;
 var ROOM_WAIT_MS = 6e4;
 var PUBLIC_ROOM_WAIT_MS = 12e4;
@@ -1527,15 +1530,23 @@ var inputKey = (member) => `${member.id}:${member.epoch}`;
 var secret = () => (0, import_node_crypto.randomBytes)(24).toString("base64url");
 function makeMember(name, now, bikeId, loadout) {
   const bike = onlineBike(typeof bikeId === "string" ? bikeId : void 0);
-  return { id: `human-${(0, import_node_crypto.randomBytes)(8).toString("hex")}`, name: cleanName(name), bikeId: bike.id, helmetId: getHelmet(loadout?.helmetId).id, helmetColorId: getHelmetColor(loadout?.helmetColorId).id, weaponId: getWeapon(loadout?.weaponId)?.id, kneePadId: getKneePad(loadout?.kneePadId)?.id, nitro: nitroCount(bike.id, loadout?.nitro), ready: false, connected: true, token: secret(), epoch: secret(), lastSeen: now };
+  return { id: `human-${(0, import_node_crypto.randomBytes)(8).toString("hex")}`, name: cleanName(name), bikeId: bike.id, ownedBikes: ownedOnlineBikes(loadout?.ownedBikes), helmetId: getHelmet(loadout?.helmetId).id, helmetColorId: getHelmetColor(loadout?.helmetColorId).id, weaponId: getWeapon(loadout?.weaponId)?.id, kneePadId: getKneePad(loadout?.kneePadId)?.id, nitro: nitroCount(bike.id, loadout?.nitro), ready: false, connected: true, token: secret(), epoch: secret(), lastSeen: now };
 }
-function makeRoom(code, trackId, member, now, fillBots = false, condition, isPublic = false) {
+function restrictGarageBike(member, garageOnly = false, strict = false) {
+  if (!garageOnly || (member.ownedBikes ?? ["ferro"]).includes(member.bikeId)) return;
+  if (strict) throw Error("Esta sala permite somente motos da sua garagem. Escolha uma moto que voc\xEA possui.");
+  member.bikeId = "ferro";
+  member.nitro = 0;
+}
+function makeRoom(code, trackId, member, now, fillBots = false, condition, isPublic = false, garageOnly = false) {
   if (!TRACKS.some((t) => t.id === trackId)) throw new Error("Estrada inv\xE1lida.");
   if (condition !== void 0 && !CONDITIONS.some((c) => c.id === condition)) throw new Error("Condi\xE7\xE3o inv\xE1lida.");
+  restrictGarageBike(member, garageOnly === true);
   return {
     code,
     round: 0,
     public: isPublic === true,
+    garageOnly: garageOnly === true,
     condition: raceCondition(condition),
     trackId,
     fillBots: fillBots === true,
@@ -1564,6 +1575,7 @@ function viewRoom(room, now) {
     reconnectingCount: waiting.filter((m) => !m.connected).length,
     previous: room.previous,
     public: room.public === true,
+    garageOnly: room.garageOnly === true,
     condition: raceCondition(room.condition),
     trackId: room.trackId,
     fillBots: room.fillBots,
@@ -1590,7 +1602,7 @@ function publicRoomView(room, now) {
   if (room.public !== true || room.phase !== "lobby" || room.locked || now - room.createdAt > 30 * 6e4) return null;
   const players = room.members.filter((m) => m.connected && now - m.lastSeen <= RECONNECT_MS).length;
   if (!players || players >= MAX_PLAYERS || players >= 2 && room.deadline !== null && room.deadline - now <= READY_WAIT_MS) return null;
-  return { code: room.code, trackId: room.trackId, condition: raceCondition(room.condition), fillBots: room.fillBots, players, maxPlayers: MAX_PLAYERS, deadline: room.deadline !== null && room.deadline > now ? room.deadline : null };
+  return { code: room.code, trackId: room.trackId, condition: raceCondition(room.condition), fillBots: room.fillBots, garageOnly: room.garageOnly === true, players, maxPlayers: MAX_PLAYERS, deadline: room.deadline !== null && room.deadline > now ? room.deadline : null };
 }
 function sortPublicRooms(rooms) {
   return rooms.sort((a, b) => b.players - a.players || (a.deadline ?? Infinity) - (b.deadline ?? Infinity) || a.code.localeCompare(b.code)).slice(0, 50);
@@ -1628,6 +1640,7 @@ function joinRoom(room, member, now) {
   room.members = room.members.filter((p) => p.connected);
   if (room.members.length >= MAX_PLAYERS) throw new Error("Sala cheia: o limite \xE9 de 8 pessoas.");
   if (member.accountId && room.members.some((m) => m.accountId === member.accountId)) throw new Error("Esta conta j\xE1 est\xE1 na sala.");
+  restrictGarageBike(member, room.garageOnly);
   room.members.push(member);
   lobbyClock(room, now);
 }
@@ -1689,6 +1702,7 @@ function configureRoom(room, id, epoch, round, patch, now, equip) {
   if (patch.bikeId !== void 0) {
     const selected = makeMember(m.name, now, patch.bikeId, patch.loadout);
     const replacement = { ...m, bikeId: selected.bikeId, helmetId: selected.helmetId, helmetColorId: selected.helmetColorId, weaponId: selected.weaponId, kneePadId: selected.kneePadId, nitro: selected.nitro, entryId: selected.id, ready: false };
+    restrictGarageBike(replacement, room.garageOnly, true);
     equip?.(replacement, m);
     Object.assign(m, replacement);
   }
@@ -2044,7 +2058,7 @@ function createGameServer(store, options = {}) {
     const choice = continuationChoice(room, now());
     if (!choice) return;
     options.accounts?.recordRoom(room);
-    reopenRoom(room, choice, now(), (members, previous) => options.accounts?.economy.prepareMembers(members, previous));
+    reopenRoom(room, choice, now(), (members, previous) => options.accounts?.economy.prepareMembers(members, previous, room.garageOnly));
   }
   async function flush(peer) {
     if (peer.writing || !peer.code) return;
@@ -2126,10 +2140,10 @@ function createGameServer(store, options = {}) {
             const member = makeMember(data.name, now(), data.bikeId, data.loadout);
             member.accountId = options.accounts?.identity(req)?.account.id;
             let room;
-            options.accounts?.economy.equipMember(member.accountId, member);
+            options.accounts?.economy.equipMember(member.accountId, member, void 0, data.garageOnly === true);
             reservation = member;
             do {
-              room = makeRoom((0, import_node_crypto2.randomBytes)(4).toString("hex").slice(0, 6).toUpperCase(), data.trackId, member, now(), data.fillBots === true, data.condition, data.public === true);
+              room = makeRoom((0, import_node_crypto2.randomBytes)(4).toString("hex").slice(0, 6).toUpperCase(), data.trackId, member, now(), data.fillBots === true, data.condition, data.public === true, data.garageOnly === true);
             } while (!await store.create(room));
             await attach(peer, room, member);
           } else {
@@ -2137,13 +2151,11 @@ function createGameServer(store, options = {}) {
             if (!/^[A-F0-9]{6}$/.test(code)) throw new Error("Digite o c\xF3digo de 6 caracteres da sala.");
             let member = makeMember(data.name, now(), data.bikeId, data.loadout);
             member.accountId = options.accounts?.identity(req)?.account.id;
-            if (data.type === "join") {
-              options.accounts?.economy.equipMember(member.accountId, member);
-              reservation = member;
-            }
             const room = await store.mutate(code, (r) => {
               if (data.type === "join") {
                 if (data.publicOnly === true && !publicRoomView(r, now())) throw new Error("Esta sala n\xE3o est\xE1 mais dispon\xEDvel. Atualize a lista e escolha outra.");
+                options.accounts?.economy.equipMember(member.accountId, member, void 0, r.garageOnly);
+                reservation = member;
                 joinRoom(r, member, now());
               } else {
                 const found = r.members.find((m) => typeof data.token === "string" && m.token === data.token);
@@ -2170,7 +2182,7 @@ function createGameServer(store, options = {}) {
             continueIfReady(r);
           }));
         } else if (data.type === "configure" && peer.code) {
-          broadcast(await store.mutate(peer.code, (r) => configureRoom(r, peer.id, peer.epoch, data.round, data, now(), (member, previous) => options.accounts?.economy.equipMember(member.accountId, member, previous))));
+          broadcast(await store.mutate(peer.code, (r) => configureRoom(r, peer.id, peer.epoch, data.round, data, now(), (member, previous) => options.accounts?.economy.equipMember(member.accountId, member, previous, r.garageOnly))));
         } else if (data.type === "leave" && peer.code) {
           const code = peer.code;
           peer.code = "";

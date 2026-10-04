@@ -2,7 +2,12 @@ import './releases.css';
 import { GAME_VERSION } from './version';
 export { GAME_VERSION } from './version';
 export const RELEASES=[
-  {version:GAME_VERSION,date:'29/09/2026',title:'Entre na Mata Fechada',changes:[
+  {version:GAME_VERSION,date:'04/10/2026',title:'Sua garagem na sala online',changes:[
+    'Ao criar uma sala, marque Somente motos da garagem para cada pessoa correr apenas com modelos que possui.',
+    'A regra aparece na busca pública e no lobby e permanece nas próximas corridas e reconexões.',
+    'A opção vem desmarcada. As motos continuam com atributos de fábrica, sem melhorias da campanha.'
+  ]},
+  {version:'1.8.0-beta',date:'29/09/2026',title:'Entre na Mata Fechada',changes:[
     'Mata Fechada é a sexta pista: 7,6 km, vinte curvas, trechos de duas faixas em um sentido e uma no outro, túneis de árvores e animais nas margens.',
     'Cuidado com a lama: entrar com velocidade faz derrapar e cair. O Cotovelo da Mata favorece motos ágeis e exige preparar a frenagem.',
     'Top 5 na Terra Brava libera a pista no individual, inclusive para quem já tinha esse resultado. Dia, Entardecer, Noite e Chuva também estão disponíveis nas salas multiplayer.',

@@ -34,7 +34,7 @@ export class OnlineClient {
     try { const s=JSON.parse(sessionStorage.getItem(sessionKey) ?? 'null'); if(s?.code && s?.token){this.code=s.code;this.token=s.token;this.open({type:'resume',version:NET_VERSION,code:s.code,token:s.token});return true;} } catch {}
     return false;
   }
-  create(name: string, trackId: string, fillBots = false, bikeId = 'ferro', condition: RaceCondition = 'sunset', loadout?: Loadout, isPublic = false, requireAccount = false) { this.open({type:'create',version:NET_VERSION,name,trackId,fillBots,bikeId,condition,loadout,public:isPublic,requireAccount}); }
+  create(name: string, trackId: string, fillBots = false, bikeId = 'ferro', condition: RaceCondition = 'sunset', loadout?: Loadout, isPublic = false, requireAccount = false, garageOnly = false) { this.open({type:'create',version:NET_VERSION,name,trackId,fillBots,bikeId,condition,loadout,public:isPublic,requireAccount,garageOnly}); }
   join(name: string, code: string, bikeId = 'ferro', loadout?: Loadout, publicOnly = false, requireAccount = false) { this.open({type:'join',version:NET_VERSION,name,bikeId,code:code.trim().toUpperCase(),loadout,publicOnly,requireAccount}); }
   ready(ready: boolean) { this.send({type:'ready',ready}); }
   continue(choice:RematchChoice){this.send({type:'continue',round:this.room?.round ?? 0,choice});}

@@ -70,7 +70,7 @@ export function createGameServer(store: RoomStore, options: { origins?: string[]
     const choice=continuationChoice(room,now());if(!choice)return;
     // Settle the completed race before replacing its state or reservations.
     options.accounts?.recordRoom(room);
-    reopenRoom(room,choice,now(),(members,previous)=>options.accounts?.economy.prepareMembers(members,previous));
+    reopenRoom(room,choice,now(),(members,previous)=>options.accounts?.economy.prepareMembers(members,previous,room.garageOnly));
   }
   async function flush(peer: Peer) {
     if (peer.writing || !peer.code) return;
@@ -115,17 +115,17 @@ export function createGameServer(store: RoomStore, options: { origins?: string[]
           if (data.requireAccount && !options.accounts?.identity(req)) throw new Error('Sua sessão expirou. Entre novamente na conta para usar sua garagem.');
           if (data.type === 'create') {
             const member = makeMember(data.name,now(),data.bikeId,data.loadout); member.accountId=options.accounts?.identity(req)?.account.id; let room: Room;
-            options.accounts?.economy.equipMember(member.accountId,member);reservation=member;
-            do { room = makeRoom(randomBytes(4).toString('hex').slice(0,6).toUpperCase(),data.trackId,member,now(),data.fillBots === true,data.condition,data.public === true); } while (!await store.create(room));
+            options.accounts?.economy.equipMember(member.accountId,member,undefined,data.garageOnly===true);reservation=member;
+            do { room = makeRoom(randomBytes(4).toString('hex').slice(0,6).toUpperCase(),data.trackId,member,now(),data.fillBots === true,data.condition,data.public === true,data.garageOnly===true); } while (!await store.create(room));
             await attach(peer,room,member);
           } else {
             const code = String(data.code ?? '').toUpperCase();
             if (!/^[A-F0-9]{6}$/.test(code)) throw new Error('Digite o código de 6 caracteres da sala.');
             let member = makeMember(data.name,now(),data.bikeId,data.loadout); member.accountId=options.accounts?.identity(req)?.account.id;
-            if(data.type==='join'){options.accounts?.economy.equipMember(member.accountId,member);reservation=member;}
             const room = await store.mutate(code,r => {
               if (data.type === 'join') {
                 if(data.publicOnly === true && !publicRoomView(r,now()))throw new Error('Esta sala não está mais disponível. Atualize a lista e escolha outra.');
+                options.accounts?.economy.equipMember(member.accountId,member,undefined,r.garageOnly);reservation=member;
                 joinRoom(r,member,now());
               }
               else {
@@ -146,7 +146,7 @@ export function createGameServer(store: RoomStore, options: { origins?: string[]
         } else if(data.type==='continue' && peer.code){
           broadcast(await store.mutate(peer.code,r=>{setContinuation(r,peer.id,peer.epoch,data.round,data.choice,now());continueIfReady(r);}));
         } else if(data.type==='configure' && peer.code){
-          broadcast(await store.mutate(peer.code,r=>configureRoom(r,peer.id,peer.epoch,data.round,data,now(),(member,previous)=>options.accounts?.economy.equipMember(member.accountId,member,previous))));
+          broadcast(await store.mutate(peer.code,r=>configureRoom(r,peer.id,peer.epoch,data.round,data,now(),(member,previous)=>options.accounts?.economy.equipMember(member.accountId,member,previous,r.garageOnly))));
         } else if (data.type === 'leave' && peer.code) {
           const code = peer.code; peer.code = ''; peer.pending = undefined;
           broadcast(await store.mutate(code,r => depart(r,peer.id,peer.epoch,now(),true)));

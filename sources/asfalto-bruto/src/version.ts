@@ -1,2 +1,2 @@
 // Product version is separate from multiplayer protocol and ranking rules.
-export const GAME_VERSION='1.8.0-beta';
+export const GAME_VERSION='1.8.1-beta';
